@@ -1,0 +1,9 @@
+.idea/
+vendor/
+generated/
+typerefs/
+idl/
+snapshots/
+go-restli
+*.swp
+*.swo
