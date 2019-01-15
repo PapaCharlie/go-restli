@@ -1,9 +1,9 @@
 package restli
 
 import (
-	"fmt"
 	"github.com/dave/jennifer/jen"
 	"log"
+	"strings"
 )
 
 type RestliType interface {
@@ -12,30 +12,9 @@ type RestliType interface {
 }
 
 type GeneratedType struct {
-	NamespacePrefix string
-	Namespace       string
-	Name            string
-	Doc             string
-	Definition      jen.Statement
-}
-
-func (g GeneratedType) GoType() *jen.Statement {
-	return getQual(NsJoin(g.NamespacePrefix, g.Namespace), g.Name)
-}
-
-type TyperefType struct {
-	NamespacePrefix string
-	Namespace       string
-	Name            string
-	Doc             string
-}
-
-func (t *TyperefType) GoType() *jen.Statement {
-	return getQual(NsJoin(t.NamespacePrefix, t.Namespace), t.Name)
-}
-
-func (t *TyperefType) UnionFieldName() string {
-	return t.Name
+	ReferenceType
+	Doc        string
+	Definition jen.Statement
 }
 
 type ReferenceType struct {
@@ -48,9 +27,12 @@ func (r *ReferenceType) UnionFieldName() string {
 	return r.Name
 }
 
+func (r *ReferenceType) PackageName() string {
+	return strings.Replace(NsJoin(r.NamespacePrefix, r.Namespace), NamespaceSep, "/", -1)
+}
+
 func (r *ReferenceType) GoType() *jen.Statement {
-	fmt.Println(NsJoin(r.NamespacePrefix, r.Namespace), r.Name)
-	return getQual(NsJoin(r.NamespacePrefix, r.Namespace), r.Name)
+	return jen.Qual(r.PackageName(), r.Name)
 }
 
 type PrimitiveType struct {
@@ -79,7 +61,7 @@ func (t *PrimitiveType) GoType() *jen.Statement {
 	case Bytes:
 		return jen.Index().Byte()
 	case Fixed:
-		return jen.Index(jen.Lit(t.Size).Byte())
+		return jen.Index(jen.Lit(t.Size)).Byte()
 	default:
 		log.Panicln("Unknown primitive type", t.Type)
 	}

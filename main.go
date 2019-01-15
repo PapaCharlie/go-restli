@@ -7,20 +7,19 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func main() {
 	if len(os.Args) < 2 {
 		log.Panicln("Must specify at least one snapshot file")
 	}
-	task := restli.NewGenerator(os.Args[1], "generated", "typerefs")
+	task := restli.SnapshotParser{DestinationPackage: os.Args[1]}
 	outputDir := os.Args[2]
 	openFiles := map[string]*jen.File{}
 	generatedTypes := map[string]bool{}
 
 	for _, filename := range os.Args[3:] {
-		task.DecodeSnapshotModels(filename)
+		task.GenerateTypes(filename)
 		for _, m := range task.GeneratedTypes {
 			fqn := restli.NsJoin(m.Namespace, m.Name)
 			if generatedTypes[fqn] {
@@ -32,7 +31,7 @@ func main() {
 			var f *jen.File
 			var ok bool
 
-			packagePath := strings.Replace(restli.NsJoin(task.GeneratedTypesNamespacePrefix, m.Namespace), restli.NamespaceSep, "/", -1)
+			packagePath := m.PackageName()
 
 			if f, ok = openFiles[packagePath]; !ok {
 				f = jen.NewFilePath(packagePath)
@@ -43,8 +42,12 @@ func main() {
 	}
 
 	for p, f := range openFiles {
-		p := filepath.Join(outputDir, p, "types.go")
-		fmt.Println(filepath.Abs(p))
+		p, err := filepath.Abs(filepath.Join(outputDir, p, "types.go"))
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(p)
+
 		if err := os.MkdirAll(filepath.Dir(p), os.ModePerm); err != nil {
 			panic(err)
 		}
@@ -55,7 +58,7 @@ func main() {
 		}
 
 		if file, err := os.Create(p); err == nil {
-			if _, err := fmt.Fprintf(file, "%#v\n", f); err != nil {
+			if err := f.Render(file); err != nil {
 				panic(err)
 			}
 		} else {

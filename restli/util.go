@@ -1,7 +1,6 @@
 package restli
 
 import (
-	"github.com/dave/jennifer/jen"
 	"log"
 	"strings"
 )
@@ -27,10 +26,6 @@ func jsonTag(fieldName string) map[string]string {
 
 func capitalizeFirstLetter(name string) string {
 	return strings.ToUpper(name[:1]) + name[1:]
-}
-
-func getQual(namespace, name string) *jen.Statement {
-	return jen.Qual(strings.Replace(namespace, NamespaceSep, "/", -1), name)
 }
 
 func NsJoin(elements ...string) string {

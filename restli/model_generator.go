@@ -2,12 +2,17 @@ package restli
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/dave/jennifer/jen"
 )
 
+// Namespace field delimiter for Java
+const NamespaceSep = "."
+
+// Restli fields
 const (
 	Name       = "name"
 	Namespace  = "namespace"
@@ -21,10 +26,9 @@ const (
 	Symbols    = "symbols"
 	SymbolDocs = "symbolDocs"
 	Alias      = "alias"
-
-	NamespaceSep = "."
 )
 
+// Restli types
 const (
 	Int     = "int"
 	Long    = "long"
@@ -44,27 +48,12 @@ const (
 	Values  = "values"
 )
 
-type Generator struct {
-	DestinationPackage            string
-	GeneratedTypesNamespacePrefix string
-	TyperefsNamespacePrefix       string
-	GeneratedTypes                []GeneratedType
-
-	knownTypeRefs map[string]bool
+type SnapshotParser struct {
+	DestinationPackage string
+	GeneratedTypes     []*GeneratedType
 }
 
-func NewGenerator(destinationPackage string, generatedTypesNamespacePrefix string, typerefsNamespacePrefix string) *Generator {
-	return &Generator{
-		DestinationPackage:            destinationPackage,
-		GeneratedTypesNamespacePrefix: NsJoin(destinationPackage, generatedTypesNamespacePrefix),
-		TyperefsNamespacePrefix:       NsJoin(destinationPackage, typerefsNamespacePrefix),
-		GeneratedTypes:                nil,
-
-		knownTypeRefs: make(map[string]bool),
-	}
-}
-
-func (t *Generator) DecodeSnapshotModels(filename string) {
+func (p *SnapshotParser) GenerateTypes(filename string) {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Panicln(err)
@@ -72,19 +61,29 @@ func (t *Generator) DecodeSnapshotModels(filename string) {
 
 	snapshot := struct {
 		Models []interface{} `json:"models"`
+		Schema struct {
+			Name      string `json:"name"`
+			Namespace string `json:"namespace"`
+			Doc       string `json:"doc"`
+			Path      string `json:"path"`
+		} `json:"schema"`
 	}{}
-	if err = json.NewDecoder(file).Decode(&snapshot); err != nil {
+
+	decoder := json.NewDecoder(file)
+	decoder.UseNumber()
+
+	if err = decoder.Decode(&snapshot); err != nil {
 		log.Panicln(err)
 	}
 
 	for _, m := range snapshot.Models {
 		if this, isMap := m.(map[string]interface{}); isMap {
-			t.generateType(this)
+			p.generateType(this)
 		}
 	}
 }
 
-func (t *Generator) generateType(this map[string]interface{}) {
+func (p *SnapshotParser) generateType(this map[string]interface{}) {
 	namespace := getStringField(this, Namespace)
 	if namespace == "" {
 		log.Panicln("top-level defs must specify a namespace")
@@ -92,49 +91,58 @@ func (t *Generator) generateType(this map[string]interface{}) {
 
 	switch this[Type] {
 	case Typeref:
-		t.registerTyperef(this)
+		p.typeForTyperefField(jen.Empty(), this, namespace)
 	case Enum:
-		t.typeForEnumField(jen.Empty(), this, namespace)
+		p.typeForEnumField(jen.Empty(), this, namespace)
 	case Record:
-		t.typeForRecordField(jen.Empty(), this, namespace)
+		p.typeForRecordField(jen.Empty(), this, namespace)
+	case Fixed:
+		f := p.newGeneratedType(getStringField(this, Name), namespace)
+		f.Definition.Type().Id(f.Name).Add(p.newFixedType(this).GoType())
 	default:
 		log.Panicln("illegal type in top-level definition", this[Type])
 	}
 }
 
-func (t *Generator) typeForField(field *jen.Statement, this map[string]interface{}, namespace string) {
+func (p *SnapshotParser) typeForField(field *jen.Statement, this map[string]interface{}, namespace string) {
+	if newNamespace := getStringField(this, Namespace); newNamespace != "" {
+		namespace = newNamespace
+	}
 	switch this[Type] {
 	case Typeref:
-		t.registerTyperef(this)
+		p.typeForTyperefField(field, this, namespace)
 	case Map:
-		t.typeForMapField(field, this[Values], namespace)
+		p.typeForMapField(field, this[Values], namespace)
 	case Array:
-		t.typeForArrayField(field, this[Items], namespace)
+		p.typeForArrayField(field, this[Items], namespace)
 	case Record:
-		t.typeForRecordField(field, this, namespace)
+		p.typeForRecordField(field, this, namespace)
 	case Enum:
-		t.typeForEnumField(field, this, namespace)
+		p.typeForEnumField(field, this, namespace)
+	case Fixed:
+		field.Add(p.newFixedType(this).GoType())
 	default:
-		field.Add(t.primitiveOrReference(this[Type].(string), namespace).GoType())
+		field.Add(p.primitiveOrReference(this[Type].(string), namespace).GoType())
 	}
 }
 
-func (t *Generator) registerTyperef(this map[string]interface{}) {
-	t.knownTypeRefs[NsJoin(this[Namespace].(string), this[Name].(string))] = true
+func (p *SnapshotParser) typeForTyperefField(field *jen.Statement, this map[string]interface{}, namespace string) {
+	tr := p.newGeneratedType(getStringField(this, Name), namespace)
+
+	tr.Definition.Comment(getStringField(this, Doc)).Line()
+	tr.Definition.Type().Id(tr.Name).Add(p.primitiveOrReference(getStringField(this, "ref"), namespace).GoType()).Line()
+
+	field.Add(tr.GoType())
 }
 
-func (t *Generator) registerGeneratedType(generatedTypes ...GeneratedType) {
-	t.GeneratedTypes = append(t.GeneratedTypes, generatedTypes...)
-}
+func (p *SnapshotParser) typeForEnumField(field *jen.Statement, this map[string]interface{}, namespace string) {
+	e := p.newGeneratedType(getStringField(this, Name), namespace)
 
-func (t *Generator) typeForEnumField(field *jen.Statement, this map[string]interface{}, namespace string) {
-	e := GeneratedType{
-		NamespacePrefix: t.GeneratedTypesNamespacePrefix,
-		Namespace:       namespace,
-		Name:            getStringField(this, Name),
-	}
 	var consts []jen.Code
-	symbolDocs := this[SymbolDocs].(map[string]interface{})
+	var symbolDocs map[string]interface{}
+	if symbolDocsI, hasSymbolDocs := this[SymbolDocs]; hasSymbolDocs {
+		symbolDocs = symbolDocsI.(map[string]interface{})
+	}
 	for i, constNameI := range this[Symbols].([]interface{}) {
 		constName := constNameI.(string)
 		doc := getStringField(symbolDocs, constName)
@@ -147,19 +155,18 @@ func (t *Generator) typeForEnumField(field *jen.Statement, this map[string]inter
 	e.Definition.Comment(getStringField(this, Doc)).Line()
 	e.Definition.Type().Id(e.Name).String().Line()
 	e.Definition.Const().Defs(consts...)
-	t.registerGeneratedType(e)
 
 	field.Add(e.GoType())
 }
 
-func (t *Generator) typeForUnionField(field *jen.Statement, unionTypes []interface{}, namespace string) {
+func (p *SnapshotParser) typeForUnionField(field *jen.Statement, unionTypes []interface{}, namespace string) {
 	var unionFields []jen.Code
 	for _, unionType := range unionTypes {
 		unionField := jen.Empty()
 		switch unionType.(type) {
 		case string:
 			stringUnionType := unionType.(string)
-			t := t.primitiveOrReference(stringUnionType, namespace)
+			t := p.primitiveOrReference(stringUnionType, namespace)
 			unionField.Id(t.UnionFieldName()).Op("*").Add(t.GoType())
 			switch t.(type) {
 			case *PrimitiveType:
@@ -186,8 +193,8 @@ func (t *Generator) typeForUnionField(field *jen.Statement, unionTypes []interfa
 					tag = NsJoin(newNamespace, name)
 				}
 			}
-			unionField.Id(name)
-			t.typeForField(unionField, this, namespace)
+			unionField.Id(name).Op("*")
+			p.typeForField(unionField, this, namespace)
 			unionField.Tag(jsonTag(tag))
 		default:
 			log.Panicln("illegal type in union", unionType)
@@ -197,40 +204,36 @@ func (t *Generator) typeForUnionField(field *jen.Statement, unionTypes []interfa
 	field.Struct(unionFields...)
 }
 
-func (t *Generator) typeForArrayField(field *jen.Statement, items interface{}, namespace string) {
+func (p *SnapshotParser) typeForArrayField(field *jen.Statement, items interface{}, namespace string) {
 	field.Index()
 	switch items.(type) {
 	case string:
-		field.Add(t.primitiveOrReference(items.(string), namespace).GoType())
+		field.Add(p.primitiveOrReference(items.(string), namespace).GoType())
 	case []interface{}:
-		t.typeForUnionField(field, items.([]interface{}), namespace)
+		p.typeForUnionField(field, items.([]interface{}), namespace)
 	case map[string]interface{}:
-		t.typeForField(field, items.(map[string]interface{}), namespace)
+		p.typeForField(field, items.(map[string]interface{}), namespace)
 	default:
 		log.Panicln("illegal items type for array field", items)
 	}
 }
 
-func (t *Generator) typeForMapField(field *jen.Statement, values interface{}, namespace string) {
+func (p *SnapshotParser) typeForMapField(field *jen.Statement, values interface{}, namespace string) {
 	field.Map(jen.String())
 	switch values.(type) {
 	case string:
-		field.Add(t.primitiveOrReference(values.(string), namespace).GoType())
+		field.Add(p.primitiveOrReference(values.(string), namespace).GoType())
 	case []interface{}:
-		t.typeForUnionField(field, values.([]interface{}), namespace)
+		p.typeForUnionField(field, values.([]interface{}), namespace)
 	case map[string]interface{}:
-		t.typeForField(field, values.(map[string]interface{}), namespace)
+		p.typeForField(field, values.(map[string]interface{}), namespace)
 	default:
 		log.Panicln("illegal values type for map field", values)
 	}
 }
 
-func (t *Generator) typeForRecordField(field *jen.Statement, this map[string]interface{}, namespace string) {
-	r := GeneratedType{
-		NamespacePrefix: t.GeneratedTypesNamespacePrefix,
-		Namespace:       namespace,
-		Name:            getStringField(this, Name),
-	}
+func (p *SnapshotParser) typeForRecordField(field *jen.Statement, this map[string]interface{}, namespace string) {
+	r := p.newGeneratedType(getStringField(this, Name), namespace)
 	r.Definition.Comment(getStringField(this, Doc)).Line()
 
 	var structFields []jen.Code
@@ -238,14 +241,14 @@ func (t *Generator) typeForRecordField(field *jen.Statement, this map[string]int
 		for _, i := range include.([]interface{}) {
 			switch i.(type) {
 			case string:
-				structFields = append(structFields, jen.Add(t.NewReferenceType(i.(string), namespace).GoType()))
+				structFields = append(structFields, jen.Add(p.newReferenceType(i.(string), namespace).GoType()))
 			case map[string]interface{}:
 				mapIncludeField := i.(map[string]interface{})
 				if mapIncludeField[Type] != Record {
 					log.Panicln("include fields can only be references or records")
 				}
 				f := jen.Empty()
-				t.typeForRecordField(f, mapIncludeField, namespace)
+				p.typeForRecordField(f, mapIncludeField, namespace)
 				structFields = append(structFields, f)
 			default:
 				log.Panicln("include fields can only be references or records")
@@ -257,11 +260,11 @@ func (t *Generator) typeForRecordField(field *jen.Statement, this map[string]int
 		f := jen.Id(getFieldName(field))
 		switch field[Type].(type) {
 		case string:
-			t.typeForField(f, field, namespace)
+			p.typeForField(f, field, namespace)
 		case []interface{}:
-			t.typeForUnionField(f, field[Type].([]interface{}), namespace)
+			p.typeForUnionField(f, field[Type].([]interface{}), namespace)
 		case map[string]interface{}:
-			t.typeForField(f, field[Type].(map[string]interface{}), namespace)
+			p.typeForField(f, field[Type].(map[string]interface{}), namespace)
 		default:
 			log.Panicln("illegal field type", field[Type])
 		}
@@ -269,11 +272,11 @@ func (t *Generator) typeForRecordField(field *jen.Statement, this map[string]int
 		structFields = append(structFields, f)
 	}
 	r.Definition.Type().Id(r.Name).Struct(structFields...)
-	t.registerGeneratedType(r)
+
 	field.Add(r.GoType())
 }
 
-func (t *Generator) primitiveOrReference(ident string, namespace string) RestliType {
+func (p *SnapshotParser) primitiveOrReference(ident string, namespace string) RestliType {
 	switch ident {
 	case Int:
 		fallthrough
@@ -289,32 +292,48 @@ func (t *Generator) primitiveOrReference(ident string, namespace string) RestliT
 		fallthrough
 	case Bytes:
 		return &PrimitiveType{Type: ident}
+	case Fixed:
+		log.Panicln("cannot specify", Fixed, "types without size")
+		return nil
 	default:
-		return t.NewReferenceType(ident, namespace)
+		return p.newReferenceType(ident, namespace)
 	}
 }
 
-func (t *Generator) NewReferenceType(name, namespace string) (rt *ReferenceType) {
+func (p *SnapshotParser) newFixedType(this map[string]interface{}) *PrimitiveType {
+	size, err := this[Size].(json.Number).Int64()
+	if err != nil {
+		log.Panicln(err)
+	}
+	return &PrimitiveType{
+		Type: Fixed,
+		Size: int(size),
+	}
+}
+
+func (p *SnapshotParser) newReferenceType(name, namespace string) (rt *ReferenceType) {
+	rt = &ReferenceType{
+		NamespacePrefix: p.DestinationPackage,
+	}
 	if strings.Count(string(name), NamespaceSep) != 0 {
 		lastDot := strings.LastIndex(name, NamespaceSep)
-		rt = &ReferenceType{
-			Name:      name[lastDot+1:],
-			Namespace: name[:lastDot],
-		}
+		rt.Name = name[lastDot+1:]
+		rt.Namespace = name[:lastDot]
 	} else {
 		if namespace == "" {
 			log.Panicln("namespace cannot be empty")
 		} else {
-			rt = &ReferenceType{
-				Name:      name,
-				Namespace: namespace,
-			}
+			rt.Name = name
+			rt.Namespace = namespace
 		}
 	}
-	if t.knownTypeRefs[NsJoin(rt.Namespace, rt.Name)] {
-		rt.NamespacePrefix = t.TyperefsNamespacePrefix
-	} else {
-		rt.NamespacePrefix = t.GeneratedTypesNamespacePrefix
-	}
 	return
+}
+
+func (p *SnapshotParser) newGeneratedType(name, namespace string) *GeneratedType {
+	gt := &GeneratedType{
+		ReferenceType: *p.newReferenceType(name, namespace),
+	}
+	p.GeneratedTypes = append(p.GeneratedTypes, gt)
+	return gt
 }
