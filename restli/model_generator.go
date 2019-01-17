@@ -97,7 +97,10 @@ func (p *SnapshotParser) generateType(this map[string]interface{}) {
 	case Record:
 		p.typeForRecordField(jen.Empty(), this, namespace)
 	case Fixed:
-		f := p.newGeneratedType(getStringField(this, Name), namespace)
+		f := p.newGeneratedType(getStringField(this, Name), namespace, Typerefs)
+		if doc := getStringField(this, Doc); doc != "" {
+			f.Definition.Comment(doc).Line()
+		}
 		f.Definition.Type().Id(f.Name).Add(p.newFixedType(this).GoType())
 	default:
 		log.Panicln("illegal type in top-level definition", this[Type])
@@ -127,32 +130,37 @@ func (p *SnapshotParser) typeForField(field *jen.Statement, this map[string]inte
 }
 
 func (p *SnapshotParser) typeForTyperefField(field *jen.Statement, this map[string]interface{}, namespace string) {
-	tr := p.newGeneratedType(getStringField(this, Name), namespace)
+	tr := p.newGeneratedType(getStringField(this, Name), namespace, Typerefs)
 
-	tr.Definition.Comment(getStringField(this, Doc)).Line()
+	if doc := getStringField(this, Doc); doc != "" {
+		tr.Definition.Comment(doc).Line()
+	}
 	tr.Definition.Type().Id(tr.Name).Add(p.primitiveOrReference(getStringField(this, "ref"), namespace).GoType()).Line()
 
 	field.Add(tr.GoType())
 }
 
 func (p *SnapshotParser) typeForEnumField(field *jen.Statement, this map[string]interface{}, namespace string) {
-	e := p.newGeneratedType(getStringField(this, Name), namespace)
+	e := p.newGeneratedType(getStringField(this, Name), namespace, Enums)
 
 	var consts []jen.Code
 	var symbolDocs map[string]interface{}
 	if symbolDocsI, hasSymbolDocs := this[SymbolDocs]; hasSymbolDocs {
 		symbolDocs = symbolDocsI.(map[string]interface{})
 	}
-	for i, constNameI := range this[Symbols].([]interface{}) {
+	for _, constNameI := range this[Symbols].([]interface{}) {
 		constName := constNameI.(string)
-		doc := getStringField(symbolDocs, constName)
 		def := jen.Id(constName)
-		if i == 0 {
-			def.Op("=").Id(e.Name).Call(jen.Iota())
+		def.Op("=").Id(e.Name).Call(jen.Lit(constName))
+		if doc := getStringField(symbolDocs, constName); doc != "" {
+			def.Comment(doc)
 		}
-		consts = append(consts, def.Comment(doc))
+		consts = append(consts, def)
 	}
-	e.Definition.Comment(getStringField(this, Doc)).Line()
+
+	if doc := getStringField(this, Doc); doc != "" {
+		e.Definition.Comment(doc).Line()
+	}
 	e.Definition.Type().Id(e.Name).String().Line()
 	e.Definition.Const().Defs(consts...)
 
@@ -233,8 +241,11 @@ func (p *SnapshotParser) typeForMapField(field *jen.Statement, values interface{
 }
 
 func (p *SnapshotParser) typeForRecordField(field *jen.Statement, this map[string]interface{}, namespace string) {
-	r := p.newGeneratedType(getStringField(this, Name), namespace)
-	r.Definition.Comment(getStringField(this, Doc)).Line()
+	r := p.newGeneratedType(getStringField(this, Name), namespace, Structs)
+
+	if doc := getStringField(this, Doc); doc != "" {
+		r.Definition.Comment(doc).Line()
+	}
 
 	var structFields []jen.Code
 	if include, hasInclude := this[Include]; hasInclude {
@@ -330,9 +341,10 @@ func (p *SnapshotParser) newReferenceType(name, namespace string) (rt *Reference
 	return
 }
 
-func (p *SnapshotParser) newGeneratedType(name, namespace string) *GeneratedType {
+func (p *SnapshotParser) newGeneratedType(name, namespace string, category GeneratedTypeCategory) *GeneratedType {
 	gt := &GeneratedType{
 		ReferenceType: *p.newReferenceType(name, namespace),
+		Category:      category,
 	}
 	p.GeneratedTypes = append(p.GeneratedTypes, gt)
 	return gt

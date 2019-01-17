@@ -11,12 +11,6 @@ type RestliType interface {
 	UnionFieldName() string
 }
 
-type GeneratedType struct {
-	ReferenceType
-	Doc        string
-	Definition jen.Statement
-}
-
 type ReferenceType struct {
 	NamespacePrefix string
 	Namespace       string
@@ -66,4 +60,19 @@ func (t *PrimitiveType) GoType() *jen.Statement {
 		log.Panicln("Unknown primitive type", t.Type)
 	}
 	return nil
+}
+
+type GeneratedTypeCategory string
+
+const (
+	Enums    = GeneratedTypeCategory("enums")
+	Structs  = GeneratedTypeCategory("structs")
+	Typerefs = GeneratedTypeCategory("typerefs")
+)
+
+type GeneratedType struct {
+	ReferenceType
+	Doc        string
+	Definition jen.Statement
+	Category   GeneratedTypeCategory
 }

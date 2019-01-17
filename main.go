@@ -31,18 +31,19 @@ func main() {
 			var f *jen.File
 			var ok bool
 
-			packagePath := m.PackageName()
+			packageName := m.PackageName()
+			fileName := packageName + "/" + string(m.Category) + ".go"
 
-			if f, ok = openFiles[packagePath]; !ok {
-				f = jen.NewFilePath(packagePath)
-				openFiles[packagePath] = f
+			if f, ok = openFiles[fileName]; !ok {
+				f = jen.NewFilePath(packageName)
+				openFiles[fileName] = f
 			}
 			f.Add(m.Definition...)
 		}
 	}
 
 	for p, f := range openFiles {
-		p, err := filepath.Abs(filepath.Join(outputDir, p, "types.go"))
+		p, err := filepath.Abs(filepath.Join(outputDir, p))
 		if err != nil {
 			panic(err)
 		}
