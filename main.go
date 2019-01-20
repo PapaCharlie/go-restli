@@ -2,68 +2,56 @@ package main
 
 import (
 	"fmt"
-	"github.com/dave/jennifer/jen"
-	"go-restli/restli"
+	"go-restli/restli/models"
 	"log"
 	"os"
 	"path/filepath"
 )
 
 func main() {
+	log.SetFlags(log.Lshortfile)
+
+	if len(os.Args) == 1 {
+		log.Fatalf("Usage: %s PACKAGE_PREFIX OUTPUT_DIR SNAPSHOT_FILES...", os.Args[0])
+	}
+
 	if len(os.Args) < 2 {
-		log.Panicln("Must specify at least one snapshot file")
+		log.Fatal("Must specify the package prefix")
 	}
-	task := restli.SnapshotParser{DestinationPackage: os.Args[1]}
-	outputDir := os.Args[2]
-	openFiles := map[string]*jen.File{}
-	generatedTypes := map[string]bool{}
+	packagePrefix := os.Args[1]
 
-	for _, filename := range os.Args[3:] {
-		task.GenerateTypes(filename)
-		for _, m := range task.GeneratedTypes {
-			fqn := restli.NsJoin(m.Namespace, m.Name)
-			if generatedTypes[fqn] {
-				continue
-			} else {
-				generatedTypes[fqn] = true
-			}
-
-			var f *jen.File
-			var ok bool
-
-			packageName := m.PackageName()
-			fileName := packageName + "/" + string(m.Category) + ".go"
-
-			if f, ok = openFiles[fileName]; !ok {
-				f = jen.NewFilePath(packageName)
-				openFiles[fileName] = f
-			}
-			f.Add(m.Definition...)
-		}
+	if len(os.Args) < 3 {
+		log.Fatal("Must specify the output dir")
+	}
+	outputDir, err := filepath.Abs(os.Args[2])
+	if err != nil {
+		log.Fatal("Illegal path", err)
 	}
 
-	for p, f := range openFiles {
-		p, err := filepath.Abs(filepath.Join(outputDir, p))
+	if len(os.Args) < 3 {
+		log.Fatalf("Must specify at least one snapshot file")
+	}
+	snapshotFiles := os.Args[3:]
+
+	for _, filename := range snapshotFiles {
+		file, err := os.Open(filename)
 		if err != nil {
-			panic(err)
-		}
-		fmt.Println(p)
-
-		if err := os.MkdirAll(filepath.Dir(p), os.ModePerm); err != nil {
-			panic(err)
-		}
-		if _, err := os.Stat(p); err == nil {
-			if err := os.Remove(p); err != nil {
-				panic(err)
-			}
+			log.Fatal(err)
 		}
 
-		if file, err := os.Create(p); err == nil {
-			if err := f.Render(file); err != nil {
-				panic(err)
+		loadedModels, err := models.LoadModels(file)
+		if err != nil {
+			log.Panicf("%+v", err)
+		}
+
+		for _, m := range loadedModels {
+			file, err := m.GenerateModelCode(outputDir, packagePrefix)
+			if err != nil {
+				log.Fatal(err)
 			}
-		} else {
-			panic(err)
+			if file != "" {
+				fmt.Println(file)
+			}
 		}
 	}
 }
