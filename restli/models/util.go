@@ -21,7 +21,7 @@ func LoadModels(reader io.Reader) ([]*Model, error) {
 	}{}
 	err := json.NewDecoder(reader).Decode(snapshot)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	snapshot.Models = append(snapshot.Models, flattenModels(snapshot.Models)...)
@@ -45,15 +45,15 @@ func (m *Model) GenerateModelCode(outputDir, packagePrefix string) (filename str
 func write(filename string, file *jen.File) error {
 	b := bytes.NewBuffer(nil)
 	if err := file.Render(b); err != nil {
-		return errors.Cause(err)
+		return errors.WithStack(err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
-		return errors.Cause(err)
+		return errors.WithStack(err)
 	}
 
 	if err := ioutil.WriteFile(filename, b.Bytes(), os.ModePerm); err != nil {
-		return errors.Cause(err)
+		return errors.WithStack(err)
 	}
 
 	return nil

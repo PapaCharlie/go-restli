@@ -3,7 +3,9 @@ vendor/
 generated/
 typerefs/
 idl/
-snapshots/
+/snapshots/
+/models/
+/schemas/
 go-restli
 *.swp
 *.swo

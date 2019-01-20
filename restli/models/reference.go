@@ -14,7 +14,7 @@ type Reference struct {
 func (r *Reference) UnmarshalJSON(data []byte) error {
 	var name string
 	if err := json.Unmarshal(data, &name); err != nil {
-		return errors.Cause(err)
+		return errors.WithStack(err)
 	}
 
 	// ensure not a primitive

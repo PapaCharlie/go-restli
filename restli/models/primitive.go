@@ -20,7 +20,7 @@ type Primitive string
 func (p *Primitive) UnmarshalJSON(data []byte) error {
 	var primitiveType string
 	if err := json.Unmarshal(data, &primitiveType); err != nil {
-		return errors.Cause(err)
+		return errors.WithStack(err)
 	}
 
 	switch primitiveType {

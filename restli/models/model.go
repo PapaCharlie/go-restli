@@ -77,7 +77,7 @@ func (m *Model) String() string {
 	}
 	if m.Primitive != nil {
 		modelType = "Primitive"
-		model = m.Primitive
+		model = string(*m.Primitive)
 	}
 	if m.Record != nil {
 		modelType = "Record"
@@ -143,6 +143,9 @@ func (m *Model) InnerModels() (models []*Model) {
 	}
 	if m.Union != nil {
 		models = m.Union.InnerModels()
+	}
+	if m.Typeref != nil {
+		models = m.Typeref.InnerModels()
 	}
 
 	for _, innerModel := range models {
@@ -238,7 +241,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Record = recordType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	case EnumType:
 		enumType := &Enum{}
@@ -246,7 +249,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Enum = enumType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	case FixedType:
 		fixedType := &Fixed{}
@@ -254,7 +257,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Fixed = fixedType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	case MapType:
 		mapType := &Map{}
@@ -262,7 +265,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Map = mapType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	case ArrayType:
 		arrayType := &Array{}
@@ -270,7 +273,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Array = arrayType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	case TyperefType:
 		typerefType := &Typeref{}
@@ -278,7 +281,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Typeref = typerefType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	default:
 		var primitiveType Primitive
@@ -286,7 +289,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			m.Primitive = &primitiveType
 			return nil
 		} else {
-			return errors.Cause(err)
+			return errors.WithStack(err)
 		}
 	}
 

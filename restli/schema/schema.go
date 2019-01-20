@@ -7,9 +7,9 @@ type Schema struct {
 	Schema     string
 	Doc        string
 	Collection Collection
-	ActionSet  struct {
+	ActionsSet struct {
 		Actions []Action
-	} `json:"actionSet"`
+	}
 }
 
 type Collection struct {
@@ -41,17 +41,17 @@ type Endpoint struct {
 	Returns    string
 }
 
-type Finder struct {
-	Endpoint
-	PagingSupported bool `json:"pagingSupported"`
-}
-
 type Parameter struct {
 	Name     string
 	Doc      string
 	Type     string
 	Optional bool
-	Default  string
+	Default  *string
+}
+
+type Finder struct {
+	Endpoint
+	PagingSupported bool `json:"pagingSupported"`
 }
 
 type Action struct {

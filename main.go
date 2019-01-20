@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go-restli/restli/models"
+	"go-restli/restli/schema"
 	"log"
 	"os"
 	"path/filepath"
@@ -41,7 +42,7 @@ func main() {
 
 		loadedModels, err := models.LoadModels(file)
 		if err != nil {
-			log.Panicf("%+v", err)
+			log.Fatalf("could not load %s: %+v", filename, err)
 		}
 
 		for _, m := range loadedModels {
@@ -52,6 +53,22 @@ func main() {
 			if file != "" {
 				fmt.Println(file)
 			}
+		}
+	}
+
+	for _, filename := range snapshotFiles {
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		loadedSchema, err := schema.LoadSchema(file)
+		if err != nil {
+			log.Panicf("%+v", err)
+		}
+		if loadedSchema != nil {
+			fmt.Println(loadedSchema.ActionsSet)
+			fmt.Println(len(loadedSchema.ActionsSet.Actions))
 		}
 	}
 }
