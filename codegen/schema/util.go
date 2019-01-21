@@ -5,9 +5,9 @@ import (
 	"io"
 )
 
-func LoadSchema(reader io.Reader) (*Schema, error) {
+func LoadSchema(reader io.Reader) (*Resource, error) {
 	schema := &struct {
-		Schema *Schema `json:"schema"`
+		Schema *Resource `json:"schema"`
 	}{}
 
 	err := json.NewDecoder(reader).Decode(schema)

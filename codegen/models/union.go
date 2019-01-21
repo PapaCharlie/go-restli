@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"github.com/dave/jennifer/jen"
+	. "go-restli/codegen"
 	"strings"
 )
 
@@ -40,21 +41,21 @@ func (u *Union) InnerModels() (models []*Model) {
 	return
 }
 
-func (u *Union) generateCode(destinationPackage string) (def *jen.Statement) {
+func (u *Union) generateCode(packagePrefix string) (def *jen.Statement) {
 	return
 }
 
-func (u *Union) GoType(destinationPackage string) *jen.Statement {
+func (u *Union) GoType(packagePrefix string) *jen.Statement {
 	if len(u.Types) == 0 {
 		panic(u)
 	}
 	var fields []jen.Code
 	for _, t := range u.Types {
 		def := jen.Empty()
-		addWordWrappedComment(def, t.Doc)
+		AddWordWrappedComment(def, t.Doc).Line()
 		def.Id(t.name())
-		def.Add(t.GoType(destinationPackage))
-		def.Tag(jsonTag(t.alias()))
+		def.Add(t.GoType(packagePrefix))
+		def.Tag(JsonTag(t.alias()))
 		fields = append(fields, def)
 	}
 	return jen.Struct(fields...)

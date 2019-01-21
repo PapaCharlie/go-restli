@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"github.com/dave/jennifer/jen"
+	. "go-restli/codegen"
 	"log"
 )
 
@@ -29,19 +30,19 @@ func (r *Record) InnerModels() (models []*Model) {
 	return
 }
 
-func (r *Record) generateCode(destinationPackage string) (def *jen.Statement) {
+func (r *Record) generateCode(packagePrefix string) (def *jen.Statement) {
 	def = jen.Empty()
 
-	addWordWrappedComment(def, r.Doc)
+	AddWordWrappedComment(def, r.Doc).Line()
 
 	var fields []jen.Code
 	for _, i := range r.Include {
 		if ref := i.Reference; ref != nil {
-			fields = append(fields, i.GoType(destinationPackage))
+			fields = append(fields, i.GoType(packagePrefix))
 			continue
 		}
 		if rec := i.Record; rec != nil {
-			fields = append(fields, i.GoType(destinationPackage))
+			fields = append(fields, i.GoType(packagePrefix))
 			continue
 		}
 		log.Panic("Illegal included type:", i)
@@ -49,10 +50,10 @@ func (r *Record) generateCode(destinationPackage string) (def *jen.Statement) {
 
 	for _, f := range r.Fields {
 		field := jen.Empty()
-		addWordWrappedComment(field, f.Doc)
-		field.Id(publicFieldName(f.Name))
-		field.Add(f.Type.GoType(destinationPackage))
-		field.Tag(jsonTag(f.Name))
+		AddWordWrappedComment(field, f.Doc).Line()
+		field.Id(ExportedIdentifier(f.Name))
+		field.Add(f.Type.GoType(packagePrefix))
+		field.Tag(JsonTag(f.Name))
 		fields = append(fields, field)
 	}
 

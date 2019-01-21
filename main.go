@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"go-restli/restli/models"
-	"go-restli/restli/schema"
+	"go-restli/codegen"
+	"go-restli/codegen/models"
+	"go-restli/codegen/schema"
 	"log"
 	"os"
 	"path/filepath"
@@ -34,41 +35,47 @@ func main() {
 	}
 	snapshotFiles := os.Args[3:]
 
-	for _, filename := range snapshotFiles {
-		file, err := os.Open(filename)
-		if err != nil {
-			log.Fatal(err)
-		}
+	var codeFiles []*codegen.CodeFile
 
-		loadedModels, err := models.LoadModels(file)
+	for _, filename := range snapshotFiles {
+		loadedModels, err := models.LoadModels(readFile(filename))
 		if err != nil {
 			log.Fatalf("could not load %s: %+v", filename, err)
 		}
 
 		for _, m := range loadedModels {
-			file, err := m.GenerateModelCode(outputDir, packagePrefix)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if file != "" {
-				fmt.Println(file)
+			if code := m.GenerateModelCode(packagePrefix); code != nil {
+				codeFiles = append(codeFiles, code)
 			}
 		}
-	}
 
-	for _, filename := range snapshotFiles {
-		file, err := os.Open(filename)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		loadedSchema, err := schema.LoadSchema(file)
+		loadedSchema, err := schema.LoadSchema(readFile(filename))
 		if err != nil {
 			log.Panicf("%+v", err)
 		}
+
 		if loadedSchema != nil {
-			fmt.Println(loadedSchema.ActionsSet)
-			fmt.Println(len(loadedSchema.ActionsSet.Actions))
+			if code := loadedSchema.GenerateCode(packagePrefix); code != nil {
+				codeFiles = append(codeFiles, code)
+			}
 		}
 	}
+
+	for _, code := range codeFiles {
+		file, err := code.Write(outputDir)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			fmt.Println(file)
+
+		}
+	}
+}
+
+func readFile(filename string) *os.File {
+	file, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return file
 }

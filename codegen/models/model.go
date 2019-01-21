@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
+	. "go-restli/codegen"
 	"log"
 	"strings"
 )
@@ -14,34 +15,34 @@ type NameAndDoc struct {
 	Doc  string `json:"doc"`
 }
 
-type namespace struct {
+type Ns struct {
 	Namespace string `json:"namespace"`
 }
 
-func (n *namespace) PackagePath(destinationPackage string) string {
+func (n *Ns) PackagePath(packagePrefix string) string {
 	if n.Namespace == "" {
 		panic("no namespace for package!")
 	}
 	p := strings.Replace(n.Namespace, ".", "/", -1)
-	if destinationPackage != "" {
-		p = destinationPackage + "/" + p
+	if packagePrefix != "" {
+		p = packagePrefix + "/" + p
 	}
 	return p
 }
 
-func (m *Model) Qual(destinationPackage string) *jen.Statement {
+func (m *Model) Qual(packagePrefix string) *jen.Statement {
 	if m.Name == "" {
 		log.Panicln("name cannot be empty!", m)
 	}
-	return jen.Qual(m.PackagePath(destinationPackage), m.Name)
+	return jen.Qual(m.PackagePath(packagePrefix), m.Name)
 }
 
 type ModelCodeGenerator interface {
-	GenerateCode(destinationPackage string, previousNamespace string) (packagePath string, typeName string, def *jen.Statement)
+	GenerateCode(packagePrefix string, previousNamespace string) (packagePath string, typeName string, def *jen.Statement)
 }
 
 type Model struct {
-	namespace
+	Ns
 	NameAndDoc
 
 	*Array
@@ -99,32 +100,37 @@ func (m *Model) String() string {
 	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s", m.Name, m.Namespace, m.Doc, modelType, model)
 }
 
-func (m *Model) generateCode(destinationPackage string) (def *jen.Statement, packagePath string, typeName string) {
+func (m *Model) GenerateModelCode(packagePrefix string) (f *CodeFile) {
+	f = &CodeFile{}
+	if m.Namespace != "" {
+		f.PackagePath = m.PackagePath(packagePrefix)
+	}
+
 	if m.Enum != nil {
-		def = m.Enum.generateCode(destinationPackage)
-		typeName = m.Name
+		f.Code = m.Enum.generateCode(packagePrefix)
+		f.Filename = m.Name
 	}
 
 	if m.Record != nil {
-		def = m.Record.generateCode(destinationPackage)
-		typeName = m.Name
+		f.Code = m.Record.generateCode(packagePrefix)
+		f.Filename = m.Name
 	}
 
 	if m.Typeref != nil {
-		def = m.Typeref.generateCode(destinationPackage)
-		typeName = m.Name
+		f.Code = m.Typeref.generateCode(packagePrefix)
+		f.Filename = m.Name
 	}
 
 	if m.Union != nil {
-		def = m.Union.generateCode(destinationPackage)
-		typeName = m.Name
+		f.Code = m.Union.generateCode(packagePrefix)
+		f.Filename = m.Name
 	}
 
-	if m.Namespace != "" {
-		packagePath = m.PackagePath(destinationPackage)
+	if f.Code == nil {
+		return nil
 	}
 
-	if def != nil && (packagePath == "" || typeName == "") {
+	if f.Code != nil && (f.PackagePath == "" || f.Filename == "") {
 		log.Panicf("code generators must have a namespace and name: %+v", m)
 	}
 
@@ -157,13 +163,13 @@ func (m *Model) InnerModels() (models []*Model) {
 	return
 }
 
-func (m *Model) GoType(destinationPackage string) *jen.Statement {
+func (m *Model) GoType(packagePrefix string) *jen.Statement {
 	// Arrays and maps have special notation
 	if m.Array != nil {
-		return m.Array.GoType(destinationPackage)
+		return m.Array.GoType(packagePrefix)
 	}
 	if m.Map != nil {
-		return m.Map.GoType(destinationPackage)
+		return m.Map.GoType(packagePrefix)
 	}
 
 	// "Fixed" is an alias for [n]byte
@@ -177,7 +183,7 @@ func (m *Model) GoType(destinationPackage string) *jen.Statement {
 	}
 
 	if m.Union != nil {
-		return m.Union.GoType(destinationPackage)
+		return m.Union.GoType(packagePrefix)
 	}
 
 	// All of the following are type references
@@ -185,7 +191,7 @@ func (m *Model) GoType(destinationPackage string) *jen.Statement {
 		if m.Namespace == "" {
 			log.Panicln(m.Name, "has no namespace!")
 		} else {
-			return m.Qual(destinationPackage)
+			return m.Qual(packagePrefix)
 		}
 	}
 
@@ -194,35 +200,41 @@ func (m *Model) GoType(destinationPackage string) *jen.Statement {
 
 func (m *Model) UnmarshalJSON(data []byte) error {
 	model := &struct {
-		namespace
+		Ns
 		NameAndDoc
 		Type json.RawMessage
 	}{}
 
 	if err := json.Unmarshal(data, model); err != nil {
-		var subErr error
+		var unmarshalErrors []error
 
 		var primitive Primitive
-		if subErr = json.Unmarshal(data, &primitive); subErr == nil {
+		if err := json.Unmarshal(data, &primitive); err == nil {
 			m.Primitive = &primitive
 			return nil
+		} else {
+			unmarshalErrors = append(unmarshalErrors, err)
 		}
 
 		var reference Reference
-		if subErr = json.Unmarshal(data, &reference); subErr == nil {
+		if err := json.Unmarshal(data, &reference); err == nil {
 			m.Reference = &reference
 			m.Namespace = reference.Namespace
 			m.Name = reference.Name
 			return nil
+		} else {
+			unmarshalErrors = append(unmarshalErrors, err)
 		}
 
 		union := &Union{}
-		if subErr = json.Unmarshal(data, union); subErr == nil {
+		if err := json.Unmarshal(data, union); err == nil {
 			m.Union = union
 			return nil
+		} else {
+			unmarshalErrors = append(unmarshalErrors, err)
 		}
 
-		return errors.Wrapf(subErr, "illegal model type (original error: %v)", err)
+		return errors.Errorf("illegal model type: %v", unmarshalErrors)
 	}
 
 	m.Namespace = model.Namespace

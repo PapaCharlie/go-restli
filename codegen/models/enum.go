@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
+	. "go-restli/codegen"
 )
 
 const EnumType = "enum"
@@ -35,14 +36,17 @@ func (e *Enum) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (e *Enum) generateCode(destinationPackage string) (def *jen.Statement) {
+func (e *Enum) generateCode(packagePrefix string) (def *jen.Statement) {
 	def = jen.Empty()
-	addWordWrappedComment(def, e.Doc)
+	AddWordWrappedComment(def, e.Doc).Line()
 	def.Type().Id(e.Name).String().Line()
 
 	var values []jen.Code
 	for symbol, doc := range e.Symbols {
-		values = append(values, jen.Id(symbol).Op("=").Id(e.Name).Call(jen.Lit(symbol)).Comment(doc))
+		def := jen.Id(symbol).Op("=")
+		def.Id(e.Name).Call(jen.Lit(symbol))
+		AddWordWrappedComment(def, doc)
+		values = append(values, def)
 	}
 
 	def.Const().Defs(values...)

@@ -3,13 +3,16 @@ package models
 import (
 	"encoding/json"
 	"github.com/pkg/errors"
+	"regexp"
 	"strings"
 )
 
 type Reference struct {
-	namespace
+	Ns
 	NameAndDoc
 }
+
+var ValidReferenceType = regexp.MustCompile("^[a-zA-Z_]([a-zA-Z_0-9.])*$")
 
 func (r *Reference) UnmarshalJSON(data []byte) error {
 	var name string
@@ -21,6 +24,10 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 	var p Primitive
 	if err := json.Unmarshal(data, &p); err == nil {
 		return errors.New("Reference types cannot be primitives")
+	}
+
+	if ! ValidReferenceType.Match([]byte(name)) {
+		return errors.Errorf("Illegal reference type: |%s|", name)
 	}
 
 	lastDot := strings.LastIndex(name, ".")

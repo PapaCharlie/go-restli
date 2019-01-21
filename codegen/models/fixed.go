@@ -2,6 +2,7 @@ package models
 
 import (
 	"github.com/dave/jennifer/jen"
+	. "go-restli/codegen"
 )
 
 const FixedType = "fixed"
@@ -21,7 +22,7 @@ func (f *Fixed) GoType() *jen.Statement {
 
 func (f *Fixed) GenerateCode() (def *jen.Statement) {
 	def = jen.Empty()
-	addWordWrappedComment(def, f.Doc)
+	AddWordWrappedComment(def, f.Doc).Line()
 	def.Type().Id(f.Name).Add(f.goType())
 	return
 }

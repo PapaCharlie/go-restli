@@ -17,29 +17,40 @@ const (
 
 type Primitive string
 
+func ParsePrimitive(p string) *Primitive {
+	var primitive Primitive
+	switch p {
+	case "int":
+		primitive = Int
+	case "long":
+		primitive = Long
+	case "float":
+		primitive = Float
+	case "double":
+		primitive = Double
+	case "boolean":
+		primitive = Boolean
+	case "string":
+		primitive = String
+	default:
+		return nil
+	}
+	return &primitive
+}
+
 func (p *Primitive) UnmarshalJSON(data []byte) error {
 	var primitiveType string
 	if err := json.Unmarshal(data, &primitiveType); err != nil {
 		return errors.WithStack(err)
 	}
 
-	switch primitiveType {
-	case "int":
-		*p = Int
-	case "long":
-		*p = Long
-	case "float":
-		*p = Float
-	case "double":
-		*p = Double
-	case "boolean":
-		*p = Boolean
-	case "string":
-		*p = String
-	default:
+	parsedPrimitive := ParsePrimitive(primitiveType)
+	if parsedPrimitive != nil {
+		*p = *parsedPrimitive
+		return nil
+	} else {
 		return errors.Errorf("not a valid primitive type: |%s|", primitiveType)
 	}
-	return nil
 }
 
 func (p *Primitive) GoType() *jen.Statement {
