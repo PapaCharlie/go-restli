@@ -79,5 +79,5 @@ func ExportedIdentifier(identifier string) string {
 }
 
 func JsonTag(fieldName string) map[string]string {
-	return map[string]string{"json": fieldName}
+	return map[string]string{"json": fieldName + ",omitempty"}
 }
