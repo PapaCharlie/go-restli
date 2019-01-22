@@ -54,7 +54,7 @@ func (u *Union) GoType(packagePrefix string) *jen.Statement {
 		def := jen.Empty()
 		AddWordWrappedComment(def, t.Doc).Line()
 		def.Id(t.name())
-		def.Add(t.GoType(packagePrefix))
+		def.Op("*").Add(t.GoType(packagePrefix))
 		def.Tag(JsonTag(t.alias()))
 		fields = append(fields, def)
 	}

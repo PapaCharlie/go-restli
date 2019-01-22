@@ -100,8 +100,10 @@ func (m *Model) String() string {
 	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s", m.Name, m.Namespace, m.Doc, modelType, model)
 }
 
-func (m *Model) GenerateModelCode(packagePrefix string) (f *CodeFile) {
-	f = &CodeFile{}
+func (m *Model) GenerateModelCode(packagePrefix string, sourceFilename string) (f *CodeFile) {
+	f = &CodeFile{
+		SourceFilename: sourceFilename,
+	}
 	if m.Namespace != "" {
 		f.PackagePath = m.PackagePath(packagePrefix)
 	}

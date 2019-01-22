@@ -5,11 +5,12 @@ import (
 	. "go-restli/codegen"
 )
 
-func (r *Resource) GenerateCode(packagePrefix string) *CodeFile {
+func (r *Resource) GenerateCode(packagePrefix string, sourceFilename string) *CodeFile {
 	c := &CodeFile{
-		PackagePath: r.PackagePath(packagePrefix),
-		Filename:    ExportedIdentifier(r.Name),
-		Code:        Empty(),
+		SourceFilename: sourceFilename,
+		PackagePath:    r.PackagePath(packagePrefix),
+		Filename:       ExportedIdentifier(r.Name),
+		Code:           Empty(),
 	}
 
 	// WIP

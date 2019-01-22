@@ -44,7 +44,7 @@ func main() {
 		}
 
 		for _, m := range loadedModels {
-			if code := m.GenerateModelCode(packagePrefix); code != nil {
+			if code := m.GenerateModelCode(packagePrefix, filename); code != nil {
 				codeFiles = append(codeFiles, code)
 			}
 		}
@@ -55,7 +55,7 @@ func main() {
 		}
 
 		if loadedSchema != nil {
-			if code := loadedSchema.GenerateCode(packagePrefix); code != nil {
+			if code := loadedSchema.GenerateCode(packagePrefix, filename); code != nil {
 				codeFiles = append(codeFiles, code)
 			}
 		}
