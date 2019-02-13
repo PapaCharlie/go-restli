@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"io"
+	"strings"
 )
 
 func LoadModels(reader io.Reader) ([]*Model, error) {
@@ -31,4 +32,8 @@ func flattenModels(models []*Model) (innerModels []*Model) {
 		innerModels = append(innerModels, flattenModels(innerModels)...)
 	}
 	return innerModels
+}
+
+func escapeNamespace(namespace string) string {
+	return strings.Replace(namespace, "internal", "_internal", -1)
 }

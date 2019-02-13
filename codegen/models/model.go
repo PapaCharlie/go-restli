@@ -24,7 +24,6 @@ func (n *Ns) PackagePath(packagePrefix string) string {
 		panic("no namespace for package!")
 	}
 	p := strings.Replace(n.Namespace, ".", "/", -1)
-	p = strings.Replace(p, "/internal/", "/internal_/", -1)
 	if packagePrefix != "" {
 		p = packagePrefix + "/" + p
 	}
@@ -166,7 +165,7 @@ func (m *Model) InnerModels() (models []*Model) {
 
 	for _, innerModel := range models {
 		if innerModel.Namespace == "" {
-			innerModel.Namespace = m.Namespace
+			innerModel.Namespace = escapeNamespace(m.Namespace)
 		}
 	}
 
@@ -197,7 +196,7 @@ func (m *Model) GoType(packagePrefix string) *jen.Statement {
 	}
 
 	if m.Reference != nil {
-		return m.Reference.GoType(packagePrefix, m.Namespace)
+		return m.Reference.GoType(packagePrefix, escapeNamespace(m.Namespace))
 	}
 
 	// All of the following are type references
@@ -233,7 +232,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 		var reference Reference
 		if err := json.Unmarshal(data, &reference); err == nil {
 			m.Reference = &reference
-			m.Namespace = reference.Namespace
+			m.Namespace = escapeNamespace(reference.Namespace)
 			m.Name = reference.Name
 			return nil
 		} else {
@@ -251,7 +250,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 		return errors.Errorf("illegal model type: %v, %v, (%s)", unmarshalErrors, err, string(data))
 	}
 
-	m.Namespace = model.Namespace
+	m.Namespace = escapeNamespace(model.Namespace)
 	m.Name = model.Name
 	m.Doc = model.Doc
 
@@ -321,7 +320,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(model.Type, &referenceType); err == nil {
 		m.Reference = &referenceType
 		//if referenceType.Namespace != "" {
-		//	m.Namespace = referenceType.Namespace
+		//	m.Namespace = escapeNamespace(referenceType.Namespace)
 		//}
 		//m.Name = referenceType.Name
 		return nil
