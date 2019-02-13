@@ -24,6 +24,7 @@ func (n *Ns) PackagePath(packagePrefix string) string {
 		panic("no namespace for package!")
 	}
 	p := strings.Replace(n.Namespace, ".", "/", -1)
+	p = strings.Replace(p, "/internal/", "/internal_/", -1)
 	if packagePrefix != "" {
 		p = packagePrefix + "/" + p
 	}
@@ -54,6 +55,8 @@ type Model struct {
 	*Reference
 	*Typeref
 	*Union
+
+	isTopLevel bool
 }
 
 func (m *Model) String() string {
@@ -128,6 +131,11 @@ func (m *Model) GenerateModelCode(packagePrefix string, sourceFilename string) (
 		f.Filename = m.Name
 	}
 
+	if m.isTopLevel && m.Fixed != nil {
+		f.Code = m.Fixed.generateCode()
+		f.Filename = m.Name
+	}
+
 	if f.Code == nil {
 		return nil
 	}
@@ -188,8 +196,12 @@ func (m *Model) GoType(packagePrefix string) *jen.Statement {
 		return m.Union.GoType(packagePrefix)
 	}
 
+	if m.Reference != nil {
+		return m.Reference.GoType(packagePrefix, m.Namespace)
+	}
+
 	// All of the following are type references
-	if m.Enum != nil || m.Record != nil || m.Typeref != nil || m.Reference != nil {
+	if m.Enum != nil || m.Record != nil || m.Typeref != nil {
 		if m.Namespace == "" {
 			log.Panicln(m.Name, "has no namespace!")
 		} else {
@@ -236,7 +248,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 			unmarshalErrors = append(unmarshalErrors, err)
 		}
 
-		return errors.Errorf("illegal model type: %v", unmarshalErrors)
+		return errors.Errorf("illegal model type: %v, %v, (%s)", unmarshalErrors, err, string(data))
 	}
 
 	m.Namespace = model.Namespace
@@ -297,19 +309,21 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 		} else {
 			return errors.WithStack(err)
 		}
-	default:
-		var primitiveType Primitive
-		if err := json.Unmarshal(model.Type, &primitiveType); err == nil {
-			m.Primitive = &primitiveType
-			return nil
-		} else {
-			return errors.WithStack(err)
-		}
+	}
+
+	var primitiveType Primitive
+	if err := json.Unmarshal(model.Type, &primitiveType); err == nil {
+		m.Primitive = &primitiveType
+		return nil
 	}
 
 	var referenceType Reference
 	if err := json.Unmarshal(model.Type, &referenceType); err == nil {
 		m.Reference = &referenceType
+		//if referenceType.Namespace != "" {
+		//	m.Namespace = referenceType.Namespace
+		//}
+		//m.Name = referenceType.Name
 		return nil
 	}
 

@@ -8,10 +8,10 @@ type Resource struct {
 	Path        string
 	Schema      string
 	Doc         string
-	Simple      Simple
-	Collection  Collection
-	Association Association
-	ActionsSet  HasActions
+	Simple      *Simple
+	Collection  *Collection
+	Association *Association
+	ActionsSet  *HasActions
 }
 
 type HasActions struct {
@@ -31,17 +31,23 @@ type Simple struct {
 }
 
 type Collection struct {
-	Identifier
 	HasActions
-	Supports []string
-	Methods  []Method
-	Finders  []Finder
-	Entity   Entity
+	Identifier Identifier
+	Supports   []string
+	Methods    []Method
+	Finders    []Finder
+	Entity     Entity
+}
+
+type AssocKey struct {
+	Name string
+	Type ResourceModel
 }
 
 type Association struct {
-	Identifier
 	HasActions
+	Identifier string
+	AssocKeys []AssocKey
 	Supports []string
 	Methods  []Method
 	Entity   Entity
@@ -63,7 +69,7 @@ type Endpoint struct {
 	Name       string
 	Doc        string
 	Parameters []Parameter
-	Returns    string
+	Returns    *ResourceModel
 }
 
 type Parameter struct {

@@ -20,7 +20,7 @@ func (f *Fixed) GoType() *jen.Statement {
 	return f.goType()
 }
 
-func (f *Fixed) GenerateCode() (def *jen.Statement) {
+func (f *Fixed) generateCode() (def *jen.Statement) {
 	def = jen.Empty()
 	AddWordWrappedComment(def, f.Doc).Line()
 	def.Type().Id(f.Name).Add(f.goType())

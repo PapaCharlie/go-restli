@@ -13,6 +13,7 @@ const (
 	Double  = Primitive("float64")
 	Boolean = Primitive("bool")
 	String  = Primitive("string")
+	Bytes   = Primitive("[]byte")
 )
 
 type Primitive string
@@ -32,6 +33,8 @@ func ParsePrimitive(p string) *Primitive {
 		primitive = Boolean
 	case "string":
 		primitive = String
+	case "bytes":
+		primitive = Bytes
 	default:
 		return nil
 	}

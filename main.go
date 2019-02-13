@@ -1,15 +1,20 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"fmt"
+	"github.com/dave/jennifer/jen"
 	"go-restli/codegen"
 	"go-restli/codegen/models"
 	"go-restli/codegen/schema"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 )
 
+//go:generate go run codegen/protocol/protocol_zipper.go protocol/ codegen/zipped_protocol.go
 func main() {
 	log.SetFlags(log.Lshortfile)
 
@@ -30,7 +35,7 @@ func main() {
 		log.Fatal("Illegal path", err)
 	}
 
-	if len(os.Args) < 3 {
+	if len(os.Args) < 4 {
 		log.Fatalf("Must specify at least one snapshot file")
 	}
 	snapshotFiles := os.Args[3:]
@@ -51,7 +56,7 @@ func main() {
 
 		loadedSchema, err := schema.LoadSchema(readFile(filename))
 		if err != nil {
-			log.Panicf("%+v", err)
+			log.Panicf("%s: %+v", filename, err)
 		}
 
 		if loadedSchema != nil {
@@ -67,9 +72,11 @@ func main() {
 			log.Fatal(err)
 		} else {
 			fmt.Println(file)
-
 		}
 	}
+
+	generateAllImportsFile(outputDir, packagePrefix, codeFiles)
+	unzipProtocol(outputDir, packagePrefix)
 }
 
 func readFile(filename string) *os.File {
@@ -78,4 +85,47 @@ func readFile(filename string) *os.File {
 		log.Fatal(err)
 	}
 	return file
+}
+
+func generateAllImportsFile(outputDir, packagePrefix string, codeFiles []*codegen.CodeFile) {
+	imports := make(map[string]bool)
+	for _, code := range codeFiles {
+		imports[code.PackagePath] = true
+	}
+	f := jen.NewFile("main")
+	for p := range imports {
+		f.Anon(p)
+	}
+	f.Func().Id("main").Params().Block(jen.Qual("fmt", "Println").Call(jen.Lit("success!")))
+
+	out, err := os.Create(filepath.Join(outputDir, packagePrefix, "all_imports.go"))
+	check(err)
+	check(f.Render(out))
+}
+
+func unzipProtocol(outputDir, packagePrefix string) {
+	reader, err := zip.NewReader(bytes.NewReader(codegen.ProtocolZip), int64(len(codegen.ProtocolZip)))
+	check(err)
+
+	for _, zipFile := range reader.File {
+		name := filepath.Join(outputDir, packagePrefix, zipFile.Name)
+		check(os.MkdirAll(filepath.Dir(name), os.ModePerm))
+
+		f, err := os.Create(name)
+		check(err)
+
+		zipFileReader, err := zipFile.Open()
+		check(err)
+
+		_, err = io.Copy(f, zipFileReader)
+		check(err)
+		check(zipFileReader.Close())
+		check(f.Close())
+	}
+}
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

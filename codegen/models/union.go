@@ -12,16 +12,25 @@ type Union struct {
 }
 
 type UnionFieldType struct {
-	*Model
-	Alias string `json:"alias"`
+	Model  *Model
+	Alias string //`json:"alias"`
+	Thing bool
 }
 
 func (u *UnionFieldType) UnmarshalJSON(data []byte) error {
-	u.Model = &Model{}
-	type t UnionFieldType
-	if err := json.Unmarshal(data, (*t)(u)); err != nil {
+	m := &Model{}
+	if err := json.Unmarshal(data, m); err != nil {
 		return err
 	}
+	u.Model = m
+
+	type t UnionFieldType
+	if err := json.Unmarshal(data, (*t)(u)); err != nil {
+		if !strings.Contains(err.Error(), "json: cannot unmarshal string into Go value of type") {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -52,9 +61,9 @@ func (u *Union) GoType(packagePrefix string) *jen.Statement {
 	var fields []jen.Code
 	for _, t := range u.Types {
 		def := jen.Empty()
-		AddWordWrappedComment(def, t.Doc).Line()
+		AddWordWrappedComment(def, t.Model.Doc).Line()
 		def.Id(t.name())
-		def.Op("*").Add(t.GoType(packagePrefix))
+		def.Op("*").Add(t.Model.GoType(packagePrefix))
 		def.Tag(JsonTag(t.alias()))
 		fields = append(fields, def)
 	}
@@ -71,17 +80,17 @@ func (u *UnionFieldType) alias() string {
 	if u.Alias != "" {
 		return u.Alias
 	}
-	if u.Primitive != nil {
-		return string(*u.Primitive)
+	if u.Model.Primitive != nil {
+		return string(*u.Model.Primitive)
 	}
-	if u.Fixed != nil {
+	if u.Model.Fixed != nil {
 		return FixedType
 	}
-	if u.Array != nil {
+	if u.Model.Array != nil {
 		return ArrayType
 	}
-	if u.Map != nil {
+	if u.Model.Map != nil {
 		return MapType
 	}
-	return u.Namespace + "." + u.Name
+	return u.Model.Namespace + "." + u.Model.Name
 }

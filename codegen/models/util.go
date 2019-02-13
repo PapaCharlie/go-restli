@@ -15,6 +15,10 @@ func LoadModels(reader io.Reader) ([]*Model, error) {
 		return nil, errors.WithStack(err)
 	}
 
+	for _, m := range snapshot.Models {
+		m.isTopLevel = true
+	}
+
 	snapshot.Models = append(snapshot.Models, flattenModels(snapshot.Models)...)
 	return snapshot.Models, nil
 }
