@@ -5,15 +5,19 @@ import (
 	"io"
 )
 
-func LoadSchema(reader io.Reader) (*Resource, error) {
-	schema := &struct {
-		Schema *Resource `json:"schema"`
+func LoadResources(reader io.Reader) ([]*Resource, error) {
+	resources := &struct {
+		Resources map[string]*Resource `json:"resources"`
 	}{}
 
-	err := json.NewDecoder(reader).Decode(schema)
+	err := json.NewDecoder(reader).Decode(resources)
 	if err != nil {
 		return nil, err
 	} else {
-		return schema.Schema, nil
+		var r []*Resource
+		for _, v := range resources.Resources {
+			r = append(r, v)
+		}
+		return r, nil
 	}
 }

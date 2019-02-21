@@ -12,8 +12,8 @@ type Union struct {
 }
 
 type UnionFieldType struct {
-	Model  *Model
-	Alias string //`json:"alias"`
+	Model *Model
+	Alias string
 	Thing bool
 }
 
@@ -50,11 +50,11 @@ func (u *Union) InnerModels() (models []*Model) {
 	return
 }
 
-func (u *Union) generateCode(packagePrefix string) (def *jen.Statement) {
+func (u *Union) generateCode() (def *jen.Statement) {
 	return
 }
 
-func (u *Union) GoType(packagePrefix string) *jen.Statement {
+func (u *Union) GoType() *jen.Statement {
 	if len(u.Types) == 0 {
 		panic(u)
 	}
@@ -63,8 +63,8 @@ func (u *Union) GoType(packagePrefix string) *jen.Statement {
 		def := jen.Empty()
 		AddWordWrappedComment(def, t.Model.Doc).Line()
 		def.Id(t.name())
-		def.Op("*").Add(t.Model.GoType(packagePrefix))
-		def.Tag(JsonTag(t.alias()))
+		def.Op("*").Add(t.Model.GoType())
+		def.Tag(JsonTag(t.alias(), true))
 		fields = append(fields, def)
 	}
 	return jen.Struct(fields...)

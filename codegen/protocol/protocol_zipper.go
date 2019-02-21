@@ -78,7 +78,7 @@ DO NOT EDIT BY HAND, USE go generate TO REFRESH THIS FILE`)
 			k.Line().Lit(b64Zip[:80]).Op("+")
 			b64Zip = b64Zip[80:]
 		}
-		k.Line().Lit(b64Zip[:80])
+		k.Line().Lit(b64Zip)
 		g.Var().Err().Error()
 		g.List(jen.Id("ProtocolZip"), jen.Err()).Op("=").Qual("encoding/base64", "StdEncoding").Dot("DecodeString").Call(k)
 		g.If(jen.Err().Op("!=").Nil()).Block(jen.Panic(jen.Err()))

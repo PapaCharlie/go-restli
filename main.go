@@ -3,7 +3,6 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"fmt"
 	"github.com/dave/jennifer/jen"
 	"go-restli/codegen"
 	"go-restli/codegen/models"
@@ -25,7 +24,7 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("Must specify the package prefix")
 	}
-	packagePrefix := os.Args[1]
+	codegen.PackagePrefix = os.Args[1]
 
 	if len(os.Args) < 3 {
 		log.Fatal("Must specify the output dir")
@@ -49,19 +48,21 @@ func main() {
 		}
 
 		for _, m := range loadedModels {
-			if code := m.GenerateModelCode(packagePrefix, filename); code != nil {
+			if code := m.GenerateModelCode(filename); code != nil {
 				codeFiles = append(codeFiles, code)
 			}
 		}
 
-		loadedSchema, err := schema.LoadSchema(readFile(filename))
+		loadedResources, err := schema.LoadResources(readFile(filename))
 		if err != nil {
 			log.Panicf("%s: %+v", filename, err)
 		}
 
-		if loadedSchema != nil {
-			if code := loadedSchema.GenerateCode(packagePrefix, filename); code != nil {
-				codeFiles = append(codeFiles, code)
+		if len(loadedResources) > 0 {
+			for _, r := range loadedResources {
+				for _, code := range r.GenerateCode(filename) {
+					codeFiles = append(codeFiles, code)
+				}
 			}
 		}
 	}
@@ -75,8 +76,8 @@ func main() {
 		}
 	}
 
-	generateAllImportsFile(outputDir, packagePrefix, codeFiles)
-	unzipProtocol(outputDir, packagePrefix)
+	generateAllImportsFile(outputDir, codeFiles)
+	unzipProtocol(outputDir)
 }
 
 func readFile(filename string) *os.File {
@@ -87,7 +88,7 @@ func readFile(filename string) *os.File {
 	return file
 }
 
-func generateAllImportsFile(outputDir, packagePrefix string, codeFiles []*codegen.CodeFile) {
+func generateAllImportsFile(outputDir string, codeFiles []*codegen.CodeFile) {
 	imports := make(map[string]bool)
 	for _, code := range codeFiles {
 		imports[code.PackagePath] = true
@@ -98,17 +99,17 @@ func generateAllImportsFile(outputDir, packagePrefix string, codeFiles []*codege
 	}
 	f.Func().Id("main").Params().Block(jen.Qual("fmt", "Println").Call(jen.Lit("success!")))
 
-	out, err := os.Create(filepath.Join(outputDir, packagePrefix, "all_imports.go"))
+	out, err := os.Create(filepath.Join(outputDir, codegen.PackagePrefix, "all_imports.go"))
 	check(err)
 	check(f.Render(out))
 }
 
-func unzipProtocol(outputDir, packagePrefix string) {
+func unzipProtocol(outputDir string) {
 	reader, err := zip.NewReader(bytes.NewReader(codegen.ProtocolZip), int64(len(codegen.ProtocolZip)))
 	check(err)
 
 	for _, zipFile := range reader.File {
-		name := filepath.Join(outputDir, packagePrefix, zipFile.Name)
+		name := filepath.Join(outputDir, codegen.PackagePrefix, zipFile.Name)
 		check(os.MkdirAll(filepath.Dir(name), os.ModePerm))
 
 		f, err := os.Create(name)

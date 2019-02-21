@@ -47,10 +47,10 @@ type AssocKey struct {
 type Association struct {
 	HasActions
 	Identifier string
-	AssocKeys []AssocKey
-	Supports []string
-	Methods  []Method
-	Entity   Entity
+	AssocKeys  []AssocKey
+	Supports   []string
+	Methods    []Method
+	Entity     Entity
 }
 
 type Entity struct {
@@ -60,24 +60,14 @@ type Entity struct {
 }
 
 type Method struct {
-	Method     string
-	Doc        string
-	Parameters []Parameter
+	models.Record
+	Method          string
+	PagingSupported bool
 }
 
 type Endpoint struct {
-	Name       string
-	Doc        string
-	Parameters []Parameter
-	Returns    *ResourceModel
-}
-
-type Parameter struct {
-	Name     string
-	Doc      string
-	Type     ResourceModel
-	Optional bool
-	Default  *string
+	models.Record
+	Returns *ResourceModel
 }
 
 type Finder struct {
@@ -87,4 +77,6 @@ type Finder struct {
 
 type Action struct {
 	Endpoint
+	ActionName string
+	StructName   string
 }

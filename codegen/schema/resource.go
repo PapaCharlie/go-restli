@@ -10,40 +10,38 @@ import (
 const (
 	ClientReceiver      = "c"
 	Req                 = "req"
-	NetHttp             = "net/http"
+	Res                 = "res"
+	Url                 = "url"
+	ActionResult        = "actionResult"
 	Client              = "Client"
 	HostnameClientField = "Hostname"
 )
 
-func (r *Resource) GenerateCode(packagePrefix string, sourceFilename string) *CodeFile {
-	c := &CodeFile{
-		SourceFilename: sourceFilename,
-		PackagePath:    r.PackagePath(packagePrefix),
-		Filename:       ExportedIdentifier(r.Name),
-		Code:           Empty(),
+func (r *Resource) GenerateCode(sourceFilename string) (code []*CodeFile) {
+	code = append(code, r.generateClient())
+	code = append(code, generateAllActionStructs(nil, r)...)
+	for _, c := range code {
+		c.SourceFilename = sourceFilename
 	}
 
-	// WIP
-	r.generateClient(packagePrefix, c.Code)
-
-	for _, s := range generateAllActionStructs(packagePrefix, nil, r) {
-		c.Code.Add(s).Line()
-	}
-
-	return c
+	return
 }
 
-func (r *Resource) generateClient(packagePrefix string, code *Statement) {
-	AddWordWrappedComment(code, r.Doc).Line()
-	code.Type().Id(r.clientType()).Struct(
+func (r *Resource) generateClient() (c *CodeFile) {
+	c = &CodeFile{
+		PackagePath: r.PackagePath() + "/" + r.Name,
+		Filename:    "client",
+		Code:        Empty(),
+	}
+
+	Const().Id(r.Name + "Path").Op("=").Lit(r.Path).Line()
+	AddWordWrappedComment(c.Code, r.Doc).Line()
+	c.Code.Type().Id(Client).Struct(
 		Op("*").Qual(NetHttp, Client),
 		Id(HostnameClientField).String(),
 	)
-	code.Line()
-}
 
-func (r *Resource) clientType() string {
-	return ExportedIdentifier(r.Name) + Client
+	return
 }
 
 func (r *Resource) getIdentifier() *Identifier {
@@ -59,7 +57,8 @@ func (r *Resource) getIdentifier() *Identifier {
 		str := models.String
 		return &Identifier{
 			Name: r.Association.Identifier,
-			Type: ResourceModel{ Primitive: &str, }, }
+			Type: ResourceModel{models.Model{Primitive: &str,}},
+		}
 		//return &r.Association.Identifier
 	}
 

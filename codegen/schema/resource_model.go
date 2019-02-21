@@ -2,49 +2,15 @@ package schema
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
+	"go-restli/codegen"
 	"go-restli/codegen/models"
 	"log"
+	"strings"
 )
 
 type ResourceModel struct {
-	Primitive *models.Primitive
-	Reference *models.Reference
-	Array     *Array
-	Map       *Map
-}
-
-type Array struct {
-	Type  string
-	Items *ResourceModel
-}
-
-func (a *Array) UnmarshalJSON(data []byte) error {
-	type t Array
-	if err := json.Unmarshal(data, (*t)(a)); err != nil {
-		return err
-	}
-	if a.Type != models.ArrayType {
-		return errors.Errorf("Not an array type: %s", string(data))
-	}
-	return nil
-}
-
-type Map struct {
-	Type   string
-	Values *ResourceModel
-}
-
-func (m *Map) UnmarshalJSON(data []byte) error {
-	type t Map
-	if err := json.Unmarshal(data, (*t)(m)); err != nil {
-		return err
-	}
-	if m.Type != models.MapType {
-		return errors.Errorf("Not a map type: %s", string(data))
-	}
-	return nil
+	models.Model
 }
 
 func (t *ResourceModel) UnmarshalJSON(data []byte) error {
@@ -60,7 +26,14 @@ func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 
 	var reference models.Reference
 	if err := json.Unmarshal(data, &reference); err == nil {
-		t.Reference = &reference
+		if reference.Namespace == "" {
+			return errors.Wrapf(err, "%s was provided with no namespace", reference)
+		}
+		if m := reference.GetRegisteredModel(); m != nil {
+			t.Model = *m
+		} else {
+			return errors.Errorf("unknown type: %+v", reference)
+		}
 		return nil
 	} else {
 		unmarshallErrors = append(unmarshallErrors, err)
@@ -71,17 +44,7 @@ func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 		return errors.Wrap(err, "Could not deserialize type")
 	}
 
-	var array Array
-	if err := json.Unmarshal([]byte(unescapedType), &array); err == nil {
-		t.Array = &array
-		return nil
-	} else {
-		unmarshallErrors = append(unmarshallErrors, err)
-	}
-
-	var _map Map
-	if err := json.Unmarshal([]byte(unescapedType), &_map); err == nil {
-		t.Map = &_map
+	if err := json.Unmarshal([]byte(unescapedType), &t.Model); err == nil {
 		return nil
 	} else {
 		unmarshallErrors = append(unmarshallErrors, err)
@@ -91,19 +54,82 @@ func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 		unmarshallErrors)
 }
 
-func (t *ResourceModel) GoType(packagePrefix string) *jen.Statement {
-	if t.Primitive != nil {
-		return t.Primitive.GoType()
+type parameter struct {
+	models.NameAndDoc
+	Type     ResourceModel
+	Optional bool
+	Default  *string
+}
+
+func (p parameter) toField() (f models.Field) {
+	f.NameAndDoc = p.NameAndDoc
+	f.Type = &p.Type.Model
+	f.Optional = p.Optional
+	if p.Default != nil {
+		f.Default = json.RawMessage(*p.Default)
 	}
-	if t.Reference != nil {
-		return jen.Qual(t.Reference.PackagePath(packagePrefix), t.Reference.Name)
+	return
+}
+
+func (e *Endpoint) UnmarshalJSON(data []byte) error {
+	t := &struct {
+		models.NameAndDoc
+		Parameters []parameter
+		Returns    *ResourceModel
+	}{}
+
+	err := json.Unmarshal(data, t)
+	if err != nil {
+		return err
 	}
-	if t.Array != nil {
-		return jen.Index().Add(t.Array.Items.GoType(packagePrefix))
+
+	e.NameAndDoc = t.NameAndDoc
+	e.Returns = t.Returns
+	for _, p := range t.Parameters {
+		e.Fields = append(e.Fields, p.toField())
 	}
-	if t.Map != nil {
-		return jen.Map(jen.String()).Add(t.Map.Values.GoType(packagePrefix))
+
+	return nil
+}
+
+func (m *Method) UnmarshalJSON(data []byte) error {
+	t := &struct {
+		Method          string
+		Doc             string
+		Parameters      []parameter
+		PagingSupported bool
+	}{}
+
+	err := json.Unmarshal(data, t)
+	if err != nil {
+		return err
 	}
-	log.Panicln("All models nil!", t)
+
+	m.Method = t.Method
+	if name, ok := RestliMethodNameMapping[strings.ToLower(t.Method)]; ok {
+		m.Name = name
+	} else {
+		log.Panicln("Unknown method", t.Method)
+	}
+	m.Doc = t.Doc
+	m.PagingSupported = t.PagingSupported
+
+	for _, p := range t.Parameters {
+		m.Fields = append(m.Fields, p.toField())
+	}
+
+	return nil
+}
+
+func (a *Action) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &a.Endpoint)
+	if err != nil {
+		return err
+	}
+
+	a.ActionName = a.Endpoint.Name
+	a.StructName = codegen.ExportedIdentifier(a.Name + "ActionParams")
+	a.Endpoint.Name = a.StructName
+
 	return nil
 }

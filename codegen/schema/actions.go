@@ -8,48 +8,45 @@ import (
 	"strings"
 )
 
-func generateAllActionStructs(packagePrefix string, parentResources []*Resource, thisResource *Resource) (defs []*Statement) {
-	fullName := prefixNameWithParentResources(thisResource.Name, parentResources, thisResource)
-	defs = append(defs, Const().Id(fullName + "Path").Op("=").Lit(thisResource.Path))
-
+func generateAllActionStructs(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	if thisResource.Simple != nil {
-		defs = append(defs, thisResource.Simple.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
-		defs = append(defs, thisResource.Simple.Entity.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
+		code = append(code, thisResource.Simple.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.Simple.Entity.generateActionParamStructs(parentResources, thisResource)...)
 		newParentResources := make([]*Resource, len(parentResources)+1)
 		copy(parentResources, newParentResources)
 		newParentResources = append(newParentResources, thisResource)
 		for _, r := range thisResource.Simple.Entity.Subresources {
-			defs = append(defs, generateAllActionStructs(packagePrefix, parentResources, &r)...)
+			code = append(code, generateAllActionStructs(parentResources, &r)...)
 		}
 		return
 	}
 
 	if thisResource.Collection != nil {
-		defs = append(defs, thisResource.Collection.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
-		defs = append(defs, thisResource.Collection.Entity.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
+		code = append(code, thisResource.Collection.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.Collection.Entity.generateActionParamStructs(parentResources, thisResource)...)
 		newParentResources := make([]*Resource, len(parentResources)+1)
 		copy(parentResources, newParentResources)
 		newParentResources = append(newParentResources, thisResource)
 		for _, r := range thisResource.Collection.Entity.Subresources {
-			defs = append(defs, generateAllActionStructs(packagePrefix, parentResources, &r)...)
+			code = append(code, generateAllActionStructs(parentResources, &r)...)
 		}
 		return
 	}
 
 	if thisResource.Association != nil {
-		defs = append(defs, thisResource.Association.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
-		defs = append(defs, thisResource.Association.Entity.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
+		code = append(code, thisResource.Association.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.Association.Entity.generateActionParamStructs(parentResources, thisResource)...)
 		newParentResources := make([]*Resource, len(parentResources)+1)
 		copy(parentResources, newParentResources)
 		newParentResources = append(newParentResources, thisResource)
 		for _, r := range thisResource.Association.Entity.Subresources {
-			defs = append(defs, generateAllActionStructs(packagePrefix, parentResources, &r)...)
+			code = append(code, generateAllActionStructs(parentResources, &r)...)
 		}
 		return
 	}
 
 	if thisResource.ActionsSet != nil {
-		defs = append(defs, thisResource.ActionsSet.generateActionParamStructs(packagePrefix, parentResources, thisResource)...)
+		code = append(code, thisResource.ActionsSet.generateActionParamStructs(parentResources, thisResource)...)
 		return
 	}
 
@@ -57,35 +54,25 @@ func generateAllActionStructs(packagePrefix string, parentResources []*Resource,
 	return
 }
 
-func (h *HasActions) generateActionParamStructs(packagePrefix string, parentResources []*Resource, thisResource *Resource) (defs []*Statement) {
+func (h *HasActions) generateActionParamStructs(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, a := range h.Actions {
-		defs = append(defs, a.generateActionParamStructs(packagePrefix, parentResources, thisResource, false))
+		code = append(code, a.generateActionParamStructs(parentResources, thisResource, false))
 	}
-	return defs
+	return code
 }
 
-func (e *Entity) generateActionParamStructs(packagePrefix string, parentResources []*Resource, thisResource *Resource) (defs []*Statement) {
+func (e *Entity) generateActionParamStructs(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, a := range e.Actions {
-		defs = append(defs, a.generateActionParamStructs(packagePrefix, parentResources, thisResource, true))
+		code = append(code, a.generateActionParamStructs(parentResources, thisResource, true))
 	}
-	return defs
+	return code
 }
 
-func (a *Action) generateActionParamStructs(packagePrefix string, parentResources []*Resource, thisResource *Resource, isOnEntity bool) (def *Statement) {
-	fullName := prefixNameWithParentResources(a.Name, parentResources, thisResource)
-	structName := fullName + "ActionParams"
+func (a *Action) generateActionParamStructs(parentResources []*Resource, thisResource *Resource, isOnEntity bool) (c *CodeFile) {
+	c = NewCodeFile(a.ActionName, thisResource.PackagePath(), thisResource.Name)
 
-	def = Empty()
-	def.Const().Id(fullName + "Action").Op("=").Lit(a.Name).Line()
-
-	def.Type().Id(structName).StructFunc(func(def *Group) {
-		for _, p := range a.Parameters {
-			paramDef := def.Empty()
-			AddWordWrappedComment(paramDef, p.Doc).Line()
-			paramDef.Id(ExportedIdentifier(p.Name))
-			paramDef.Add(p.Type.GoType(packagePrefix)).Tag(JsonTag(p.Name))
-		}
-	}).Line()
+	c.Code.Const().Id(ExportedIdentifier(a.ActionName + "Action")).Op("=").Lit(a.ActionName).Line()
+	c.Code.Add(a.GenerateCode())
 
 	var queryPath string
 	if isOnEntity {
@@ -94,37 +81,34 @@ func (a *Action) generateActionParamStructs(packagePrefix string, parentResource
 		queryPath = thisResource.Path
 	}
 
-	def.Func().Params(Id(ClientReceiver).Op("*").Id(thisResource.clientType())).Id(ExportedIdentifier(a.Name) + "Action")
-	def.ParamsFunc(func(def *Group) {
+	c.Code.Func().Params(Id(ClientReceiver).Op("*").Id(Client)).Id(ExportedIdentifier(a.ActionName) + "Action")
+	c.Code.ParamsFunc(func(def *Group) {
 		for _, r := range parentResources {
 			if id := r.getIdentifier(); id != nil {
-				def.Id(id.Name).Add(id.Type.GoType(packagePrefix))
+				def.Id(id.Name).Add(id.Type.GoType())
 				queryPath = strings.Replace(queryPath, fmt.Sprintf("{%s}", id.Name), "%s", 1)
 			}
 		}
-		if id := thisResource.getIdentifier(); id != nil {
-			def.Id(id.Name).Add(id.Type.GoType(packagePrefix))
+		if id := thisResource.getIdentifier(); isOnEntity && id != nil {
+			def.Id(id.Name).Add(id.Type.GoType())
 			queryPath = strings.Replace(queryPath, fmt.Sprintf("{%s}", id.Name), "%s", 1)
 		}
-		def.Id("params").Id(structName)
+		def.Id("params").Id(a.StructName)
 	})
 
-	Req := func() *Statement { return Id("req") }
-	Res := func() *Statement { return Id("res") }
-	ActionResult := func() *Statement { return Id("actionResult") }
 	returns := a.Returns != nil
 
-	def.ParamsFunc(func(def *Group) {
+	c.Code.ParamsFunc(func(def *Group) {
 		if returns {
-			def.Add(ActionResult()).Add(a.Returns.GoType(packagePrefix))
+			def.Id(ActionResult).Add(a.Returns.GoType())
 		}
 		def.Err().Error()
 	})
 
-	def.BlockFunc(func(def *Group) {
-		def.Id("url").Op(":=").Add(Id(ClientReceiver).Dot(HostnameClientField)).Op("+").Qual("fmt", "Sprintf").
+	c.Code.BlockFunc(func(def *Group) {
+		def.Id(Url).Op(":=").Id(ClientReceiver).Dot(HostnameClientField).Op("+").Qual("fmt", "Sprintf").
 			CallFunc(func(def *Group) {
-				def.Lit(queryPath + "?action=" + a.Name)
+				def.Lit(queryPath + "?action=" + a.ActionName)
 				for _, r := range parentResources {
 					if id := r.getIdentifier(); id != nil {
 						def.Id(id.Name)
@@ -134,39 +118,26 @@ func (a *Action) generateActionParamStructs(packagePrefix string, parentResource
 					def.Id(thisResource.getIdentifier().Name)
 				}
 			})
-		def.Var().Add(Req()).Op("*").Qual(NetHttp, "Request")
-		def.List(Req(), Err()).Op("=").Qual(packagePrefix+"/protocol", "RestliPost").Call(Id("url"), Lit(""), Id("params"))
-		ifErrReturn(def)
+		def.List(Id(Req), Err()).Op(":=").Qual(PackagePrefix+"/protocol", "RestliPost").Call(Id("url"), Lit(""), Id("params"))
+		IfErrReturn(def).Line()
 
-		def.Var().Add(Res()).Op("*").Qual(NetHttp, "Response")
-		def.List(Res(), Err()).Op("=").Id(ClientReceiver).Dot("Do").Call(Req())
-		ifErrReturn(def)
-
-		def.Err().Op("=").Qual(packagePrefix+"/protocol", "IsErrorResponse").Call(Res())
-		ifErrReturn(def)
+		var resDef *Statement
+		if returns {
+			resDef = def.List(Id(Res), Err()).Op(":=")
+		} else {
+			resDef = def.List(Id("_"), Err()).Op("=")
+		}
+		resDef.Qual(PackagePrefix+"/protocol", "RestliDo").Call(Id(ClientReceiver).Dot(Client), Id(Req))
+		IfErrReturn(def).Line()
 
 		if returns {
-			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType(packagePrefix))).Block()
-			def.Err().Op("=").Qual("encoding/json", "NewDecoder").Call(Res().Dot("Body")).Dot("Decode").Call(Op("&").Id("result"))
-			ifErrReturn(def)
-			def.Add(ActionResult()).Op("=").Add(Id("result").Dot("Value"))
+			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
+			def.Err().Op("=").Qual("encoding/json", "NewDecoder").Call(Id(Res).Dot("Body")).Dot("Decode").Call(Op("&").Id("result"))
+			IfErrReturn(def).Line()
+			def.Id(ActionResult).Op("=").Id("result").Dot("Value")
 		}
 		def.Return()
 	})
 
 	return
-}
-
-func prefixNameWithParentResources(name string, parentResources []*Resource, thisResource *Resource) string {
-	var names []string
-	for _, r := range parentResources {
-		names = append(names, ExportedIdentifier(r.Name))
-	}
-	names = append(names, ExportedIdentifier(thisResource.Name))
-	names = append(names, ExportedIdentifier(name))
-	return strings.Join(names, "_")
-}
-
-func ifErrReturn(c *Group) {
-	c.If(Err().Op("!=").Nil()).Block(Return()).Line()
 }

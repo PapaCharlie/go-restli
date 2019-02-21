@@ -2,9 +2,7 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
-	"log"
 	"regexp"
 	"strings"
 )
@@ -41,12 +39,6 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (r *Reference) GoType(packagePrefix string, parentNamespace string) *jen.Statement {
-	if r.Namespace == "" {
-		r.Namespace = parentNamespace
-	}
-	if r.Name == "" {
-		log.Panicln("Reference type has no name:", r)
-	}
-	return jen.Qual(r.PackagePath(packagePrefix), r.Name)
+func (r *Reference) GetRegisteredModel() *Model {
+	return GetRegisteredModel(Ns{r.Namespace}, r.Name)
 }

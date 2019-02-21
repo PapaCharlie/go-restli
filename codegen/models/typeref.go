@@ -20,9 +20,9 @@ func (t *Typeref) GoType(packagePrefix string) *jen.Statement {
 	panic("typerefs cannot be directly referenced!")
 }
 
-func (t *Typeref) generateCode(packagePrefix string) (def *jen.Statement) {
+func (t *Typeref) generateCode() (def *jen.Statement) {
 	def = jen.Empty()
 	AddWordWrappedComment(def, t.Doc).Line()
-	def.Type().Id(t.Name).Add(t.Ref.GoType(packagePrefix))
+	def.Type().Id(t.Name).Add(t.Ref.GoType())
 	return
 }

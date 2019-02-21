@@ -3,7 +3,7 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
@@ -12,17 +12,38 @@ import (
 	"unicode"
 )
 
-var CommentWrapWidth = 120
+const (
+	Unmarshal             = "Unmarshal"
+	UnmarshalJSON         = "UnmarshalJSON"
+	Marshal               = "Marshal"
+	MarshalJSON           = "MarshalJSON"
+	PopulateDefaultValues = "populateDefaultValues"
+	NetHttp               = "net/http"
+	EncodingJson          = "encoding/json"
+)
+
+var (
+	PackagePrefix    = ""
+	CommentWrapWidth = 120
+)
 
 type CodeFile struct {
 	SourceFilename string
 	PackagePath    string
 	Filename       string
-	Code           *jen.Statement
+	Code           *Statement
+}
+
+func NewCodeFile(filename string, packageSegments ...string) (*CodeFile) {
+	return &CodeFile{
+		PackagePath: filepath.Join(packageSegments...),
+		Filename:    filename,
+		Code:        Empty(),
+	}
 }
 
 func (f *CodeFile) Write(outputDir string) (filename string, err error) {
-	file := jen.NewFilePath(f.PackagePath)
+	file := NewFilePath(f.PackagePath)
 
 	file.HeaderComment(fmt.Sprintf(`DO NOT EDIT
 
@@ -36,7 +57,7 @@ Soure file: %s`, f.SourceFilename))
 	return
 }
 
-func write(filename string, file *jen.File) error {
+func write(filename string, file *File) error {
 	b := bytes.NewBuffer(nil)
 	if err := file.Render(b); err != nil {
 		return errors.WithStack(err)
@@ -46,14 +67,15 @@ func write(filename string, file *jen.File) error {
 		return errors.WithStack(err)
 	}
 
-	if err := ioutil.WriteFile(filename, b.Bytes(), os.ModePerm); err != nil {
+	os.Remove(filename)
+	if err := ioutil.WriteFile(filename, b.Bytes(), os.FileMode(0555)); err != nil {
 		return errors.WithStack(err)
 	}
 
 	return nil
 }
 
-func AddWordWrappedComment(code *jen.Statement, comment string) *jen.Statement {
+func AddWordWrappedComment(code *Statement, comment string) *Statement {
 	if comment != "" {
 		code.Comment(comment)
 		return code
@@ -86,6 +108,44 @@ func ExportedIdentifier(identifier string) string {
 	return strings.ToUpper(identifier[:1]) + identifier[1:]
 }
 
-func JsonTag(fieldName string) map[string]string {
-	return map[string]string{"json": fieldName + ",omitempty"}
+func PrivateIdentifier(identifier string) string {
+	return strings.ToLower(identifier[:1]) + identifier[1:]
+}
+
+func JsonTag(fieldName string, omitIfEmpty bool) map[string]string {
+	if omitIfEmpty {
+		fieldName += ",omitempty"
+	}
+	return map[string]string{"json": fieldName}
+}
+
+func AddMarshalJSON(def *Statement, receiver, typeName string, f func(*Group)) *Statement {
+	def.Func().
+		Params(Id(receiver).Op("*").Id(typeName)).
+		Id(MarshalJSON).Params().
+		Params(Id("data").Index().Byte(), Err().Error()).
+		BlockFunc(f)
+	return def
+}
+
+func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(*Group)) *Statement {
+	def.Func().
+		Params(Id(receiver).Op("*").Id(typeName)).
+		Id(UnmarshalJSON).Params(Id("data").Index().Byte()).
+		Params(Err().Error()).
+		BlockFunc(f)
+	return def
+}
+
+func AddStringer(def *Statement, receiver, typeName string, f func(*Group)) *Statement {
+	def.Func().
+		Params(Id(receiver).Op("*").Id(typeName)).
+		Id("String").Params().String().
+		BlockFunc(f)
+	return def
+}
+
+func IfErrReturn(c *Group) (*Group) {
+	c.If(Err().Op("!=").Nil()).Block(Return())
+	return c
 }

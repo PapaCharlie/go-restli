@@ -30,34 +30,75 @@ func (r *Record) InnerModels() (models []*Model) {
 	return
 }
 
-func (r *Record) generateCode(packagePrefix string) (def *jen.Statement) {
+func (r *Record) GenerateCode() (def *jen.Statement) {
 	def = jen.Empty()
 
 	AddWordWrappedComment(def, r.Doc).Line()
 
-	var fields []jen.Code
-	for _, i := range r.Include {
-		if ref := i.Reference; ref != nil {
-			fields = append(fields, i.GoType(packagePrefix))
-			continue
+	def.Type().Id(r.Name).StructFunc(func(def *jen.Group) {
+		for _, i := range r.Include {
+			if rec := i.Record; rec != nil {
+				def.Add(i.GoType())
+				continue
+			}
+			log.Panic("Illegal included type:", i)
 		}
-		if rec := i.Record; rec != nil {
-			fields = append(fields, i.GoType(packagePrefix))
-			continue
+
+		for _, f := range r.Fields {
+			field := def.Empty()
+			AddWordWrappedComment(field, f.Doc).Line()
+			field.Id(ExportedIdentifier(f.Name))
+			if f.Optional || f.Default != nil {
+				field.Add(f.Type.PointerType()).Tag(JsonTag(f.Name, true))
+			} else {
+				field.Add(f.Type.GoType()).Tag(JsonTag(f.Name, false))
+			}
 		}
-		log.Panic("Illegal included type:", i)
-	}
+	}).Line().Line()
 
-	for _, f := range r.Fields {
-		field := jen.Empty()
-		AddWordWrappedComment(field, f.Doc).Line()
-		field.Id(ExportedIdentifier(f.Name))
-		field.Add(f.Type.GoType(packagePrefix))
-		field.Tag(JsonTag(f.Name))
-		fields = append(fields, field)
-	}
+	receiver := PrivateIdentifier(r.Name[:1])
 
-	def.Type().Id(r.Name).Struct(fields...)
+	def.Func().
+		Id("New" + r.Name).Params().
+		Params(jen.Id(receiver).Op("*").Id(r.Name))
+	def.BlockFunc(func(def *jen.Group) {
+		def.Id(receiver).Op("=").New(jen.Id(r.Name))
+		for _, f := range r.Fields {
+			if f.Type.Record != nil && !f.Optional && f.Default == nil {
+				def.Id(receiver).Dot(ExportedIdentifier(f.Name)).Op("=").Op("*").Qual(f.Type.PackagePath(), "New"+f.Type.Record.Name).Call()
+			}
+		}
+		def.Id(receiver).Dot(PopulateDefaultValues).Call()
+		def.Return()
+	}).Line().Line()
+
+	def.Func().
+		Params(jen.Id(receiver).Op("*").Id(r.Name)).
+		Id(PopulateDefaultValues).Params().
+		Params()
+	def.BlockFunc(func(def *jen.Group) {
+		for _, f := range r.Fields {
+			name := ExportedIdentifier(f.Name)
+			if f.Default != nil {
+				SetDefaultValue(def, receiver, name, string(f.Default), f.Type)
+				def.Line()
+			}
+		}
+	}).Line().Line()
+
+	AddMarshalJSON(def, receiver, r.Name, func(def *jen.Group) {
+		def.Id(receiver).Dot(PopulateDefaultValues).Call()
+		def.Type().Id("_t").Id(r.Name)
+		def.Return(jen.Qual(EncodingJson, Marshal).Call(jen.Call(jen.Op("*").Id("_t")).Call(jen.Id(receiver))))
+	}).Line().Line()
+
+	AddUnmarshalJSON(def, receiver, r.Name, func(def *jen.Group) {
+		def.Type().Id("_t").Id(r.Name)
+		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(jen.Id("data"), jen.Call(jen.Op("*").Id("_t")).Call(jen.Id(receiver)))
+		IfErrReturn(def).Line()
+		def.Id(receiver).Dot(PopulateDefaultValues).Call()
+		def.Return()
+	}).Line().Line()
 
 	return
 }

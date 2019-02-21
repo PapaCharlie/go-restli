@@ -6,6 +6,7 @@ idl/
 /snapshots/
 /models/
 /schemas/
+/options/
 go-restli
 *.swp
 *.swo

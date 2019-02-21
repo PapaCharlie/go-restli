@@ -85,3 +85,13 @@ func RestliPost(url string, method string, contents interface{}) (*http.Request,
 
 	return req, nil
 }
+
+func RestliDo(client *http.Client, req *http.Request) (res *http.Response, err error) {
+	res, err = client.Do(req)
+	if err != nil {
+		return
+	}
+
+	err = IsErrorResponse(res)
+	return
+}

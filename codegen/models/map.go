@@ -24,8 +24,8 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *Map) GoType(packagePrefix string) *jen.Statement {
-	return jen.Map(jen.String()).Add(m.Values.GoType(packagePrefix))
+func (m *Map) GoType() *jen.Statement {
+	return jen.Map(jen.String()).Add(m.Values.GoType())
 }
 
 func (m *Map) InnerModels() []*Model {

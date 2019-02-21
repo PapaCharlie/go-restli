@@ -19,22 +19,22 @@ type Ns struct {
 	Namespace string `json:"namespace"`
 }
 
-func (n *Ns) PackagePath(packagePrefix string) string {
+func (n *Ns) PackagePath() string {
 	if n.Namespace == "" {
 		panic("no namespace for package!")
 	}
 	p := strings.Replace(n.Namespace, ".", "/", -1)
-	if packagePrefix != "" {
-		p = packagePrefix + "/" + p
+	if PackagePrefix != "" {
+		p = PackagePrefix + "/" + p
 	}
 	return p
 }
 
-func (m *Model) Qual(packagePrefix string) *jen.Statement {
+func (m *Model) Qual() *jen.Statement {
 	if m.Name == "" {
 		log.Panicln("name cannot be empty!", m)
 	}
-	return jen.Qual(m.PackagePath(packagePrefix), m.Name)
+	return jen.Qual(m.PackagePath(), m.Name)
 }
 
 type ModelCodeGenerator interface {
@@ -45,17 +45,15 @@ type Model struct {
 	Ns
 	NameAndDoc
 
-	*Array
-	*Enum
-	*Fixed
-	*Map
-	*Primitive
-	*Record
-	*Reference
-	*Typeref
-	*Union
-
-	isTopLevel bool
+	Array     *Array
+	Enum      *Enum
+	Fixed     *Fixed
+	Map       *Map
+	Primitive *Primitive
+	Record    *Record
+	Reference *Reference
+	Typeref   *Typeref
+	Union     *Union
 }
 
 func (m *Model) String() string {
@@ -99,38 +97,38 @@ func (m *Model) String() string {
 		model = m.Union
 	}
 
-	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s", m.Name, m.Namespace, m.Doc, modelType, model)
+	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s}", m.Name, m.Namespace, m.Doc, modelType, model)
 }
 
-func (m *Model) GenerateModelCode(packagePrefix string, sourceFilename string) (f *CodeFile) {
+func (m *Model) GenerateModelCode(sourceFilename string) (f *CodeFile) {
 	f = &CodeFile{
 		SourceFilename: sourceFilename,
 	}
 	if m.Namespace != "" {
-		f.PackagePath = m.PackagePath(packagePrefix)
+		f.PackagePath = m.PackagePath()
 	}
 
 	if m.Enum != nil {
-		f.Code = m.Enum.generateCode(packagePrefix)
+		f.Code = m.Enum.generateCode()
 		f.Filename = m.Name
 	}
 
 	if m.Record != nil {
-		f.Code = m.Record.generateCode(packagePrefix)
+		f.Code = m.Record.GenerateCode()
 		f.Filename = m.Name
 	}
 
 	if m.Typeref != nil {
-		f.Code = m.Typeref.generateCode(packagePrefix)
+		f.Code = m.Typeref.generateCode()
 		f.Filename = m.Name
 	}
 
 	if m.Union != nil {
-		f.Code = m.Union.generateCode(packagePrefix)
+		f.Code = m.Union.generateCode()
 		f.Filename = m.Name
 	}
 
-	if m.isTopLevel && m.Fixed != nil {
+	if m.Fixed != nil {
 		f.Code = m.Fixed.generateCode()
 		f.Filename = m.Name
 	}
@@ -172,13 +170,13 @@ func (m *Model) InnerModels() (models []*Model) {
 	return
 }
 
-func (m *Model) GoType(packagePrefix string) *jen.Statement {
+func (m *Model) GoType() *jen.Statement {
 	// Arrays and maps have special notation
 	if m.Array != nil {
-		return m.Array.GoType(packagePrefix)
+		return m.Array.GoType()
 	}
 	if m.Map != nil {
-		return m.Map.GoType(packagePrefix)
+		return m.Map.GoType()
 	}
 
 	// "Fixed" is an alias for [n]byte
@@ -192,11 +190,11 @@ func (m *Model) GoType(packagePrefix string) *jen.Statement {
 	}
 
 	if m.Union != nil {
-		return m.Union.GoType(packagePrefix)
+		return m.Union.GoType()
 	}
 
 	if m.Reference != nil {
-		return m.Reference.GoType(packagePrefix, escapeNamespace(m.Namespace))
+		log.Panicln("Reference type not replaced", m)
 	}
 
 	// All of the following are type references
@@ -204,14 +202,35 @@ func (m *Model) GoType(packagePrefix string) *jen.Statement {
 		if m.Namespace == "" {
 			log.Panicln(m.Name, "has no namespace!")
 		} else {
-			return m.Qual(packagePrefix)
+			return m.Qual()
 		}
 	}
 
 	panic("all fields nil")
 }
 
-func (m *Model) UnmarshalJSON(data []byte) error {
+func (m *Model) PointerType() *jen.Statement {
+	c := jen.Empty()
+	if !m.IsMapOrArray() {
+		c.Op("*")
+	}
+	c.Add(m.GoType())
+	return c
+}
+
+func (m *Model) IsMapOrArray() bool {
+	return m.Array != nil || m.Map != nil
+}
+
+func (m *Model) UnmarshalJSON(data []byte) (err error) {
+	defer func() {
+		if m.Reference != nil && m.Reference.Namespace != "" {
+			if rm := m.Reference.GetRegisteredModel(); rm != nil {
+				*m = *rm
+			}
+		}
+	}()
+
 	model := &struct {
 		Ns
 		NameAndDoc
