@@ -16,7 +16,7 @@ type ResourceModel struct {
 func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 	var unmarshallErrors []error
 
-	var primitive models.Primitive
+	var primitive models.PrimitiveModel
 	if err := json.Unmarshal(data, &primitive); err == nil {
 		t.Primitive = &primitive
 		return nil
@@ -24,7 +24,7 @@ func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 		unmarshallErrors = append(unmarshallErrors, err)
 	}
 
-	var reference models.Reference
+	var reference models.ModelReference
 	if err := json.Unmarshal(data, &reference); err == nil {
 		if reference.Namespace == "" {
 			return errors.Wrapf(err, "%s was provided with no namespace", reference)

@@ -2,18 +2,17 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
 
-const ArrayType = "array"
+const ArrayModelTypeName = "array"
 
-type Array struct {
-	//Type  string
+type ArrayModel struct {
 	Items *Model
 }
 
-func (a *Array) UnmarshalJSON(data []byte) error {
+func (a *ArrayModel) UnmarshalJSON(data []byte) error {
 	t := &struct {
 		Type  string
 		Items *Model
@@ -21,21 +20,17 @@ func (a *Array) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, t); err != nil {
 		return err
 	}
-	if t.Type != ArrayType {
+	if t.Type != ArrayModelTypeName {
 		return errors.Errorf("Not an array type: %s", string(data))
 	}
 	a.Items = t.Items
 	return nil
 }
 
-func (a *Array) GoType() *jen.Statement {
-	return jen.Index().Add(a.Items.GoType())
+func (a *ArrayModel) GoType() *Statement {
+	return Index().Add(a.Items.GoType())
 }
 
-func (a *Array) InnerModels() []*Model {
+func (a *ArrayModel) InnerModels() []*Model {
 	return []*Model{a.Items}
 }
-
-//func (a *Array) GetLit(rawJson string) interface{} {
-//
-//}

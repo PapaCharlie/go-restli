@@ -60,13 +60,13 @@ type Entity struct {
 }
 
 type Method struct {
-	models.Record
+	models.RecordModel
 	Method          string
 	PagingSupported bool
 }
 
 type Endpoint struct {
-	models.Record
+	models.RecordModel
 	Returns *ResourceModel
 }
 

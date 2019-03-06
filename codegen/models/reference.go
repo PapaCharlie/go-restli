@@ -7,23 +7,29 @@ import (
 	"strings"
 )
 
-type Reference struct {
+type ModelReference struct {
 	Ns
 	NameAndDoc
 }
 
 var ValidReferenceType = regexp.MustCompile("^[a-zA-Z_]([a-zA-Z_0-9.])*$")
 
-func (r *Reference) UnmarshalJSON(data []byte) error {
+func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	var name string
 	if err := json.Unmarshal(data, &name); err != nil {
 		return errors.WithStack(err)
 	}
 
 	// ensure not a primitive
-	var p Primitive
+	var p PrimitiveModel
 	if err := json.Unmarshal(data, &p); err == nil {
 		return errors.New("Reference types cannot be primitives")
+	}
+
+	// ensure not bytes
+	var b BytesModel
+	if err := json.Unmarshal(data, &b); err == nil {
+		return errors.New("Reference types cannot be \"bytes\"")
 	}
 
 	if ! ValidReferenceType.Match([]byte(name)) {
@@ -39,6 +45,6 @@ func (r *Reference) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (r *Reference) GetRegisteredModel() *Model {
+func (r *ModelReference) GetRegisteredModel() *Model {
 	return GetRegisteredModel(Ns{r.Namespace}, r.Name)
 }

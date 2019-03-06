@@ -3,19 +3,19 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	. "go-restli/codegen"
 )
 
-const EnumType = "enum"
+const EnumModelTypeName = "enum"
 
-type Enum struct {
+type EnumModel struct {
 	NameAndDoc
 	Symbols map[string]string
 }
 
-func (e *Enum) UnmarshalJSON(data []byte) error {
+func (e *EnumModel) UnmarshalJSON(data []byte) error {
 	enum := &struct {
 		NameAndDoc
 		Symbols    []string          `json:"symbols"`
@@ -37,75 +37,84 @@ func (e *Enum) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (e *Enum) generateCode() (def *jen.Statement) {
-	def = jen.Empty()
+func (e *EnumModel) generateCode() (def *Statement) {
+	def = Empty()
 	AddWordWrappedComment(def, e.Doc).Line()
 	def.Type().Id(e.Name).Int().Line()
 
 	var symbols []string
 
-	def.Const().DefsFunc(func(def *jen.Group) {
-		def.Id("_" + e.SymbolIdentifier("unknown")).Op("=").Id(e.Name).Call(jen.Iota())
+	def.Const().DefsFunc(func(def *Group) {
+		def.Id("_" + e.SymbolIdentifier("unknown")).Op("=").Id(e.Name).Call(Iota())
 		for symbol, symbolDoc := range e.Symbols {
 			symbols = append(symbols, symbol)
-			def.Add(AddWordWrappedComment(jen.Empty(), symbolDoc))
+			def.Add(AddWordWrappedComment(Empty(), symbolDoc))
 			def.Id(e.SymbolIdentifier(symbol))
 		}
 	}).Line()
 
 	values := "_" + e.Name + "_values"
-	def.Var().Id(values).Op("=").Map(jen.String()).Id(e.Name).Values(jen.DictFunc(func(dict jen.Dict) {
+	def.Var().Id(values).Op("=").Map(String()).Id(e.Name).Values(DictFunc(func(dict Dict) {
 		for _, s := range symbols {
-			dict[jen.Lit(s)] = jen.Id(e.SymbolIdentifier(s))
+			dict[Lit(s)] = Id(e.SymbolIdentifier(s))
 		}
 	})).Line()
 
 	strings := "_" + e.Name + "_strings"
-	def.Var().Id(strings).Op("=").Map(jen.Id(e.Name)).String().Values(jen.DictFunc(func(dict jen.Dict) {
+	def.Var().Id(strings).Op("=").Map(Id(e.Name)).String().Values(DictFunc(func(dict Dict) {
 		for _, s := range symbols {
-			dict[jen.Id(e.SymbolIdentifier(s))] = jen.Lit(s)
+			dict[Id(e.SymbolIdentifier(s))] = Lit(s)
 		}
 	})).Line().Line()
 
-	receiver := PrivateIdentifier(e.Name[:1])
+	receiver := ReceiverName(e.Name)
 	getter := "Get" + e.Name + "FromString"
 
-	def.Func().Id(getter).Params(jen.Id("val").String()).Params(jen.Id(receiver).Id(e.Name), jen.Err().Error())
-	def.BlockFunc(func(def *jen.Group) {
-		def.List(jen.Id(receiver), jen.Id("ok")).Op(":=").Id(values).Index(jen.Id("val"))
-		def.If(jen.Op("!").Id("ok")).BlockFunc(func(def *jen.Group) {
-			jen.Err().Op("=").Qual("fmt", "Errorf").Call(jen.Lit(fmt.Sprintf("illegal %s: %%s", e.Name)), jen.Id(receiver))
+	def.Func().Id(getter).Params(Id("val").String()).Params(Id(receiver).Id(e.Name), Err().Error())
+	def.BlockFunc(func(def *Group) {
+		def.List(Id(receiver), Id("ok")).Op(":=").Id(values).Index(Id("val"))
+		def.If(Op("!").Id("ok")).BlockFunc(func(def *Group) {
+			def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("unknown %s: %%s", e.Name)), Id("val"))
 		})
 		def.Return()
 	}).Line().Line()
 
-	AddStringer(def, receiver, e.Name, func(def *jen.Group) {
-		def.Return(jen.Id(strings).Index(jen.Op("*").Id(receiver)))
+	AddStringer(def, receiver, e.Name, func(def *Group) {
+		def.Return(Id(strings).Index(Op("*").Id(receiver)))
 	}).Line().Line()
 
-	AddMarshalJSON(def, receiver, e.Name, func(def *jen.Group) {
+	AddMarshalJSON(def, receiver, e.Name, func(def *Group) {
 		def.Id("val").Op(":=").Id(receiver).Dot("String").Call()
-		def.If(jen.Id("val").Op("==").Lit("")).BlockFunc(func(def *jen.Group) {
-			def.Return(jen.Nil(), jen.Qual("fmt", "Errorf").Call(jen.Lit(fmt.Sprintf("illegal %s: %%s", e.Name)), jen.Id(receiver)))
+		def.If(Id("val").Op("==").Lit("")).BlockFunc(func(def *Group) {
+			def.Return(Nil(), Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("illegal %s: %%s", e.Name)), Id(receiver)))
 		})
-		def.Return(jen.Index().Byte().Call(jen.Lit(`"`).Op("+").Id("val").Op("+").Lit(`"`)), jen.Nil())
+		def.Return(Index().Byte().Call(Lit(`"`).Op("+").Id("val").Op("+").Lit(`"`)), Nil())
 	}).Line().Line()
 
-	AddUnmarshalJSON(def, receiver, e.Name, func(def *jen.Group) {
+	AddUnmarshalJSON(def, receiver, e.Name, func(def *Group) {
 		def.Var().Id("str").String()
-		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(jen.Id("data"), jen.Op("&").Id("str"))
+		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Op("&").Id("str"))
 		IfErrReturn(def)
 		def.Line()
 
-		def.List(jen.Id("val"), jen.Err()).Op(":=").Id(getter).Call(jen.Id("str"))
+		def.List(Id("val"), Err()).Op(":=").Id(getter).Call(Id("str"))
 		IfErrReturn(def)
 		def.Op("*").Id(receiver).Op("=").Id("val")
+		def.Return()
+	}).Line().Line()
+
+	AddRestLiEncode(def, receiver, e.Name, func(def *Group) {
+		def.Id("data").Op("=").Id(receiver).Dot("String").Call()
+		def.Return()
+	}).Line().Line()
+	AddRestLiDecode(def, receiver, e.Name, func(def *Group) {
+		def.List(Op("*").Id(receiver), Err()).Op("=").Id(getter).Call(Id("data"))
 		def.Return()
 	}).Line().Line()
 
 	return
 }
 
-func (e *Enum) SymbolIdentifier(symbol string) string {
+func (e *EnumModel) SymbolIdentifier(symbol string) string {
 	return ExportedIdentifier(e.Name + "_" + symbol)
 }

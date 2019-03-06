@@ -3,10 +3,11 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	. "go-restli/codegen"
 	"log"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,80 +25,89 @@ func (n *Ns) PackagePath() string {
 		panic("no namespace for package!")
 	}
 	p := strings.Replace(n.Namespace, ".", "/", -1)
-	if PackagePrefix != "" {
-		p = PackagePrefix + "/" + p
+	if GetPackagePrefix() != "" {
+		p = filepath.Join(GetPackagePrefix(), p)
 	}
 	return p
 }
 
-func (m *Model) Qual() *jen.Statement {
+func (m *Model) Qual() *Statement {
 	if m.Name == "" {
 		log.Panicln("name cannot be empty!", m)
 	}
-	return jen.Qual(m.PackagePath(), m.Name)
+	return Qual(m.PackagePath(), m.Name)
 }
 
 type ModelCodeGenerator interface {
-	GenerateCode(packagePrefix string, previousNamespace string) (packagePath string, typeName string, def *jen.Statement)
+	GenerateCode(packagePrefix string, previousNamespace string) (packagePath string, typeName string, def *Statement)
 }
 
 type Model struct {
 	Ns
 	NameAndDoc
 
-	Array     *Array
-	Enum      *Enum
-	Fixed     *Fixed
-	Map       *Map
-	Primitive *Primitive
-	Record    *Record
-	Reference *Reference
-	Typeref   *Typeref
-	Union     *Union
+	Array     *ArrayModel
+	Enum      *EnumModel
+	Fixed     *FixedModel
+	Map       *MapModel
+	Bytes     *BytesModel
+	Primitive *PrimitiveModel
+	Record    *RecordModel
+	Reference *ModelReference
+	Typeref   *TyperefModel
+	Union     *UnionModel
 }
 
 func (m *Model) String() string {
-	var modelType string
+	var modelTypeName string
 	var model interface{}
 
 	if m.Array != nil {
-		modelType = "Array"
+		modelTypeName = ArrayModelTypeName
 		model = m.Array
 	}
 	if m.Enum != nil {
-		modelType = "Enum"
+		modelTypeName = EnumModelTypeName
 		model = m.Enum
 	}
 	if m.Fixed != nil {
-		modelType = "Fixed"
+		modelTypeName = FixedModelTypeName
 		model = m.Fixed
 	}
 	if m.Map != nil {
-		modelType = "Map"
+		modelTypeName = MapModelTypeName
 		model = m.Map
 	}
+	if m.Bytes != nil {
+		modelTypeName = "bytes"
+		model = "Bytes"
+	}
 	if m.Primitive != nil {
-		modelType = "Primitive"
-		model = string(*m.Primitive)
+		modelTypeName = "primitive"
+		model = m.Primitive
 	}
 	if m.Record != nil {
-		modelType = "Record"
+		modelTypeName = RecordTypeModelTypeName
 		model = m.Record
 	}
 	if m.Reference != nil {
-		modelType = "Reference"
+		modelTypeName = "reference"
 		model = m.Reference
 	}
 	if m.Typeref != nil {
-		modelType = "Typeref"
+		modelTypeName = TyperefModelTypeName
 		model = m.Typeref
 	}
 	if m.Union != nil {
-		modelType = "Union"
+		modelTypeName = "union"
 		model = m.Union
 	}
+	if modelTypeName == "" {
+		log.Panicln("all fields nil", m.Ns, m.NameAndDoc)
+	}
+	modelTypeName = strings.ToUpper(modelTypeName[:1]) + modelTypeName[1:]
 
-	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s}", m.Name, m.Namespace, m.Doc, modelType, model)
+	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s}", m.Name, m.Namespace, m.Doc, modelTypeName, model)
 }
 
 func (m *Model) GenerateModelCode(sourceFilename string) (f *CodeFile) {
@@ -120,11 +130,6 @@ func (m *Model) GenerateModelCode(sourceFilename string) (f *CodeFile) {
 
 	if m.Typeref != nil {
 		f.Code = m.Typeref.generateCode()
-		f.Filename = m.Name
-	}
-
-	if m.Union != nil {
-		f.Code = m.Union.generateCode()
 		f.Filename = m.Name
 	}
 
@@ -170,7 +175,7 @@ func (m *Model) InnerModels() (models []*Model) {
 	return
 }
 
-func (m *Model) GoType() *jen.Statement {
+func (m *Model) GoType() *Statement {
 	// Arrays and maps have special notation
 	if m.Array != nil {
 		return m.Array.GoType()
@@ -179,14 +184,13 @@ func (m *Model) GoType() *jen.Statement {
 		return m.Map.GoType()
 	}
 
-	// "Fixed" is an alias for [n]byte
-	if m.Fixed != nil {
-		return m.Fixed.GoType()
-	}
-
 	// primitives don't need to be imported
 	if m.Primitive != nil {
 		return m.Primitive.GoType()
+	}
+
+	if m.Bytes != nil {
+		return m.Bytes.GoType()
 	}
 
 	if m.Union != nil {
@@ -194,11 +198,11 @@ func (m *Model) GoType() *jen.Statement {
 	}
 
 	if m.Reference != nil {
-		log.Panicln("Reference type not replaced", m)
+		log.Panicln("ModelReference type not replaced", m)
 	}
 
 	// All of the following are type references
-	if m.Enum != nil || m.Record != nil || m.Typeref != nil {
+	if m.Enum != nil || m.Record != nil || m.Typeref != nil || m.Fixed != nil {
 		if m.Namespace == "" {
 			log.Panicln(m.Name, "has no namespace!")
 		} else {
@@ -206,11 +210,12 @@ func (m *Model) GoType() *jen.Statement {
 		}
 	}
 
-	panic("all fields nil")
+	log.Panicln("all fields nil", m)
+	return nil
 }
 
-func (m *Model) PointerType() *jen.Statement {
-	c := jen.Empty()
+func (m *Model) PointerType() *Statement {
+	c := Empty()
 	if !m.IsMapOrArray() {
 		c.Op("*")
 	}
@@ -222,7 +227,7 @@ func (m *Model) IsMapOrArray() bool {
 	return m.Array != nil || m.Map != nil
 }
 
-func (m *Model) UnmarshalJSON(data []byte) (err error) {
+func (m *Model) UnmarshalJSON(data []byte) (error) {
 	defer func() {
 		if m.Reference != nil && m.Reference.Namespace != "" {
 			if rm := m.Reference.GetRegisteredModel(); rm != nil {
@@ -239,31 +244,40 @@ func (m *Model) UnmarshalJSON(data []byte) (err error) {
 
 	if err := json.Unmarshal(data, model); err != nil {
 		var unmarshalErrors []error
+		var subErr error
 
-		var primitive Primitive
-		if err := json.Unmarshal(data, &primitive); err == nil {
+		var bytes BytesModel
+		if subErr = json.Unmarshal(data, &bytes); subErr == nil {
+			m.Bytes = &bytes
+			return nil
+		} else {
+			unmarshalErrors = append(unmarshalErrors, subErr)
+		}
+
+		var primitive PrimitiveModel
+		if subErr = json.Unmarshal(data, &primitive); subErr == nil {
 			m.Primitive = &primitive
 			return nil
 		} else {
-			unmarshalErrors = append(unmarshalErrors, err)
+			unmarshalErrors = append(unmarshalErrors, subErr)
 		}
 
-		var reference Reference
-		if err := json.Unmarshal(data, &reference); err == nil {
+		var reference ModelReference
+		if subErr = json.Unmarshal(data, &reference); subErr == nil {
 			m.Reference = &reference
 			m.Namespace = escapeNamespace(reference.Namespace)
 			m.Name = reference.Name
 			return nil
 		} else {
-			unmarshalErrors = append(unmarshalErrors, err)
+			unmarshalErrors = append(unmarshalErrors, subErr)
 		}
 
-		union := &Union{}
-		if err := json.Unmarshal(data, union); err == nil {
+		union := &UnionModel{}
+		if subErr = json.Unmarshal(data, union); subErr == nil {
 			m.Union = union
 			return nil
 		} else {
-			unmarshalErrors = append(unmarshalErrors, err)
+			unmarshalErrors = append(unmarshalErrors, subErr)
 		}
 
 		return errors.Errorf("illegal model type: %v, %v, (%s)", unmarshalErrors, err, string(data))
@@ -279,63 +293,74 @@ func (m *Model) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	switch modelType {
-	case RecordType:
-		recordType := &Record{}
+	case RecordTypeModelTypeName:
+		recordType := &RecordModel{}
 		if err := json.Unmarshal(data, recordType); err == nil {
 			m.Record = recordType
 			return nil
 		} else {
 			return errors.WithStack(err)
 		}
-	case EnumType:
-		enumType := &Enum{}
+	case EnumModelTypeName:
+		enumType := &EnumModel{}
 		if err := json.Unmarshal(data, enumType); err == nil {
 			m.Enum = enumType
 			return nil
 		} else {
 			return errors.WithStack(err)
 		}
-	case FixedType:
-		fixedType := &Fixed{}
+	case FixedModelTypeName:
+		fixedType := &FixedModel{}
 		if err := json.Unmarshal(data, fixedType); err == nil {
 			m.Fixed = fixedType
 			return nil
 		} else {
 			return errors.WithStack(err)
 		}
-	case MapType:
-		mapType := &Map{}
+	case MapModelTypeName:
+		mapType := &MapModel{}
 		if err := json.Unmarshal(data, mapType); err == nil {
 			m.Map = mapType
 			return nil
 		} else {
 			return errors.WithStack(err)
 		}
-	case ArrayType:
-		arrayType := &Array{}
+	case ArrayModelTypeName:
+		arrayType := &ArrayModel{}
 		if err := json.Unmarshal(data, arrayType); err == nil {
 			m.Array = arrayType
 			return nil
 		} else {
 			return errors.WithStack(err)
 		}
-	case TyperefType:
-		typerefType := &Typeref{}
+	case TyperefModelTypeName:
+		typerefType := &TyperefModel{}
 		if err := json.Unmarshal(data, typerefType); err == nil {
+			if m.Name == "IPAddress" {
+				log.Println(typerefType)
+			}
+
+			if typerefType.Ref.Primitive == nil && typerefType.Ref.Bytes == nil {
+				return errors.Errorf("illegal typeref is not a reference to a primitive or \"bytes\": %+v", typerefType)
+			}
+
 			m.Typeref = typerefType
 			return nil
 		} else {
 			return errors.WithStack(err)
 		}
+	case BytesModelTypeName:
+		m.Bytes = &BytesModel{}
+		return nil
 	}
 
-	var primitiveType Primitive
+	var primitiveType PrimitiveModel
 	if err := json.Unmarshal(model.Type, &primitiveType); err == nil {
 		m.Primitive = &primitiveType
 		return nil
 	}
 
-	var referenceType Reference
+	var referenceType ModelReference
 	if err := json.Unmarshal(model.Type, &referenceType); err == nil {
 		m.Reference = &referenceType
 		//if referenceType.Namespace != "" {

@@ -20,7 +20,7 @@ const (
 	RestliHeader_Id              = "X-RestLi-Id"
 )
 
-type RestliError struct {
+type RestLiError struct {
 	Status         int
 	Message        string
 	ExceptionClass string
@@ -30,8 +30,8 @@ type RestliError struct {
 	DeserializationError error  `json:"-"`
 }
 
-func (r *RestliError) Error() string {
-	return fmt.Sprintf("RestliError(status: %d, exceptionClass: %s, message: %s)", r.Status, r.ExceptionClass, r.Message)
+func (r *RestLiError) Error() string {
+	return fmt.Sprintf("RestLiError(status: %d, exceptionClass: %s, message: %s)", r.Status, r.ExceptionClass, r.Message)
 }
 
 func IsErrorResponse(res *http.Response) error {
@@ -44,7 +44,7 @@ func IsErrorResponse(res *http.Response) error {
 		if err != nil {
 			return err
 		}
-		restliError := &RestliError{
+		restliError := &RestLiError{
 			FullResponse: body,
 		}
 		if err := json.NewDecoder(bytes.NewReader(body)).Decode(restliError); err != nil {

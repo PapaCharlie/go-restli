@@ -2,29 +2,29 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	. "go-restli/codegen"
+	"log"
 	"strings"
 )
 
-type Union struct {
-	Types []UnionFieldType
+type UnionModel struct {
+	Types []UnionFieldModel
 }
 
-type UnionFieldType struct {
+type UnionFieldModel struct {
 	Model *Model
 	Alias string
-	Thing bool
 }
 
-func (u *UnionFieldType) UnmarshalJSON(data []byte) error {
+func (u *UnionFieldModel) UnmarshalJSON(data []byte) error {
 	m := &Model{}
 	if err := json.Unmarshal(data, m); err != nil {
 		return err
 	}
 	u.Model = m
 
-	type t UnionFieldType
+	type t UnionFieldModel
 	if err := json.Unmarshal(data, (*t)(u)); err != nil {
 		if !strings.Contains(err.Error(), "json: cannot unmarshal string into Go value of type") {
 			return err
@@ -34,8 +34,8 @@ func (u *UnionFieldType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (u *Union) UnmarshalJSON(data []byte) error {
-	var types []UnionFieldType
+func (u *UnionModel) UnmarshalJSON(data []byte) error {
+	var types []UnionFieldModel
 	if err := json.Unmarshal(data, &types); err != nil {
 		return err
 	}
@@ -43,54 +43,56 @@ func (u *Union) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (u *Union) InnerModels() (models []*Model) {
+func (u *UnionModel) InnerModels() (models []*Model) {
 	for _, t := range u.Types {
 		models = append(models, t.Model)
 	}
 	return
 }
 
-func (u *Union) generateCode() (def *jen.Statement) {
-	return
-}
-
-func (u *Union) GoType() *jen.Statement {
+func (u *UnionModel) GoType() (def *Statement) {
 	if len(u.Types) == 0 {
-		panic(u)
+		log.Panicln("Empty union", u)
 	}
-	var fields []jen.Code
-	for _, t := range u.Types {
-		def := jen.Empty()
-		AddWordWrappedComment(def, t.Model.Doc).Line()
-		def.Id(t.name())
-		def.Op("*").Add(t.Model.GoType())
-		def.Tag(JsonTag(t.alias(), true))
-		fields = append(fields, def)
-	}
-	return jen.Struct(fields...)
+
+	return StructFunc(func(def *Group) {
+		for _, t := range u.Types {
+			var tag FieldTag
+			tag.Json.Name = t.alias()
+			tag.Json.Optional = true
+
+			field := def.Empty()
+			AddWordWrappedComment(field, t.Model.Doc).Line()
+			field.Id(t.name())
+			field.Op("*").Add(t.Model.GoType())
+			field.Tag(tag.ToMap())
+		}
+	})
 }
 
-func (u *UnionFieldType) name() string {
+func (u *UnionFieldModel) name() string {
 	alias := u.alias()
-	alias = strings.ToUpper(alias[:1]) + alias[1:]
-	return alias[strings.LastIndex(alias, ".")+1:]
+	return ExportedIdentifier(alias[strings.LastIndex(alias, ".")+1:])
 }
 
-func (u *UnionFieldType) alias() string {
+func (u *UnionFieldModel) alias() string {
 	if u.Alias != "" {
 		return u.Alias
 	}
 	if u.Model.Primitive != nil {
-		return string(*u.Model.Primitive)
+		return u.Model.Primitive[0]
+	}
+	if u.Model.Bytes != nil {
+		return "bytes"
 	}
 	if u.Model.Fixed != nil {
-		return FixedType
+		return FixedModelTypeName
 	}
 	if u.Model.Array != nil {
-		return ArrayType
+		return ArrayModelTypeName
 	}
 	if u.Model.Map != nil {
-		return MapType
+		return MapModelTypeName
 	}
 	return u.Model.Namespace + "." + u.Model.Name
 }

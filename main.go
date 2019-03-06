@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"github.com/dave/jennifer/jen"
 	"go-restli/codegen"
 	"go-restli/codegen/models"
@@ -24,7 +25,7 @@ func main() {
 	if len(os.Args) < 2 {
 		log.Fatal("Must specify the package prefix")
 	}
-	codegen.PackagePrefix = os.Args[1]
+	codegen.SetPackagePrefix(os.Args[1])
 
 	if len(os.Args) < 3 {
 		log.Fatal("Must specify the output dir")
@@ -99,9 +100,12 @@ func generateAllImportsFile(outputDir string, codeFiles []*codegen.CodeFile) {
 	}
 	f.Func().Id("main").Params().Block(jen.Qual("fmt", "Println").Call(jen.Lit("success!")))
 
-	out, err := os.Create(filepath.Join(outputDir, codegen.PackagePrefix, "all_imports.go"))
+	path := filepath.Join(outputDir, codegen.GetPackagePrefix(), "all_imports.go")
+	out, err := os.Create(path)
 	check(err)
 	check(f.Render(out))
+	check(out.Close())
+	check(os.Chmod(path, os.FileMode(0555)))
 }
 
 func unzipProtocol(outputDir string) {
@@ -109,7 +113,7 @@ func unzipProtocol(outputDir string) {
 	check(err)
 
 	for _, zipFile := range reader.File {
-		name := filepath.Join(outputDir, codegen.PackagePrefix, zipFile.Name)
+		name := filepath.Join(outputDir, codegen.GetPackagePrefix(), zipFile.Name)
 		check(os.MkdirAll(filepath.Dir(name), os.ModePerm))
 
 		f, err := os.Create(name)
@@ -122,6 +126,8 @@ func unzipProtocol(outputDir string) {
 		check(err)
 		check(zipFileReader.Close())
 		check(f.Close())
+
+		check(os.Chmod(name, os.FileMode(0555)))
 	}
 }
 

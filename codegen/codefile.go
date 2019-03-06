@@ -6,6 +6,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,17 +14,27 @@ import (
 )
 
 const (
-	Unmarshal             = "Unmarshal"
-	UnmarshalJSON         = "UnmarshalJSON"
-	Marshal               = "Marshal"
-	MarshalJSON           = "MarshalJSON"
+	EncodingJson  = "encoding/json"
+	Unmarshal     = "Unmarshal"
+	UnmarshalJSON = "UnmarshalJSON"
+	Marshal       = "Marshal"
+	MarshalJSON   = "MarshalJSON"
+
+	Codec        = "codec"
+	RestLiEncode = "RestLiEncode"
+	RestLiDecode = "RestLiDecode"
+	RestLiCodec  = "RestLiCodec"
+
 	PopulateDefaultValues = "populateDefaultValues"
-	NetHttp               = "net/http"
-	EncodingJson          = "encoding/json"
+	ValidateUnionFields   = "validateUnionFields"
+
+	NetHttp = "net/http"
 )
 
 var (
-	PackagePrefix    = ""
+	packagePrefix   *string
+	protocolPackage string
+
 	CommentWrapWidth = 120
 )
 
@@ -83,7 +94,7 @@ func AddWordWrappedComment(code *Statement, comment string) *Statement {
 		return code
 	}
 
-	// WIP: Restli comments are not behaving quite as expected, so comments get added as is, without being wrapped
+	// WIP: RestLi comments are not behaving quite as expected, so comments get added as is, without being wrapped
 	for len(comment) > CommentWrapWidth {
 		if newline := strings.Index(comment[:CommentWrapWidth], "\n"); newline != -1 {
 			code.Comment(comment[:newline]).Line()
@@ -112,40 +123,109 @@ func PrivateIdentifier(identifier string) string {
 	return strings.ToLower(identifier[:1]) + identifier[1:]
 }
 
-func JsonTag(fieldName string, omitIfEmpty bool) map[string]string {
-	if omitIfEmpty {
-		fieldName += ",omitempty"
-	}
-	return map[string]string{"json": fieldName}
+func ReceiverName(typeName string) string {
+	return PrivateIdentifier(typeName[:1])
 }
 
-func AddMarshalJSON(def *Statement, receiver, typeName string, f func(*Group)) *Statement {
-	def.Func().
+func AddFuncOnReceiver(def *Statement, receiver, typeName, funcName string) *Statement {
+	return def.Func().
 		Params(Id(receiver).Op("*").Id(typeName)).
-		Id(MarshalJSON).Params().
+		Id(funcName)
+}
+
+func AddMarshalJSON(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	return AddFuncOnReceiver(def, receiver, typeName, MarshalJSON).
+		Params().
 		Params(Id("data").Index().Byte(), Err().Error()).
 		BlockFunc(f)
-	return def
 }
 
-func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(*Group)) *Statement {
-	def.Func().
-		Params(Id(receiver).Op("*").Id(typeName)).
-		Id(UnmarshalJSON).Params(Id("data").Index().Byte()).
+func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	return AddFuncOnReceiver(def, receiver, typeName, UnmarshalJSON).
+		Params(Id("data").Index().Byte()).
 		Params(Err().Error()).
 		BlockFunc(f)
-	return def
 }
 
-func AddStringer(def *Statement, receiver, typeName string, f func(*Group)) *Statement {
-	def.Func().
-		Params(Id(receiver).Op("*").Id(typeName)).
-		Id("String").Params().String().
+func AddRestLiEncode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	return AddFuncOnReceiver(def, receiver, typeName, RestLiEncode).
+		Params(Id(Codec).Qual(GetRestLiProtocolPackage(), RestLiCodec)).
+		Params(Id("data").String(), Err().Error()).
 		BlockFunc(f)
+}
+
+func AddRestLiDecode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	return AddFuncOnReceiver(def, receiver, typeName, RestLiDecode).
+		Params(Id(Codec).Qual(GetRestLiProtocolPackage(), RestLiCodec), Id("data").String()).
+		Params(Err().Error()).
+		BlockFunc(f)
+}
+
+func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	return AddFuncOnReceiver(def, receiver, typeName, "String").
+		Params().
+		String().
+		BlockFunc(f)
+}
+
+func IfErrReturn(def *Group) (*Group) {
+	def.If(Err().Op("!=").Nil()).Block(Return())
 	return def
 }
 
-func IfErrReturn(c *Group) (*Group) {
-	c.If(Err().Op("!=").Nil()).Block(Return())
-	return c
+func SetPackagePrefix(prefix string) {
+	if packagePrefix == nil {
+		packagePrefix = &prefix
+		protocolPackage = filepath.Join(prefix, "protocol")
+	} else {
+		log.Panicln("packagePrefix can only be set once!")
+	}
+}
+
+func GetPackagePrefix() string {
+	if packagePrefix == nil {
+		log.Panicln("packagePrefix not set!")
+	}
+	return *packagePrefix
+}
+
+func GetRestLiProtocolPackage() string {
+	if packagePrefix == nil {
+		log.Panicln("packagePrefix not set!")
+	}
+	return protocolPackage
+}
+
+func Bytes() *Statement {
+	return Qual(GetRestLiProtocolPackage(), "Bytes")
+}
+
+func EncodePair(k, v string) *Statement {
+	return Lit(fmt.Sprintf("%s:%s", k, v))
+}
+
+type FieldTag struct {
+	Json struct {
+		Name     string
+		Optional bool
+	}
+	RestLi struct {
+		Union bool
+	}
+}
+
+func (f *FieldTag) ToMap() map[string]string {
+	tags := map[string]string{}
+	if f.Json.Name != "" {
+		tags["json"] = f.Json.Name
+		if f.Json.Optional {
+			tags["json"] += ",omitempty"
+		}
+	}
+
+	if f.RestLi.Union {
+		tags["rest.li"] = "union"
+	}
+
+	return tags
 }

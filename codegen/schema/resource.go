@@ -54,7 +54,7 @@ func (r *Resource) getIdentifier() *Identifier {
 	}
 
 	if r.Association != nil {
-		str := models.String
+		str := models.StringPrimitive
 		return &Identifier{
 			Name: r.Association.Identifier,
 			Type: ResourceModel{models.Model{Primitive: &str,}},

@@ -2,17 +2,21 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
+	"fmt"
+	. "github.com/dave/jennifer/jen"
 	. "go-restli/codegen"
 	"log"
 )
 
-const RecordType = "record"
+const RecordTypeModelTypeName = "record"
 
-type Record struct {
+type RecordModel struct {
 	NameAndDoc
 	Include []*Model
 	Fields  []Field
+
+	populateDefaultValues *Statement
+	validateUnionFields   *Statement
 }
 
 type Field struct {
@@ -22,7 +26,26 @@ type Field struct {
 	Default  json.RawMessage `json:"default"`
 }
 
-func (r *Record) InnerModels() (models []*Model) {
+func (f *Field) isPointer() bool {
+	return f.Optional || f.Default != nil
+}
+
+func (r *RecordModel) allFields() (allFields []Field) {
+	for _, i := range r.Include {
+		if i.Record == nil {
+			log.Panic("Illegal included type:", i)
+		}
+		allFields = append(allFields, i.Record.Fields...)
+	}
+	allFields = append(allFields, r.Fields...)
+	return
+}
+
+func (r *RecordModel) receiver() string {
+	return ReceiverName(r.Name)
+}
+
+func (r *RecordModel) InnerModels() (models []*Model) {
 	models = append(models, r.Include...)
 	for _, f := range r.Fields {
 		models = append(models, f.Type)
@@ -30,75 +53,200 @@ func (r *Record) InnerModels() (models []*Model) {
 	return
 }
 
-func (r *Record) GenerateCode() (def *jen.Statement) {
-	def = jen.Empty()
+func (r *RecordModel) GenerateCode() (def *Statement) {
+	def = Empty()
 
 	AddWordWrappedComment(def, r.Doc).Line()
 
-	def.Type().Id(r.Name).StructFunc(func(def *jen.Group) {
-		for _, i := range r.Include {
-			if rec := i.Record; rec != nil {
-				def.Add(i.GoType())
-				continue
-			}
-			log.Panic("Illegal included type:", i)
-		}
-
-		for _, f := range r.Fields {
+	def.Type().Id(r.Name).StructFunc(func(def *Group) {
+		for _, f := range r.allFields() {
 			field := def.Empty()
 			AddWordWrappedComment(field, f.Doc).Line()
 			field.Id(ExportedIdentifier(f.Name))
-			if f.Optional || f.Default != nil {
-				field.Add(f.Type.PointerType()).Tag(JsonTag(f.Name, true))
+
+			var tag FieldTag
+			tag.Json.Name = f.Name
+			if f.isPointer() {
+				tag.Json.Optional = true
+				field.Add(f.Type.PointerType())
+			} else if f.Type.Union != nil {
+				field.Add(f.Type.Union.GoType())
 			} else {
-				field.Add(f.Type.GoType()).Tag(JsonTag(f.Name, false))
+				field.Add(f.Type.GoType())
 			}
+
+			if f.Type.Union != nil {
+				tag.RestLi.Union = true
+			}
+
+			field.Tag(tag.ToMap())
 		}
 	}).Line().Line()
 
-	receiver := PrivateIdentifier(r.Name[:1])
+	hasDefaultValue := r.generatePopulateDefaultValues(def)
+	hasUnionField := r.generateValidateUnionFields(def)
 
 	def.Func().
 		Id("New" + r.Name).Params().
-		Params(jen.Id(receiver).Op("*").Id(r.Name))
-	def.BlockFunc(func(def *jen.Group) {
-		def.Id(receiver).Op("=").New(jen.Id(r.Name))
-		for _, f := range r.Fields {
-			if f.Type.Record != nil && !f.Optional && f.Default == nil {
-				def.Id(receiver).Dot(ExportedIdentifier(f.Name)).Op("=").Op("*").Qual(f.Type.PackagePath(), "New"+f.Type.Record.Name).Call()
+		Params(Id(r.receiver()).Op("*").Id(r.Name))
+	def.BlockFunc(func(def *Group) {
+		def.Id(r.receiver()).Op("=").New(Id(r.Name))
+		for _, f := range r.allFields() {
+			if f.Type.Record != nil && !f.isPointer() {
+				def.Add(r.field(f.Name)).Op("=").Op("*").Qual(f.Type.PackagePath(), "New"+f.Type.Record.Name).Call()
 			}
 		}
-		def.Id(receiver).Dot(PopulateDefaultValues).Call()
+		def.Add(r.populateDefaultValues)
 		def.Return()
 	}).Line().Line()
 
-	def.Func().
-		Params(jen.Id(receiver).Op("*").Id(r.Name)).
-		Id(PopulateDefaultValues).Params().
-		Params()
-	def.BlockFunc(func(def *jen.Group) {
-		for _, f := range r.Fields {
-			name := ExportedIdentifier(f.Name)
+	if hasDefaultValue || hasUnionField {
+		r.jsonSerDe(def)
+	}
+	//AddRestLiEncodableRecord(def, r.receiver(), r.Name)
+
+	return
+}
+
+func (r *RecordModel) jsonSerDe(def *Statement) {
+	AddMarshalJSON(def, r.receiver(), r.Name, func(def *Group) {
+		def.Add(r.populateDefaultValues, r.validateUnionFields)
+		def.Type().Id("_t").Id(r.Name)
+		def.Return(Qual(EncodingJson, Marshal).Call(Call(Op("*").Id("_t")).Call(Id(r.receiver()))))
+	}).Line().Line()
+
+	AddUnmarshalJSON(def, r.receiver(), r.Name, func(def *Group) {
+		def.Type().Id("_t").Id(r.Name)
+		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Call(Op("*").Id("_t")).Call(Id(r.receiver())))
+		IfErrReturn(def).Line()
+		def.Add(r.populateDefaultValues, r.validateUnionFields)
+		def.Return()
+	}).Line().Line()
+}
+
+func (r *RecordModel) setDefaultValue(def *Group, name, rawJson string, model *Model) {
+	def.If(Id(r.receiver()).Dot(name).Op("==").Nil()).BlockFunc(func(def *Group) {
+		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
+		if model.Primitive != nil {
+			def.Id("v").Op(":=").Lit(model.Primitive.GetLit(rawJson))
+			def.Id(r.receiver()).Dot(name).Op("=").Op("&").Id("v")
+			return
+		}
+
+		// Empty arrays and maps can be initialized directly, regardless of type
+		if (model.Array != nil && rawJson == "[]") || (model.Map != nil && rawJson == "{}") {
+			def.Id(r.receiver()).Dot(name).Op("=").Make(model.GoType(), Lit(0))
+			return
+		}
+
+		// Enum values can also be added as literals
+		if model.Enum != nil {
+			var v string
+			err := json.Unmarshal([]byte(rawJson), &v)
+			if err != nil {
+				log.Panicln("illegal enum", err)
+			}
+			def.Id("v").Op(":=").Qual(model.PackagePath(), model.Enum.SymbolIdentifier(v))
+			def.Id(r.receiver()).Dot(name).Op("= &").Id("v")
+			return
+		}
+
+		if !model.IsMapOrArray() {
+			def.Id(r.receiver()).Dot(name).Op("=").New(model.GoType())
+		}
+
+		field := Empty()
+		if model.IsMapOrArray() {
+			field.Op("&")
+		}
+		field.Id(r.receiver()).Dot(name)
+
+		def.Err().Op(":=").Qual(EncodingJson, Unmarshal).Call(Index().Byte().Call(Lit(rawJson)), field)
+		def.If(Err().Op("!=").Nil()).Block(Qual("log", "Panicln").Call(Lit("Illegal default value"), Err()))
+	})
+}
+
+func (r *RecordModel) generatePopulateDefaultValues(def *Statement) bool {
+	r.populateDefaultValues = Empty()
+
+	hasDefault := false
+	for _, f := range r.allFields() {
+		if f.Default != nil {
+			hasDefault = true
+			break
+		}
+	}
+	if !hasDefault {
+		return false
+	}
+
+	AddFuncOnReceiver(def, r.receiver(), r.Name, PopulateDefaultValues).Params().BlockFunc(func(def *Group) {
+		for _, f := range r.allFields() {
 			if f.Default != nil {
-				SetDefaultValue(def, receiver, name, string(f.Default), f.Type)
+				r.setDefaultValue(def, ExportedIdentifier(f.Name), string(f.Default), f.Type)
 				def.Line()
 			}
 		}
 	}).Line().Line()
 
-	AddMarshalJSON(def, receiver, r.Name, func(def *jen.Group) {
-		def.Id(receiver).Dot(PopulateDefaultValues).Call()
-		def.Type().Id("_t").Id(r.Name)
-		def.Return(jen.Qual(EncodingJson, Marshal).Call(jen.Call(jen.Op("*").Id("_t")).Call(jen.Id(receiver))))
-	}).Line().Line()
+	r.populateDefaultValues.Id(r.receiver()).Dot(PopulateDefaultValues).Call().Line()
+	return true
+}
 
-	AddUnmarshalJSON(def, receiver, r.Name, func(def *jen.Group) {
-		def.Type().Id("_t").Id(r.Name)
-		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(jen.Id("data"), jen.Call(jen.Op("*").Id("_t")).Call(jen.Id(receiver)))
-		IfErrReturn(def).Line()
-		def.Id(receiver).Dot(PopulateDefaultValues).Call()
-		def.Return()
-	}).Line().Line()
+func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
+	r.validateUnionFields = Empty()
 
-	return
+	hasUnion := false
+	for _, f := range r.allFields() {
+		if f.Type.Union != nil {
+			hasUnion = true
+			break
+		}
+	}
+	if !hasUnion {
+		return false
+	}
+
+	AddFuncOnReceiver(def, r.receiver(), r.Name, ValidateUnionFields).
+		Params().
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			for _, f := range r.allFields() {
+				if f.Type.Union != nil {
+					isSet := "is" + ExportedIdentifier(f.Name) + "Set"
+					def.Id(isSet).Op(":=").False().Line()
+					errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s", r.Name, ExportedIdentifier(f.Name))
+
+					for i, u := range f.Type.Union.Types {
+						cond := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()
+						def.If(cond).BlockFunc(func(def *Group) {
+							if i == 0 {
+								def.Id(isSet).Op("=").True()
+							} else {
+								def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+									def.Id(isSet).Op("=").True()
+								}).Else().BlockFunc(func(def *Group) {
+									def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+									def.Return()
+								})
+							}
+						}).Line()
+					}
+					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+						def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+						def.Return()
+					})
+				}
+			}
+			def.Return()
+		}).Line().Line()
+
+	r.validateUnionFields.Err().Op("=").Id(r.receiver()).Dot(ValidateUnionFields).Call().Line()
+	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return())
+
+	return true
+}
+
+func (r *RecordModel) field(fieldName string) *Statement {
+	return Id(r.receiver()).Dot(ExportedIdentifier(fieldName))
 }

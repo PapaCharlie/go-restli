@@ -118,7 +118,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 					def.Id(thisResource.getIdentifier().Name)
 				}
 			})
-		def.List(Id(Req), Err()).Op(":=").Qual(PackagePrefix+"/protocol", "RestliPost").Call(Id("url"), Lit(""), Id("params"))
+		def.List(Id(Req), Err()).Op(":=").Qual(GetRestLiProtocolPackage(), "RestliPost").Call(Id("url"), Lit(""), Id("params"))
 		IfErrReturn(def).Line()
 
 		var resDef *Statement
@@ -127,12 +127,12 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 		} else {
 			resDef = def.List(Id("_"), Err()).Op("=")
 		}
-		resDef.Qual(PackagePrefix+"/protocol", "RestliDo").Call(Id(ClientReceiver).Dot(Client), Id(Req))
+		resDef.Qual(GetRestLiProtocolPackage(), "RestliDo").Call(Id(ClientReceiver).Dot(Client), Id(Req))
 		IfErrReturn(def).Line()
 
 		if returns {
 			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
-			def.Err().Op("=").Qual("encoding/json", "NewDecoder").Call(Id(Res).Dot("Body")).Dot("Decode").Call(Op("&").Id("result"))
+			def.Err().Op("=").Qual(EncodingJson, "NewDecoder").Call(Id(Res).Dot("Body")).Dot("Decode").Call(Op("&").Id("result"))
 			IfErrReturn(def).Line()
 			def.Id(ActionResult).Op("=").Id("result").Dot("Value")
 		}

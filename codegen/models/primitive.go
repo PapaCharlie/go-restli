@@ -2,53 +2,51 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/dave/jennifer/jen"
+	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
+	"go-restli/codegen"
 	"log"
 )
 
-type Primitive string
+type PrimitiveModel [2]string
 
-const (
-	Int     = Primitive("int32")
-	Long    = Primitive("int64")
-	Float   = Primitive("float32")
-	Double  = Primitive("float64")
-	Boolean = Primitive("bool")
-	String  = Primitive("string")
-	Bytes   = Primitive("[]byte")
+var (
+	IntPrimitive     = PrimitiveModel{"int", "int32"}
+	LongPrimitive    = PrimitiveModel{"long", "int64"}
+	FloatPrimitive   = PrimitiveModel{"float", "float32"}
+	DoublePrimitive  = PrimitiveModel{"double", "float64"}
+	BooleanPrimitive = PrimitiveModel{"boolean", "bool"}
+	StringPrimitive  = PrimitiveModel{"string", "string"}
 )
 
-func ParsePrimitive(p string) *Primitive {
-	var primitive Primitive
+func ParsePrimitiveModel(p string) *PrimitiveModel {
+	var primitive PrimitiveModel
 	switch p {
-	case "int":
-		primitive = Int
-	case "long":
-		primitive = Long
-	case "float":
-		primitive = Float
-	case "double":
-		primitive = Double
-	case "boolean":
-		primitive = Boolean
-	case "string":
-		primitive = String
-	case "bytes":
-		primitive = Bytes
+	case IntPrimitive[0]:
+		primitive = IntPrimitive
+	case LongPrimitive[0]:
+		primitive = LongPrimitive
+	case FloatPrimitive[0]:
+		primitive = FloatPrimitive
+	case DoublePrimitive[0]:
+		primitive = DoublePrimitive
+	case BooleanPrimitive[0]:
+		primitive = BooleanPrimitive
+	case StringPrimitive[0]:
+		primitive = StringPrimitive
 	default:
 		return nil
 	}
 	return &primitive
 }
 
-func (p *Primitive) UnmarshalJSON(data []byte) error {
+func (p *PrimitiveModel) UnmarshalJSON(data []byte) error {
 	var primitiveType string
 	if err := json.Unmarshal(data, &primitiveType); err != nil {
 		return errors.WithStack(err)
 	}
 
-	parsedPrimitive := ParsePrimitive(primitiveType)
+	parsedPrimitive := ParsePrimitiveModel(primitiveType)
 	if parsedPrimitive != nil {
 		*p = *parsedPrimitive
 		return nil
@@ -57,12 +55,12 @@ func (p *Primitive) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (p *Primitive) GoType() *jen.Statement {
-	return jen.Empty().Add(jen.Id(string(*p)))
+func (p *PrimitiveModel) GoType() *Statement {
+	return Id(p[1])
 }
 
-func (p *Primitive) GetLit(rawJson string) interface{} {
-	unmarshall := func(v interface{}) interface{} {
+func (p *PrimitiveModel) GetLit(rawJson string) interface{} {
+	unmarshal := func(v interface{}) interface{} {
 		err := json.Unmarshal([]byte(rawJson), &v)
 		if err != nil {
 			log.Panicln("Illegal primitive", err)
@@ -71,35 +69,40 @@ func (p *Primitive) GetLit(rawJson string) interface{} {
 	}
 
 	switch *p {
-	case Int:
+	case IntPrimitive:
 		v := new(int32)
-		unmarshall(v)
+		unmarshal(v)
 		return *v
-	case Long:
+	case LongPrimitive:
 		v := new(int64)
-		unmarshall(v)
+		unmarshal(v)
 		return *v
-	case Float:
+	case FloatPrimitive:
 		v := new(float32)
-		unmarshall(v)
+		unmarshal(v)
 		return *v
-	case Double:
+	case DoublePrimitive:
 		v := new(float64)
-		unmarshall(v)
+		unmarshal(v)
 		return *v
-	case Boolean:
+	case BooleanPrimitive:
 		v := new(bool)
-		unmarshall(v)
+		unmarshal(v)
 		return *v
-	case String:
+	case StringPrimitive:
 		v := new(string)
-		unmarshall(v)
-		return *v
-	case Bytes:
-		v := new([]byte)
-		unmarshall(v)
+		unmarshal(v)
 		return *v
 	}
+
 	log.Panicln("Illegal primitive", p)
 	return nil
+}
+
+func (p *PrimitiveModel) encode(accessor *Statement) *Statement {
+	return Id(codegen.Codec).Dot("Encode" + codegen.ExportedIdentifier(p[0])).Call(accessor)
+}
+
+func (p *PrimitiveModel) decode(accessor *Statement) *Statement {
+	return Id(codegen.Codec).Dot("Decode" + codegen.ExportedIdentifier(p[0])).Call(Id("data"), Call(Op("*").Id(p[1])).Call(accessor))
 }
