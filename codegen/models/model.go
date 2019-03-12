@@ -53,9 +53,10 @@ type Model struct {
 	Bytes     *BytesModel
 	Primitive *PrimitiveModel
 	Record    *RecordModel
-	Reference *ModelReference
 	Typeref   *TyperefModel
 	Union     *UnionModel
+
+	Reference *ModelReference
 }
 
 func (m *Model) String() string {
@@ -371,4 +372,41 @@ func (m *Model) UnmarshalJSON(data []byte) (error) {
 	}
 
 	return errors.Errorf("could not deserialize %v into %v", string(data), m)
+}
+
+func (m *Model) writeToBuf(def *Group, accessor *Statement) {
+	if m.Primitive != nil {
+		writeToBuf(def, m.Primitive.encode(accessor))
+		return
+	}
+
+	if m.Bytes != nil {
+		writeToBuf(def, m.Bytes.encode(accessor))
+		return
+	}
+
+	if m.Typeref != nil || m.Enum != nil || m.Record != nil || m.Fixed != nil {
+		def.Var().Id("tmp").String()
+		def.List(Id("tmp"), Err()).Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec))
+		IfErrReturn(def)
+		writeToBuf(def, Id("tmp"))
+		return
+	}
+
+	if m.Array != nil {
+		m.Array.writeToBuf(def, accessor)
+		return
+	}
+
+	if m.Map != nil {
+		m.Map.writeToBuf(def, accessor)
+		return
+	}
+
+	log.Panicf("cannot write %v directly to buf", m)
+	return
+}
+
+func writeToBuf(def *Group, s *Statement) *Statement {
+	return def.Id("buf").Dot("WriteString").Call(s)
 }

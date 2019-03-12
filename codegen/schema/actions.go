@@ -8,45 +8,45 @@ import (
 	"strings"
 )
 
-func generateAllActionStructs(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
+func generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	if thisResource.Simple != nil {
-		code = append(code, thisResource.Simple.generateActionParamStructs(parentResources, thisResource)...)
-		code = append(code, thisResource.Simple.Entity.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.Simple.generateResourceBindings(parentResources, thisResource)...)
+		code = append(code, thisResource.Simple.Entity.generateResourceBindings(parentResources, thisResource)...)
 		newParentResources := make([]*Resource, len(parentResources)+1)
 		copy(parentResources, newParentResources)
 		newParentResources = append(newParentResources, thisResource)
 		for _, r := range thisResource.Simple.Entity.Subresources {
-			code = append(code, generateAllActionStructs(parentResources, &r)...)
+			code = append(code, generateResourceBindings(parentResources, &r)...)
 		}
 		return
 	}
 
 	if thisResource.Collection != nil {
-		code = append(code, thisResource.Collection.generateActionParamStructs(parentResources, thisResource)...)
-		code = append(code, thisResource.Collection.Entity.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.Collection.generateResourceBindings(parentResources, thisResource)...)
+		code = append(code, thisResource.Collection.Entity.generateResourceBindings(parentResources, thisResource)...)
 		newParentResources := make([]*Resource, len(parentResources)+1)
 		copy(parentResources, newParentResources)
 		newParentResources = append(newParentResources, thisResource)
 		for _, r := range thisResource.Collection.Entity.Subresources {
-			code = append(code, generateAllActionStructs(parentResources, &r)...)
+			code = append(code, generateResourceBindings(parentResources, &r)...)
 		}
 		return
 	}
 
 	if thisResource.Association != nil {
-		code = append(code, thisResource.Association.generateActionParamStructs(parentResources, thisResource)...)
-		code = append(code, thisResource.Association.Entity.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.Association.generateResourceBindings(parentResources, thisResource)...)
+		code = append(code, thisResource.Association.Entity.generateResourceBindings(parentResources, thisResource)...)
 		newParentResources := make([]*Resource, len(parentResources)+1)
 		copy(parentResources, newParentResources)
 		newParentResources = append(newParentResources, thisResource)
 		for _, r := range thisResource.Association.Entity.Subresources {
-			code = append(code, generateAllActionStructs(parentResources, &r)...)
+			code = append(code, generateResourceBindings(parentResources, &r)...)
 		}
 		return
 	}
 
 	if thisResource.ActionsSet != nil {
-		code = append(code, thisResource.ActionsSet.generateActionParamStructs(parentResources, thisResource)...)
+		code = append(code, thisResource.ActionsSet.generateResourceBindings(parentResources, thisResource)...)
 		return
 	}
 
@@ -54,14 +54,14 @@ func generateAllActionStructs(parentResources []*Resource, thisResource *Resourc
 	return
 }
 
-func (h *HasActions) generateActionParamStructs(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
+func (h *HasActions) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, a := range h.Actions {
 		code = append(code, a.generateActionParamStructs(parentResources, thisResource, false))
 	}
 	return code
 }
 
-func (e *Entity) generateActionParamStructs(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
+func (e *Entity) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, a := range e.Actions {
 		code = append(code, a.generateActionParamStructs(parentResources, thisResource, true))
 	}

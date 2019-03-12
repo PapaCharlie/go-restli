@@ -19,7 +19,7 @@ const (
 
 func (r *Resource) GenerateCode(sourceFilename string) (code []*CodeFile) {
 	code = append(code, r.generateClient())
-	code = append(code, generateAllActionStructs(nil, r)...)
+	code = append(code, generateResourceBindings(nil, r)...)
 	for _, c := range code {
 		c.SourceFilename = sourceFilename
 	}

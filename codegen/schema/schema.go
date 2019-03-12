@@ -18,6 +18,10 @@ type HasActions struct {
 	Actions []Action
 }
 
+type HasMethods struct {
+	Methods []Method
+}
+
 type Identifier struct {
 	Name string
 	Type ResourceModel
@@ -25,16 +29,16 @@ type Identifier struct {
 
 type Simple struct {
 	HasActions
+	HasMethods
 	Supports []string
-	Methods  []Method
 	Entity   Entity
 }
 
 type Collection struct {
 	HasActions
+	HasMethods
 	Identifier Identifier
 	Supports   []string
-	Methods    []Method
 	Finders    []Finder
 	Entity     Entity
 }
@@ -46,10 +50,10 @@ type AssocKey struct {
 
 type Association struct {
 	HasActions
+	HasMethods
 	Identifier string
 	AssocKeys  []AssocKey
 	Supports   []string
-	Methods    []Method
 	Entity     Entity
 }
 

@@ -103,9 +103,79 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 	if hasDefaultValue || hasUnionField {
 		r.jsonSerDe(def)
 	}
-	//AddRestLiEncodableRecord(def, r.receiver(), r.Name)
+	r.restLiSerDe(def)
 
 	return
+}
+
+func (r *RecordModel) restLiSerDe(def *Statement) {
+	AddRestLiEncode(def, r.receiver(), r.Name, func(def *Group) {
+		def.Add(r.populateDefaultValues, r.validateUnionFields)
+
+		def.Var().Id("buf").Qual("strings", "Builder")
+		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
+
+		allFields := r.allFields()
+		for i, f := range allFields {
+			serialize := def.Empty()
+			if f.isPointer() {
+				serialize.If(r.field(f.Name).Op("!=").Nil())
+			}
+
+			serialize.BlockFunc(func(def *Group) {
+				accessor := r.field(f.Name)
+				if f.isPointer() && f.Type.Primitive != nil {
+					accessor = Op("*").Add(accessor)
+				}
+
+				if i != 0 {
+					def.Id("buf").Dot("WriteByte").Call(LitRune(','))
+				}
+
+				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + ":"))
+
+				if f.Type.Union != nil {
+					isSet := "is" + ExportedIdentifier(f.Name) + "Set"
+					def.Id(isSet).Op(":=").False().Line()
+					errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s", r.Name, ExportedIdentifier(f.Name))
+
+					for j, u := range f.Type.Union.Types {
+						unionFieldAccessor := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name())
+						def.If(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
+							if j == 0 {
+								def.Id(isSet).Op("=").True()
+								writeToBuf(def, Lit("(" + u.alias() + ":"))
+								u.Model.writeToBuf(def, unionFieldAccessor)
+								def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+							} else {
+								def.If(Id(isSet)).BlockFunc(func(def *Group) {
+									def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+									def.Return()
+								}).Else().BlockFunc(func(def *Group) {
+									def.Id(isSet).Op("=").True()
+									writeToBuf(def, Lit("(" + u.alias() + ":"))
+									u.Model.writeToBuf(def, unionFieldAccessor)
+									def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+								})
+							}
+						}).Line()
+					}
+					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+						def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+						def.Return()
+					})
+				} else {
+					f.Type.writeToBuf(def, accessor)
+				}
+
+			})
+			serialize.Line()
+		}
+		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+
+		def.Id("data").Op("=").Id("buf").Dot("String").Call()
+		def.Return()
+	}).Line().Line()
 }
 
 func (r *RecordModel) jsonSerDe(def *Statement) {

@@ -34,3 +34,15 @@ func (a *ArrayModel) GoType() *Statement {
 func (a *ArrayModel) InnerModels() []*Model {
 	return []*Model{a.Items}
 }
+
+func (a *ArrayModel) writeToBuf(def *Group, accessor *Statement) {
+	writeToBuf(def, Lit("List("))
+
+	def.For(List(Id("idx"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
+		def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
+		a.Items.writeToBuf(def, Id("val"))
+	})
+
+	def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+	return
+}
