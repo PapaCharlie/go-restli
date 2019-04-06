@@ -43,7 +43,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 	c.Code.BlockFunc(func(def *Group) {
 		encodeEntitySegments(def, resources)
 
-		def.Id(Url).Op(":=").Id(ClientReceiver).Dot(HostnameClientField).Op("+").Qual("fmt", "Sprintf").
+		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Qual("fmt", "Sprintf").
 			CallFunc(func(def *Group) {
 				def.Lit(queryPath + "?action=" + a.ActionName)
 				for _, r := range resources {
@@ -51,8 +51,11 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 						def.Id(id.Name + "Str")
 					}
 				}
-			})
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), Lit(""), Id("params"))
+			}))
+		IfErrReturn(def).Line()
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(
+			Id("url").Dot("String").Call(), Lit(""), Id("params"),
+		)
 		IfErrReturn(def).Line()
 
 		var resDef *Statement

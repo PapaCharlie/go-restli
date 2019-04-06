@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 )
 
 const (
@@ -65,17 +67,58 @@ func IsErrorResponse(res *http.Response) error {
 	return nil
 }
 
-type RestLiClient struct {
-	*http.Client
-	Hostname string
+type SimpleHostnameSupplier struct {
+	Hostname *url.URL
 }
 
-func (c *RestLiClient) FormatUrl(url string, segments ...string) string {
-	a := make([]interface{}, len(segments))
-	for i, s := range segments {
-		a[i] = s
+func (s *SimpleHostnameSupplier) GetHostname() (*url.URL, error) {
+	return s.Hostname, nil
+}
+
+type RestLiHostnameSupplier interface {
+	GetHostname() (*url.URL, error)
+}
+
+type RestLiClient struct {
+	*http.Client
+	RestLiHostnameSupplier
+}
+
+// Assumes a leading slash
+func getFirstPathSegment(path string) string {
+	idx := strings.Index(path[1:], "/")
+	if idx > 0 {
+		return path[:idx+1]
+	} else {
+		return path
 	}
-	return c.Hostname + fmt.Sprintf(url, a...)
+}
+
+func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
+	hostUrl, err := c.GetHostname()
+	if err != nil {
+		return nil, err
+	}
+
+	rawQuery = "/" + strings.TrimPrefix(rawQuery, "/")
+	query, err := url.Parse(rawQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	hostPath := hostUrl.EscapedPath()
+	if hostPath == "" || hostPath == "/" {
+		return hostUrl.ResolveReference(query), nil
+	}
+	// The restli spec allows for at most one context path segment. If not, it becomes impossible to know when the
+	// context ends and the query begins
+	firstHostSegment := getFirstPathSegment(hostPath)
+	firstQuerySegment := getFirstPathSegment(query.EscapedPath())
+	if firstHostSegment == firstQuerySegment {
+		return hostUrl.ResolveReference(query), nil
+	} else {
+		return hostUrl.Parse(firstHostSegment + query.RequestURI())
+	}
 }
 
 func (c *RestLiClient) GetRequest(url string, method string) (*http.Request, error) {

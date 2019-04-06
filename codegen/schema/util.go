@@ -83,30 +83,31 @@ func encodeEntitySegments(def *Group, resources []*Resource) {
 	}
 }
 
-func k(def *Statement, funcName string, queryPath string, resources []*Resource, extraParams func(def *Group), extraReturnParams func(def *Group), urlSuffix string, body func(def *Group)) *Statement {
-	return codegen.AddFuncOnReceiver(def, ClientReceiver, Client, funcName).
-		ParamsFunc(func(def *Group) {
-			for _, r := range resources {
-				if id := r.getIdentifier(); id != nil {
-					def.Id(id.Name).Add(id.Type.GoType())
-					queryPath = strings.Replace(queryPath, fmt.Sprintf("{%s}", id.Name), "%s", 1)
-				}
-			}
-			extraParams(def)
-		}).
-		ParamsFunc(func(def *Group) {
-			extraReturnParams(def)
-			def.Err().Error()
-		}).
-		BlockFunc(func(def *Group) {
-			def.Id(Url).Op(":=").Id(ClientReceiver).Dot(HostnameClientField).Op("+").Qual("fmt", "Sprintf").
-				CallFunc(func(def *Group) {
-					def.Lit(queryPath + urlSuffix)
-					for _, r := range resources {
-						if id := r.getIdentifier(); id != nil {
-							def.Id(id.Name + "Str")
-						}
-					}
-				})
-		})
-}
+//
+//func k(def *Statement, funcName string, queryPath string, resources []*Resource, extraParams func(def *Group), extraReturnParams func(def *Group), urlSuffix string, body func(def *Group)) *Statement {
+//	return codegen.AddFuncOnReceiver(def, ClientReceiver, Client, funcName).
+//		ParamsFunc(func(def *Group) {
+//			for _, r := range resources {
+//				if id := r.getIdentifier(); id != nil {
+//					def.Id(id.Name).Add(id.Type.GoType())
+//					queryPath = strings.Replace(queryPath, fmt.Sprintf("{%s}", id.Name), "%s", 1)
+//				}
+//			}
+//			extraParams(def)
+//		}).
+//		ParamsFunc(func(def *Group) {
+//			extraReturnParams(def)
+//			def.Err().Error()
+//		}).
+//		BlockFunc(func(def *Group) {
+//			def.Id(Url).Op(":=").Id(ClientReceiver).Dot(HostnameClientField).Op("+").Qual("fmt", "Sprintf").
+//				CallFunc(func(def *Group) {
+//					def.Lit(queryPath + urlSuffix)
+//					for _, r := range resources {
+//						if id := r.getIdentifier(); id != nil {
+//							def.Id(id.Name + "Str")
+//						}
+//					}
+//				})
+//		})
+//}

@@ -10,13 +10,14 @@ import (
 )
 
 const (
-	ClientReceiver      = "c"
-	Req                 = "req"
-	Res                 = "res"
-	Url                 = "url"
-	ActionResult        = "actionResult"
-	Client              = "Client"
-	HostnameClientField = "Hostname"
+	ClientReceiver = "c"
+	Req            = "req"
+	Res            = "res"
+	Url            = "url"
+	ActionResult   = "actionResult"
+	Client         = "Client"
+	//GetHostname    = "GetHostname"
+	FormatQueryUrl = "FormatQueryUrl"
 )
 
 func (r *Resource) GenerateCode() (code []*CodeFile) {

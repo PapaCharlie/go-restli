@@ -28,7 +28,7 @@ func (c *Collection) generateGet(code *CodeFile, parentResources []*Resource, th
 	code.Code.BlockFunc(func(def *Group) {
 		encodeEntitySegments(def, resources)
 
-		def.Id(Url).Op(":=").Id(ClientReceiver).Dot(HostnameClientField).Op("+").Qual("fmt", "Sprintf").
+		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Qual("fmt", "Sprintf").
 			CallFunc(func(def *Group) {
 				def.Lit(queryPath)
 				for _, r := range resources {
@@ -36,8 +36,11 @@ func (c *Collection) generateGet(code *CodeFile, parentResources []*Resource, th
 						def.Id(id.Name + "Str")
 					}
 				}
-			})
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), Lit(""))
+			}))
+		IfErrReturn(def).Line()
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(
+			Id("url").Dot("String").Call(), Lit(""),
+		)
 		IfErrReturn(def).Line()
 
 		def.List(Id(Res), Err()).Op(":=").Id(ClientReceiver).Dot("Do").Call(Id(Req))
