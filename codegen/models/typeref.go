@@ -1,9 +1,10 @@
 package models
 
 import (
-	. "github.com/dave/jennifer/jen"
-	. "go-restli/codegen"
 	"log"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
+	. "github.com/dave/jennifer/jen"
 )
 
 const TyperefModelTypeName = "typeref"

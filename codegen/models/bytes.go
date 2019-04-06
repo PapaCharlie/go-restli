@@ -2,9 +2,10 @@ package models
 
 import (
 	"encoding/json"
+
+	"github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
-	"go-restli/codegen"
 )
 
 const BytesModelTypeName = "bytes"

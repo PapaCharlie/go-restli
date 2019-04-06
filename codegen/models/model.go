@@ -3,12 +3,13 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	. "github.com/dave/jennifer/jen"
-	"github.com/pkg/errors"
-	. "go-restli/codegen"
 	"log"
 	"path/filepath"
 	"strings"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
+	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
 )
 
 type NameAndDoc struct {
@@ -111,10 +112,8 @@ func (m *Model) String() string {
 	return fmt.Sprintf("Model{{Name: %s, Namespace: %s, Doc: %s}, %s: %s}", m.Name, m.Namespace, m.Doc, modelTypeName, model)
 }
 
-func (m *Model) GenerateModelCode(sourceFilename string) (f *CodeFile) {
-	f = &CodeFile{
-		SourceFilename: sourceFilename,
-	}
+func (m *Model) GenerateModelCode() (f *CodeFile) {
+	f = &CodeFile{}
 	if m.Namespace != "" {
 		f.PackagePath = m.PackagePath()
 	}
@@ -228,7 +227,7 @@ func (m *Model) IsMapOrArray() bool {
 	return m.Array != nil || m.Map != nil
 }
 
-func (m *Model) UnmarshalJSON(data []byte) (error) {
+func (m *Model) UnmarshalJSON(data []byte) error {
 	defer func() {
 		if m.Reference != nil && m.Reference.Namespace != "" {
 			if rm := m.Reference.GetRegisteredModel(); rm != nil {

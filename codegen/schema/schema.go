@@ -1,17 +1,21 @@
 package schema
 
-import "go-restli/codegen/models"
+import "github.com/PapaCharlie/go-restli/codegen/models"
 
 type Resource struct {
 	models.Ns
+	Schema      *models.Model
 	Name        string
 	Path        string
-	Schema      string
 	Doc         string
 	Simple      *Simple
 	Collection  *Collection
 	Association *Association
-	ActionsSet  *HasActions
+	ActionsSet  *ActionsSet
+}
+
+type ActionsSet struct {
+	HasActions
 }
 
 type HasActions struct {
@@ -24,7 +28,7 @@ type HasMethods struct {
 
 type Identifier struct {
 	Name string
-	Type ResourceModel
+	Type *ResourceModel
 }
 
 type Simple struct {
@@ -60,7 +64,7 @@ type Association struct {
 type Entity struct {
 	HasActions
 	Path         string
-	Subresources []Resource
+	Subresources []*Resource
 }
 
 type Method struct {
@@ -82,5 +86,5 @@ type Finder struct {
 type Action struct {
 	Endpoint
 	ActionName string
-	StructName   string
+	StructName string
 }

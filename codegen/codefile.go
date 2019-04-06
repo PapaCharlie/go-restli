@@ -3,14 +3,15 @@ package codegen
 import (
 	"bytes"
 	"fmt"
-	. "github.com/dave/jennifer/jen"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -20,10 +21,12 @@ const (
 	Marshal       = "Marshal"
 	MarshalJSON   = "MarshalJSON"
 
-	Codec        = "codec"
-	RestLiEncode = "RestLiEncode"
-	RestLiDecode = "RestLiDecode"
-	RestLiCodec  = "RestLiCodec"
+	Codec                = "codec"
+	RestLiEncode         = "RestLiEncode"
+	RestLiDecode         = "RestLiDecode"
+	RestLiCodec          = "RestLiCodec"
+	RestLiUrlEncoder     = "RestLiUrlEncoder"
+	RestLiReducedEncoder = "RestLiReducedEncoder"
 
 	PopulateDefaultValues = "populateDefaultValues"
 	ValidateUnionFields   = "validateUnionFields"
@@ -45,7 +48,7 @@ type CodeFile struct {
 	Code           *Statement
 }
 
-func NewCodeFile(filename string, packageSegments ...string) (*CodeFile) {
+func NewCodeFile(filename string, packageSegments ...string) *CodeFile {
 	return &CodeFile{
 		PackagePath: filepath.Join(packageSegments...),
 		Filename:    filename,
@@ -168,7 +171,7 @@ func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) 
 		BlockFunc(f)
 }
 
-func IfErrReturn(def *Group) (*Group) {
+func IfErrReturn(def *Group) *Group {
 	def.If(Err().Op("!=").Nil()).Block(Return())
 	return def
 }

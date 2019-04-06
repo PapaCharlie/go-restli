@@ -1,11 +1,6 @@
 .idea/
 vendor/
 generated/
-typerefs/
-idl/
-/snapshots/
-/models/
-/schemas/
 /options/
 go-restli
 *.swp

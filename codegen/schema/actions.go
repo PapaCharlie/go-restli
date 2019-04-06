@@ -1,72 +1,9 @@
 package schema
 
 import (
-	"fmt"
+	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
-	. "go-restli/codegen"
-	"log"
-	"strings"
 )
-
-func generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
-	if thisResource.Simple != nil {
-		code = append(code, thisResource.Simple.generateResourceBindings(parentResources, thisResource)...)
-		code = append(code, thisResource.Simple.Entity.generateResourceBindings(parentResources, thisResource)...)
-		newParentResources := make([]*Resource, len(parentResources)+1)
-		copy(parentResources, newParentResources)
-		newParentResources = append(newParentResources, thisResource)
-		for _, r := range thisResource.Simple.Entity.Subresources {
-			code = append(code, generateResourceBindings(parentResources, &r)...)
-		}
-		return
-	}
-
-	if thisResource.Collection != nil {
-		code = append(code, thisResource.Collection.generateResourceBindings(parentResources, thisResource)...)
-		code = append(code, thisResource.Collection.Entity.generateResourceBindings(parentResources, thisResource)...)
-		newParentResources := make([]*Resource, len(parentResources)+1)
-		copy(parentResources, newParentResources)
-		newParentResources = append(newParentResources, thisResource)
-		for _, r := range thisResource.Collection.Entity.Subresources {
-			code = append(code, generateResourceBindings(parentResources, &r)...)
-		}
-		return
-	}
-
-	if thisResource.Association != nil {
-		code = append(code, thisResource.Association.generateResourceBindings(parentResources, thisResource)...)
-		code = append(code, thisResource.Association.Entity.generateResourceBindings(parentResources, thisResource)...)
-		newParentResources := make([]*Resource, len(parentResources)+1)
-		copy(parentResources, newParentResources)
-		newParentResources = append(newParentResources, thisResource)
-		for _, r := range thisResource.Association.Entity.Subresources {
-			code = append(code, generateResourceBindings(parentResources, &r)...)
-		}
-		return
-	}
-
-	if thisResource.ActionsSet != nil {
-		code = append(code, thisResource.ActionsSet.generateResourceBindings(parentResources, thisResource)...)
-		return
-	}
-
-	log.Panicln(thisResource, "does not define any resources")
-	return
-}
-
-func (h *HasActions) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
-	for _, a := range h.Actions {
-		code = append(code, a.generateActionParamStructs(parentResources, thisResource, false))
-	}
-	return code
-}
-
-func (e *Entity) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
-	for _, a := range e.Actions {
-		code = append(code, a.generateActionParamStructs(parentResources, thisResource, true))
-	}
-	return code
-}
 
 func (a *Action) generateActionParamStructs(parentResources []*Resource, thisResource *Resource, isOnEntity bool) (c *CodeFile) {
 	c = NewCodeFile(a.ActionName, thisResource.PackagePath(), thisResource.Name)
@@ -74,26 +11,24 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 	c.Code.Const().Id(ExportedIdentifier(a.ActionName + "Action")).Op("=").Lit(a.ActionName).Line()
 	c.Code.Add(a.GenerateCode())
 
+	var resources []*Resource
+	resources = append(resources, parentResources...)
+	if isOnEntity {
+		resources = append(resources, thisResource)
+	}
+
 	var queryPath string
 	if isOnEntity {
 		queryPath = thisResource.getEntity().Path
 	} else {
 		queryPath = thisResource.Path
 	}
+	queryPath = buildQueryPath(resources, queryPath)
 
-	c.Code.Func().Params(Id(ClientReceiver).Op("*").Id(Client)).Id(ExportedIdentifier(a.ActionName) + "Action")
+	AddClientFunc(c.Code, ExportedIdentifier(a.ActionName)+"Action")
 	c.Code.ParamsFunc(func(def *Group) {
-		for _, r := range parentResources {
-			if id := r.getIdentifier(); id != nil {
-				def.Id(id.Name).Add(id.Type.GoType())
-				queryPath = strings.Replace(queryPath, fmt.Sprintf("{%s}", id.Name), "%s", 1)
-			}
-		}
-		if id := thisResource.getIdentifier(); isOnEntity && id != nil {
-			def.Id(id.Name).Add(id.Type.GoType())
-			queryPath = strings.Replace(queryPath, fmt.Sprintf("{%s}", id.Name), "%s", 1)
-		}
-		def.Id("params").Id(a.StructName)
+		addEntityParams(def, resources)
+		def.Id("params").Op("*").Id(a.StructName)
 	})
 
 	returns := a.Returns != nil
@@ -106,19 +41,18 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 	})
 
 	c.Code.BlockFunc(func(def *Group) {
+		encodeEntitySegments(def, resources)
+
 		def.Id(Url).Op(":=").Id(ClientReceiver).Dot(HostnameClientField).Op("+").Qual("fmt", "Sprintf").
 			CallFunc(func(def *Group) {
 				def.Lit(queryPath + "?action=" + a.ActionName)
-				for _, r := range parentResources {
+				for _, r := range resources {
 					if id := r.getIdentifier(); id != nil {
-						def.Id(id.Name)
+						def.Id(id.Name + "Str")
 					}
 				}
-				if isOnEntity {
-					def.Id(thisResource.getIdentifier().Name)
-				}
 			})
-		def.List(Id(Req), Err()).Op(":=").Qual(GetRestLiProtocolPackage(), "RestliPost").Call(Id("url"), Lit(""), Id("params"))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), Lit(""), Id("params"))
 		IfErrReturn(def).Line()
 
 		var resDef *Statement
@@ -127,7 +61,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 		} else {
 			resDef = def.List(Id("_"), Err()).Op("=")
 		}
-		resDef.Qual(GetRestLiProtocolPackage(), "RestliDo").Call(Id(ClientReceiver).Dot(Client), Id(Req))
+		resDef.Id(ClientReceiver).Dot("Do").Call(Id(Req))
 		IfErrReturn(def).Line()
 
 		if returns {

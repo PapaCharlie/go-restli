@@ -4,14 +4,15 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
-	"github.com/dave/jennifer/jen"
-	"go-restli/codegen"
-	"go-restli/codegen/models"
-	"go-restli/codegen/schema"
 	"io"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/codegen/schema"
+	"github.com/dave/jennifer/jen"
 )
 
 //go:generate go run codegen/protocol/protocol_zipper.go protocol/ codegen/zipped_protocol.go
@@ -43,13 +44,15 @@ func main() {
 	var codeFiles []*codegen.CodeFile
 
 	for _, filename := range snapshotFiles {
+		log.Println(filename)
 		loadedModels, err := models.LoadModels(readFile(filename))
 		if err != nil {
 			log.Fatalf("could not load %s: %+v", filename, err)
 		}
 
 		for _, m := range loadedModels {
-			if code := m.GenerateModelCode(filename); code != nil {
+			if code := m.GenerateModelCode(); code != nil {
+				code.SourceFilename = filename
 				codeFiles = append(codeFiles, code)
 			}
 		}
@@ -61,7 +64,9 @@ func main() {
 
 		if len(loadedResources) > 0 {
 			for _, r := range loadedResources {
-				for _, code := range r.GenerateCode(filename) {
+				k := r.GenerateCode()
+				for _, code := range k {
+					code.SourceFilename = filename
 					codeFiles = append(codeFiles, code)
 				}
 			}

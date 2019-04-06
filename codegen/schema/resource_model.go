@@ -2,11 +2,13 @@ package schema
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
-	"go-restli/codegen"
-	"go-restli/codegen/models"
 	"log"
 	"strings"
+
+	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/codegen/models"
+	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
 )
 
 type ResourceModel struct {
@@ -52,6 +54,39 @@ func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 
 	return errors.Errorf("Failed to deserialize Resource model (can only be primitive, array, map or reference type): %v",
 		unmarshallErrors)
+}
+
+func (t *ResourceModel) restLiURLEncode(accessor *Statement) (hasError bool, def *Statement) {
+	return t.restLiEncode(codegen.RestLiUrlEncoder, accessor)
+}
+
+func (t *ResourceModel) restLiReducedEncode(accessor *Statement) (hasError bool, def *Statement) {
+	return t.restLiEncode(codegen.RestLiReducedEncoder, accessor)
+}
+
+func (t *ResourceModel) restLiEncode(encoder string, accessor *Statement) (hasError bool, def *Statement) {
+	def = Empty()
+	encoderRef := Qual(codegen.GetRestLiProtocolPackage(), encoder)
+	if t.Primitive != nil {
+		def.Add(encoderRef).Dot("Encode" + codegen.ExportedIdentifier(t.Primitive[0])).Call(accessor)
+		hasError = false
+		return
+	}
+
+	if t.Bytes != nil {
+		def.Add(encoderRef).Dot("EncodeBytes").Call(accessor)
+		hasError = false
+		return
+	}
+
+	if t.Typeref != nil || t.Enum != nil || t.Record != nil || t.Fixed != nil {
+		def.Add(accessor).Dot(codegen.RestLiEncode).Call(encoderRef)
+		hasError = true
+		return
+	}
+
+	log.Panicln(t, "cannot be url encoded")
+	return
 }
 
 type parameter struct {

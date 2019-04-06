@@ -11,18 +11,18 @@ type RestLiCodec struct {
 }
 
 var RestLiUrlEncoder = RestLiCodec{
-	encoder: url.PathEscape,
-	decoder: url.PathUnescape,
+	encoder: url.QueryEscape,
+	decoder: url.QueryUnescape,
 }
 
 var RestLiReducedEncoder = RestLiCodec{
 	encoder: strings.NewReplacer(
-		",", url.PathEscape(","),
-		"(", url.PathEscape("("),
-		")", url.PathEscape(")"),
-		"'", url.PathEscape("'"),
-		":", url.PathEscape(":")).Replace,
-	decoder: url.PathUnescape,
+		",", url.QueryEscape(","),
+		"(", url.QueryEscape("("),
+		")", url.QueryEscape(")"),
+		"'", url.QueryEscape("'"),
+		":", url.QueryEscape(":")).Replace,
+	decoder: url.QueryUnescape,
 }
 
 type RestLiEncodable interface {

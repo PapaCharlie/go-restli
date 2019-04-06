@@ -3,9 +3,10 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	. "github.com/dave/jennifer/jen"
-	. "go-restli/codegen"
 	"log"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
+	. "github.com/dave/jennifer/jen"
 )
 
 const RecordTypeModelTypeName = "record"
@@ -124,7 +125,7 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 
 			serialize.BlockFunc(func(def *Group) {
 				accessor := r.field(f.Name)
-				if f.isPointer() && f.Type.Primitive != nil {
+				if f.isPointer() && (f.Type.Primitive != nil || f.Type.Bytes != nil) {
 					accessor = Op("*").Add(accessor)
 				}
 
@@ -144,7 +145,7 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 						def.If(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
 							if j == 0 {
 								def.Id(isSet).Op("=").True()
-								writeToBuf(def, Lit("(" + u.alias() + ":"))
+								writeToBuf(def, Lit("("+u.alias()+":"))
 								u.Model.writeToBuf(def, unionFieldAccessor)
 								def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 							} else {
@@ -153,7 +154,7 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 									def.Return()
 								}).Else().BlockFunc(func(def *Group) {
 									def.Id(isSet).Op("=").True()
-									writeToBuf(def, Lit("(" + u.alias() + ":"))
+									writeToBuf(def, Lit("("+u.alias()+":"))
 									u.Model.writeToBuf(def, unionFieldAccessor)
 									def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 								})
@@ -198,8 +199,8 @@ func (r *RecordModel) setDefaultValue(def *Group, name, rawJson string, model *M
 	def.If(Id(r.receiver()).Dot(name).Op("==").Nil()).BlockFunc(func(def *Group) {
 		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
 		if model.Primitive != nil {
-			def.Id("v").Op(":=").Lit(model.Primitive.GetLit(rawJson))
-			def.Id(r.receiver()).Dot(name).Op("=").Op("&").Id("v")
+			def.Id("val").Op(":=").Lit(model.Primitive.GetLit(rawJson))
+			def.Id(r.receiver()).Dot(name).Op("=").Op("&").Id("val")
 			return
 		}
 
@@ -216,8 +217,8 @@ func (r *RecordModel) setDefaultValue(def *Group, name, rawJson string, model *M
 			if err != nil {
 				log.Panicln("illegal enum", err)
 			}
-			def.Id("v").Op(":=").Qual(model.PackagePath(), model.Enum.SymbolIdentifier(v))
-			def.Id(r.receiver()).Dot(name).Op("= &").Id("v")
+			def.Id("val").Op(":=").Qual(model.PackagePath(), model.Enum.SymbolIdentifier(v))
+			def.Id(r.receiver()).Dot(name).Op("= &").Id("val")
 			return
 		}
 

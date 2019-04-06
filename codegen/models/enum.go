@@ -1,40 +1,18 @@
 package models
 
 import (
-	"encoding/json"
 	"fmt"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
-	"github.com/pkg/errors"
-	. "go-restli/codegen"
 )
 
 const EnumModelTypeName = "enum"
 
 type EnumModel struct {
 	NameAndDoc
-	Symbols map[string]string
-}
-
-func (e *EnumModel) UnmarshalJSON(data []byte) error {
-	enum := &struct {
-		NameAndDoc
-		Symbols    []string          `json:"symbols"`
-		SymbolDocs map[string]string `json:"symbolDocs"`
-	}{}
-
-	if err := json.Unmarshal(data, enum); err != nil {
-		return errors.Wrap(err, "Could not unmarshal enum")
-	}
-
-	e.NameAndDoc = enum.NameAndDoc
-	if e.Symbols == nil {
-		e.Symbols = make(map[string]string)
-	}
-
-	for _, s := range enum.Symbols {
-		e.Symbols[s] = enum.SymbolDocs[s]
-	}
-	return nil
+	Symbols    []string          `json:"symbols"`
+	SymbolDocs map[string]string `json:"symbolDocs"`
 }
 
 func (e *EnumModel) generateCode() (def *Statement) {
@@ -42,27 +20,24 @@ func (e *EnumModel) generateCode() (def *Statement) {
 	AddWordWrappedComment(def, e.Doc).Line()
 	def.Type().Id(e.Name).Int().Line()
 
-	var symbols []string
-
 	def.Const().DefsFunc(func(def *Group) {
 		def.Id("_" + e.SymbolIdentifier("unknown")).Op("=").Id(e.Name).Call(Iota())
-		for symbol, symbolDoc := range e.Symbols {
-			symbols = append(symbols, symbol)
-			def.Add(AddWordWrappedComment(Empty(), symbolDoc))
+		for _, symbol := range e.Symbols {
+			def.Add(AddWordWrappedComment(Empty(), e.SymbolDocs[symbol]))
 			def.Id(e.SymbolIdentifier(symbol))
 		}
 	}).Line()
 
 	values := "_" + e.Name + "_values"
 	def.Var().Id(values).Op("=").Map(String()).Id(e.Name).Values(DictFunc(func(dict Dict) {
-		for _, s := range symbols {
+		for _, s := range e.Symbols {
 			dict[Lit(s)] = Id(e.SymbolIdentifier(s))
 		}
 	})).Line()
 
 	strings := "_" + e.Name + "_strings"
 	def.Var().Id(strings).Op("=").Map(Id(e.Name)).String().Values(DictFunc(func(dict Dict) {
-		for _, s := range symbols {
+		for _, s := range e.Symbols {
 			dict[Id(e.SymbolIdentifier(s))] = Lit(s)
 		}
 	})).Line().Line()

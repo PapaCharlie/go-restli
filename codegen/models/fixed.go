@@ -2,8 +2,9 @@ package models
 
 import (
 	"fmt"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
-	. "go-restli/codegen"
 )
 
 const FixedModelTypeName = "fixed"

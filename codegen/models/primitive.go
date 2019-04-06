@@ -2,10 +2,11 @@ package models
 
 import (
 	"encoding/json"
+	"log"
+
+	"github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
-	"go-restli/codegen"
-	"log"
 )
 
 type PrimitiveModel [2]string
@@ -104,5 +105,5 @@ func (p *PrimitiveModel) encode(accessor *Statement) *Statement {
 }
 
 func (p *PrimitiveModel) decode(accessor *Statement) *Statement {
-	return Id(codegen.Codec).Dot("Decode" + codegen.ExportedIdentifier(p[0])).Call(Id("data"), Call(Op("*").Id(p[1])).Call(accessor))
+	return Id(codegen.Codec).Dot("Decode"+codegen.ExportedIdentifier(p[0])).Call(Id("data"), Call(Op("*").Id(p[1])).Call(accessor))
 }

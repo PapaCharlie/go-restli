@@ -65,7 +65,35 @@ func IsErrorResponse(res *http.Response) error {
 	return nil
 }
 
-func RestliPost(url string, method string, contents interface{}) (*http.Request, error) {
+type RestLiClient struct {
+	*http.Client
+	Hostname string
+}
+
+func (c *RestLiClient) FormatUrl(url string, segments ...string) string {
+	a := make([]interface{}, len(segments))
+	for i, s := range segments {
+		a[i] = s
+	}
+	return c.Hostname + fmt.Sprintf(url, a...)
+}
+
+func (c *RestLiClient) GetRequest(url string, method string) (*http.Request, error) {
+	req, err := http.NewRequest("GET", url, &bytes.Buffer{})
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", RestliContentType)
+	req.Header.Set(RestliHeader_ProtocolVersion, RestliProtocolVersion)
+	if method != "" {
+		req.Header.Set(RestliHeader_Method, method)
+	}
+
+	return req, nil
+}
+
+func (c *RestLiClient) PostRequest(url string, method string, contents interface{}) (*http.Request, error) {
 	buf := &bytes.Buffer{}
 	err := json.NewEncoder(buf).Encode(contents)
 	if err != nil {
@@ -86,8 +114,8 @@ func RestliPost(url string, method string, contents interface{}) (*http.Request,
 	return req, nil
 }
 
-func RestliDo(client *http.Client, req *http.Request) (res *http.Response, err error) {
-	res, err = client.Do(req)
+func (c *RestLiClient) Do(req *http.Request) (res *http.Response, err error) {
+	res, err = c.Client.Do(req)
 	if err != nil {
 		return
 	}

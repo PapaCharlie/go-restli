@@ -2,9 +2,10 @@ package models
 
 import (
 	"encoding/json"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
-	. "go-restli/codegen"
 )
 
 const MapModelTypeName = "map"
@@ -42,7 +43,7 @@ func (m *MapModel) writeToBuf(def *Group, accessor *Statement) {
 	def.Id("idx").Op(":=").Lit(0)
 	def.For(List(Id("key"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
 		def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
-		Id("idx").Op("++")
+		def.Id("idx").Op("++")
 		writeToBuf(def, Id(Codec).Dot("EncodeString").Call(Id("key")))
 		def.Id("buf").Dot("WriteByte").Call(LitRune(':'))
 		m.Values.writeToBuf(def, Id("val"))

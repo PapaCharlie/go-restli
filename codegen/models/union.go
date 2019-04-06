@@ -2,10 +2,11 @@ package models
 
 import (
 	"encoding/json"
-	. "github.com/dave/jennifer/jen"
-	. "go-restli/codegen"
 	"log"
 	"strings"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
+	. "github.com/dave/jennifer/jen"
 )
 
 type UnionModel struct {
