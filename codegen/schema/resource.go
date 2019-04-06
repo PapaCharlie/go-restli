@@ -29,7 +29,7 @@ func (r *Resource) generateClient() (c *CodeFile) {
 
 	c.Code.Const().Id(ExportedIdentifier(r.Name + "Path")).Op("=").Lit(r.Path).Line()
 	AddWordWrappedComment(c.Code, r.Doc).Line()
-	c.Code.Type().Id(Client).Struct(Qual(GetRestLiProtocolPackage(), "RestLiClient")).Line().Line()
+	c.Code.Type().Id(Client).Struct(Qual(ProtocolPackage, "RestLiClient")).Line().Line()
 
 	return
 }

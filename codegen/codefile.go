@@ -32,6 +32,8 @@ const (
 	ValidateUnionFields   = "validateUnionFields"
 
 	NetHttp = "net/http"
+
+	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"
 )
 
 var (
@@ -152,14 +154,14 @@ func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(def *Gro
 
 func AddRestLiEncode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
 	return AddFuncOnReceiver(def, receiver, typeName, RestLiEncode).
-		Params(Id(Codec).Qual(GetRestLiProtocolPackage(), RestLiCodec)).
+		Params(Id(Codec).Qual(ProtocolPackage, RestLiCodec)).
 		Params(Id("data").String(), Err().Error()).
 		BlockFunc(f)
 }
 
 func AddRestLiDecode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
 	return AddFuncOnReceiver(def, receiver, typeName, RestLiDecode).
-		Params(Id(Codec).Qual(GetRestLiProtocolPackage(), RestLiCodec), Id("data").String()).
+		Params(Id(Codec).Qual(ProtocolPackage, RestLiCodec), Id("data").String()).
 		Params(Err().Error()).
 		BlockFunc(f)
 }
@@ -192,19 +194,8 @@ func GetPackagePrefix() string {
 	return *packagePrefix
 }
 
-func GetRestLiProtocolPackage() string {
-	if packagePrefix == nil {
-		log.Panicln("packagePrefix not set!")
-	}
-	return protocolPackage
-}
-
 func Bytes() *Statement {
-	return Qual(GetRestLiProtocolPackage(), "Bytes")
-}
-
-func EncodePair(k, v string) *Statement {
-	return Lit(fmt.Sprintf("%s:%s", k, v))
+	return Qual(ProtocolPackage, "Bytes")
 }
 
 type FieldTag struct {

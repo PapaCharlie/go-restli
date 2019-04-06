@@ -26,7 +26,7 @@ func (b *BytesModel) UnmarshalJSON(data []byte) error {
 }
 
 func (b *BytesModel) GoType() *Statement {
-	return Qual(codegen.GetRestLiProtocolPackage(), "Bytes")
+	return codegen.Bytes()
 }
 
 func (b *BytesModel) encode(accessor *Statement) *Statement {

@@ -66,7 +66,7 @@ func (t *ResourceModel) restLiReducedEncode(accessor *Statement) (hasError bool,
 
 func (t *ResourceModel) restLiEncode(encoder string, accessor *Statement) (hasError bool, def *Statement) {
 	def = Empty()
-	encoderRef := Qual(codegen.GetRestLiProtocolPackage(), encoder)
+	encoderRef := Qual(codegen.ProtocolPackage, encoder)
 	if t.Primitive != nil {
 		def.Add(encoderRef).Dot("Encode" + codegen.ExportedIdentifier(t.Primitive[0])).Call(accessor)
 		hasError = false
