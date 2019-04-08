@@ -38,9 +38,7 @@ func (c *Collection) generateGet(code *CodeFile, parentResources []*Resource, th
 				}
 			}))
 		IfErrReturn(def).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(
-			Id("url").Dot("String").Call(), Lit(""),
-		)
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), Lit(""))
 		IfErrReturn(def).Line()
 
 		def.List(Id(Res), Err()).Op(":=").Id(ClientReceiver).Dot("Do").Call(Id(Req))

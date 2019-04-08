@@ -5,12 +5,20 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/samuel/go-zookeeper/zk"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sync"
 )
+
+var DefaultLogger = log.New(ioutil.Discard, "D2", log.LstdFlags|log.Lmicroseconds|log.Lshortfile|log.LUTC)
+
+func EnableD2Logging() {
+	DefaultLogger.SetOutput(os.Stderr)
+}
 
 func ServicesPath(service string) string {
 	return filepath.Join("/", "d2", "services", service)
@@ -128,9 +136,9 @@ func (c *Client) GetHostnameForPartition(partition int) (*url.URL, error) {
 func (c *Client) addUrl(h url.URL, w float64) {
 	if oldW, ok := c.hostWeights[h]; ok {
 		c.totalWeight -= oldW
-		log.Println(h, "NEW_WEIGHT", w)
+		DefaultLogger.Println(h, "NEW_WEIGHT", w)
 	} else {
-		log.Println(h, "UP")
+		DefaultLogger.Println(h, "UP")
 	}
 	c.totalWeight += w
 	c.hostWeights[h] = w
@@ -144,9 +152,9 @@ func (c *Client) addUrlToPartition(p int, h url.URL, w float64) {
 
 	if oldW, ok := partition[h]; ok {
 		c.partitionTotalWeights[p] -= oldW
-		log.Println(h, p, "NEW_WEIGHT", p, w)
+		DefaultLogger.Println(h, p, "NEW_WEIGHT", p, w)
 	} else {
-		log.Println(h, p, "UP")
+		DefaultLogger.Println(h, p, "UP")
 	}
 	c.partitionTotalWeights[p] += w
 	c.partitionHostWeights[p][h] = w
@@ -163,12 +171,12 @@ func (c *Client) handleUpdate(child string, data []byte, err error) {
 	if data == nil {
 		if oldUri, ok := c.uris[child]; ok {
 			for h := range oldUri.Weights {
-				log.Println(h, "DOWN")
+				DefaultLogger.Println(h, "DOWN")
 				delete(c.hostWeights, h)
 			}
 			for h, partitions := range oldUri.PartitionDesc {
 				for p := range partitions {
-					log.Println(h, p, "DOWN")
+					DefaultLogger.Println(h, p, "DOWN")
 					delete(c.partitionHostWeights[p], h)
 				}
 			}

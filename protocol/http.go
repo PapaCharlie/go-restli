@@ -22,6 +22,8 @@ const (
 	RestliHeader_Id              = "X-RestLi-Id"
 )
 
+var emptyBuffer = &bytes.Buffer{}
+
 type RestLiError struct {
 	Status         int
 	Message        string
@@ -121,8 +123,8 @@ func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
 	}
 }
 
-func (c *RestLiClient) GetRequest(url string, method string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", url, &bytes.Buffer{})
+func (c *RestLiClient) GetRequest(url *url.URL, method string) (*http.Request, error) {
+	req, err := http.NewRequest("GET", url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
 	}
@@ -136,14 +138,14 @@ func (c *RestLiClient) GetRequest(url string, method string) (*http.Request, err
 	return req, nil
 }
 
-func (c *RestLiClient) PostRequest(url string, method string, contents interface{}) (*http.Request, error) {
+func (c *RestLiClient) PostRequest(url *url.URL, method string, contents interface{}) (*http.Request, error) {
 	buf := &bytes.Buffer{}
 	err := json.NewEncoder(buf).Encode(contents)
 	if err != nil {
 		panic(err)
 	}
 
-	req, err := http.NewRequest("POST", url, buf)
+	req, err := http.NewRequest("POST", url.String(), buf)
 	if err != nil {
 		return nil, err
 	}

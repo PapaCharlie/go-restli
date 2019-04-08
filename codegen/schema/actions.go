@@ -53,9 +53,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 				}
 			}))
 		IfErrReturn(def).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(
-			Id("url").Dot("String").Call(), Lit(""), Id("params"),
-		)
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), Lit(""), Id("params"))
 		IfErrReturn(def).Line()
 
 		var resDef *Statement
