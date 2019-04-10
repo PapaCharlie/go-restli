@@ -32,7 +32,7 @@ func (r *Resource) generateClient() (c *CodeFile) {
 	AddWordWrappedComment(c.Code, r.Doc).Line()
 	c.Code.Type().Id(Client).Struct(Qual(ProtocolPackage, "RestLiClient")).Line().Line()
 
-	return
+	return c
 }
 
 func generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
@@ -49,7 +49,7 @@ func generateResourceBindings(parentResources []*Resource, thisResource *Resourc
 		for _, r := range thisResource.Simple.Entity.Subresources {
 			code = append(code, generateResourceBindings(newParentResources, r)...)
 		}
-		return
+		return code
 	}
 
 	if thisResource.Collection != nil {
@@ -58,7 +58,7 @@ func generateResourceBindings(parentResources []*Resource, thisResource *Resourc
 		for _, r := range thisResource.Collection.Entity.Subresources {
 			code = append(code, generateResourceBindings(newParentResources, r)...)
 		}
-		return
+		return code
 	}
 
 	if thisResource.Association != nil {
@@ -67,12 +67,12 @@ func generateResourceBindings(parentResources []*Resource, thisResource *Resourc
 		for _, r := range thisResource.Association.Entity.Subresources {
 			code = append(code, generateResourceBindings(newParentResources, r)...)
 		}
-		return
+		return code
 	}
 
 	if thisResource.ActionsSet != nil {
 		code = append(code, thisResource.ActionsSet.generateResourceBindings(parentResources, thisResource)...)
-		return
+		return code
 	}
 
 	log.Panicln(thisResource, "does not define any resources")

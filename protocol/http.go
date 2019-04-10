@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -63,7 +64,7 @@ func IsErrorResponse(res *http.Response) error {
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf("%s", string(body))
+		return errors.New(string(body))
 	}
 
 	return nil
@@ -139,13 +140,12 @@ func (c *RestLiClient) GetRequest(url *url.URL, method string) (*http.Request, e
 }
 
 func (c *RestLiClient) PostRequest(url *url.URL, method string, contents interface{}) (*http.Request, error) {
-	buf := &bytes.Buffer{}
-	err := json.NewEncoder(buf).Encode(contents)
+	buf, err := json.Marshal(contents)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", url.String(), buf)
+	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +162,9 @@ func (c *RestLiClient) PostRequest(url *url.URL, method string, contents interfa
 func (c *RestLiClient) Do(req *http.Request) (res *http.Response, err error) {
 	res, err = c.Client.Do(req)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	err = IsErrorResponse(res)
-	return
+	return res, err
 }

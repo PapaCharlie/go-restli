@@ -50,5 +50,5 @@ func (t *TyperefModel) generateCode() (def *Statement) {
 		def.Return(decoder(Id(receiver)))
 	}).Line().Line()
 
-	return
+	return def
 }

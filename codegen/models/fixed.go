@@ -53,5 +53,5 @@ func (f *FixedModel) generateCode() (def *Statement) {
 		def.Return()
 	}).Line().Line()
 
-	return
+	return def
 }

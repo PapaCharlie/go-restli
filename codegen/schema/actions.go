@@ -74,5 +74,5 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 		def.Return()
 	})
 
-	return
+	return c
 }

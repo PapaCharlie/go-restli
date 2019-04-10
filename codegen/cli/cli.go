@@ -3,16 +3,17 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"github.com/PapaCharlie/go-restli/codegen"
-	"github.com/PapaCharlie/go-restli/codegen/models"
-	"github.com/PapaCharlie/go-restli/codegen/schema"
-	"github.com/dave/jennifer/jen"
-	"github.com/spf13/cobra"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/codegen/schema"
+	"github.com/dave/jennifer/jen"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -44,7 +45,7 @@ func CodeGenerator() *cobra.Command {
 					return fmt.Errorf("illegal path: %v", err)
 				}
 			}
-			return
+			return nil
 		},
 		RunE: func(*cobra.Command, []string) error {
 			return run()

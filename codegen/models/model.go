@@ -146,7 +146,7 @@ func (m *Model) GenerateModelCode() (f *CodeFile) {
 		log.Panicf("code generators must have a namespace and name: %+v", m)
 	}
 
-	return
+	return f
 }
 
 func (m *Model) InnerModels() (models []*Model) {
@@ -172,7 +172,7 @@ func (m *Model) InnerModels() (models []*Model) {
 		}
 	}
 
-	return
+	return models
 }
 
 func (m *Model) GoType() *Statement {

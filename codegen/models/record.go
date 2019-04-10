@@ -39,7 +39,7 @@ func (r *RecordModel) allFields() (allFields []Field) {
 		allFields = append(allFields, i.Record.Fields...)
 	}
 	allFields = append(allFields, r.Fields...)
-	return
+	return allFields
 }
 
 func (r *RecordModel) receiver() string {
@@ -51,7 +51,7 @@ func (r *RecordModel) InnerModels() (models []*Model) {
 	for _, f := range r.Fields {
 		models = append(models, f.Type)
 	}
-	return
+	return models
 }
 
 func (r *RecordModel) GenerateCode() (def *Statement) {
@@ -106,7 +106,7 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 	}
 	r.restLiSerDe(def)
 
-	return
+	return def
 }
 
 func (r *RecordModel) restLiSerDe(def *Statement) {

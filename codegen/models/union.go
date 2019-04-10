@@ -48,7 +48,7 @@ func (u *UnionModel) InnerModels() (models []*Model) {
 	for _, t := range u.Types {
 		models = append(models, t.Model)
 	}
-	return
+	return models
 }
 
 func (u *UnionModel) GoType() (def *Statement) {

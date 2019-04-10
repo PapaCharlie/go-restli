@@ -3,8 +3,6 @@ package d2
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/samuel/go-zookeeper/zk"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -12,12 +10,15 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/pkg/errors"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
-var DefaultLogger = log.New(ioutil.Discard, "D2", log.LstdFlags|log.Lmicroseconds|log.Lshortfile|log.LUTC)
+var Logger = log.New(ioutil.Discard, "[D2] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile|log.LUTC)
 
 func EnableD2Logging() {
-	DefaultLogger.SetOutput(os.Stderr)
+	Logger.SetOutput(os.Stderr)
 }
 
 func ServicesPath(service string) string {
@@ -136,9 +137,9 @@ func (c *Client) GetHostnameForPartition(partition int) (*url.URL, error) {
 func (c *Client) addUrl(h url.URL, w float64) {
 	if oldW, ok := c.hostWeights[h]; ok {
 		c.totalWeight -= oldW
-		DefaultLogger.Println(h, "NEW_WEIGHT", w)
+		Logger.Println(h, "NEW_WEIGHT", w)
 	} else {
-		DefaultLogger.Println(h, "UP")
+		Logger.Println(h, "UP")
 	}
 	c.totalWeight += w
 	c.hostWeights[h] = w
@@ -152,9 +153,9 @@ func (c *Client) addUrlToPartition(p int, h url.URL, w float64) {
 
 	if oldW, ok := partition[h]; ok {
 		c.partitionTotalWeights[p] -= oldW
-		DefaultLogger.Println(h, p, "NEW_WEIGHT", p, w)
+		Logger.Println(h, p, "NEW_WEIGHT", p, w)
 	} else {
-		DefaultLogger.Println(h, p, "UP")
+		Logger.Println(h, p, "UP")
 	}
 	c.partitionTotalWeights[p] += w
 	c.partitionHostWeights[p][h] = w
@@ -171,12 +172,12 @@ func (c *Client) handleUpdate(child string, data []byte, err error) {
 	if data == nil {
 		if oldUri, ok := c.uris[child]; ok {
 			for h := range oldUri.Weights {
-				DefaultLogger.Println(h, "DOWN")
+				Logger.Println(h, "DOWN")
 				delete(c.hostWeights, h)
 			}
 			for h, partitions := range oldUri.PartitionDesc {
 				for p := range partitions {
-					DefaultLogger.Println(h, p, "DOWN")
+					Logger.Println(h, p, "DOWN")
 					delete(c.partitionHostWeights[p], h)
 				}
 			}
@@ -204,9 +205,11 @@ func (c *Client) handleUpdate(child string, data []byte, err error) {
 }
 
 func NewClient(name string, conn *zk.Conn) (c *Client, err error) {
-	data, _, err := conn.Get(ServicesPath(name))
+	path := ServicesPath(name)
+	data, _, err := conn.Get(path)
 	if err != nil {
-		return
+		err = errors.Wrapf(err, "failed to read %s", path)
+		return nil, err
 	}
 
 	c = &Client{
@@ -223,14 +226,17 @@ func NewClient(name string, conn *zk.Conn) (c *Client, err error) {
 	var s Service
 	err = json.Unmarshal(data, &s)
 	if err != nil {
-		return
+		err = errors.Wrapf(err, "could not unmarshal data from %s: %s", path, string(data))
+		return nil, err
 	}
 
-	c.watcher, err = NewChildWatcher(conn, UrisPath(s.ClusterName), c.handleUpdate)
+	path = UrisPath(s.ClusterName)
+	c.watcher, err = NewChildWatcher(conn, path, c.handleUpdate)
 
 	if err != nil {
-		return
+		err = errors.Wrapf(err, "failed to read", path)
+		return nil, err
 	}
 
-	return
+	return c, nil
 }

@@ -16,9 +16,9 @@ func (b *Bytes) UnmarshalJSON(data []byte) (err error) {
 	var s string
 	err = json.Unmarshal(data, &s)
 	if err != nil {
-		return
+		return err
 	}
 
 	*b = Bytes(s)
-	return
+	return nil
 }

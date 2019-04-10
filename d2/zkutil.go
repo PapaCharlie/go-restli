@@ -1,11 +1,12 @@
 package d2
 
 import (
-	"github.com/pkg/errors"
-	"github.com/samuel/go-zookeeper/zk"
 	"log"
 	"path/filepath"
 	"sync"
+
+	"github.com/pkg/errors"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 type ChildUpdateCallback func(child string, data []byte, err error)

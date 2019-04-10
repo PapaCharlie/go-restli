@@ -87,7 +87,7 @@ func (e *EnumModel) generateCode() (def *Statement) {
 		def.Return()
 	}).Line().Line()
 
-	return
+	return def
 }
 
 func (e *EnumModel) SymbolIdentifier(symbol string) string {

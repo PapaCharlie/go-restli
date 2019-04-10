@@ -70,19 +70,19 @@ func (t *ResourceModel) restLiEncode(encoder string, accessor *Statement) (hasEr
 	if t.Primitive != nil {
 		def.Add(encoderRef).Dot("Encode" + codegen.ExportedIdentifier(t.Primitive[0])).Call(accessor)
 		hasError = false
-		return
+		return hasError, def
 	}
 
 	if t.Bytes != nil {
 		def.Add(encoderRef).Dot("EncodeBytes").Call(accessor)
 		hasError = false
-		return
+		return hasError, err
 	}
 
 	if t.Typeref != nil || t.Enum != nil || t.Record != nil || t.Fixed != nil {
 		def.Add(accessor).Dot(codegen.RestLiEncode).Call(encoderRef)
 		hasError = true
-		return
+		return hasError, err
 	}
 
 	log.Panicln(t, "cannot be url encoded")
@@ -103,7 +103,7 @@ func (p parameter) toField() (f models.Field) {
 	if p.Default != nil {
 		f.Default = json.RawMessage(*p.Default)
 	}
-	return
+	return f
 }
 
 func (e *Endpoint) UnmarshalJSON(data []byte) error {
