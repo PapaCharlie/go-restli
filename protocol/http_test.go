@@ -25,8 +25,8 @@ func mustParse(u string) *url.URL {
 func TestRestLiClient_FormatQuery(t *testing.T) {
 	supplier := &SimpleHostnameSupplier{}
 	c := &RestLiClient{
-		Client:                 nil,
-		RestLiHostnameSupplier: supplier,
+		Client:           nil,
+		HostnameResolver: supplier,
 	}
 
 	expected := "/seas-broker/search?action=search"

@@ -16,7 +16,6 @@ const (
 	Url            = "url"
 	ActionResult   = "actionResult"
 	Client         = "Client"
-	//GetHostname    = "GetHostname"
 	FormatQueryUrl = "FormatQueryUrl"
 )
 

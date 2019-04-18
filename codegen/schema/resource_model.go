@@ -76,13 +76,13 @@ func (t *ResourceModel) restLiEncode(encoder string, accessor *Statement) (hasEr
 	if t.Bytes != nil {
 		def.Add(encoderRef).Dot("EncodeBytes").Call(accessor)
 		hasError = false
-		return hasError, err
+		return hasError, def
 	}
 
 	if t.Typeref != nil || t.Enum != nil || t.Record != nil || t.Fixed != nil {
 		def.Add(accessor).Dot(codegen.RestLiEncode).Call(encoderRef)
 		hasError = true
-		return hasError, err
+		return hasError, def
 	}
 
 	log.Panicln(t, "cannot be url encoded")

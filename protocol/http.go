@@ -74,17 +74,17 @@ type SimpleHostnameSupplier struct {
 	Hostname *url.URL
 }
 
-func (s *SimpleHostnameSupplier) GetHostname() (*url.URL, error) {
+func (s *SimpleHostnameSupplier) GetHostnameForQuery(string) (*url.URL, error) {
 	return s.Hostname, nil
 }
 
-type RestLiHostnameSupplier interface {
-	GetHostname() (*url.URL, error)
+type HostnameResolver interface {
+	GetHostnameForQuery(query string) (*url.URL, error)
 }
 
 type RestLiClient struct {
 	*http.Client
-	RestLiHostnameSupplier
+	HostnameResolver
 }
 
 // Assumes a leading slash
@@ -98,7 +98,7 @@ func getFirstPathSegment(path string) string {
 }
 
 func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
-	hostUrl, err := c.GetHostname()
+	hostUrl, err := c.GetHostnameForQuery(rawQuery)
 	if err != nil {
 		return nil, err
 	}
