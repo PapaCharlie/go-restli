@@ -25,7 +25,6 @@ func (r *Resource) GenerateCode() (code []*CodeFile) {
 
 func (r *Resource) generateClient() (c *CodeFile) {
 	c = NewCodeFile("client", r.PackagePath(), r.Name)
-	log.Println(r.Namespace, r.Name)
 
 	c.Code.Const().Id(ExportedIdentifier(r.Name + "Path")).Op("=").Lit(r.Path).Line()
 	AddWordWrappedComment(c.Code, r.Doc).Line()

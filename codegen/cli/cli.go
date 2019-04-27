@@ -3,22 +3,22 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
-	"os"
-	"path/filepath"
-
 	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/models"
 	"github.com/PapaCharlie/go-restli/codegen/schema"
 	"github.com/dave/jennifer/jen"
 	"github.com/spf13/cobra"
+	"io"
+	"io/ioutil"
+	"log"
+	"path/filepath"
+	"sort"
 )
 
 var (
 	packagePrefix string
 	outputDir     string
+	snapshotMode  bool
 	files         = make(map[string]func() io.Reader)
 )
 
@@ -48,23 +48,29 @@ func CodeGenerator() *cobra.Command {
 			return nil
 		},
 		RunE: func(*cobra.Command, []string) error {
-			return run()
+			if snapshotMode {
+				return run(models.LoadSnapshotModels, schema.LoadSnapshotResource)
+			} else {
+				return run(models.LoadModels, schema.LoadResources)
+			}
 		},
 	}
 
 	cmd.Flags().StringVarP(&packagePrefix, "package-prefix", "p", "", "The namespace to prefix all generated packages "+
 		"with (e.g. github.com/PapaCharlie/go-restli)")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "The directory in which to output the generated files")
+	cmd.Flags().BoolVarP(&snapshotMode, "snapshot-mode", "s", false, "Assumes input is in the shape of .snapshot.json "+
+		"files (statically generated during normal java build)")
 
 	return cmd
 }
 
-func run() error {
+func run(modelLoader func(io.Reader) ([]*models.Model, error), resourceLoader func(io.Reader) ([]*schema.Resource, error)) error {
 	var codeFiles []*codegen.CodeFile
 
 	for filename, buf := range files {
 		log.Println(filename)
-		loadedModels, err := models.LoadModels(buf())
+		loadedModels, err := modelLoader(buf())
 		if err != nil {
 			log.Fatalf("could not load %s: %+v", filename, err)
 		}
@@ -76,7 +82,7 @@ func run() error {
 			}
 		}
 
-		loadedResources, err := schema.LoadResources(buf())
+		loadedResources, err := resourceLoader(buf())
 		if err != nil {
 			log.Fatalf("%s: %+v", filename, err)
 		}
@@ -92,10 +98,12 @@ func run() error {
 		}
 	}
 
+	codeFiles = deduplicateFiles(codeFiles)
+
 	for _, code := range codeFiles {
 		file, err := code.Write(outputDir)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Could not generate code for %+v: %+v", code, err)
 		} else {
 			fmt.Println(file)
 		}
@@ -116,16 +124,47 @@ func generateAllImportsFile(outputDir string, codeFiles []*codegen.CodeFile) {
 	}
 	f.Func().Id("TestAllImports").Params(jen.Op("*").Qual("testing", "T")).Block()
 
-	path := filepath.Join(outputDir, codegen.GetPackagePrefix(), "all_imports_test.go")
-	out, err := os.Create(path)
-	check(err)
-	check(f.Render(out))
-	check(out.Close())
-	check(os.Chmod(path, os.FileMode(0555)))
+	err := codegen.Write(filepath.Join(outputDir, codegen.GetPackagePrefix(), "all_imports_test.go"), f)
+	if err != nil {
+		log.Panicf("Could not write all imports file: %+v", err)
+	}
 }
 
-func check(err error) {
-	if err != nil {
-		log.Fatal(err)
+func renderCode(s *jen.Statement) []byte {
+	b := bytes.NewBuffer(nil)
+	if err := s.Render(b); err != nil {
+		log.Panicln(err)
 	}
+	return b.Bytes()
+}
+
+func deduplicateFiles(files []*codegen.CodeFile) []*codegen.CodeFile {
+	idToFile := make(map[string]*codegen.CodeFile)
+
+	for _, file := range files {
+		id := file.Identifier()
+		if existingFile, ok := idToFile[id]; ok {
+			existingCode := renderCode(existingFile.Code)
+			code := renderCode(file.Code)
+			if ! bytes.Equal(existingCode, code) {
+				log.Fatalf("Conflicting defitions of %s from %s and %s: %s\n\n-----------\n\n%s",
+					id, existingFile.SourceFilename, file.SourceFilename, string(existingCode), string(code))
+			}
+		} else {
+			idToFile[id] = file
+		}
+	}
+
+	identifiers := make([]string, 0, len(idToFile))
+	for id := range idToFile {
+		identifiers = append(identifiers, id)
+	}
+	sort.Strings(identifiers)
+
+	uniqueCodeFiles := make([]*codegen.CodeFile, 0, len(idToFile))
+	for _, id := range identifiers {
+		uniqueCodeFiles = append(uniqueCodeFiles, idToFile[id])
+	}
+
+	return uniqueCodeFiles
 }

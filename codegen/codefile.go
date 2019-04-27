@@ -37,8 +37,7 @@ const (
 )
 
 var (
-	packagePrefix   *string
-	protocolPackage string
+	packagePrefix *string
 
 	CommentWrapWidth = 120
 )
@@ -59,6 +58,12 @@ func NewCodeFile(filename string, packageSegments ...string) *CodeFile {
 }
 
 func (f *CodeFile) Write(outputDir string) (filename string, err error) {
+	defer func() {
+		e := recover()
+		if e != nil {
+			err = errors.Errorf("Could not generate model: %+v", e)
+		}
+	}()
 	file := NewFilePath(f.PackagePath)
 
 	file.HeaderComment(fmt.Sprintf(`DO NOT EDIT
@@ -68,11 +73,15 @@ Source file: %s`, f.SourceFilename))
 
 	file.Add(f.Code)
 	filename = filepath.Join(outputDir, f.PackagePath, f.Filename+".go")
-	err = write(filename, file)
+	err = Write(filename, file)
 	return filename, err
 }
 
-func write(filename string, file *File) error {
+func (f *CodeFile) Identifier() string {
+	return f.PackagePath + "." + f.Filename
+}
+
+func Write(filename string, file *File) error {
 	b := bytes.NewBuffer(nil)
 	if err := file.Render(b); err != nil {
 		return errors.WithStack(err)
@@ -83,6 +92,17 @@ func write(filename string, file *File) error {
 	}
 
 	os.Remove(filename)
+
+	if _, err := os.Stat(filename); err == nil {
+		if removeErr := os.Remove(filename); removeErr != nil {
+			return errors.WithMessagef(removeErr, "Could not delete %s", filename)
+		}
+	} else {
+		if ! os.IsNotExist(err) {
+			return errors.WithStack(err)
+		}
+	}
+
 	if err := ioutil.WriteFile(filename, b.Bytes(), os.FileMode(0555)); err != nil {
 		return errors.WithStack(err)
 	}
@@ -180,7 +200,6 @@ func IfErrReturn(def *Group) *Group {
 func SetPackagePrefix(prefix string) {
 	if packagePrefix == nil {
 		packagePrefix = &prefix
-		protocolPackage = filepath.Join(prefix, "protocol")
 	} else {
 		log.Panicln("packagePrefix can only be set once!")
 	}

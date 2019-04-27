@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"io"
+	"io/ioutil"
 	"regexp"
 )
 
@@ -13,9 +14,10 @@ func LoadModels(reader io.Reader) ([]*Model, error) {
 	snapshot := &struct {
 		Models map[string]*Model `json:"models"`
 	}{}
-	err := json.NewDecoder(reader).Decode(snapshot)
+
+	err := ReadJSON(reader, snapshot)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	var models []*Model
@@ -26,6 +28,39 @@ func LoadModels(reader io.Reader) ([]*Model, error) {
 	models = append(models, flattenModels(models)...)
 	replaceReferences(models)
 	return models, nil
+}
+
+func LoadSnapshotModels(reader io.Reader) ([]*Model, error) {
+	snapshot := &struct {
+		Models []*Model `json:"models"`
+	}{}
+
+	err := ReadJSON(reader, snapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	var models []*Model
+	for _, m := range snapshot.Models {
+		models = append(models, m)
+	}
+
+	models = append(models, flattenModels(models)...)
+	replaceReferences(models)
+	return models, nil
+}
+
+func ReadJSON(reader io.Reader, s interface{}) error {
+	bytes, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	err = json.Unmarshal(bytes, s)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
 }
 
 func flattenModels(models []*Model) (innerModels []*Model) {
@@ -56,12 +91,12 @@ func escapeNamespace(namespace string) string {
 
 var loadedModels = make(map[string]*Model)
 
-func (m *Model) register() {
+func (m *Model) register() bool {
 	if m.Primitive != nil || m.Reference != nil {
-		return
+		return false
 	}
-
 	loadedModels[m.PackagePath()+"."+m.Name] = m
+	return true
 }
 
 func GetRegisteredModel(ns Ns, name string) *Model {

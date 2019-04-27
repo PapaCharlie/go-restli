@@ -46,5 +46,5 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 }
 
 func (r *ModelReference) GetRegisteredModel() *Model {
-	return GetRegisteredModel(Ns{r.Namespace}, r.Name)
+	return GetRegisteredModel(r.Ns, r.Name)
 }

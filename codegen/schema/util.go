@@ -1,8 +1,8 @@
 package schema
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/PapaCharlie/go-restli/codegen/models"
 	"io"
 	"strings"
 
@@ -15,7 +15,7 @@ func LoadResources(reader io.Reader) ([]*Resource, error) {
 		Resources map[string]*Resource `json:"resources"`
 	}{}
 
-	err := json.NewDecoder(reader).Decode(resources)
+	err := models.ReadJSON(reader, resources)
 	if err != nil {
 		return nil, err
 	} else {
@@ -46,6 +46,18 @@ func removeSubResourcesFromTopLevel(resources map[string]*Resource, res *Resourc
 			delete(resources, fullResourceName)
 		}
 	}
+}
+
+func LoadSnapshotResource(reader io.Reader) ([]*Resource, error) {
+	schema := &struct {
+		Schema *Resource `json:"schema"`
+	}{}
+
+	err := models.ReadJSON(reader, schema)
+	if err != nil {
+		return nil, err
+	}
+	return []*Resource{schema.Schema}, nil
 }
 
 func AddClientFunc(def *Statement, funcName string) *Statement {

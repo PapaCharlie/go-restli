@@ -4,12 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 )
 
 const RecordTypeModelTypeName = "record"
+
+var (
+	emptyMapRegex   = regexp.MustCompile("{ *}")
+	emptyArrayRegex = regexp.MustCompile("\\[ *]")
+)
 
 type RecordModel struct {
 	NameAndDoc
@@ -143,6 +149,9 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 					for j, u := range f.Type.Union.Types {
 						unionFieldAccessor := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name())
 						def.If(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
+							if u.Model.IsMapOrArray() {
+								unionFieldAccessor = Call(Op("*").Add(unionFieldAccessor))
+							}
 							if j == 0 {
 								def.Id(isSet).Op("=").True()
 								writeToBuf(def, Lit("("+u.alias()+":"))
@@ -205,7 +214,7 @@ func (r *RecordModel) setDefaultValue(def *Group, name, rawJson string, model *M
 		}
 
 		// Empty arrays and maps can be initialized directly, regardless of type
-		if (model.Array != nil && rawJson == "[]") || (model.Map != nil && rawJson == "{}") {
+		if (model.Array != nil && emptyArrayRegex.MatchString(rawJson)) || (model.Map != nil && emptyMapRegex.MatchString(rawJson)) {
 			def.Id(r.receiver()).Dot(name).Op("=").Make(model.GoType(), Lit(0))
 			return
 		}

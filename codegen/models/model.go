@@ -23,7 +23,7 @@ type Ns struct {
 
 func (n *Ns) PackagePath() string {
 	if n.Namespace == "" {
-		panic("no namespace for package!")
+		log.Panicln("no namespace for package!")
 	}
 	p := strings.Replace(n.Namespace, ".", "/", -1)
 	if GetPackagePrefix() != "" {
@@ -198,7 +198,11 @@ func (m *Model) GoType() *Statement {
 	}
 
 	if m.Reference != nil {
-		log.Panicln("ModelReference type not replaced", m)
+		ref := m.Reference.GetRegisteredModel()
+		if ref == nil {
+			log.Panicln("ModelReference type not replaced", m)
+		}
+		*m = *ref
 	}
 
 	// All of the following are type references
@@ -336,14 +340,6 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	case TyperefModelTypeName:
 		typerefType := &TyperefModel{}
 		if err := json.Unmarshal(data, typerefType); err == nil {
-			if m.Name == "IPAddress" {
-				log.Println(typerefType)
-			}
-
-			if typerefType.Ref.Primitive == nil && typerefType.Ref.Bytes == nil {
-				return errors.Errorf("illegal typeref is not a reference to a primitive or \"bytes\": %+v", typerefType)
-			}
-
 			m.Typeref = typerefType
 			return nil
 		} else {
