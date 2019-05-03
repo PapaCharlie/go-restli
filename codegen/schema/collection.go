@@ -41,11 +41,9 @@ func (c *Collection) generateGet(code *CodeFile, parentResources []*Resource, th
 		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), Lit(""))
 		IfErrReturn(def).Line()
 
-		def.List(Id(Res), Err()).Op(":=").Id(ClientReceiver).Dot("Do").Call(Id(Req))
+		def.List(Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id(result))
 		IfErrReturn(def).Line()
-
-		def.Err().Op("=").Qual(EncodingJson, "NewDecoder").Call(Id(Res).Dot("Body")).Dot("Decode").Call(Op("&").Id(result))
-		def.Return()
+		def.Return(Id(result), Err())
 	})
 
 	return

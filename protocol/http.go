@@ -166,5 +166,48 @@ func (c *RestLiClient) Do(req *http.Request) (res *http.Response, err error) {
 	}
 
 	err = IsErrorResponse(res)
-	return res, err
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (c *RestLiClient) DoAndDecode(req *http.Request, v interface{}) error {
+	res, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	err = res.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(data, v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *RestLiClient) DoAndIgnore(req *http.Request) error {
+	res, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+
+	err = res.Body.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

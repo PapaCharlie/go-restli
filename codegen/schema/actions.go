@@ -56,22 +56,17 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), Lit(""), Id("params"))
 		IfErrReturn(def).Line()
 
-		var resDef *Statement
-		if returns {
-			resDef = def.List(Id(Res), Err()).Op(":=")
-		} else {
-			resDef = def.List(Id("_"), Err()).Op("=")
-		}
-		resDef.Id(ClientReceiver).Dot("Do").Call(Id(Req))
-		IfErrReturn(def).Line()
-
 		if returns {
 			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
-			def.Err().Op("=").Qual(EncodingJson, "NewDecoder").Call(Id(Res).Dot("Body")).Dot("Decode").Call(Op("&").Id("result"))
+			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Id("result"))
 			IfErrReturn(def).Line()
 			def.Id(ActionResult).Op("=").Id("result").Dot("Value")
+			def.Return(Id(ActionResult), Nil())
+		} else {
+			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
+			IfErrReturn(def).Line()
+			def.Return(Nil())
 		}
-		def.Return()
 	})
 
 	return c
