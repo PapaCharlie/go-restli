@@ -2,6 +2,7 @@ package schema
 
 import (
 	. "github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -17,15 +18,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 		resources = append(resources, thisResource)
 	}
 
-	var queryPath string
-	if isOnEntity {
-		queryPath = thisResource.getEntity().Path
-	} else {
-		queryPath = thisResource.Path
-	}
-	queryPath = buildQueryPath(resources, queryPath)
-
-	AddClientFunc(c.Code, ExportedIdentifier(a.ActionName)+"Action")
+	addClientFunc(c.Code, ExportedIdentifier(a.ActionName)+"Action")
 	c.Code.ParamsFunc(func(def *Group) {
 		addEntityParams(def, resources)
 		def.Id("params").Op("*").Id(a.StructName)
@@ -35,36 +28,50 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 
 	c.Code.ParamsFunc(func(def *Group) {
 		if returns {
-			def.Id(ActionResult).Add(a.Returns.GoType())
+			def.Op("*").Add(a.Returns.GoType())
 		}
-		def.Err().Error()
+		def.Error()
 	})
 
 	c.Code.BlockFunc(func(def *Group) {
-		encodeEntitySegments(def, resources)
+		var pathFunc string
+		if isOnEntity {
+			pathFunc = ResourceEntityPath
+		} else {
+			pathFunc = ResourcePath
+		}
 
-		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Qual("fmt", "Sprintf").
-			CallFunc(func(def *Group) {
-				def.Lit(queryPath + "?action=" + a.ActionName)
-				for _, r := range resources {
-					if id := r.getIdentifier(); id != nil {
-						def.Id(id.Name + "Str")
-					}
+		var errReturnParams []Code
+		if returns {
+			errReturnParams = []Code{Nil(), Err()}
+		} else {
+			errReturnParams = []Code{Err()}
+		}
+
+		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).CallFunc(func(def *Group) {
+			for _, r := range resources {
+				if id := r.getIdentifier(); id != nil {
+					def.Id(id.Name)
 				}
-			}))
-		IfErrReturn(def).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), Lit(""), Id("params"))
-		IfErrReturn(def).Line()
+			}
+		})
+		IfErrReturn(def, errReturnParams...).Line()
+
+		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
+		IfErrReturn(def, errReturnParams...).Line()
+
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod), Id("params"))
+		IfErrReturn(def, errReturnParams...).Line()
 
 		if returns {
 			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
-			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Id("result"))
-			IfErrReturn(def).Line()
-			def.Id(ActionResult).Op("=").Id("result").Dot("Value")
-			def.Return(Id(ActionResult), Nil())
+			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
+			IfErrReturn(def, errReturnParams...).Line()
+
+			def.Return(Op("&").Id("result").Dot("Value"), Nil())
 		} else {
 			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
-			IfErrReturn(def).Line()
+			IfErrReturn(def, errReturnParams...).Line()
 			def.Return(Nil())
 		}
 	})

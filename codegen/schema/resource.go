@@ -2,11 +2,9 @@ package schema
 
 import (
 	"log"
-	"strings"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/models"
-	. "github.com/dave/jennifer/jen"
 )
 
 const (
@@ -14,7 +12,6 @@ const (
 	Req            = "req"
 	Res            = "res"
 	Url            = "url"
-	ActionResult   = "actionResult"
 	Client         = "Client"
 	FormatQueryUrl = "FormatQueryUrl"
 )
@@ -23,25 +20,16 @@ func (r *Resource) GenerateCode() (code []*CodeFile) {
 	return generateResourceBindings(nil, r)
 }
 
-func (r *Resource) generateClient() (c *CodeFile) {
-	c = NewCodeFile("client", r.PackagePath(), r.Name)
-
-	c.Code.Const().Id(ExportedIdentifier(r.Name + "Path")).Op("=").Lit(r.Path).Line()
-	AddWordWrappedComment(c.Code, r.Doc).Line()
-	c.Code.Type().Id(Client).Struct(Qual(ProtocolPackage, "RestLiClient")).Line().Line()
-
-	return c
-}
-
 func generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
-	clientCodeFile := thisResource.generateClient()
-	code = append(code, clientCodeFile)
-
 	var newParentResources []*Resource
 	newParentResources = append(newParentResources, parentResources...)
 	newParentResources = append(newParentResources, thisResource)
 
+	clientCodeFile := thisResource.generateClient(parentResources)
+	code = append(code, clientCodeFile)
+
 	if thisResource.Simple != nil {
+		thisResource.Simple.generateRestLiMethods(clientCodeFile, parentResources, thisResource)
 		code = append(code, thisResource.Simple.generateResourceBindings(parentResources, thisResource)...)
 		code = append(code, thisResource.Simple.Entity.generateResourceBindings(parentResources, thisResource)...)
 		for _, r := range thisResource.Simple.Entity.Subresources {
@@ -51,6 +39,7 @@ func generateResourceBindings(parentResources []*Resource, thisResource *Resourc
 	}
 
 	if thisResource.Collection != nil {
+		thisResource.Collection.generateRestLiMethods(clientCodeFile, parentResources, thisResource)
 		code = append(code, thisResource.Collection.generateResourceBindings(clientCodeFile, parentResources, thisResource)...)
 		code = append(code, thisResource.Collection.Entity.generateResourceBindings(parentResources, thisResource)...)
 		for _, r := range thisResource.Collection.Entity.Subresources {
@@ -60,6 +49,7 @@ func generateResourceBindings(parentResources []*Resource, thisResource *Resourc
 	}
 
 	if thisResource.Association != nil {
+		thisResource.Association.generateRestLiMethods(clientCodeFile, parentResources, thisResource)
 		code = append(code, thisResource.Association.generateResourceBindings(parentResources, thisResource)...)
 		code = append(code, thisResource.Association.Entity.generateResourceBindings(parentResources, thisResource)...)
 		for _, r := range thisResource.Association.Entity.Subresources {
@@ -85,11 +75,6 @@ func (s *Simple) generateResourceBindings(parentResources []*Resource, thisResou
 }
 
 func (c *Collection) generateResourceBindings(clientCodeFile *CodeFile, parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
-	for _, m := range c.Methods {
-		if strings.ToLower(m.Method) == "get" {
-			c.generateGet(clientCodeFile, parentResources, thisResource, m)
-		}
-	}
 	for _, action := range c.Actions {
 		code = append(code, action.generateActionParamStructs(parentResources, thisResource, false))
 	}
@@ -119,6 +104,12 @@ func (e *Entity) generateResourceBindings(parentResources []*Resource, thisResou
 		code = append(code, action.generateActionParamStructs(parentResources, thisResource, true))
 	}
 	return code
+}
+
+func (m *HasMethods) generateRestLiMethods(code *CodeFile, parentResources []*Resource, thisResource *Resource) {
+	for _, method := range m.Methods {
+		code.Code.Add(method.generate(parentResources, thisResource)).Line().Line()
+	}
 }
 
 func (r *Resource) getIdentifier() *Identifier {

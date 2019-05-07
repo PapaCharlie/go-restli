@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"log"
 	"strings"
 
@@ -140,9 +141,9 @@ func (m *Method) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	m.Method = t.Method
-	if name, ok := RestliMethodNameMapping[strings.ToLower(t.Method)]; ok {
-		m.Name = name
+	if name, ok := protocol.RestLiMethodNameMapping[strings.ToLower(t.Method)]; ok {
+		m.Method = name
+		m.Name = string(name)
 	} else {
 		log.Panicln("Unknown method", t.Method)
 	}

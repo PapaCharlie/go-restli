@@ -3,6 +3,7 @@ package codegen
 import (
 	"bytes"
 	"fmt"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"io/ioutil"
 	"log"
 	"os"
@@ -192,8 +193,8 @@ func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) 
 		BlockFunc(f)
 }
 
-func IfErrReturn(def *Group) *Group {
-	def.If(Err().Op("!=").Nil()).Block(Return())
+func IfErrReturn(def *Group, results ...Code) *Group {
+	def.If(Err().Op("!=").Nil()).Block(Return(results...))
 	return def
 }
 
@@ -240,4 +241,12 @@ func (f *FieldTag) ToMap() map[string]string {
 	}
 
 	return tags
+}
+
+func RestLiMethod(method protocol.RestLiMethod) *Statement {
+	if method == protocol.NoMethod {
+		return Qual(ProtocolPackage, "NoMethod")
+	} else {
+		return Qual(ProtocolPackage, "Method"+string(method))
+	}
 }

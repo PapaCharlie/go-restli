@@ -1,6 +1,9 @@
 package schema
 
-import "github.com/PapaCharlie/go-restli/codegen/models"
+import (
+	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/protocol"
+)
 
 type Resource struct {
 	models.Ns
@@ -69,7 +72,7 @@ type Entity struct {
 
 type Method struct {
 	models.RecordModel
-	Method          string
+	Method          protocol.RestLiMethod
 	PagingSupported bool
 }
 

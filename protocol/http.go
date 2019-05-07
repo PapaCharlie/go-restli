@@ -12,16 +12,51 @@ import (
 )
 
 const (
-	RestliContentType     = "application/json"
-	RestliProtocolVersion = "2.0.0"
+	RestLiContentType     = "application/json"
+	RestLiProtocolVersion = "2.0.0"
 )
 
 const (
-	RestliHeader_Method          = "X-RestLi-Method"
-	RestliHeader_ProtocolVersion = "X-RestLi-Protocol-Version"
-	RestliHeader_ErrorResponse   = "X-RestLi-Error-Response"
-	RestliHeader_Id              = "X-RestLi-Id"
+	RestLiHeader_Method          = "X-RestLi-Method"
+	RestLiHeader_ProtocolVersion = "X-RestLi-Protocol-Version"
+	RestLiHeader_ErrorResponse   = "X-RestLi-Error-Response"
 )
+
+type RestLiMethod string
+
+const (
+	MethodGet           = RestLiMethod("Get")
+	MethodCreate        = RestLiMethod("Create")
+	MethodDelete        = RestLiMethod("Delete")
+	MethodUpdate        = RestLiMethod("Update")
+	MethodPartialUpdate = RestLiMethod("PartialUpdate")
+
+	MethodBatchGet           = RestLiMethod("BatchGet")
+	MethodBatchCreate        = RestLiMethod("BatchCreate")
+	MethodBatchDelete        = RestLiMethod("BatchDelete")
+	MethodBatchUpdate        = RestLiMethod("BatchUpdate")
+	MethodBatchPartialUpdate = RestLiMethod("BatchPartialUpdate")
+
+	MethodGetAll = RestLiMethod("GetAll")
+
+	NoMethod = RestLiMethod("")
+)
+
+var RestLiMethodNameMapping = map[string]RestLiMethod{
+	"get":            MethodGet,
+	"create":         MethodCreate,
+	"delete":         MethodDelete,
+	"update":         MethodUpdate,
+	"partial_update": MethodPartialUpdate,
+
+	"batch_get":            MethodBatchGet,
+	"batch_create":         MethodBatchCreate,
+	"batch_delete":         MethodBatchDelete,
+	"batch_update":         MethodBatchUpdate,
+	"batch_partial_update": MethodBatchPartialUpdate,
+
+	"get_all": MethodGetAll,
+}
 
 var emptyBuffer = &bytes.Buffer{}
 
@@ -43,19 +78,19 @@ func IsErrorResponse(res *http.Response) error {
 	var err error
 	var body []byte
 
-	if res.Header.Get(RestliHeader_ErrorResponse) == "true" {
+	if res.Header.Get(RestLiHeader_ErrorResponse) == "true" {
 		defer res.Body.Close()
 		body, err = ioutil.ReadAll(res.Body)
 		if err != nil {
 			return err
 		}
-		restliError := &RestLiError{
+		restLiError := &RestLiError{
 			FullResponse: body,
 		}
-		if err := json.NewDecoder(bytes.NewReader(body)).Decode(restliError); err != nil {
-			restliError.DeserializationError = err
+		if deserializationError := json.Unmarshal(body, restLiError); deserializationError != nil {
+			restLiError.DeserializationError = deserializationError
 		}
-		return restliError
+		return restLiError
 	}
 
 	if res.StatusCode >= 500 {
@@ -124,37 +159,37 @@ func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
 	}
 }
 
-func (c *RestLiClient) GetRequest(url *url.URL, method string) (*http.Request, error) {
-	req, err := http.NewRequest("GET", url.String(), emptyBuffer)
+func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
+	req.Header.Set("Content-Type", RestLiContentType)
+	req.Header.Set(RestLiHeader_ProtocolVersion, RestLiProtocolVersion)
+	if method != NoMethod {
+		req.Header.Set(RestLiHeader_Method, string(method))
+	}
+}
+
+func (c *RestLiClient) GetRequest(url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", RestliContentType)
-	req.Header.Set(RestliHeader_ProtocolVersion, RestliProtocolVersion)
-	if method != "" {
-		req.Header.Set(RestliHeader_Method, method)
-	}
+	SetRestLiHeaders(req, method)
 
 	return req, nil
 }
 
-func (c *RestLiClient) PostRequest(url *url.URL, method string, contents interface{}) (*http.Request, error) {
+func (c *RestLiClient) PostRequest(url *url.URL, method RestLiMethod, contents interface{}) (*http.Request, error) {
 	buf, err := json.Marshal(contents)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", url.String(), bytes.NewBuffer(buf))
+	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(buf))
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", RestliContentType)
-	req.Header.Set(RestliHeader_ProtocolVersion, RestliProtocolVersion)
-	if method != "" {
-		req.Header.Set(RestliHeader_Method, method)
-	}
+	SetRestLiHeaders(req, method)
 
 	return req, nil
 }
