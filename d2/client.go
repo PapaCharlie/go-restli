@@ -84,7 +84,7 @@ func newService(name string, conn *zk.Conn) (*watchedService, error) {
 	w.urisWatcher, err = NewChildWatcher(conn, path, w.handleUpdate)
 
 	if err != nil {
-		err = errors.Wrapf(err, "failed to read", path)
+		err = errors.Wrapf(err, "failed to read: %s", path)
 		return nil, err
 	}
 
