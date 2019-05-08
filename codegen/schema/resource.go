@@ -69,14 +69,17 @@ func generateResourceBindings(parentResources []*Resource, thisResource *Resourc
 
 func (s *Simple) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, action := range s.Actions {
-		code = append(code, action.generateActionParamStructs(parentResources, thisResource, false))
+		code = append(code, action.generate(parentResources, thisResource, false))
 	}
 	return code
 }
 
 func (c *Collection) generateResourceBindings(clientCodeFile *CodeFile, parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, action := range c.Actions {
-		code = append(code, action.generateActionParamStructs(parentResources, thisResource, false))
+		code = append(code, action.generate(parentResources, thisResource, false))
+	}
+	for _, finder := range c.Finders {
+		code = append(code, finder.generate(parentResources, thisResource))
 	}
 
 	return code
@@ -87,21 +90,24 @@ func (a *Association) generateResourceBindings(parentResources []*Resource, this
 		code = append(code, identifierCode)
 	}
 	for _, action := range a.Actions {
-		code = append(code, action.generateActionParamStructs(parentResources, thisResource, false))
+		code = append(code, action.generate(parentResources, thisResource, false))
+	}
+	for _, finder := range a.Finders {
+		code = append(code, finder.generate(parentResources, thisResource))
 	}
 	return code
 }
 
 func (a *ActionsSet) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, action := range a.Actions {
-		code = append(code, action.generateActionParamStructs(parentResources, thisResource, false))
+		code = append(code, action.generate(parentResources, thisResource, false))
 	}
 	return code
 }
 
 func (e *Entity) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	for _, action := range e.Actions {
-		code = append(code, action.generateActionParamStructs(parentResources, thisResource, true))
+		code = append(code, action.generate(parentResources, thisResource, true))
 	}
 	return code
 }

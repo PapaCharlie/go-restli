@@ -33,7 +33,7 @@ type Field struct {
 	Default  json.RawMessage `json:"default"`
 }
 
-func (f *Field) isPointer() bool {
+func (f *Field) IsPointer() bool {
 	return f.Optional || f.Default != nil
 }
 
@@ -73,7 +73,7 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 
 			var tag FieldTag
 			tag.Json.Name = f.Name
-			if f.isPointer() {
+			if f.IsPointer() {
 				tag.Json.Optional = true
 				field.Add(f.Type.PointerType())
 			} else if f.Type.Union != nil {
@@ -99,7 +99,7 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 	def.BlockFunc(func(def *Group) {
 		def.Id(r.receiver()).Op("=").New(Id(r.Name))
 		for _, f := range r.allFields() {
-			if f.Type.Record != nil && !f.isPointer() {
+			if f.Type.Record != nil && !f.IsPointer() {
 				def.Add(r.field(f.Name)).Op("=").Op("*").Qual(f.Type.PackagePath(), "New"+f.Type.Record.Name).Call()
 			}
 		}
@@ -125,13 +125,13 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 		allFields := r.allFields()
 		for i, f := range allFields {
 			serialize := def.Empty()
-			if f.isPointer() {
+			if f.IsPointer() {
 				serialize.If(r.field(f.Name).Op("!=").Nil())
 			}
 
 			serialize.BlockFunc(func(def *Group) {
 				accessor := r.field(f.Name)
-				if f.isPointer() && (f.Type.Primitive != nil || f.Type.Bytes != nil) {
+				if f.IsPointer() && (f.Type.Primitive != nil || f.Type.Bytes != nil) {
 					accessor = Op("*").Add(accessor)
 				}
 

@@ -2,11 +2,10 @@ package schema
 
 import (
 	"fmt"
-	"log"
-	"strings"
-
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
+	"log"
+	"strings"
 )
 
 const (
@@ -42,34 +41,30 @@ func (r *Resource) generateClient(parentResources []*Resource) (c *CodeFile) {
 
 func addResourcePathFunc(def *Statement, funcName string, resources []*Resource, path string) {
 	addClientFunc(def, funcName).ParamsFunc(func(def *Group) {
-		addEntityParams(def, resources)
+		addEntityTypes(def, resources)
 	}).Params(String(), Error()).BlockFunc(func(def *Group) {
-		for _, resource := range resources {
-			if id := resource.getIdentifier(); id != nil {
-				hasError, assignment := id.Type.restLiURLEncode(Id(id.Name))
-				if hasError {
-					def.List(Id(id.Name+"Str"), Err()).Op(":=").Add(assignment)
-					IfErrReturn(def, Lit(""), Err())
-				} else {
-					def.Id(id.Name + "Str").Op(":=").Add(assignment)
-				}
-			}
-		}
-		def.Line()
-
 		def.Var().Id("path").String()
 
 		for _, resource := range resources {
 			if id := resource.getIdentifier(); id != nil {
+				hasError, assignment := id.Type.RestLiURLEncode(Id(id.Name))
+				if hasError {
+					def.List(Id(id.EncodedVariableName()), Err()).Op(":=").Add(assignment)
+					IfErrReturn(def, Lit(""), Err())
+				} else {
+					def.Id(id.EncodedVariableName()).Op(":=").Add(assignment)
+				}
+
 				pattern := fmt.Sprintf("{%s}", id.Name)
 				idx := strings.Index(path, pattern)
 				if idx < 0 {
 					log.Panicf("%s does not appear in %s", pattern, path)
 				}
-				def.Id("path").Op("+=").Lit(path[:idx]).Op("+").Id(id.Name + "Str")
+				def.Id("path").Op("+=").Lit(path[:idx]).Op("+").Id(id.EncodedVariableName())
 				path = path[idx+len(pattern):]
 			}
 		}
+		def.Line()
 
 		if path != "" {
 			def.Id("path").Op("+=").Lit(path)
@@ -79,10 +74,20 @@ func addResourcePathFunc(def *Statement, funcName string, resources []*Resource,
 	}).Line().Line()
 }
 
-func addEntityParams(def *Group, resources []*Resource) {
+func addEntityTypes(def *Group, resources []*Resource) {
 	for _, r := range resources {
 		if id := r.getIdentifier(); id != nil {
 			def.Id(id.Name).Add(id.Type.GoType())
 		}
 	}
+}
+
+func entityParams(resources []*Resource) []Code {
+	var params []Code
+	for _, r := range resources {
+		if id := r.getIdentifier(); id != nil {
+			params = append(params, Id(id.Name))
+		}
+	}
+	return params
 }

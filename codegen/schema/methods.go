@@ -26,6 +26,7 @@ var RestliMethodToHttpMethod = map[string]string{
 
 type MethodGenerator func(m Method, parentResources []*Resource, thisResource *Resource) *Statement
 
+// https://github.com/linkedin/rest.li/wiki/Rest.li-User-Guide#resource-methods
 func (m *Method) generate(parentResources []*Resource, thisResource *Resource) *Statement {
 	switch m.Method {
 	case protocol.MethodGet:
@@ -46,19 +47,13 @@ func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource
 	AddWordWrappedComment(def, m.Doc).Line()
 	addClientFunc(def, m.Name)
 	def.ParamsFunc(func(def *Group) {
-		addEntityParams(def, resources)
+		addEntityTypes(def, resources)
 	})
 
 	def.Params(Op("*").Add(thisResource.Schema.GoType()), Error())
 
 	def.BlockFunc(func(def *Group) {
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).CallFunc(func(def *Group) {
-			for _, r := range resources {
-				if id := r.getIdentifier(); id != nil {
-					def.Id(id.Name)
-				}
-			}
-		})
+		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))

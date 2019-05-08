@@ -17,8 +17,8 @@ type Resource struct {
 	ActionsSet  *ActionsSet
 }
 
-type ActionsSet struct {
-	HasActions
+type HasFinders struct {
+	Finders []Finder
 }
 
 type HasActions struct {
@@ -34,6 +34,10 @@ type Identifier struct {
 	Type *ResourceModel
 }
 
+type ActionsSet struct {
+	HasActions
+}
+
 type Simple struct {
 	HasActions
 	HasMethods
@@ -44,9 +48,9 @@ type Simple struct {
 type Collection struct {
 	HasActions
 	HasMethods
+	HasFinders
 	Identifier Identifier
 	Supports   []string
-	Finders    []Finder
 	Entity     Entity
 }
 
@@ -58,6 +62,7 @@ type AssocKey struct {
 type Association struct {
 	HasActions
 	HasMethods
+	HasFinders
 	Identifier string
 	AssocKeys  []AssocKey
 	Supports   []string
@@ -83,6 +88,8 @@ type Endpoint struct {
 
 type Finder struct {
 	Endpoint
+	FinderName string
+	StructName string
 	PagingSupported bool
 }
 

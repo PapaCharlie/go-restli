@@ -6,8 +6,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func (a *Action) generateActionParamStructs(parentResources []*Resource, thisResource *Resource, isOnEntity bool) (c *CodeFile) {
-	c = NewCodeFile(a.ActionName, thisResource.PackagePath(), thisResource.Name)
+func (a *Action) generate(parentResources []*Resource, thisResource *Resource, isOnEntity bool) (c *CodeFile) {
+	c = NewCodeFile(a.ActionName+"Action", thisResource.PackagePath(), thisResource.Name)
 
 	c.Code.Const().Id(ExportedIdentifier(a.ActionName + "Action")).Op("=").Lit(a.ActionName).Line()
 	c.Code.Add(a.GenerateCode())
@@ -20,7 +20,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 
 	addClientFunc(c.Code, ExportedIdentifier(a.ActionName)+"Action")
 	c.Code.ParamsFunc(func(def *Group) {
-		addEntityParams(def, resources)
+		addEntityTypes(def, resources)
 		def.Id("params").Op("*").Id(a.StructName)
 	})
 
@@ -48,13 +48,7 @@ func (a *Action) generateActionParamStructs(parentResources []*Resource, thisRes
 			errReturnParams = []Code{Err()}
 		}
 
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).CallFunc(func(def *Group) {
-			for _, r := range resources {
-				if id := r.getIdentifier(); id != nil {
-					def.Id(id.Name)
-				}
-			}
-		})
+		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).Call(entityParams(resources)...)
 		IfErrReturn(def, errReturnParams...).Line()
 
 		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))

@@ -8,7 +8,6 @@ import (
 
 	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/models"
-	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
 
@@ -55,39 +54,6 @@ func (t *ResourceModel) UnmarshalJSON(data []byte) error {
 
 	return errors.Errorf("Failed to deserialize Resource model (can only be primitive, array, map or reference type): %v",
 		unmarshallErrors)
-}
-
-func (t *ResourceModel) restLiURLEncode(accessor *Statement) (hasError bool, def *Statement) {
-	return t.restLiEncode(codegen.RestLiUrlEncoder, accessor)
-}
-
-func (t *ResourceModel) restLiReducedEncode(accessor *Statement) (hasError bool, def *Statement) {
-	return t.restLiEncode(codegen.RestLiReducedEncoder, accessor)
-}
-
-func (t *ResourceModel) restLiEncode(encoder string, accessor *Statement) (hasError bool, def *Statement) {
-	def = Empty()
-	encoderRef := Qual(codegen.ProtocolPackage, encoder)
-	if t.Primitive != nil {
-		def.Add(encoderRef).Dot("Encode" + codegen.ExportedIdentifier(t.Primitive[0])).Call(accessor)
-		hasError = false
-		return hasError, def
-	}
-
-	if t.Bytes != nil {
-		def.Add(encoderRef).Dot("EncodeBytes").Call(accessor)
-		hasError = false
-		return hasError, def
-	}
-
-	if t.Typeref != nil || t.Enum != nil || t.Record != nil || t.Fixed != nil {
-		def.Add(accessor).Dot(codegen.RestLiEncode).Call(encoderRef)
-		hasError = true
-		return hasError, def
-	}
-
-	log.Panicln(t, "cannot be url encoded")
-	return
 }
 
 type parameter struct {
@@ -168,4 +134,43 @@ func (a *Action) UnmarshalJSON(data []byte) error {
 	a.Endpoint.Name = a.StructName
 
 	return nil
+}
+
+func (f *Finder) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &f.Endpoint)
+	if err != nil {
+		return err
+	}
+
+	f.FinderName = f.Endpoint.Name
+	f.StructName = codegen.ExportedIdentifier(FindBy + codegen.ExportedIdentifier(f.Name) + "Params")
+	f.Endpoint.Name = f.StructName
+
+	p := &struct {
+		PagingSupported bool
+	}{}
+	err = json.Unmarshal(data, p)
+	if err != nil {
+		return err
+	}
+	f.PagingSupported = p.PagingSupported
+
+	if f.PagingSupported {
+		f.Fields = append(f.Fields, models.Field{
+			NameAndDoc: models.NameAndDoc{Name: "start", Doc: "PagingContext parameter"},
+			Type:       &models.Model{Primitive: &models.IntPrimitive},
+			Optional:   true,
+		})
+		f.Fields = append(f.Fields, models.Field{
+			NameAndDoc: models.NameAndDoc{Name: "count", Doc: "PagingContext parameter"},
+			Type:       &models.Model{Primitive: &models.IntPrimitive},
+			Optional:   true,
+		})
+	}
+
+	return nil
+}
+
+func (i *Identifier) EncodedVariableName() string {
+	return i.Name + "Str"
 }

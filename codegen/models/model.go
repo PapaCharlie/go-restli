@@ -405,3 +405,36 @@ func (m *Model) writeToBuf(def *Group, accessor *Statement) {
 func writeToBuf(def *Group, s *Statement) *Statement {
 	return def.Id("buf").Dot("WriteString").Call(s)
 }
+
+func (m *Model) RestLiURLEncode(accessor *Statement) (hasError bool, def *Statement) {
+	return m.RestLiEncode(RestLiUrlEncoder, accessor)
+}
+
+func (m *Model) RestLiReducedEncode(accessor *Statement) (hasError bool, def *Statement) {
+	return m.RestLiEncode(RestLiReducedEncoder, accessor)
+}
+
+func (m *Model) RestLiEncode(encoder string, accessor *Statement) (hasError bool, def *Statement) {
+	def = Empty()
+	encoderRef := Qual(ProtocolPackage, encoder)
+	if m.Primitive != nil {
+		def.Add(encoderRef).Dot("Encode" + ExportedIdentifier(m.Primitive[0])).Call(accessor)
+		hasError = false
+		return hasError, def
+	}
+
+	if m.Bytes != nil {
+		def.Add(encoderRef).Dot("EncodeBytes").Call(accessor)
+		hasError = false
+		return hasError, def
+	}
+
+	if m.Typeref != nil || m.Enum != nil || m.Record != nil || m.Fixed != nil {
+		def.Add(accessor).Dot(RestLiEncode).Call(encoderRef)
+		hasError = true
+		return hasError, def
+	}
+
+	log.Panicln(m, "cannot be url encoded")
+	return
+}
