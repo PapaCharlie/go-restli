@@ -50,6 +50,7 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 
 		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).Call(entityParams(resources)...)
 		IfErrReturn(def, errReturnParams...).Line()
+		def.Id("path").Op("+=").Lit("?action=").Op("+").Id(ExportedIdentifier(a.ActionName + "Action"))
 
 		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
 		IfErrReturn(def, errReturnParams...).Line()
