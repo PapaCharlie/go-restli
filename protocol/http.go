@@ -12,11 +12,8 @@ import (
 )
 
 const (
-	RestLiContentType     = "application/json"
 	RestLiProtocolVersion = "2.0.0"
-)
 
-const (
 	RestLiHeader_Method          = "X-RestLi-Method"
 	RestLiHeader_ProtocolVersion = "X-RestLi-Protocol-Version"
 	RestLiHeader_ErrorResponse   = "X-RestLi-Error-Response"
@@ -159,8 +156,11 @@ func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
 	}
 }
 
+func SetJsonContentTypeHeader(req *http.Request) {
+	req.Header.Set("Content-Type", "application/json")
+}
+
 func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
-	req.Header.Set("Content-Type", RestLiContentType)
 	req.Header.Set(RestLiHeader_ProtocolVersion, RestLiProtocolVersion)
 	if method != NoMethod {
 		req.Header.Set(RestLiHeader_Method, string(method))
@@ -178,13 +178,25 @@ func (c *RestLiClient) GetRequest(url *url.URL, method RestLiMethod) (*http.Requ
 	return req, nil
 }
 
-func (c *RestLiClient) PostRequest(url *url.URL, method RestLiMethod, contents interface{}) (*http.Request, error) {
+func (c *RestLiClient) JsonPostRequest(url *url.URL, method RestLiMethod, contents interface{}) (*http.Request, error) {
 	buf, err := json.Marshal(contents)
 	if err != nil {
 		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	SetRestLiHeaders(req, method)
+	SetJsonContentTypeHeader(req)
+
+	return req, nil
+}
+
+func (c *RestLiClient) RawPostRequest(url *url.URL, method RestLiMethod, contents []byte) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(contents))
 	if err != nil {
 		return nil, err
 	}

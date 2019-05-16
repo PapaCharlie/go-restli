@@ -10,7 +10,11 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 	c = NewCodeFile(a.ActionName+"Action", thisResource.PackagePath(), thisResource.Name)
 
 	c.Code.Const().Id(ExportedIdentifier(a.ActionName + "Action")).Op("=").Lit(a.ActionName).Line()
-	c.Code.Add(a.GenerateCode())
+
+	hasParams := len(a.Fields) > 0
+	if hasParams {
+		c.Code.Add(a.GenerateCode())
+	}
 
 	var resources []*Resource
 	resources = append(resources, parentResources...)
@@ -21,7 +25,9 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 	addClientFunc(c.Code, ExportedIdentifier(a.ActionName)+"Action")
 	c.Code.ParamsFunc(func(def *Group) {
 		addEntityTypes(def, resources)
-		def.Id("params").Op("*").Id(a.StructName)
+		if hasParams {
+			def.Id("params").Op("*").Id(a.StructName)
+		}
 	})
 
 	returns := a.Returns != nil
@@ -55,7 +61,12 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
 		IfErrReturn(def, errReturnParams...).Line()
 
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("PostRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod), Id("params"))
+		req := def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver)
+		if hasParams {
+			req.Dot("JsonPostRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod), Id("params"))
+		} else {
+			req.Dot("RawPostRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod), Nil())
+		}
 		IfErrReturn(def, errReturnParams...).Line()
 
 		if returns {
