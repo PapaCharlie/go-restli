@@ -46,7 +46,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 				hasError, assignment := field.Type.RestLiURLEncode(accessor)
 				if hasError {
 					def.List(Id(varName), Err()).Op(":=").Add(assignment)
-					IfErrReturn(def, Lit(""), Err())
+					IfErrReturn(def, Nil(), Err())
 				} else {
 					def.Id(varName).Op(":=").Add(assignment)
 				}
