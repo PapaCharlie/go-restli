@@ -47,7 +47,7 @@ func watchForever(conn *zk.Conn, path string, callback func(data []byte, event *
 	go func() {
 		defer wg.Done()
 		var ok bool
-		var e *zk.Event
+		e := new(zk.Event)
 		var data []byte
 		var nextEvent <-chan zk.Event
 		for {
