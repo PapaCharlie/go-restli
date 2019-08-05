@@ -2,12 +2,12 @@ package schema
 
 import (
 	"encoding/json"
-	"github.com/PapaCharlie/go-restli/protocol"
 	"log"
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/pkg/errors"
 )
 
@@ -68,7 +68,15 @@ func (p parameter) toField() (f models.Field) {
 	f.Type = &p.Type.Model
 	f.Optional = p.Optional
 	if p.Default != nil {
-		f.Default = json.RawMessage(*p.Default)
+		// Special case for string default values: the @Optional annotation doesn't escape the string, it puts it as a
+		// literal, therefore we need to escape it before passing it in. Maps and lists are represented as `{}` and
+		// `[]` respectively, so no escaping there, and numeric values don't need to be escaped in JSON.
+		if p.Type.Model.Primitive != nil && *p.Type.Model.Primitive == models.StringPrimitive {
+			raw, _ := json.Marshal(*p.Default)
+			f.Default = json.RawMessage(raw)
+		} else {
+			f.Default = json.RawMessage(*p.Default)
+		}
 	}
 	return f
 }

@@ -45,6 +45,14 @@ func (e *EnumModel) generateCode() (def *Statement) {
 	receiver := ReceiverName(e.Name)
 	getter := "Get" + e.Name + "FromString"
 
+	def.Func().Id("All" + e.Name + "Values").Params().Index().Id(e.Name).BlockFunc(func(def *Group) {
+		def.Return(Index().Id(e.Name).ValuesFunc(func(def *Group) {
+			for _, s := range e.Symbols {
+				def.Id(e.SymbolIdentifier(s))
+			}
+		}))
+	})
+
 	def.Func().Id(getter).Params(Id("val").String()).Params(Id(receiver).Id(e.Name), Err().Error())
 	def.BlockFunc(func(def *Group) {
 		def.List(Id(receiver), Id("ok")).Op(":=").Id(values).Index(Id("val"))

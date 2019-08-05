@@ -64,7 +64,7 @@ func (p *PrimitiveModel) GetLit(rawJson string) interface{} {
 	unmarshal := func(v interface{}) interface{} {
 		err := json.Unmarshal([]byte(rawJson), &v)
 		if err != nil {
-			log.Panicln("Illegal primitive", err)
+			log.Panicf("(%v) Illegal primitive: \"%s\" (%s)", p, rawJson, err)
 		}
 		return v
 	}
