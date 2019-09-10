@@ -130,12 +130,12 @@ func getFirstPathSegment(path string) string {
 }
 
 func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
+	rawQuery = "/" + strings.TrimPrefix(rawQuery, "/")
 	hostUrl, err := c.GetHostnameForQuery(rawQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	rawQuery = "/" + strings.TrimPrefix(rawQuery, "/")
 	query, err := url.Parse(rawQuery)
 	if err != nil {
 		return nil, err

@@ -7,7 +7,7 @@ import (
 )
 
 func TestClient_addUri(t *testing.T) {
-	c := &watchedService{
+	c := &watchedUri{
 		hostWeights: make(map[url.URL]float64),
 	}
 	addUri(c, "a", 1.0)
@@ -23,7 +23,7 @@ func TestClient_addUri(t *testing.T) {
 }
 
 func TestClient_GetHostname(t *testing.T) {
-	c := &watchedService{
+	c := &watchedUri{
 		hostWeights: make(map[url.URL]float64),
 	}
 	a := addUri(c, "a", 1.0)
@@ -31,7 +31,7 @@ func TestClient_GetHostname(t *testing.T) {
 
 	hits := make(map[url.URL]int)
 	for i := 0; i < 10000000; i++ {
-		h, err := c.GetHostnameForQuery("")
+		h, err := c.getHostnameForQuery()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,7 +44,7 @@ func TestClient_GetHostname(t *testing.T) {
 	}
 }
 
-func addUri(c *watchedService, u string, w float64) url.URL {
+func addUri(c *watchedUri, u string, w float64) url.URL {
 	h, err := url.Parse(u)
 	if err != nil {
 		panic(err)

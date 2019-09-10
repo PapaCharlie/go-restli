@@ -2,50 +2,20 @@ package d2
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/url"
-	"os"
-	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/samuel/go-zookeeper/zk"
 )
 
-var Logger = log.New(ioutil.Discard, "[D2] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile|log.LUTC)
-
-func EnableD2Logging() {
-	Logger.SetOutput(os.Stderr)
-}
-
-func ClustersPath(cluster string) string {
-	return filepath.Join("/", "d2", "clusters", cluster)
-}
-
-func ServicesPath(service string) string {
-	return filepath.Join("/", "d2", "services", service)
-}
-
-func UrisPath(uri string) string {
-	return filepath.Join("/", "d2", "uris", uri)
-}
-
-type FixedClient struct {
-	*zk.Conn
-	service *watchedService
-}
-
-func (c *FixedClient) GetHostnameForQuery(query string) (*url.URL, error) {
-	return c.service.GetHostnameForQuery(query)
-}
-
-type watchedService struct {
+type watchedUri struct {
+	zkPath                string
 	name                  string
 	uris                  map[string]Uri
-	urisWatcher           *ChildWatcher
+	urisWatcher           *TreeCache
 	hostWeights           map[url.URL]float64
 	totalWeight           float64
 	partitionHostWeights  map[int]map[url.URL]float64
@@ -54,132 +24,195 @@ type watchedService struct {
 	lock sync.RWMutex
 }
 
-func newService(name string, conn *zk.Conn) (*watchedService, error) {
-	w := &watchedService{
-		name: name,
-		uris: make(map[string]Uri),
+var (
+	services  = make(map[string]*Service)
+	urisCache = make(map[string]*watchedUri)
+	d2Lock    = new(sync.Mutex)
+)
 
-		hostWeights: make(map[url.URL]float64),
-		totalWeight: 0,
+func getOrCreateService(serviceName string, conn *zk.Conn) (*watchedUri, error) {
+	d2Lock.Lock()
+	defer d2Lock.Unlock()
 
-		partitionHostWeights:  make(map[int]map[url.URL]float64),
-		partitionTotalWeights: make(map[int]float64),
+	service, ok := services[serviceName]
+	if !ok {
+		path := ServicesPath(serviceName)
+		data, _, err := conn.Get(path)
+		if err != nil {
+			err = errors.Wrapf(err, "failed to read %s", path)
+			return nil, err
+		}
+
+		var s Service
+		err = json.Unmarshal(data, &s)
+		if err != nil {
+			err = errors.Wrapf(err, "could not unmarshal data from %s: %s", path, string(data))
+			return nil, err
+		}
+
+		services[serviceName] = &s
+		service = &s
+		Logger.Printf(`Got service definition for "%s": %+v`, serviceName, s)
+	} else {
+		Logger.Printf(`Using known service mapping from "%s" -> "%s"`, serviceName, service.ClusterName)
 	}
 
-	path := ServicesPath(name)
-	data, _, err := conn.Get(path)
-	if err != nil {
-		err = errors.Wrapf(err, "failed to read %s", path)
-		return nil, err
+	path := UrisPath(service.ClusterName)
+	var uri *watchedUri
+	if uri = urisCache[service.ClusterName]; uri == nil {
+		uri = &watchedUri{
+			zkPath: path,
+			name:   service.ClusterName,
+			uris:   make(map[string]Uri),
+
+			hostWeights: make(map[url.URL]float64),
+			totalWeight: 0,
+
+			partitionHostWeights:  make(map[int]map[url.URL]float64),
+			partitionTotalWeights: make(map[int]float64),
+		}
+		events := make(chan TreeCacheEvent)
+		uri.urisWatcher = NewTreeCache(conn, path, events)
+		uri.start(events)
+		Logger.Printf(`Created new URI watcher for "%s"`, service.ClusterName)
+		urisCache[service.ClusterName] = uri
+	} else {
+		Logger.Printf(`Reusing cached URI watcher for "%s"`, service.ClusterName)
 	}
 
-	var s Service
-	err = json.Unmarshal(data, &s)
-	if err != nil {
-		err = errors.Wrapf(err, "could not unmarshal data from %s: %s", path, string(data))
-		return nil, err
-	}
-
-	path = UrisPath(s.ClusterName)
-	w.urisWatcher, err = NewChildWatcher(conn, path, w.handleUpdate)
-
-	if err != nil {
-		err = errors.Wrapf(err, "failed to read: %s", path)
-		return nil, err
-	}
-
-	return w, nil
+	return uri, nil
 }
 
-func (c *watchedService) getWeightedHostname(hostWeights map[url.URL]float64, totalWeight float64) (*url.URL, error) {
-	randomWeight := rand.Float64() * totalWeight
-	for h, w := range hostWeights {
+func (u *watchedUri) start(events chan TreeCacheEvent) {
+	for e := range events {
+		u.handleUpdate(e)
+		if len(u.uris) > 0 { // wait for the first host update before returning from start
+			break
+		}
+	}
+	go func() {
+		for e := range events {
+			u.handleUpdate(e)
+		}
+	}()
+}
+
+func (u *watchedUri) addUrl(h url.URL, w float64) {
+	if oldW, ok := u.hostWeights[h]; ok {
+		u.totalWeight -= oldW
+		Logger.Println(h, "NEW_WEIGHT", w)
+	} else {
+		Logger.Println(h, "UP")
+	}
+	u.totalWeight += w
+	u.hostWeights[h] = w
+}
+
+func (u *watchedUri) addUrlToPartition(p int, h url.URL, w float64) {
+	partition := u.partitionHostWeights[p]
+	if partition == nil {
+		u.partitionHostWeights[p] = make(map[url.URL]float64)
+	}
+
+	if oldW, ok := partition[h]; ok {
+		u.partitionTotalWeights[p] -= oldW
+		Logger.Println(h, p, "NEW_WEIGHT", p, w)
+	} else {
+		Logger.Println(h, p, "UP")
+	}
+	u.partitionTotalWeights[p] += w
+	u.partitionHostWeights[p][h] = w
+}
+
+func (u *watchedUri) handleUpdate(event TreeCacheEvent) {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	path := strings.TrimPrefix(event.Path, u.zkPath)
+
+	if path != "" {
+		if event.Data == nil {
+			if oldUri, ok := u.uris[path]; ok {
+				for h := range oldUri.Weights {
+					Logger.Println(h, "DOWN")
+					delete(u.hostWeights, h)
+				}
+				for h, partitions := range oldUri.PartitionDesc {
+					for p := range partitions {
+						Logger.Println(h, p, "DOWN")
+						delete(u.partitionHostWeights[p], h)
+					}
+				}
+				delete(u.uris, path)
+			}
+			return
+		}
+
+		var uri Uri
+		err := json.Unmarshal(*event.Data, &uri)
+		if err != nil {
+			Logger.Printf("Ignoring update to %s (contents: %s) due to error: %v", event.Path, string(*event.Data), err)
+			return
+		}
+		u.uris[path] = uri
+
+		for h, w := range uri.Weights {
+			u.addUrl(h, w)
+		}
+
+		for h, partitions := range uri.PartitionDesc {
+			for p, w := range partitions {
+				u.addUrlToPartition(p, h, w)
+			}
+		}
+	}
+}
+
+func NewSingleServiceClient(name string, conn *zk.Conn) (c *SingleServiceClient, err error) {
+	c = &SingleServiceClient{}
+	c.uri, err = getOrCreateService(name, conn)
+	return c, err
+}
+
+type SingleServiceClient struct {
+	uri *watchedUri
+}
+
+func (c *SingleServiceClient) GetHostnameForQuery(query string) (*url.URL, error) {
+	return c.uri.getHostnameForQuery()
+}
+
+func (u *watchedUri) getHostnameForQuery() (*url.URL, error) {
+	u.lock.RLock()
+	defer u.lock.RUnlock()
+	randomWeight := rand.Float64() * u.totalWeight
+	for h, w := range u.hostWeights {
 		randomWeight -= w
 		if randomWeight <= 0 {
 			return &h, nil
 		}
 	}
-	return nil, errors.Errorf("Could not find a host for %s", c.name)
+	return nil, errors.Errorf("Could not find a host for %s", u.name)
 }
 
-func (c *watchedService) GetHostnameForQuery(query string) (*url.URL, error) {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	return c.getWeightedHostname(c.hostWeights, c.totalWeight)
+func NewR2D2Client(conn *zk.Conn) *R2D2Client {
+	return &R2D2Client{conn: conn}
 }
 
-func (c *watchedService) addUrl(h url.URL, w float64) {
-	if oldW, ok := c.hostWeights[h]; ok {
-		c.totalWeight -= oldW
-		Logger.Println(h, "NEW_WEIGHT", w)
-	} else {
-		Logger.Println(h, "UP")
+type R2D2Client struct {
+	conn *zk.Conn
+}
+
+func (c *R2D2Client) GetHostnameForQuery(query string) (*url.URL, error) {
+	idx := strings.Index(query[1:], "/")
+	if idx == -1 {
+		idx = len(query[1:])
 	}
-	c.totalWeight += w
-	c.hostWeights[h] = w
-}
+	serviceName := query[1 : idx+1]
 
-func (c *watchedService) addUrlToPartition(p int, h url.URL, w float64) {
-	partition := c.partitionHostWeights[p]
-	if partition == nil {
-		c.partitionHostWeights[p] = make(map[url.URL]float64)
-	}
-
-	if oldW, ok := partition[h]; ok {
-		c.partitionTotalWeights[p] -= oldW
-		Logger.Println(h, p, "NEW_WEIGHT", p, w)
-	} else {
-		Logger.Println(h, p, "UP")
-	}
-	c.partitionTotalWeights[p] += w
-	c.partitionHostWeights[p][h] = w
-}
-
-func (c *watchedService) handleUpdate(child string, data []byte, err error) {
+	uri, err := getOrCreateService(serviceName, c.conn)
 	if err != nil {
-		fmt.Println(err)
-		log.Panicln(err)
+		return nil, err
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
-
-	if data == nil {
-		if oldUri, ok := c.uris[child]; ok {
-			for h := range oldUri.Weights {
-				Logger.Println(h, "DOWN")
-				delete(c.hostWeights, h)
-			}
-			for h, partitions := range oldUri.PartitionDesc {
-				for p := range partitions {
-					Logger.Println(h, p, "DOWN")
-					delete(c.partitionHostWeights[p], h)
-				}
-			}
-			delete(c.uris, child)
-		}
-		return
-	}
-
-	var uri Uri
-	err = json.Unmarshal(data, &uri)
-	if err != nil {
-		log.Panicln(child, string(data), err)
-	}
-	c.uris[child] = uri
-
-	for h, w := range uri.Weights {
-		c.addUrl(h, w)
-	}
-
-	for h, partitions := range uri.PartitionDesc {
-		for p, w := range partitions {
-			c.addUrlToPartition(p, h, w)
-		}
-	}
-}
-
-func NewFixedClient(name string, conn *zk.Conn) (c *FixedClient, err error) {
-	c = &FixedClient{Conn: conn}
-	c.service, err = newService(name, conn)
-	return c, err
+	return uri.getHostnameForQuery()
 }
