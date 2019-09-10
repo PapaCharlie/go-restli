@@ -51,7 +51,7 @@ func (e *EnumModel) generateCode() (def *Statement) {
 				def.Id(e.SymbolIdentifier(s))
 			}
 		}))
-	})
+	}).Line().Line()
 
 	def.Func().Id(getter).Params(Id("val").String()).Params(Id(receiver).Id(e.Name), Err().Error())
 	def.BlockFunc(func(def *Group) {
