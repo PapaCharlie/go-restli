@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"log"
 	"strings"
+	"unicode"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 )
 
 type UnionModel struct {
-	Types []UnionFieldModel
+	Types      []UnionFieldModel
+	IsOptional bool
 }
 
 type UnionFieldModel struct {
@@ -39,6 +41,16 @@ func (u *UnionModel) UnmarshalJSON(data []byte) error {
 	var types []UnionFieldModel
 	if err := json.Unmarshal(data, &types); err != nil {
 		return err
+	}
+	nullIndex := -1
+	for i, m := range types {
+		if m.Model.Primitive != nil && *m.Model.Primitive == NullPrimitive {
+			nullIndex = i
+			u.IsOptional = true
+		}
+	}
+	if nullIndex >= 0 {
+		types = append(types[:nullIndex], types[nullIndex+1:]...)
 	}
 	u.Types = types
 	return nil
@@ -96,4 +108,28 @@ func (u *UnionFieldModel) alias() string {
 		return MapModelTypeName
 	}
 	return u.Model.Namespace + "." + u.Model.Name
+}
+
+func (u *UnionModel) writeToBuf(def *Group, accessor *Statement) {
+	label := "end" + ExportedIdentifier(accessor.GoString())
+	for i, c := range label {
+		if !(unicode.IsDigit(c) || unicode.IsLetter(c)) {
+			label = label[:i] + "_" + label[i+1:]
+		}
+	}
+
+	for _, t := range u.Types {
+		def.If(Add(accessor).Dot(t.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
+			writeToBuf(def, Lit("("+t.alias()+":"))
+			fieldAccessor := Add(accessor).Dot(t.name())
+			if t.Model.IsMapOrArray() || t.Model.Primitive != nil || t.Model.Bytes != nil {
+				fieldAccessor = Op("*").Add(fieldAccessor)
+			}
+			t.Model.writeToBuf(def, fieldAccessor)
+			def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+			def.Goto().Id(label)
+		}).Line()
+	}
+
+	def.Id(label).Op(":")
 }

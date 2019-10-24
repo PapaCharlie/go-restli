@@ -34,7 +34,7 @@ type Field struct {
 }
 
 func (f *Field) IsPointer() bool {
-	return f.Optional || f.Default != nil
+	return f.Optional || f.Default != nil || (f.Type.Union != nil && f.Type.Union.IsOptional)
 }
 
 func (r *RecordModel) allFields() (allFields []Field) {
@@ -140,44 +140,7 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 				}
 
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + ":"))
-
-				if f.Type.Union != nil {
-					isSet := "is" + ExportedIdentifier(f.Name) + "Set"
-					def.Id(isSet).Op(":=").False().Line()
-					errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s", r.Name, ExportedIdentifier(f.Name))
-
-					for j, u := range f.Type.Union.Types {
-						unionFieldAccessor := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name())
-						def.If(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
-							if u.Model.IsMapOrArray() {
-								unionFieldAccessor = Call(Op("*").Add(unionFieldAccessor))
-							}
-							if j == 0 {
-								def.Id(isSet).Op("=").True()
-								writeToBuf(def, Lit("("+u.alias()+":"))
-								u.Model.writeToBuf(def, unionFieldAccessor)
-								def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-							} else {
-								def.If(Id(isSet)).BlockFunc(func(def *Group) {
-									def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-									def.Return()
-								}).Else().BlockFunc(func(def *Group) {
-									def.Id(isSet).Op("=").True()
-									writeToBuf(def, Lit("("+u.alias()+":"))
-									u.Model.writeToBuf(def, unionFieldAccessor)
-									def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-								})
-							}
-						}).Line()
-					}
-					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-						def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-						def.Return()
-					})
-				} else {
-					f.Type.writeToBuf(def, accessor)
-				}
-
+				f.Type.writeToBuf(def, accessor)
 			})
 			serialize.Line()
 		}
@@ -293,28 +256,36 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 		BlockFunc(func(def *Group) {
 			for _, f := range r.allFields() {
 				if f.Type.Union != nil {
-					isSet := "is" + ExportedIdentifier(f.Name) + "Set"
-					def.Id(isSet).Op(":=").False().Line()
-					errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s", r.Name, ExportedIdentifier(f.Name))
+					def.BlockFunc(func(def *Group) {
+						if f.IsPointer() {
+							def.If(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Op("==").Nil()).
+								Block(Return(Nil())).Line()
+						}
 
-					for i, u := range f.Type.Union.Types {
-						cond := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()
-						def.If(cond).BlockFunc(func(def *Group) {
-							if i == 0 {
-								def.Id(isSet).Op("=").True()
-							} else {
-								def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+						isSet := "is" + ExportedIdentifier(f.Name) + "Set"
+						def.Id(isSet).Op(":=").False().Line()
+						errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s",
+							r.Name, ExportedIdentifier(f.Name))
+
+						for i, u := range f.Type.Union.Types {
+							cond := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()
+							def.If(cond).BlockFunc(func(def *Group) {
+								if i == 0 {
 									def.Id(isSet).Op("=").True()
-								}).Else().BlockFunc(func(def *Group) {
-									def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-									def.Return()
-								})
-							}
-						}).Line()
-					}
-					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-						def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-						def.Return()
+								} else {
+									def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+										def.Id(isSet).Op("=").True()
+									}).Else().BlockFunc(func(def *Group) {
+										def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+										def.Return()
+									})
+								}
+							}).Line()
+						}
+						def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+							def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+							def.Return()
+						})
 					})
 				}
 			}
@@ -322,7 +293,7 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 		}).Line().Line()
 
 	r.validateUnionFields.Err().Op("=").Id(r.receiver()).Dot(ValidateUnionFields).Call().Line()
-	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return())
+	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return()).Line()
 
 	return true
 }

@@ -12,6 +12,7 @@ import (
 type PrimitiveModel [2]string
 
 var (
+	NullPrimitive    = PrimitiveModel{"null", "interface{}"}
 	IntPrimitive     = PrimitiveModel{"int", "int32"}
 	LongPrimitive    = PrimitiveModel{"long", "int64"}
 	FloatPrimitive   = PrimitiveModel{"float", "float32"}
@@ -23,6 +24,8 @@ var (
 func ParsePrimitiveModel(p string) *PrimitiveModel {
 	var primitive PrimitiveModel
 	switch p {
+	case NullPrimitive[0]:
+		primitive = NullPrimitive
 	case IntPrimitive[0]:
 		primitive = IntPrimitive
 	case LongPrimitive[0]:
@@ -70,6 +73,8 @@ func (p *PrimitiveModel) GetLit(rawJson string) interface{} {
 	}
 
 	switch *p {
+	case NullPrimitive:
+		return nil
 	case IntPrimitive:
 		v := new(int32)
 		unmarshal(v)

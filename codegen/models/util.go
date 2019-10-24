@@ -2,10 +2,12 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"io"
 	"io/ioutil"
+	"log"
 	"regexp"
+
+	"github.com/pkg/errors"
 )
 
 var namespaceEscape = regexp.MustCompile("([/.])_?internal([/.]?)")
@@ -80,7 +82,11 @@ func flattenModels(models []*Model) (innerModels []*Model) {
 func replaceReferences(models []*Model) {
 	for _, m := range models {
 		if m.Reference != nil {
-			*m = *GetRegisteredModel(m.Ns, m.Name)
+			registeredModel := GetRegisteredModel(m.Ns, m.Name)
+			if registeredModel == nil {
+				log.Panicf("Could not find registered model for %+v", m)
+			}
+			*m = *registeredModel
 		}
 	}
 }

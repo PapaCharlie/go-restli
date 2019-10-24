@@ -398,6 +398,11 @@ func (m *Model) writeToBuf(def *Group, accessor *Statement) {
 		return
 	}
 
+	if m.Union != nil {
+		m.Union.writeToBuf(def, accessor)
+		return
+	}
+
 	log.Panicf("cannot write %v directly to buf", m)
 	return
 }
