@@ -11,28 +11,26 @@ import (
 )
 
 var namespaceEscape = regexp.MustCompile("([/.])_?internal([/.]?)")
+var ModelCache = make(map[Identifier]ComplexType)
 
-func LoadModels(reader io.Reader) ([]*Model, error) {
-	snapshot := &struct {
+func LoadModels(reader io.Reader) ([]ComplexType, error) {
+	spec := &struct {
 		Models map[string]*Model `json:"models"`
 	}{}
 
-	err := ReadJSON(reader, snapshot)
+	err := ReadJSON(reader, spec)
 	if err != nil {
 		return nil, err
 	}
 
-	var models []*Model
-	for _, m := range snapshot.Models {
-		models = append(models, m)
+	for _, m := range spec.Models {
+		m.sanityCheck(nil)
 	}
 
-	models = append(models, flattenModels(models)...)
-	replaceReferences(models)
-	return models, nil
+	return getRegisteredModels(), err
 }
 
-func LoadSnapshotModels(reader io.Reader) ([]*Model, error) {
+func LoadSnapshotModels(reader io.Reader) ([]ComplexType, error) {
 	snapshot := &struct {
 		Models []*Model `json:"models"`
 	}{}
@@ -42,14 +40,11 @@ func LoadSnapshotModels(reader io.Reader) ([]*Model, error) {
 		return nil, err
 	}
 
-	var models []*Model
 	for _, m := range snapshot.Models {
-		models = append(models, m)
+		m.sanityCheck(nil)
 	}
 
-	models = append(models, flattenModels(models)...)
-	replaceReferences(models)
-	return models, nil
+	return getRegisteredModels(), nil
 }
 
 func ReadJSON(reader io.Reader, s interface{}) error {
@@ -65,46 +60,28 @@ func ReadJSON(reader io.Reader, s interface{}) error {
 	return nil
 }
 
-func flattenModels(models []*Model) (innerModels []*Model) {
-	for _, m := range models {
-		m.register()
-		for _, im := range m.InnerModels() {
-			im.register()
-			innerModels = append(innerModels, im)
-		}
+func getRegisteredModels() (models []ComplexType) {
+	for _, m := range ModelCache {
+		models = append(models, m)
 	}
-	if len(innerModels) > 0 {
-		innerModels = append(innerModels, flattenModels(innerModels)...)
-	}
-	return innerModels
+	return models
 }
 
-func replaceReferences(models []*Model) {
-	for _, m := range models {
-		if m.Reference != nil {
-			registeredModel := GetRegisteredModel(m.Ns, m.Name)
-			if registeredModel == nil {
-				log.Panicf("Could not find registered model for %+v", m)
-			}
-			*m = *registeredModel
-		}
+func (m *Model) sanityCheck(parentModels []*Model) {
+	if m.ref != nil {
+		log.Panicln(parentModels, m)
 	}
-}
 
-func escapeNamespace(namespace string) string {
-	return namespaceEscape.ReplaceAllString(namespace, "${1}_internal${2}")
-}
-
-var loadedModels = make(map[string]*Model)
-
-func (m *Model) register() bool {
-	if m.Primitive != nil || m.Reference != nil {
-		return false
+	if m.ComplexType != nil && m.BuiltinType != nil {
+		log.Panicln(m)
 	}
-	loadedModels[m.PackagePath()+"."+m.Name] = m
-	return true
-}
 
-func GetRegisteredModel(ns Ns, name string) *Model {
-	return loadedModels[ns.PackagePath()+"."+name]
+	if primitive, ok := m.BuiltinType.(*PrimitiveModel); ok && *primitive == NullPrimitive {
+		log.Panicln(m)
+	}
+
+	parentModels = append(append([]*Model(nil), parentModels...), m)
+	for _, im := range m.innerModels() {
+		im.sanityCheck(parentModels)
+	}
 }

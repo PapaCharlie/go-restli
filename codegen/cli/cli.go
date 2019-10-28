@@ -3,16 +3,17 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"github.com/PapaCharlie/go-restli/codegen"
-	"github.com/PapaCharlie/go-restli/codegen/models"
-	"github.com/PapaCharlie/go-restli/codegen/schema"
-	"github.com/dave/jennifer/jen"
-	"github.com/spf13/cobra"
 	"io"
 	"io/ioutil"
 	"log"
 	"path/filepath"
 	"sort"
+
+	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/codegen/schema"
+	"github.com/dave/jennifer/jen"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -65,8 +66,14 @@ func CodeGenerator() *cobra.Command {
 	return cmd
 }
 
-func run(modelLoader func(io.Reader) ([]*models.Model, error), resourceLoader func(io.Reader) ([]*schema.Resource, error)) error {
-	var codeFiles []*codegen.CodeFile
+func run(modelLoader func(io.Reader) ([]models.ComplexType, error), resourceLoader func(io.Reader) ([]*schema.Resource, error)) error {
+	var filenames []string
+	for f := range files {
+		filenames = append(filenames, f)
+	}
+
+	var allModels []models.ComplexType
+	var allResources []*schema.Resource
 
 	for filename, buf := range files {
 		log.Println(filename)
@@ -74,26 +81,27 @@ func run(modelLoader func(io.Reader) ([]*models.Model, error), resourceLoader fu
 		if err != nil {
 			log.Fatalf("could not load %s: %+v", filename, err)
 		}
-
-		for _, m := range loadedModels {
-			if code := m.GenerateModelCode(); code != nil {
-				code.SourceFilename = filename
-				codeFiles = append(codeFiles, code)
-			}
-		}
+		allModels = append(allModels, loadedModels...)
 
 		loadedResources, err := resourceLoader(buf())
 		if err != nil {
 			log.Fatalf("%s: %+v", filename, err)
 		}
+		allResources = append(allResources, loadedResources...)
+	}
 
-		if len(loadedResources) > 0 {
-			for _, r := range loadedResources {
-				k := r.GenerateCode()
-				for _, code := range k {
-					code.SourceFilename = filename
-					codeFiles = append(codeFiles, code)
-				}
+	//allModels = models.ResolveCyclicReferences(allModels)
+
+	var codeFiles []*codegen.CodeFile
+	for _, m := range allModels {
+		if f := models.GenerateModelCode(m); f != nil {
+			codeFiles = append(codeFiles, f)
+		}
+	}
+	for _, r := range allResources {
+		for _, f := range r.GenerateCode() {
+			if f != nil {
+				codeFiles = append(codeFiles, f)
 			}
 		}
 	}
@@ -101,6 +109,7 @@ func run(modelLoader func(io.Reader) ([]*models.Model, error), resourceLoader fu
 	codeFiles = deduplicateFiles(codeFiles)
 
 	for _, code := range codeFiles {
+		code.SourceFilenames = filenames
 		file, err := code.Write(outputDir)
 		if err != nil {
 			log.Fatalf("Could not generate code for %+v: %+v", code, err)
@@ -147,8 +156,8 @@ func deduplicateFiles(files []*codegen.CodeFile) []*codegen.CodeFile {
 			existingCode := renderCode(existingFile.Code)
 			code := renderCode(file.Code)
 			if ! bytes.Equal(existingCode, code) {
-				log.Fatalf("Conflicting defitions of %s from %s and %s: %s\n\n-----------\n\n%s",
-					id, existingFile.SourceFilename, file.SourceFilename, string(existingCode), string(code))
+				log.Fatalf("Conflicting defitions of %s: %s\n\n-----------\n\n%s",
+					id, string(existingCode), string(code))
 			}
 		} else {
 			idToFile[id] = file

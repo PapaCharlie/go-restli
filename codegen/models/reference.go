@@ -2,17 +2,15 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/pkg/errors"
 	"regexp"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
-type ModelReference struct {
-	Ns
-	NameAndDoc
-}
+type ModelReference Identifier
 
-var ValidReferenceType = regexp.MustCompile("^[a-zA-Z_]([a-zA-Z_0-9.])*$")
+var validReferenceType = regexp.MustCompile("^[a-zA-Z_]([a-zA-Z_0-9.])*$")
 
 func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	var name string
@@ -32,7 +30,12 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 		return errors.New("Reference types cannot be \"bytes\"")
 	}
 
-	if ! ValidReferenceType.Match([]byte(name)) {
+	// sanity check: ensure the data type is neither map nor array
+	if name == ArrayModelTypeName || name == MapModelTypeName {
+		return errors.Errorf("Cannot be an array or map (%s)", string(data))
+	}
+
+	if ! validReferenceType.Match([]byte(name)) {
 		return errors.Errorf("Illegal reference type: |%s|", name)
 	}
 
@@ -45,6 +48,6 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (r *ModelReference) GetRegisteredModel() *Model {
-	return GetRegisteredModel(r.Ns, r.Name)
+func (r *ModelReference) Resolve() ComplexType {
+	return ModelCache[Identifier(*r)]
 }

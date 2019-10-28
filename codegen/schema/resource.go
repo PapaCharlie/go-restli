@@ -86,8 +86,8 @@ func (c *Collection) generateResourceBindings(clientCodeFile *CodeFile, parentRe
 }
 
 func (a *Association) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
-	if identifierCode := a.identifier(thisResource).Type.GenerateModelCode(); identifierCode != nil {
-		code = append(code, identifierCode)
+	if ct := a.identifier(thisResource).Type.ComplexType; ct != nil {
+		code = append(code, models.GenerateModelCode(ct))
 	}
 	for _, action := range a.Actions {
 		code = append(code, action.generate(parentResources, thisResource, false))
@@ -155,20 +155,16 @@ func (a *Association) identifier(res *Resource) *Identifier {
 	r := new(models.RecordModel)
 	id := &Identifier{
 		Name: a.Identifier,
-		Type: &ResourceModel{models.Model{
-			Ns:     models.Ns{Namespace: res.Namespace + "." + res.Name},
-			Record: r,
-		}},
+		Type: &ResourceModel{&models.Model{ComplexType: r}},
 	}
 
+	r.Namespace = a.Namespace
 	r.Name = "AssocKey"
-	id.Type.Name = "AssocKey"
 
-	for i := range a.AssocKeys {
-		k := a.AssocKeys[i]
+	for _, k := range a.AssocKeys {
 		r.Fields = append(r.Fields, models.Field{
-			NameAndDoc: models.NameAndDoc{Name: k.Name},
-			Type:       &k.Type.Model,
+			Name: k.Name,
+			Type: k.Type.Model,
 		})
 	}
 

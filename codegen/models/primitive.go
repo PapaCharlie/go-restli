@@ -63,7 +63,7 @@ func (p *PrimitiveModel) GoType() *Statement {
 	return Id(p[1])
 }
 
-func (p *PrimitiveModel) GetLit(rawJson string) interface{} {
+func (p *PrimitiveModel) getLit(rawJson string) interface{} {
 	unmarshal := func(v interface{}) interface{} {
 		err := json.Unmarshal([]byte(rawJson), &v)
 		if err != nil {
@@ -73,8 +73,6 @@ func (p *PrimitiveModel) GetLit(rawJson string) interface{} {
 	}
 
 	switch *p {
-	case NullPrimitive:
-		return nil
 	case IntPrimitive:
 		v := new(int32)
 		unmarshal(v)
@@ -103,6 +101,10 @@ func (p *PrimitiveModel) GetLit(rawJson string) interface{} {
 
 	log.Panicln("Illegal primitive", p)
 	return nil
+}
+
+func (p *PrimitiveModel) restLiWriteToBuf(def *Group, accessor *Statement) {
+	writeStringToBuf(def, p.encode(accessor))
 }
 
 func (p *PrimitiveModel) encode(accessor *Statement) *Statement {

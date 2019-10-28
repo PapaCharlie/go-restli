@@ -11,67 +11,80 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ResourceModel struct {
-	models.Model
+func (r *Resource) UnmarshalJSON(data []byte) error {
+	type t Resource
+	if err := json.Unmarshal(data, (*t)(r)); err != nil {
+		return err
+	}
+
+	if r.Schema != nil && r.Schema.Model.ComplexType == nil && !r.Schema.Model.IsBytesOrPrimitive() {
+		return errors.Errorf("Failed to deserialize Resource model (can only be primitive or reference type), got: %+v",
+			r.Schema.Model.BuiltinType)
+	}
+
+	if r.Association != nil {
+		r.Association.Namespace = r.Namespace
+	}
+
+	return nil
 }
 
-func (t *ResourceModel) UnmarshalJSON(data []byte) error {
-	var unmarshallErrors []error
+type ResourceModel struct {
+	*models.Model
+}
+
+func (r *ResourceModel) UnmarshalJSON(data []byte) error {
+	r.Model = new(models.Model)
 
 	var primitive models.PrimitiveModel
 	if err := json.Unmarshal(data, &primitive); err == nil {
-		t.Primitive = &primitive
+		r.Model.BuiltinType = &primitive
 		return nil
-	} else {
-		unmarshallErrors = append(unmarshallErrors, err)
 	}
 
-	var reference models.ModelReference
-	if err := json.Unmarshal(data, &reference); err == nil {
-		if reference.Namespace == "" {
-			return errors.Wrapf(err, "%s was provided with no namespace", reference)
-		}
-		if m := reference.GetRegisteredModel(); m != nil {
-			t.Model = *m
-		} else {
-			return errors.Errorf("unknown type: %+v", reference)
-		}
+	var bytes models.BytesModel
+	if err := json.Unmarshal(data, &bytes); err == nil {
+		r.Model.BuiltinType = &bytes
 		return nil
-	} else {
-		unmarshallErrors = append(unmarshallErrors, err)
+	}
+
+	var ref models.ModelReference
+	if err := json.Unmarshal(data, &ref); err == nil {
+		if t := ref.Resolve(); t == nil {
+			return errors.Errorf("Unresolved reference %+v", ref)
+		} else {
+			r.Model.ComplexType = t
+			return nil
+		}
 	}
 
 	var unescapedType string
-	if err := json.Unmarshal(data, &unescapedType); err != nil {
-		return errors.Wrap(err, "Could not deserialize type")
+	_ = json.Unmarshal(data, &unescapedType)
+
+	if err := json.Unmarshal([]byte(unescapedType), r.Model); err != nil {
+		return errors.Errorf("Failed to deserialize Resource model from %s: %+v", unescapedType, err)
 	}
 
-	if err := json.Unmarshal([]byte(unescapedType), &t.Model); err == nil {
-		return nil
-	} else {
-		unmarshallErrors = append(unmarshallErrors, err)
-	}
-
-	return errors.Errorf("Failed to deserialize Resource model (can only be primitive, array, map or reference type): %v",
-		unmarshallErrors)
+	return nil
 }
 
 type parameter struct {
-	models.NameAndDoc
-	Type     ResourceModel
-	Optional bool
-	Default  *string
+	Name, Doc string
+	Type      *ResourceModel
+	Optional  bool
+	Default   *string
 }
 
 func (p parameter) toField() (f models.Field) {
-	f.NameAndDoc = p.NameAndDoc
-	f.Type = &p.Type.Model
+	f.Name = p.Name
+	f.Doc = p.Doc
+	f.Type = p.Type.Model
 	f.Optional = p.Optional
 	if p.Default != nil {
 		// Special case for string default values: the @Optional annotation doesn't escape the string, it puts it as a
 		// literal, therefore we need to escape it before passing it in. Maps and lists are represented as `{}` and
 		// `[]` respectively, so no escaping there, and numeric values don't need to be escaped in JSON.
-		if p.Type.Model.Primitive != nil && *p.Type.Model.Primitive == models.StringPrimitive {
+		if primitive, ok := p.Type.BuiltinType.(*models.PrimitiveModel); ok && *primitive == models.StringPrimitive {
 			raw, _ := json.Marshal(*p.Default)
 			f.Default = json.RawMessage(raw)
 		} else {
@@ -83,8 +96,8 @@ func (p parameter) toField() (f models.Field) {
 
 func (e *Endpoint) UnmarshalJSON(data []byte) error {
 	t := &struct {
-		models.NameAndDoc
-		Parameters []parameter
+		Name, Doc  string
+		Parameters []*parameter
 		Returns    *ResourceModel
 	}{}
 
@@ -93,7 +106,8 @@ func (e *Endpoint) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	e.NameAndDoc = t.NameAndDoc
+	e.Name = t.Name
+	e.Doc = t.Doc
 	e.Returns = t.Returns
 	for _, p := range t.Parameters {
 		e.Fields = append(e.Fields, p.toField())
@@ -106,7 +120,7 @@ func (m *Method) UnmarshalJSON(data []byte) error {
 	t := &struct {
 		Method          string
 		Doc             string
-		Parameters      []parameter
+		Parameters      []*parameter
 		PagingSupported bool
 	}{}
 
@@ -165,14 +179,16 @@ func (f *Finder) UnmarshalJSON(data []byte) error {
 
 	if f.PagingSupported {
 		f.Fields = append(f.Fields, models.Field{
-			NameAndDoc: models.NameAndDoc{Name: "start", Doc: "PagingContext parameter"},
-			Type:       &models.Model{Primitive: &models.IntPrimitive},
-			Optional:   true,
+			Name:     "start",
+			Doc:      "PagingContext parameter",
+			Type:     &models.Model{BuiltinType: &models.IntPrimitive},
+			Optional: true,
 		})
 		f.Fields = append(f.Fields, models.Field{
-			NameAndDoc: models.NameAndDoc{Name: "count", Doc: "PagingContext parameter"},
-			Type:       &models.Model{Primitive: &models.IntPrimitive},
-			Optional:   true,
+			Name:     "count",
+			Doc:      "PagingContext parameter",
+			Type:     &models.Model{BuiltinType: &models.IntPrimitive},
+			Optional: true,
 		})
 	}
 

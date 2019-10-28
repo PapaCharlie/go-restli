@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"log"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
@@ -10,44 +11,62 @@ import (
 const TyperefModelTypeName = "typeref"
 
 type TyperefModel struct {
-	NameAndDoc
-	Ref *Model `json:"ref"`
+	Identifier
+	Doc string
+	Ref *Model
 }
 
-func (t *TyperefModel) InnerModels() (models []*Model) {
-	return []*Model{t.Ref}
-}
-
-func (t *TyperefModel) generateCode() (def *Statement) {
-	def = Empty()
-	AddWordWrappedComment(def, t.Doc).Line()
-	def.Type().Id(t.Name).Add(t.Ref.GoType()).Line().Line()
-
-	if t.Ref.Primitive == nil && t.Ref.Bytes == nil {
-		log.Panicln("illegal non-primitive typeref type", t)
+func (r *TyperefModel) UnmarshalJSON(data []byte) error {
+	t := &struct {
+		typeField
+		docField
+		Identifier
+		Ref *Model `json:"ref"`
+	}{}
+	if err := json.Unmarshal(data, t); err != nil {
+		return err
 	}
+	if t.Type != TyperefModelTypeName {
+		return &WrongTypeError{Expected: TyperefModelTypeName, Actual: t.Type}
+	}
+	r.Identifier = t.Identifier
+	r.Doc = t.Doc
+	r.Ref = t.Ref
+	return nil
+}
 
-	receiver := ReceiverName(t.Name)
+func (r *TyperefModel) innerModels() []*Model {
+	return []*Model{r.Ref}
+}
+
+func (r *TyperefModel) GenerateCode() (def *Statement) {
+	def = Empty()
+	AddWordWrappedComment(def, r.Doc).Line()
+	def.Type().Id(r.Name).Add(r.Ref.GoType()).Line().Line()
 
 	var accessor *Statement
 	var encoder func(*Statement) *Statement
 	var decoder func(*Statement) *Statement
 
-	if t.Ref.Bytes != nil {
-		accessor = Bytes().Call(Op("*").Id(receiver))
-		encoder = t.Ref.Bytes.encode
-		decoder = t.Ref.Bytes.decode
-	} else {
-		accessor = Id(t.Ref.Primitive[1]).Call(Op("*").Id(receiver))
-		encoder = t.Ref.Primitive.encode
-		decoder = t.Ref.Primitive.decode
+	if bytes, ok := r.Ref.BuiltinType.(*BytesModel); ok {
+		accessor = Bytes().Call(Op("*").Id(r.receiver()))
+		encoder = bytes.encode
+		decoder = bytes.decode
+	}
+	if primitive, ok := r.Ref.BuiltinType.(*PrimitiveModel); ok {
+		accessor = Id(primitive[1]).Call(Op("*").Id(r.receiver()))
+		encoder = primitive.encode
+		decoder = primitive.decode
+	}
+	if accessor == nil {
+		log.Panicln("Illegal typeref type:", r.Ref)
 	}
 
-	AddRestLiEncode(def, receiver, t.Name, func(def *Group) {
+	AddRestLiEncode(def, r.receiver(), r.Name, func(def *Group) {
 		def.Return(encoder(accessor), Nil())
 	}).Line().Line()
-	AddRestLiDecode(def, receiver, t.Name, func(def *Group) {
-		def.Return(decoder(Id(receiver)))
+	AddRestLiDecode(def, r.receiver(), r.Name, func(def *Group) {
+		def.Return(decoder(Id(r.receiver())))
 	}).Line().Line()
 
 	return def

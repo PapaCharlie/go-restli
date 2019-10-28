@@ -2,10 +2,11 @@ package schema
 
 import (
 	"fmt"
-	. "github.com/PapaCharlie/go-restli/codegen"
-	. "github.com/dave/jennifer/jen"
 	"log"
 	"strings"
+
+	. "github.com/PapaCharlie/go-restli/codegen"
+	. "github.com/dave/jennifer/jen"
 )
 
 const (
@@ -47,7 +48,7 @@ func addResourcePathFunc(def *Statement, funcName string, resources []*Resource,
 
 		for _, resource := range resources {
 			if id := resource.getIdentifier(); id != nil {
-				hasError, assignment := id.Type.RestLiURLEncode(Id(id.Name))
+				assignment, hasError := id.Type.RestLiURLEncodeModel(Id(id.Name))
 				if hasError {
 					def.List(Id(id.EncodedVariableName()), Err()).Op(":=").Add(assignment)
 					IfErrReturn(def, Lit(""), Err())

@@ -8,17 +8,20 @@ import (
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
 )
-
-const RecordTypeModelTypeName = "record"
 
 var (
 	emptyMapRegex   = regexp.MustCompile("{ *}")
 	emptyArrayRegex = regexp.MustCompile("\\[ *]")
 )
 
+const RecordTypeModelTypeName = "record"
+
 type RecordModel struct {
-	NameAndDoc
+	Identifier
+	Doc string
+
 	Include []*Model
 	Fields  []Field
 
@@ -27,37 +30,66 @@ type RecordModel struct {
 }
 
 type Field struct {
-	NameAndDoc
-	Type     *Model          `json:"type"`
+	Name     string          `json:"name"`
+	Doc      string          `json:"doc"`
+	Type     *Model           `json:"type"`
 	Optional bool            `json:"optional"`
 	Default  json.RawMessage `json:"default"`
 }
 
-func (f *Field) IsPointer() bool {
-	return f.Optional || f.Default != nil || (f.Type.Union != nil && f.Type.Union.IsOptional)
-}
-
-func (r *RecordModel) allFields() (allFields []Field) {
-	for _, i := range r.Include {
-		if i.Record == nil {
-			log.Panic("Illegal included type:", i)
-		}
-		allFields = append(allFields, i.Record.Fields...)
+func (r *RecordModel) UnmarshalJSON(data []byte) error {
+	t := &struct {
+		Identifier
+		typeField
+		docField
+		Include []*Model `json:"include"`
+		Fields  []Field `json:"fields"`
+	}{}
+	if err := json.Unmarshal(data, t); err != nil {
+		return err
 	}
-	allFields = append(allFields, r.Fields...)
-	return allFields
+	if t.Type != RecordTypeModelTypeName {
+		return errors.Errorf("Not a record type: %s", string(data))
+	}
+	r.Identifier = t.Identifier
+	r.Doc = t.Doc
+	r.Include = t.Include
+	r.Fields = t.Fields
+	return nil
 }
 
-func (r *RecordModel) receiver() string {
-	return ReceiverName(r.Name)
-}
-
-func (r *RecordModel) InnerModels() (models []*Model) {
+func (r *RecordModel) innerModels() (models []*Model) {
 	models = append(models, r.Include...)
 	for _, f := range r.Fields {
 		models = append(models, f.Type)
 	}
 	return models
+}
+
+func (f *Field) IsPointer() bool {
+	if f.Optional || f.Default != nil {
+		return true
+	}
+	if u, ok := f.Type.BuiltinType.(*UnionModel); ok {
+		return u.IsOptional
+	}
+	return false
+}
+
+func (r *RecordModel) allFields() (allFields []Field) {
+	for _, i := range r.Include {
+		if rec, ok := i.ComplexType.(*RecordModel); ok {
+			allFields = append(allFields, rec.Fields...)
+		} else {
+			log.Panic("Illegal included type:", i)
+		}
+	}
+	allFields = append(allFields, r.Fields...)
+	return allFields
+}
+
+func (r *RecordModel) field(fieldName string) *Statement {
+	return Id(r.receiver()).Dot(ExportedIdentifier(fieldName))
 }
 
 func (r *RecordModel) GenerateCode() (def *Statement) {
@@ -76,14 +108,8 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 			if f.IsPointer() {
 				tag.Json.Optional = true
 				field.Add(f.Type.PointerType())
-			} else if f.Type.Union != nil {
-				field.Add(f.Type.Union.GoType())
 			} else {
 				field.Add(f.Type.GoType())
-			}
-
-			if f.Type.Union != nil {
-				tag.RestLi.Union = true
 			}
 
 			field.Tag(tag.ToMap())
@@ -99,8 +125,8 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 	def.BlockFunc(func(def *Group) {
 		def.Id(r.receiver()).Op("=").New(Id(r.Name))
 		for _, f := range r.allFields() {
-			if f.Type.Record != nil && !f.IsPointer() {
-				def.Add(r.field(f.Name)).Op("=").Op("*").Qual(f.Type.PackagePath(), "New"+f.Type.Record.Name).Call()
+			if record, ok := f.Type.ComplexType.(*RecordModel); ok && !f.IsPointer() {
+				def.Add(r.field(f.Name)).Op("=").Op("*").Qual(record.PackagePath(), "New"+record.Name).Call()
 			}
 		}
 		def.Add(r.populateDefaultValues)
@@ -131,7 +157,7 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 
 			serialize.BlockFunc(func(def *Group) {
 				accessor := r.field(f.Name)
-				if f.IsPointer() && (f.Type.Primitive != nil || f.Type.Bytes != nil) {
+				if f.IsPointer() && f.Type.IsBytesOrPrimitive() {
 					accessor = Op("*").Add(accessor)
 				}
 
@@ -140,7 +166,7 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 				}
 
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + ":"))
-				f.Type.writeToBuf(def, accessor)
+				f.Type.restLiWriteToBuf(def, accessor)
 			})
 			serialize.Line()
 		}
@@ -170,26 +196,28 @@ func (r *RecordModel) jsonSerDe(def *Statement) {
 func (r *RecordModel) setDefaultValue(def *Group, name, rawJson string, model *Model) {
 	def.If(Id(r.receiver()).Dot(name).Op("==").Nil()).BlockFunc(func(def *Group) {
 		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
-		if model.Primitive != nil {
-			def.Id("val").Op(":=").Lit(model.Primitive.GetLit(rawJson))
+		if primitive, ok := model.BuiltinType.(*PrimitiveModel); ok {
+			def.Id("val").Op(":=").Lit(primitive.getLit(rawJson))
 			def.Id(r.receiver()).Dot(name).Op("=").Op("&").Id("val")
 			return
 		}
 
 		// Empty arrays and maps can be initialized directly, regardless of type
-		if (model.Array != nil && emptyArrayRegex.MatchString(rawJson)) || (model.Map != nil && emptyMapRegex.MatchString(rawJson)) {
+		_, isArray := model.BuiltinType.(*ArrayModel)
+		_, isMap := model.BuiltinType.(*MapModel)
+		if (isArray && emptyArrayRegex.MatchString(rawJson)) || (isMap && emptyMapRegex.MatchString(rawJson)) {
 			def.Id(r.receiver()).Dot(name).Op("=").Make(model.GoType(), Lit(0))
 			return
 		}
 
 		// Enum values can also be added as literals
-		if model.Enum != nil {
+		if enum, ok := model.ComplexType.(*EnumModel); ok {
 			var v string
 			err := json.Unmarshal([]byte(rawJson), &v)
 			if err != nil {
 				log.Panicln("illegal enum", err)
 			}
-			def.Id("val").Op(":=").Qual(model.PackagePath(), model.Enum.SymbolIdentifier(v))
+			def.Id("val").Op(":=").Qual(enum.PackagePath(), enum.SymbolIdentifier(v))
 			def.Id(r.receiver()).Dot(name).Op("= &").Id("val")
 			return
 		}
@@ -241,7 +269,7 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 
 	hasUnion := false
 	for _, f := range r.allFields() {
-		if f.Type.Union != nil {
+		if _, ok := f.Type.BuiltinType.(*UnionModel); ok {
 			hasUnion = true
 			break
 		}
@@ -255,7 +283,7 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 		Params(Err().Error()).
 		BlockFunc(func(def *Group) {
 			for _, f := range r.allFields() {
-				if f.Type.Union != nil {
+				if union, ok := f.Type.BuiltinType.(*UnionModel); ok {
 					def.BlockFunc(func(def *Group) {
 						if f.IsPointer() {
 							def.If(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Op("==").Nil()).
@@ -267,7 +295,7 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 						errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s",
 							r.Name, ExportedIdentifier(f.Name))
 
-						for i, u := range f.Type.Union.Types {
+						for i, u := range union.Types {
 							cond := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()
 							def.If(cond).BlockFunc(func(def *Group) {
 								if i == 0 {
@@ -296,8 +324,4 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return()).Line()
 
 	return true
-}
-
-func (r *RecordModel) field(fieldName string) *Statement {
-	return Id(r.receiver()).Dot(ExportedIdentifier(fieldName))
 }

@@ -20,13 +20,17 @@ func (b *BytesModel) UnmarshalJSON(data []byte) error {
 	}
 
 	if bytes != BytesModelTypeName {
-		return errors.New("Not a \"bytes\" type")
+		return &WrongTypeError{Expected: BytesModelTypeName, Actual: string(data)}
 	}
 	return nil
 }
 
 func (b *BytesModel) GoType() *Statement {
 	return codegen.Bytes()
+}
+
+func (b *BytesModel) restLiWriteToBuf(def *Group, accessor *Statement) {
+	writeStringToBuf(def, b.encode(accessor))
 }
 
 func (b *BytesModel) encode(accessor *Statement) *Statement {

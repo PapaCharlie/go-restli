@@ -8,6 +8,7 @@ import (
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
 )
 
 type UnionModel struct {
@@ -16,7 +17,7 @@ type UnionModel struct {
 }
 
 type UnionFieldModel struct {
-	Model *Model
+	Type  *Model
 	Alias string
 }
 
@@ -25,7 +26,7 @@ func (u *UnionFieldModel) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, m); err != nil {
 		return err
 	}
-	u.Model = m
+	u.Type = m
 
 	type t UnionFieldModel
 	if err := json.Unmarshal(data, (*t)(u)); err != nil {
@@ -44,7 +45,7 @@ func (u *UnionModel) UnmarshalJSON(data []byte) error {
 	}
 	nullIndex := -1
 	for i, m := range types {
-		if m.Model.Primitive != nil && *m.Model.Primitive == NullPrimitive {
+		if primitive, ok := m.Type.BuiltinType.(*PrimitiveModel); ok && *primitive == NullPrimitive {
 			nullIndex = i
 			u.IsOptional = true
 		}
@@ -52,22 +53,22 @@ func (u *UnionModel) UnmarshalJSON(data []byte) error {
 	if nullIndex >= 0 {
 		types = append(types[:nullIndex], types[nullIndex+1:]...)
 	}
+	if len(types) == 0 {
+		return errors.Errorf("Empty union: %s", string(data))
+	}
 	u.Types = types
+
 	return nil
 }
 
-func (u *UnionModel) InnerModels() (models []*Model) {
+func (u *UnionModel) innerModels() (models []*Model) {
 	for _, t := range u.Types {
-		models = append(models, t.Model)
+		models = append(models, t.Type)
 	}
 	return models
 }
 
 func (u *UnionModel) GoType() (def *Statement) {
-	if len(u.Types) == 0 {
-		log.Panicln("Empty union", u)
-	}
-
 	return StructFunc(func(def *Group) {
 		for _, t := range u.Types {
 			var tag FieldTag
@@ -75,9 +76,8 @@ func (u *UnionModel) GoType() (def *Statement) {
 			tag.Json.Optional = true
 
 			field := def.Empty()
-			AddWordWrappedComment(field, t.Model.Doc).Line()
 			field.Id(t.name())
-			field.Op("*").Add(t.Model.GoType())
+			field.Op("*").Add(t.Type.GoType())
 			field.Tag(tag.ToMap())
 		}
 	})
@@ -92,25 +92,28 @@ func (u *UnionFieldModel) alias() string {
 	if u.Alias != "" {
 		return u.Alias
 	}
-	if u.Model.Primitive != nil {
-		return u.Model.Primitive[0]
+	if u.Type.BuiltinType != nil {
+		switch u.Type.BuiltinType.(type) {
+		case *PrimitiveModel:
+			return u.Type.BuiltinType.(*PrimitiveModel)[0]
+		case *BytesModel:
+			return BytesModelTypeName
+		case *MapModel:
+			return MapModelTypeName
+		case *ArrayModel:
+			return ArrayModelTypeName
+		default:
+			log.Panicln("Unknown builtin type", u.Type.BuiltinType)
+		}
 	}
-	if u.Model.Bytes != nil {
-		return "bytes"
-	}
-	if u.Model.Fixed != nil {
+	if _, isFixed := u.Type.ComplexType.(*FixedModel); isFixed {
 		return FixedModelTypeName
 	}
-	if u.Model.Array != nil {
-		return ArrayModelTypeName
-	}
-	if u.Model.Map != nil {
-		return MapModelTypeName
-	}
-	return u.Model.Namespace + "." + u.Model.Name
+	id := u.Type.ComplexType.GetIdentifier()
+	return (&id).GetQualifiedClasspath()
 }
 
-func (u *UnionModel) writeToBuf(def *Group, accessor *Statement) {
+func (u *UnionModel) restLiWriteToBuf(def *Group, accessor *Statement) {
 	label := "end" + ExportedIdentifier(accessor.GoString())
 	for i, c := range label {
 		if !(unicode.IsDigit(c) || unicode.IsLetter(c)) {
@@ -120,12 +123,12 @@ func (u *UnionModel) writeToBuf(def *Group, accessor *Statement) {
 
 	for _, t := range u.Types {
 		def.If(Add(accessor).Dot(t.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
-			writeToBuf(def, Lit("("+t.alias()+":"))
+			writeStringToBuf(def, Lit("("+t.alias()+":"))
 			fieldAccessor := Add(accessor).Dot(t.name())
-			if t.Model.IsMapOrArray() || t.Model.Primitive != nil || t.Model.Bytes != nil {
+			if t.Type.IsMapOrArray() || t.Type.IsBytesOrPrimitive() {
 				fieldAccessor = Op("*").Add(fieldAccessor)
 			}
-			t.Model.writeToBuf(def, fieldAccessor)
+			t.Type.restLiWriteToBuf(def, fieldAccessor)
 			def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 			def.Goto().Id(label)
 		}).Line()

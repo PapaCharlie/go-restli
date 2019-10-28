@@ -50,7 +50,7 @@ func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource
 		addEntityTypes(def, resources)
 	})
 
-	def.Params(Op("*").Add(thisResource.Schema.GoType()), Error())
+	def.Params(Op("*").Add(thisResource.Schema.Model.GoType()), Error())
 
 	def.BlockFunc(func(def *Group) {
 		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
@@ -61,7 +61,7 @@ func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource
 		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.MethodGet))
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.Id("result").Op(":=").New(thisResource.Schema.GoType())
+		def.Id("result").Op(":=").New(thisResource.Schema.Model.GoType())
 		def.List(Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Id("result"))
 		IfErrReturn(def, Nil(), Err()).Line()
 		def.Return(Id("result"), Err())

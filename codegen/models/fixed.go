@@ -1,20 +1,43 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
+	"github.com/pkg/errors"
 )
 
 const FixedModelTypeName = "fixed"
 
 type FixedModel struct {
-	NameAndDoc
+	Identifier
+	Doc string
+
 	Size int
 }
 
-func (f *FixedModel) generateCode() (def *Statement) {
+func (f *FixedModel) UnmarshalJSON(data []byte) error {
+	t := &struct {
+		Identifier
+		docField
+		typeField
+		Size int `json:"size"`
+	}{}
+	if err := json.Unmarshal(data, t); err != nil {
+		return err
+	}
+	if t.Type != FixedModelTypeName {
+		return errors.Errorf("Not a fixed type: %s", string(data))
+	}
+	f.Identifier = t.Identifier
+	f.Doc = t.Doc
+	f.Size = t.Size
+	return nil
+}
+
+func (f *FixedModel) GenerateCode() (def *Statement) {
 	def = Empty()
 	AddWordWrappedComment(def, f.Doc).Line()
 	def.Type().Id(f.Name).Index(Lit(f.Size)).Byte().Line().Line()

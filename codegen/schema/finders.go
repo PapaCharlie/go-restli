@@ -14,7 +14,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 	c.Code.Const().Id(ExportedIdentifier(FindBy + ExportedIdentifier(f.FinderName))).Op("=").Lit(f.FinderName).Line()
 	c.Code.Add(f.GenerateCode())
 
-	returnType := Index().Add(thisResource.Schema.GoType())
+	returnType := Index().Add(thisResource.Schema.Model.GoType())
 
 	def := addClientFunc(c.Code, FindBy+ExportedIdentifier(f.FinderName)).
 		ParamsFunc(func(def *Group) {
@@ -43,7 +43,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 			varName := field.Name + "Str"
 
 			setBlock.BlockFunc(func(def *Group) {
-				hasError, assignment := field.Type.RestLiURLEncode(accessor)
+				assignment, hasError := field.Type.RestLiURLEncodeModel(accessor)
 				if hasError {
 					def.List(Id(varName), Err()).Op(":=").Add(assignment)
 					IfErrReturn(def, Nil(), Err())

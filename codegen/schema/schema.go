@@ -6,9 +6,8 @@ import (
 )
 
 type Resource struct {
-	models.Ns
-	Schema      *models.Model
-	Name        string
+	models.Identifier
+	Schema      *ResourceModel
 	Path        string
 	Doc         string
 	Simple      *Simple
@@ -56,13 +55,14 @@ type Collection struct {
 
 type AssocKey struct {
 	Name string
-	Type ResourceModel
+	Type *ResourceModel
 }
 
 type Association struct {
 	HasActions
 	HasMethods
 	HasFinders
+	Namespace  string
 	Identifier string
 	AssocKeys  []AssocKey
 	Supports   []string
@@ -88,8 +88,8 @@ type Endpoint struct {
 
 type Finder struct {
 	Endpoint
-	FinderName string
-	StructName string
+	FinderName      string
+	StructName      string
 	PagingSupported bool
 }
 

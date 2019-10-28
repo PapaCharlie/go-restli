@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
@@ -10,12 +11,35 @@ import (
 const EnumModelTypeName = "enum"
 
 type EnumModel struct {
-	NameAndDoc
-	Symbols    []string          `json:"symbols"`
-	SymbolDocs map[string]string `json:"symbolDocs"`
+	Identifier
+	Doc string
+
+	Symbols    []string
+	SymbolDocs map[string]string
 }
 
-func (e *EnumModel) generateCode() (def *Statement) {
+func (e *EnumModel) UnmarshalJSON(data []byte) error {
+	t := &struct {
+		Identifier
+		typeField
+		docField
+		Symbols    []string          `json:"symbols"`
+		SymbolDocs map[string]string `json:"symbolDocs"`
+	}{}
+	if err := json.Unmarshal(data, t); err != nil {
+		return err
+	}
+	if t.Type != EnumModelTypeName {
+		return &WrongTypeError{Expected: EnumModelTypeName, Actual: string(data)}
+	}
+	e.Identifier = t.Identifier
+	e.Doc = t.Doc
+	e.Symbols = t.Symbols
+	e.SymbolDocs = t.SymbolDocs
+	return nil
+}
+
+func (e *EnumModel) GenerateCode() (def *Statement) {
 	def = Empty()
 	AddWordWrappedComment(def, e.Doc).Line()
 	def.Type().Id(e.Name).Int().Line()
