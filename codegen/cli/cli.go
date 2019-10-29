@@ -90,8 +90,6 @@ func run(modelLoader func(io.Reader) ([]models.ComplexType, error), resourceLoad
 		allResources = append(allResources, loadedResources...)
 	}
 
-	//allModels = models.ResolveCyclicReferences(allModels)
-
 	var codeFiles []*codegen.CodeFile
 	for _, m := range allModels {
 		if f := models.GenerateModelCode(m); f != nil {

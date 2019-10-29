@@ -19,7 +19,7 @@ func (i *Identifier) GetIdentifier() Identifier {
 	return iCopy
 }
 
-func (i *Identifier) GetQualifiedClasspath() string {
+func (i Identifier) GetQualifiedClasspath() string {
 	return i.Namespace + "." + i.Name
 }
 
@@ -34,7 +34,12 @@ func (i *Identifier) PackagePath() string {
 	if i.Namespace == "" {
 		log.Panicf("%+v has no namespace!", i)
 	}
-	p := strings.Replace(namespaceEscape.ReplaceAllString(i.Namespace, "${1}_internal${2}"), ".", "/", -1)
+	var p string
+	if CyclicModels[*i] {
+		p = "conflictResolution"
+	} else {
+		p = strings.Replace(namespaceEscape.ReplaceAllString(i.Namespace, "${1}_internal${2}"), ".", "/", -1)
+	}
 	if GetPackagePrefix() != "" {
 		p = filepath.Join(GetPackagePrefix(), p)
 	}

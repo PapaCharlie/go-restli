@@ -109,8 +109,7 @@ func (u *UnionFieldModel) alias() string {
 	if _, isFixed := u.Type.ComplexType.(*FixedModel); isFixed {
 		return FixedModelTypeName
 	}
-	id := u.Type.ComplexType.GetIdentifier()
-	return (&id).GetQualifiedClasspath()
+	return u.Type.ComplexType.GetIdentifier().GetQualifiedClasspath()
 }
 
 func (u *UnionModel) restLiWriteToBuf(def *Group, accessor *Statement) {
