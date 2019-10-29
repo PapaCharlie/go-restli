@@ -68,9 +68,8 @@ func (m *Model) innerModels() []*Model {
 
 func (m *Model) UnmarshalJSON(data []byte) error {
 	defer func() {
-		m.register()
 		m.propagateNamespaces()
-		m.replaceRef()
+		m.registerOrReplaceRef()
 	}()
 
 	model := &struct {
@@ -125,7 +124,7 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	}
 
 	switch modelType {
-	case RecordTypeModelTypeName:
+	case RecordModelTypeName:
 		recordType := &RecordModel{}
 		if err := json.Unmarshal(data, recordType); err == nil {
 			m.ComplexType = recordType
@@ -193,20 +192,15 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	return errors.Errorf("could not deserialize %v into %v", string(data), m)
 }
 
-func (m *Model) register() {
-	if m.ComplexType != nil {
-		id := m.ComplexType.GetIdentifier()
-		if id.Namespace != "" && ModelCache[id] == nil {
-			ModelCache[id] = m.ComplexType
-		}
-	}
-}
-
 func (m *Model) propagateNamespaces() {
 	if m.ref != nil {
 		if m.namespace != "" && m.ref.Namespace == "" {
 			m.ref.Namespace = m.namespace
 		}
+	}
+
+	if m.ComplexType != nil {
+		m.ComplexType.setNamespace(m.namespace)
 	}
 
 	for _, child := range m.innerModels() {
@@ -217,7 +211,7 @@ func (m *Model) propagateNamespaces() {
 	}
 }
 
-func (m *Model) replaceRef() {
+func (m *Model) registerOrReplaceRef() {
 	if m.ref != nil {
 		if resolvedModel := m.ref.Resolve(); resolvedModel != nil {
 			m.ComplexType = resolvedModel
@@ -225,7 +219,14 @@ func (m *Model) replaceRef() {
 		}
 	}
 
+	if m.ComplexType != nil {
+		id := m.ComplexType.GetIdentifier()
+		if id.Namespace != "" && modelRegistry[id] == nil {
+			modelRegistry[id] = m.ComplexType
+		}
+	}
+
 	for _, child := range m.innerModels() {
-		child.replaceRef()
+		child.registerOrReplaceRef()
 	}
 }

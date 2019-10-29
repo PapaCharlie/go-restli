@@ -13,18 +13,18 @@ import (
 
 var namespaceEscape = regexp.MustCompile("([/.])_?internal([/.]?)")
 var (
-	ModelCache   = make(map[Identifier]ComplexType)
-	CyclicModels = make(map[Identifier]bool)
+	modelRegistry = make(map[Identifier]ComplexType)
+	CyclicModels  = make(map[Identifier]bool)
 )
 
-func LoadModels(reader io.Reader) ([]ComplexType, error) {
+func LoadModels(reader io.Reader) error {
 	spec := &struct {
 		Models map[string]*Model `json:"models"`
 	}{}
 
 	err := ReadJSON(reader, spec)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, m := range spec.Models {
@@ -32,17 +32,17 @@ func LoadModels(reader io.Reader) ([]ComplexType, error) {
 		m.resolveCyclicReferences()
 	}
 
-	return getRegisteredModels(), err
+	return nil
 }
 
-func LoadSnapshotModels(reader io.Reader) ([]ComplexType, error) {
+func LoadSnapshotModels(reader io.Reader) error {
 	snapshot := &struct {
 		Models []*Model `json:"models"`
 	}{}
 
 	err := ReadJSON(reader, snapshot)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, m := range snapshot.Models {
@@ -50,7 +50,7 @@ func LoadSnapshotModels(reader io.Reader) ([]ComplexType, error) {
 		m.resolveCyclicReferences()
 	}
 
-	return getRegisteredModels(), nil
+	return nil
 }
 
 func ReadJSON(reader io.Reader, s interface{}) error {
@@ -66,24 +66,34 @@ func ReadJSON(reader io.Reader, s interface{}) error {
 	return nil
 }
 
-func getRegisteredModels() (models []ComplexType) {
-	for _, m := range ModelCache {
+func GetRegisteredModels() (models []ComplexType) {
+	for _, m := range modelRegistry {
 		models = append(models, m)
 	}
 	return models
 }
 
 func (m *Model) sanityCheck(parentModels []*Model) {
-	if m.ref != nil {
-		log.Panicln(parentModels, m)
+	if m.ComplexType == nil && m.BuiltinType == nil {
+		if m.ref != nil && m.ref.Resolve() != nil {
+			log.Panicln("Model has unresolved known ref:", m)
+		} else {
+			log.Panicln("Model defines neither ComplexType nor BuiltinType:", m)
+		}
 	}
 
-	if m.ComplexType != nil && m.BuiltinType != nil {
-		log.Panicln(m)
+	if m.ref != nil {
+		var identifiers []string
+		for _, im := range parentModels {
+			if im.ComplexType != nil {
+				identifiers = append(identifiers, im.ComplexType.GetIdentifier().GetQualifiedClasspath())
+			}
+		}
+		log.Panicf("Model has a ref! (%s) %s", strings.Join(identifiers, " -> "), m)
 	}
 
 	if primitive, ok := m.BuiltinType.(*PrimitiveModel); ok && *primitive == NullPrimitive {
-		log.Panicln(m)
+		log.Panicln("Model defines NullPrimitive type", m)
 	}
 
 	parentModels = append(append([]*Model(nil), parentModels...), m)

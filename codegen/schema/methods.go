@@ -26,7 +26,7 @@ var RestliMethodToHttpMethod = map[string]string{
 
 type MethodGenerator func(m Method, parentResources []*Resource, thisResource *Resource) *Statement
 
-// https://github.com/linkedin/rest.li/wiki/Rest.li-User-Guide#resource-methods
+// https://linkedin.github.io/rest.li/user_guide/restli_server#resource-methods
 func (m *Method) generate(parentResources []*Resource, thisResource *Resource) *Statement {
 	switch m.Method {
 	case protocol.MethodGet:

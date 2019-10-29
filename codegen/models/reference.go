@@ -12,6 +12,16 @@ type ModelReference Identifier
 
 var validReferenceType = regexp.MustCompile("^[a-zA-Z_]([a-zA-Z_0-9.])*$")
 
+var illegalReferenceTypes = map[string]bool{
+	ArrayModelTypeName:   true,
+	MapModelTypeName:     true,
+	BytesModelTypeName:   true,
+	EnumModelTypeName:    true,
+	FixedModelTypeName:   true,
+	TyperefModelTypeName: true,
+	RecordModelTypeName:  true,
+}
+
 func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	var name string
 	if err := json.Unmarshal(data, &name); err != nil {
@@ -31,8 +41,8 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	}
 
 	// sanity check: ensure the data type is neither map nor array
-	if name == ArrayModelTypeName || name == MapModelTypeName {
-		return errors.Errorf("Cannot be an array or map (%s)", string(data))
+	if illegalReferenceTypes[name] {
+		return errors.Errorf("Cannot be in %s, got: %s", illegalReferenceTypes, string(data))
 	}
 
 	if !validReferenceType.Match([]byte(name)) {
@@ -49,5 +59,5 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 }
 
 func (r *ModelReference) Resolve() ComplexType {
-	return ModelCache[Identifier(*r)]
+	return modelRegistry[Identifier(*r)]
 }

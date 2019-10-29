@@ -16,7 +16,7 @@ test: clean imports
 	rm -r tmp
 	go test -count=1 $(PACKAGE_PREFIX)
 
-$(SNAPSHOTS):
+*.snapshot.json:
 	@make SNAPSHOTS=$(@) test
 
 clean:

@@ -58,7 +58,7 @@ func CodeGenerator() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&packagePrefix, "package-prefix", "p", "", "The namespace to prefix all generated packages "+
-		"with (e.g. github.com/PapaCharlie/go-restli)")
+		"with (e.g. github.com/PapaCharlie/go-restli/generated)")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "The directory in which to output the generated files")
 	cmd.Flags().BoolVarP(&snapshotMode, "snapshot-mode", "s", false, "Assumes input is in the shape of .snapshot.json "+
 		"files (statically generated during normal java build)")
@@ -66,22 +66,20 @@ func CodeGenerator() *cobra.Command {
 	return cmd
 }
 
-func run(modelLoader func(io.Reader) ([]models.ComplexType, error), resourceLoader func(io.Reader) ([]*schema.Resource, error)) error {
+func run(modelLoader func(io.Reader) error, resourceLoader func(io.Reader) ([]*schema.Resource, error)) error {
 	var filenames []string
 	for f := range files {
 		filenames = append(filenames, f)
 	}
 
-	var allModels []models.ComplexType
 	var allResources []*schema.Resource
 
 	for filename, buf := range files {
 		log.Println(filename)
-		loadedModels, err := modelLoader(buf())
+		err := modelLoader(buf())
 		if err != nil {
 			log.Fatalf("could not load %s: %+v", filename, err)
 		}
-		allModels = append(allModels, loadedModels...)
 
 		loadedResources, err := resourceLoader(buf())
 		if err != nil {
@@ -91,7 +89,7 @@ func run(modelLoader func(io.Reader) ([]models.ComplexType, error), resourceLoad
 	}
 
 	var codeFiles []*codegen.CodeFile
-	for _, m := range allModels {
+	for _, m := range models.GetRegisteredModels() {
 		if f := models.GenerateModelCode(m); f != nil {
 			codeFiles = append(codeFiles, f)
 		}

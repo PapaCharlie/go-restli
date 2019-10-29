@@ -16,7 +16,7 @@ var (
 	emptyArrayRegex = regexp.MustCompile("\\[ *]")
 )
 
-const RecordTypeModelTypeName = "record"
+const RecordModelTypeName = "record"
 
 type RecordModel struct {
 	Identifier
@@ -48,7 +48,7 @@ func (r *RecordModel) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, t); err != nil {
 		return err
 	}
-	if t.Type != RecordTypeModelTypeName {
+	if t.Type != RecordModelTypeName {
 		return errors.Errorf("Not a record type: %s", string(data))
 	}
 	r.Identifier = t.Identifier

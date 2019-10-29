@@ -50,6 +50,12 @@ func (i *Identifier) receiver() string {
 	return ReceiverName(i.Name)
 }
 
+func (i *Identifier) setNamespace(ns string) {
+	if i.Namespace == "" {
+		i.Namespace = ns
+	}
+}
+
 func (m *Model) GoType() (def *Statement) {
 	if m.BuiltinType != nil {
 		return m.BuiltinType.GoType()
@@ -68,6 +74,7 @@ type ComplexType interface {
 	GenerateCode() (def *Statement)
 	PackagePath() string
 	GetIdentifier() Identifier
+	setNamespace(ns string)
 }
 
 func GenerateModelCode(m ComplexType) *CodeFile {
