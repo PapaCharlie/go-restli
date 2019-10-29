@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 	"unicode"
@@ -113,12 +114,7 @@ func (u *UnionFieldModel) alias() string {
 }
 
 func (u *UnionModel) restLiWriteToBuf(def *Group, accessor *Statement) {
-	label := "end" + ExportedIdentifier(accessor.GoString())
-	for i, c := range label {
-		if !(unicode.IsDigit(c) || unicode.IsLetter(c)) {
-			label = label[:i] + "_" + label[i+1:]
-		}
-	}
+	label := "end" + canonicalizeAccessor(accessor)
 
 	for _, t := range u.Types {
 		def.If(Add(accessor).Dot(t.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
@@ -134,4 +130,40 @@ func (u *UnionModel) restLiWriteToBuf(def *Group, accessor *Statement) {
 	}
 
 	def.Id(label).Op(":")
+}
+
+func (u *UnionModel) validateUnionFields(def *Group, accessor *Statement) {
+	isSet := "is" + canonicalizeAccessor(accessor) + "Set"
+	def.Id(isSet).Op(":=").False().Line()
+	errorMessage := fmt.Sprintf("must specify exactly one member of %s", accessor.GoString())
+
+	for i, t := range u.Types {
+		def.If(Add(accessor).Dot(t.name()).Op("!=").Nil()).
+			BlockFunc(func(def *Group) {
+				if i == 0 {
+					def.Id(isSet).Op("=").True()
+				} else {
+					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+						def.Id(isSet).Op("=").True()
+					}).Else().BlockFunc(func(def *Group) {
+						def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+						def.Return()
+					})
+				}
+			}).Line()
+	}
+	def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
+		def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
+		def.Return()
+	})
+}
+
+func canonicalizeAccessor(accessor *Statement) string {
+	label := ExportedIdentifier(accessor.GoString())
+	for i, c := range label {
+		if !(unicode.IsDigit(c) || unicode.IsLetter(c)) {
+			label = label[:i] + "_" + label[i+1:]
+		}
+	}
+	return label
 }

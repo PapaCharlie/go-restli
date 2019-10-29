@@ -29,6 +29,8 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 
 		def.Id("query").Op(":=").Qual("net/url", "Values").Block()
 		def.Id("query").Dot("Set").Call(Lit("q"), Lit(f.FinderName))
+		def.Line()
+
 		for _, field := range f.Fields {
 			accessor := Id("params").Dot(ExportedIdentifier(field.Name))
 
@@ -37,9 +39,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 				setBlock.If(Add(accessor).Op("!=").Nil())
 			}
 
-			if !field.Type.IsMapOrArray() && field.IsPointer() {
-				accessor = Op("*").Add(accessor)
-			}
+			accessor = field.RawAccessor(accessor)
 			varName := field.Name + "Str"
 
 			setBlock.BlockFunc(func(def *Group) {
@@ -52,8 +52,8 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 				}
 				def.Id("query").Dot("Set").Call(Lit(field.Name), Id(varName))
 			})
+			def.Line()
 		}
-		def.Line()
 
 		def.Id("path").Op("+=").Lit("?").Op("+").Id("query").Dot("Encode").Call()
 

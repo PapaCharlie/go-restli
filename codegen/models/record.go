@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"regexp"
 
@@ -88,8 +87,15 @@ func (r *RecordModel) allFields() (allFields []Field) {
 	return allFields
 }
 
-func (r *RecordModel) field(fieldName string) *Statement {
-	return Id(r.receiver()).Dot(ExportedIdentifier(fieldName))
+func (r *RecordModel) field(f Field) *Statement {
+	return Id(r.receiver()).Dot(ExportedIdentifier(f.Name))
+}
+
+func (f *Field) RawAccessor(accessor *Statement) *Statement {
+	if f.IsPointer() && f.Type.IsBytesOrPrimitive() {
+		accessor = Op("*").Add(accessor)
+	}
+	return accessor
 }
 
 func (r *RecordModel) GenerateCode() (def *Statement) {
@@ -126,7 +132,7 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 		def.Id(r.receiver()).Op("=").New(Id(r.Name))
 		for _, f := range r.allFields() {
 			if record, ok := f.Type.ComplexType.(*RecordModel); ok && !f.IsPointer() {
-				def.Add(r.field(f.Name)).Op("=").Op("*").Qual(record.PackagePath(), "New"+record.Name).Call()
+				def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), "New"+record.Name).Call()
 			}
 		}
 		def.Add(r.populateDefaultValues)
@@ -152,14 +158,11 @@ func (r *RecordModel) restLiSerDe(def *Statement) {
 		for i, f := range allFields {
 			serialize := def.Empty()
 			if f.IsPointer() {
-				serialize.If(r.field(f.Name).Op("!=").Nil())
+				serialize.If(r.field(f).Op("!=").Nil())
 			}
 
 			serialize.BlockFunc(func(def *Group) {
-				accessor := r.field(f.Name)
-				if f.IsPointer() && f.Type.IsBytesOrPrimitive() {
-					accessor = Op("*").Add(accessor)
-				}
+				accessor := f.RawAccessor(r.field(f))
 
 				if i != 0 {
 					def.Id("buf").Dot("WriteByte").Call(LitRune(','))
@@ -290,30 +293,7 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 								Block(Return(Nil())).Line()
 						}
 
-						isSet := "is" + ExportedIdentifier(f.Name) + "Set"
-						def.Id(isSet).Op(":=").False().Line()
-						errorMessage := fmt.Sprintf("must specify exactly one member of %s.%s",
-							r.Name, ExportedIdentifier(f.Name))
-
-						for i, u := range union.Types {
-							cond := Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Dot(u.name()).Op("!=").Nil()
-							def.If(cond).BlockFunc(func(def *Group) {
-								if i == 0 {
-									def.Id(isSet).Op("=").True()
-								} else {
-									def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-										def.Id(isSet).Op("=").True()
-									}).Else().BlockFunc(func(def *Group) {
-										def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-										def.Return()
-									})
-								}
-							}).Line()
-						}
-						def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-							def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-							def.Return()
-						})
+						union.validateUnionFields(def, Id(r.receiver()).Dot(ExportedIdentifier(f.Name)))
 					})
 				}
 			}
@@ -324,4 +304,8 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return()).Line()
 
 	return true
+}
+
+func (f *Field) Accessor(receiver string) {
+
 }

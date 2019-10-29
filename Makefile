@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/generated
 
-SNAPSHOTS ?= $(sort $(wildcard rest.li-test-suite/client-testsuite/snapshots/*))
+SNAPSHOTS ?= $(sort $(shell find . -name '*.snapshot.json'))
 .PHONY: $(SNAPSHOTS)
 
 test: clean imports
@@ -16,7 +16,8 @@ test: clean imports
 	rm -r tmp
 	go test -count=1 $(PACKAGE_PREFIX)
 
-*.snapshot.json:
+
+$(SNAPSHOTS):
 	@make SNAPSHOTS=$(@) test
 
 clean:
