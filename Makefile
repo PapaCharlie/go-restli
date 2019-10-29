@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/generated
 
-test: clean
+test: clean imports
 	mkdir -p tmp
 	go run main.go \
 		--package-prefix $(PACKAGE_PREFIX) \
@@ -17,3 +17,5 @@ clean:
 	git -C rest.li-test-suite reset --hard origin/master
 	rm -rf generated
 
+imports:
+	goimports -w main.go codegen d2 protocol

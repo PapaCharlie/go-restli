@@ -1,10 +1,11 @@
 package schema
 
 import (
+	"io"
+
 	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/models"
 	. "github.com/dave/jennifer/jen"
-	"io"
 )
 
 func LoadResources(reader io.Reader) ([]*Resource, error) {

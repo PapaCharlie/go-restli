@@ -155,7 +155,7 @@ func deduplicateFiles(files []*codegen.CodeFile) []*codegen.CodeFile {
 		if existingFile, ok := idToFile[id]; ok {
 			existingCode := renderCode(existingFile.Code)
 			code := renderCode(file.Code)
-			if ! bytes.Equal(existingCode, code) {
+			if !bytes.Equal(existingCode, code) {
 				log.Fatalf("Conflicting defitions of %s: %s\n\n-----------\n\n%s",
 					id, string(existingCode), string(code))
 			}

@@ -24,4 +24,3 @@ func ServicesPath(service string) string {
 func UrisPath(uri string) string {
 	return filepath.Join("/", "d2", "uris", uri)
 }
-

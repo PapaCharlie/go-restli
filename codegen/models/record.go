@@ -32,7 +32,7 @@ type RecordModel struct {
 type Field struct {
 	Name     string          `json:"name"`
 	Doc      string          `json:"doc"`
-	Type     *Model           `json:"type"`
+	Type     *Model          `json:"type"`
 	Optional bool            `json:"optional"`
 	Default  json.RawMessage `json:"default"`
 }
@@ -43,7 +43,7 @@ func (r *RecordModel) UnmarshalJSON(data []byte) error {
 		typeField
 		docField
 		Include []*Model `json:"include"`
-		Fields  []Field `json:"fields"`
+		Fields  []Field  `json:"fields"`
 	}{}
 	if err := json.Unmarshal(data, t); err != nil {
 		return err

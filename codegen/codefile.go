@@ -109,7 +109,7 @@ func Write(filename string, file *File) error {
 			return errors.WithMessagef(removeErr, "Could not delete %s", filename)
 		}
 	} else {
-		if ! os.IsNotExist(err) {
+		if !os.IsNotExist(err) {
 			return errors.WithStack(err)
 		}
 	}

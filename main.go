@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/PapaCharlie/go-restli/codegen/cli"
 	"log"
+
+	"github.com/PapaCharlie/go-restli/codegen/cli"
 )
 
 func main() {

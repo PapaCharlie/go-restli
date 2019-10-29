@@ -35,7 +35,7 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 		return errors.Errorf("Cannot be an array or map (%s)", string(data))
 	}
 
-	if ! validReferenceType.Match([]byte(name)) {
+	if !validReferenceType.Match([]byte(name)) {
 		return errors.Errorf("Illegal reference type: |%s|", name)
 	}
 
