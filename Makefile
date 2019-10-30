@@ -4,8 +4,17 @@ PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/generated
 
 SNAPSHOTS ?= $(sort $(shell find . -name '*.snapshot.json'))
 .PHONY: $(SNAPSHOTS)
+PACKAGES := ./codegen ./d2 ./protocol
 
-test: clean imports
+build: test integration-test
+
+test: imports
+	go test $(PACKAGES)
+
+imports:
+	goimports -w main.go $(PACKAGES)
+
+integration-test: clean
 	mkdir -p tmp
 	go run main.go \
 		--package-prefix $(PACKAGE_PREFIX) \
@@ -18,11 +27,8 @@ test: clean imports
 
 
 $(SNAPSHOTS):
-	@make SNAPSHOTS=$(@) test
+	@make SNAPSHOTS=$(@) integration-test
 
 clean:
 	git -C rest.li-test-suite reset --hard origin/master
 	rm -rf generated
-
-imports:
-	goimports -w main.go codegen d2 protocol
