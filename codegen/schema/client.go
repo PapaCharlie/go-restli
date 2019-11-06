@@ -92,3 +92,7 @@ func entityParams(resources []*Resource) []Code {
 	}
 	return params
 }
+
+func addClientFunc(def *Statement, funcName string) *Statement {
+	return AddFuncOnReceiver(def, ClientReceiver, Client, funcName)
+}

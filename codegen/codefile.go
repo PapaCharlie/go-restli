@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 
 	"github.com/PapaCharlie/go-restli/protocol"
-
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
@@ -251,5 +251,61 @@ func RestLiMethod(method protocol.RestLiMethod) *Statement {
 		return Qual(ProtocolPackage, "NoMethod")
 	} else {
 		return Qual(ProtocolPackage, "Method"+string(method))
+	}
+}
+
+func DeduplicateFiles(files []*CodeFile) []*CodeFile {
+	idToFile := make(map[string]*CodeFile)
+
+	renderCode := func(s *Statement) []byte {
+		b := bytes.NewBuffer(nil)
+		if err := s.Render(b); err != nil {
+			log.Panicln(err)
+		}
+		return b.Bytes()
+	}
+
+	for _, file := range files {
+		id := file.Identifier()
+		if existingFile, ok := idToFile[id]; ok {
+			existingCode := renderCode(existingFile.Code)
+			code := renderCode(file.Code)
+			if !bytes.Equal(existingCode, code) {
+				log.Fatalf("Conflicting defitions of %s: %s\n\n-----------\n\n%s",
+					id, string(existingCode), string(code))
+			}
+		} else {
+			idToFile[id] = file
+		}
+	}
+
+	identifiers := make([]string, 0, len(idToFile))
+	for id := range idToFile {
+		identifiers = append(identifiers, id)
+	}
+	sort.Strings(identifiers)
+
+	uniqueCodeFiles := make([]*CodeFile, 0, len(idToFile))
+	for _, id := range identifiers {
+		uniqueCodeFiles = append(uniqueCodeFiles, idToFile[id])
+	}
+
+	return uniqueCodeFiles
+}
+
+func GenerateAllImportsFile(outputDir string, codeFiles []*CodeFile) {
+	imports := make(map[string]bool)
+	for _, code := range codeFiles {
+		imports[code.PackagePath] = true
+	}
+	f := NewFile("main")
+	for p := range imports {
+		f.Anon(p)
+	}
+	f.Func().Id("TestAllImports").Params(Op("*").Qual("testing", "T")).Block()
+
+	err := Write(filepath.Join(outputDir, GetPackagePrefix(), "all_imports_test.go"), f)
+	if err != nil {
+		log.Panicf("Could not write all imports file: %+v", err)
 	}
 }

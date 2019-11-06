@@ -2,8 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"io"
-	"io/ioutil"
 	"log"
 	"regexp"
 	"strings"
@@ -17,52 +15,21 @@ var (
 	CyclicModels  = make(map[Identifier]bool)
 )
 
-func LoadModels(reader io.Reader) error {
-	spec := &struct {
-		Models map[string]*Model `json:"models"`
-	}{}
+type SnapshotModels []*Model
 
-	err := ReadJSON(reader, spec)
+func (models *SnapshotModels) UnmarshalJSON(data []byte) error {
+	var modelList []*Model
+	err := json.Unmarshal(data, &modelList)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
+	*models = modelList
 
-	for _, m := range spec.Models {
+	for _, m := range *models {
 		m.sanityCheck(nil)
 		m.resolveCyclicReferences()
 	}
 
-	return nil
-}
-
-func LoadSnapshotModels(reader io.Reader) error {
-	snapshot := &struct {
-		Models []*Model `json:"models"`
-	}{}
-
-	err := ReadJSON(reader, snapshot)
-	if err != nil {
-		return err
-	}
-
-	for _, m := range snapshot.Models {
-		m.sanityCheck(nil)
-		m.resolveCyclicReferences()
-	}
-
-	return nil
-}
-
-func ReadJSON(reader io.Reader, s interface{}) error {
-	bytes, err := ioutil.ReadAll(reader)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	err = json.Unmarshal(bytes, s)
-	if err != nil {
-		return errors.WithStack(err)
-	}
 	return nil
 }
 

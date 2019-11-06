@@ -1,3 +1,3 @@
-[submodule "rest.li-test-suite"]
-	path = rest.li-test-suite
+[submodule "tests/rest.li-test-suite"]
+	path = tests/rest.li-test-suite
 	url = git@github.com:linkedin/rest.li-test-suite.git

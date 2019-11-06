@@ -19,7 +19,6 @@ integration-test: clean
 	go run main.go \
 		--package-prefix $(PACKAGE_PREFIX) \
 		--output-dir tmp \
-		--snapshot-mode \
 		$(SNAPSHOTS)
 	mv tmp/$(PACKAGE_PREFIX) .
 	rm -r tmp
@@ -30,5 +29,5 @@ $(SNAPSHOTS):
 	@make SNAPSHOTS=$(@) integration-test
 
 clean:
-	git -C rest.li-test-suite reset --hard origin/master
+	git -C tests/rest.li-test-suite reset --hard origin/master
 	rm -rf generated
