@@ -60,7 +60,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.Method_finder))
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.Id("result").Op(":=").Struct(Id("Elements").Add(returnType)).Block()

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -19,41 +20,37 @@ const (
 	RestLiHeader_ErrorResponse   = "X-RestLi-Error-Response"
 )
 
-type RestLiMethod string
+type RestLiMethod int
 
+//go:generate stringer -type=RestLiMethod -trimprefix Method_
 const (
-	MethodGet           = RestLiMethod("Get")
-	MethodCreate        = RestLiMethod("Create")
-	MethodDelete        = RestLiMethod("Delete")
-	MethodUpdate        = RestLiMethod("Update")
-	MethodPartialUpdate = RestLiMethod("PartialUpdate")
+	Method_Unknown = RestLiMethod(iota)
 
-	MethodBatchGet           = RestLiMethod("BatchGet")
-	MethodBatchCreate        = RestLiMethod("BatchCreate")
-	MethodBatchDelete        = RestLiMethod("BatchDelete")
-	MethodBatchUpdate        = RestLiMethod("BatchUpdate")
-	MethodBatchPartialUpdate = RestLiMethod("BatchPartialUpdate")
+	Method_get
+	Method_create
+	Method_delete
+	Method_update
+	Method_partial_update
 
-	MethodGetAll = RestLiMethod("GetAll")
+	Method_batch_get
+	Method_batch_create
+	Method_batch_delete
+	Method_batch_update
+	Method_batch_partial_update
 
-	NoMethod = RestLiMethod("")
+	Method_get_all
+
+	Method_action
+	Method_finder
 )
 
-var RestLiMethodNameMapping = map[string]RestLiMethod{
-	"get":            MethodGet,
-	"create":         MethodCreate,
-	"delete":         MethodDelete,
-	"update":         MethodUpdate,
-	"partial_update": MethodPartialUpdate,
-
-	"batch_get":            MethodBatchGet,
-	"batch_create":         MethodBatchCreate,
-	"batch_delete":         MethodBatchDelete,
-	"batch_update":         MethodBatchUpdate,
-	"batch_partial_update": MethodBatchPartialUpdate,
-
-	"get_all": MethodGetAll,
-}
+var RestLiMethodNameMapping = func() map[string]RestLiMethod {
+	mapping := make(map[string]RestLiMethod)
+	for m := Method_get; m <= Method_finder; m++ {
+		mapping[m.String()] = m
+	}
+	return mapping
+}()
 
 var emptyBuffer = &bytes.Buffer{}
 
@@ -65,6 +62,16 @@ type RestLiError struct {
 
 	FullResponse         []byte `json:"-"`
 	DeserializationError error  `json:"-"`
+}
+
+func (r *RestLiError) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		io.WriteString(s, r.Error()+"\n")
+		io.WriteString(s, r.StackTrace)
+	case 's':
+		io.WriteString(s, r.Error()+"\n")
+	}
 }
 
 func (r *RestLiError) Error() string {
@@ -156,15 +163,14 @@ func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
 	}
 }
 
-func SetJsonContentTypeHeader(req *http.Request) {
+func SetJsonRequestHeaders(req *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 }
 
 func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
 	req.Header.Set(RestLiHeader_ProtocolVersion, RestLiProtocolVersion)
-	if method != NoMethod {
-		req.Header.Set(RestLiHeader_Method, string(method))
-	}
+	req.Header.Set(RestLiHeader_Method, method.String())
 }
 
 func (c *RestLiClient) GetRequest(url *url.URL, method RestLiMethod) (*http.Request, error) {
@@ -190,7 +196,7 @@ func (c *RestLiClient) JsonPostRequest(url *url.URL, method RestLiMethod, conten
 	}
 
 	SetRestLiHeaders(req, method)
-	SetJsonContentTypeHeader(req)
+	SetJsonRequestHeaders(req)
 
 	return req, nil
 }

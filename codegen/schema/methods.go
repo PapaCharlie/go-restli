@@ -8,28 +8,12 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-var RestliMethodToHttpMethod = map[string]string{
-	"get":            "GET",
-	"create":         "POST",
-	"delete":         "DELETE",
-	"update":         "PUT",
-	"partial_update": "POST",
-
-	"batch_get":            "GET",
-	"batch_create":         "POST",
-	"batch_delete":         "DELETE",
-	"batch_update":         "PUT",
-	"batch_partial_update": "POST",
-
-	"get_all": "GET",
-}
-
 type MethodGenerator func(m Method, parentResources []*Resource, thisResource *Resource) *Statement
 
 // https://linkedin.github.io/rest.li/user_guide/restli_server#resource-methods
 func (m *Method) generate(parentResources []*Resource, thisResource *Resource) *Statement {
 	switch m.Method {
-	case protocol.MethodGet:
+	case protocol.Method_get:
 		return m.generateGet(parentResources, thisResource)
 	default:
 		log.Printf("Warning: %s method is not currently implemented", m.Name)
@@ -58,7 +42,7 @@ func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource
 
 		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
 		IfErrReturn(def, Nil(), Err()).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.MethodGet))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.Method_get))
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.Id("result").Op(":=").New(thisResource.Schema.Model.GoType())

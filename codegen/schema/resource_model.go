@@ -129,9 +129,9 @@ func (m *Method) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if name, ok := protocol.RestLiMethodNameMapping[strings.ToLower(t.Method)]; ok {
-		m.Method = name
-		m.Name = string(name)
+	if method, ok := protocol.RestLiMethodNameMapping[strings.ToLower(t.Method)]; ok {
+		m.Method = method
+		m.Name = method.String()
 	} else {
 		log.Panicln("Unknown method", t.Method)
 	}

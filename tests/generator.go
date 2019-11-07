@@ -17,6 +17,7 @@ const (
 
 //go:generate go run .
 func main() {
+	log.SetFlags(log.Lshortfile)
 	snapshotsDir := filepath.Join(restLiClientTestSuite, "snapshots")
 	if _, err := os.Stat(snapshotsDir); err != nil {
 		log.Panicln(snapshotsDir, "does not exist! Did you use `git clone --recurse-submodules`?", err)

@@ -62,11 +62,13 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 		IfErrReturn(def, errReturnParams...).Line()
 
 		req := def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver)
+		var params *Statement
 		if hasParams {
-			req.Dot("JsonPostRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod), Id("params"))
+			params = Id("params")
 		} else {
-			req.Dot("RawPostRequest").Call(Id("url"), RestLiMethod(protocol.NoMethod), Nil())
+			params = Struct().Block()
 		}
+		req.Dot("JsonPostRequest").Call(Id("url"), RestLiMethod(protocol.Method_action), params)
 		IfErrReturn(def, errReturnParams...).Line()
 
 		if returns {

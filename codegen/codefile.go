@@ -247,11 +247,7 @@ func (f *FieldTag) ToMap() map[string]string {
 }
 
 func RestLiMethod(method protocol.RestLiMethod) *Statement {
-	if method == protocol.NoMethod {
-		return Qual(ProtocolPackage, "NoMethod")
-	} else {
-		return Qual(ProtocolPackage, "Method"+string(method))
-	}
+	return Qual(ProtocolPackage, "Method_"+method.String())
 }
 
 func DeduplicateFiles(files []*CodeFile) []*CodeFile {
