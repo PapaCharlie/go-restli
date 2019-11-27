@@ -60,8 +60,9 @@ type RestLiError struct {
 	ExceptionClass string
 	StackTrace     string
 
-	FullResponse         []byte `json:"-"`
-	DeserializationError error  `json:"-"`
+	FullResponse         []byte      `json:"-"`
+	ResponseHeaders      http.Header `json:"-"`
+	DeserializationError error       `json:"-"`
 }
 
 func (r *RestLiError) Format(s fmt.State, verb rune) {
@@ -89,7 +90,8 @@ func IsErrorResponse(res *http.Response) error {
 			return err
 		}
 		restLiError := &RestLiError{
-			FullResponse: body,
+			FullResponse:    body,
+			ResponseHeaders: res.Header,
 		}
 		if deserializationError := json.Unmarshal(body, restLiError); deserializationError != nil {
 			restLiError.DeserializationError = deserializationError
@@ -163,9 +165,12 @@ func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
 	}
 }
 
-func SetJsonRequestHeaders(req *http.Request) {
-	req.Header.Set("Content-Type", "application/json")
+func SetJsonAcceptHeader(req *http.Request) {
 	req.Header.Set("Accept", "application/json")
+}
+
+func SetJsonContentTypeHeader(req *http.Request) {
+	req.Header.Set("Content-Type", "application/json")
 }
 
 func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
@@ -180,23 +185,45 @@ func (c *RestLiClient) GetRequest(url *url.URL, method RestLiMethod) (*http.Requ
 	}
 
 	SetRestLiHeaders(req, method)
+	SetJsonAcceptHeader(req)
 
 	return req, nil
 }
 
-func (c *RestLiClient) JsonPostRequest(url *url.URL, method RestLiMethod, contents interface{}) (*http.Request, error) {
-	buf, err := json.Marshal(contents)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(buf))
+func (c *RestLiClient) DeleteRequest(url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodDelete, url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
 	}
 
 	SetRestLiHeaders(req, method)
-	SetJsonRequestHeaders(req)
+	SetJsonAcceptHeader(req)
+
+	return req, nil
+}
+
+func (c *RestLiClient) JsonPutRequest(url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+	return jsonRequest(url, http.MethodPut, restLiMethod, contents)
+}
+
+func (c *RestLiClient) JsonPostRequest(url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+	return jsonRequest(url, http.MethodPost, restLiMethod, contents)
+}
+
+func jsonRequest(url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+	buf, err := json.Marshal(contents)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(httpMethod, url.String(), bytes.NewBuffer(buf))
+	if err != nil {
+		return nil, err
+	}
+
+	SetRestLiHeaders(req, restLiMethod)
+	SetJsonAcceptHeader(req)
+	SetJsonContentTypeHeader(req)
 
 	return req, nil
 }
@@ -212,14 +239,16 @@ func (c *RestLiClient) RawPostRequest(url *url.URL, method RestLiMethod, content
 	return req, nil
 }
 
-func (c *RestLiClient) Do(req *http.Request) (res *http.Response, err error) {
-	res, err = c.Client.Do(req)
+// Do is a very thin shim between the standard http.Client.Do. All it does it parse the response into a RestLiError if
+// the RestLi error header is set. A non-nil Response with a non-nil error will only occur if http.Client.Do returns
+// such values (see the corresponding documentation). Otherwise, the response will only be non-nil if the error is nil.
+func (c *RestLiClient) Do(req *http.Request) (*http.Response, error) {
+	res, err := c.Client.Do(req)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
 	err = IsErrorResponse(res)
-
 	if err != nil {
 		return nil, err
 	}
@@ -227,40 +256,42 @@ func (c *RestLiClient) Do(req *http.Request) (res *http.Response, err error) {
 	return res, nil
 }
 
-func (c *RestLiClient) DoAndDecode(req *http.Request, v interface{}) error {
+// DoAndDecode calls Do and attempts to unmarshal the response into the given value. The response body will always be
+// read to EOF and closed, to ensure the connection can be reused.
+func (c *RestLiClient) DoAndDecode(req *http.Request, v interface{}) (res *http.Response, err error) {
+	return c.doAndConsumeBody(req, func(body []byte) error {
+		return json.Unmarshal(body, v)
+	})
+}
+
+// DoAndDecode calls Do and drops the response's body. The response body will always be read to EOF and closed, to
+// ensure the connection can be reused.
+func (c *RestLiClient) DoAndIgnore(req *http.Request) (res *http.Response, err error) {
+	return c.doAndConsumeBody(req, func([]byte) error {
+		return nil
+	})
+}
+
+func (c *RestLiClient) doAndConsumeBody(req *http.Request, bodyConsumer func(body []byte) error) (*http.Response, error) {
 	res, err := c.Do(req)
 	if err != nil {
-		return err
+		return res, err
 	}
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	err = res.Body.Close()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = json.Unmarshal(data, v)
+	err = bodyConsumer(data)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
-}
-
-func (c *RestLiClient) DoAndIgnore(req *http.Request) error {
-	res, err := c.Do(req)
-	if err != nil {
-		return err
-	}
-
-	err = res.Body.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return res, nil
 }

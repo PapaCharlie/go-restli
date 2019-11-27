@@ -73,12 +73,12 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 
 		if returns {
 			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
-			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
+			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
 			IfErrReturn(def, errReturnParams...).Line()
 
 			def.Return(Op("&").Id("result").Dot("Value"), Nil())
 		} else {
-			def.Err().Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
+			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
 			IfErrReturn(def, errReturnParams...).Line()
 			def.Return(Nil())
 		}

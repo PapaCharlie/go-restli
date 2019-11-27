@@ -143,6 +143,7 @@ func (r *RecordModel) GenerateCode() (def *Statement) {
 		r.jsonSerDe(def)
 	}
 	r.restLiSerDe(def)
+	r.generateInitializeUnionFields(def)
 
 	return def
 }
@@ -306,6 +307,12 @@ func (r *RecordModel) generateValidateUnionFields(def *Statement) bool {
 	return true
 }
 
-func (f *Field) Accessor(receiver string) {
-
+func (r *RecordModel) generateInitializeUnionFields(def *Statement) {
+	for _, f := range r.Fields {
+		if union, ok := f.Type.BuiltinType.(*UnionModel); ok && union.IsOptional {
+			AddFuncOnReceiver(def, r.receiver(), r.Name, "Initialize"+ExportedIdentifier(f.Name)).
+				Params().
+				Block(Id(r.receiver()).Dot(ExportedIdentifier(f.Name)).Op("=").New(union.GoType()))
+		}
+	}
 }

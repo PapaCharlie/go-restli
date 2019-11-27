@@ -10,6 +10,7 @@ import (
 	"github.com/PapaCharlie/go-restli/codegen/cli"
 	"github.com/PapaCharlie/go-restli/codegen/schema"
 	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 )
 
@@ -32,7 +33,7 @@ type WireProtocolTestData struct {
 
 type Operation struct {
 	Name          string
-	Method        *protocol.RestLiMethod
+	RestLiMethod  protocol.RestLiMethod
 	Finder        *string
 	Action        *string
 	Request       *http.Request
@@ -95,7 +96,7 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 		o.Finder = &finder
 	default:
 		if m, ok := protocol.RestLiMethodNameMapping[operation.Method]; ok {
-			o.Method = &m
+			o.RestLiMethod = m
 		} else {
 			return errors.Errorf("No such method: %s", operation.Method)
 		}
@@ -116,16 +117,8 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *Manifest) GetOperations(selector func(testData WireProtocolTestData, operation Operation) bool) []Operation {
-	var operations []Operation
-	for _, testData := range m.WireProtocolTestData {
-		for _, o := range testData.Operations {
-			if selector(testData, o) {
-				operations = append(operations, o)
-			}
-		}
-	}
-	return operations
+func (o *Operation) TestMethodName() string {
+	return strcase.ToCamel(o.Name)
 }
 
 func ReadManifest() *Manifest {

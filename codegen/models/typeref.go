@@ -30,6 +30,7 @@ func (r *TyperefModel) UnmarshalJSON(data []byte) error {
 		return &WrongTypeError{Expected: TyperefModelTypeName, Actual: t.Type}
 	}
 	r.Identifier = t.Identifier
+	r.Identifier.Name = ExportedIdentifier(r.Identifier.Name)
 	r.Doc = t.Doc
 	r.Ref = t.Ref
 	return nil

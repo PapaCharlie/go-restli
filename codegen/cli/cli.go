@@ -43,7 +43,7 @@ func CodeGenerator() *cobra.Command {
 func Run(files []string, outputDir string, packagePrefix string) error {
 	codegen.SetPackagePrefix(packagePrefix)
 
-	var allResources []*schema.Resource
+	var allResources []schema.Resource
 
 	for _, filename := range files {
 		log.Println(filename)
@@ -51,7 +51,9 @@ func Run(files []string, outputDir string, packagePrefix string) error {
 		if err != nil {
 			log.Fatalf("could not load %s: %+v", filename, err)
 		}
-		allResources = append(allResources, snapshot.Schema)
+		if snapshot.Schema != nil {
+			allResources = append(allResources, *snapshot.Schema)
+		}
 	}
 
 	var codeFiles []*codegen.CodeFile

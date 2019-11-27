@@ -64,7 +64,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.Id("result").Op(":=").Struct(Id("Elements").Add(returnType)).Block()
-		def.Err().Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
+		def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
 		IfErrReturn(def, Nil(), Err()).Line()
 		def.Return(Id("result").Dot("Elements"), Nil())
 	})

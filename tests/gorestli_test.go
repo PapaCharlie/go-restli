@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,8 +14,53 @@ import (
 	"testing"
 
 	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/iancoleman/strcase"
+	actionset "github.com/PapaCharlie/go-restli/tests/generated/testsuite/actionSet"
+	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/association"
+	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/collection"
+	collectionreturnentity "github.com/PapaCharlie/go-restli/tests/generated/testsuite/collectionReturnEntity"
+	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/complexkey"
+	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/keywithunion/keywithunion"
+	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/params"
+	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/simple"
+	associationtyperef "github.com/PapaCharlie/go-restli/tests/generated/testsuite/typerefs/associationTyperef"
+	collectiontyperef "github.com/PapaCharlie/go-restli/tests/generated/testsuite/typerefs/collectionTyperef"
 )
+
+func (o *Operation) TestMethod() *reflect.Method {
+	if m, ok := reflect.TypeOf(&TestServer{}).MethodByName(o.TestMethodName()); ok {
+		return &m
+	} else {
+		return nil
+	}
+}
+
+func (d *WireProtocolTestData) GetClient(s *TestServer) reflect.Value {
+	switch d.Name {
+	case "collectionReturnEntity":
+		return reflect.ValueOf(&collectionreturnentity.Client{RestLiClient: s.client})
+	case "collection":
+		return reflect.ValueOf(&collection.Client{RestLiClient: s.client})
+	case "complexkey":
+		return reflect.ValueOf(&complexkey.Client{RestLiClient: s.client})
+	case "association":
+		return reflect.ValueOf(&association.Client{RestLiClient: s.client})
+	case "simple":
+		return reflect.ValueOf(&simple.Client{RestLiClient: s.client})
+	case "actionSet":
+		return reflect.ValueOf(&actionset.Client{RestLiClient: s.client})
+	case "keywithunion":
+		return reflect.ValueOf(&keywithunion.Client{RestLiClient: s.client})
+	case "params":
+		return reflect.ValueOf(&params.Client{RestLiClient: s.client})
+	case "collectionTyperef":
+		return reflect.ValueOf(&collectiontyperef.Client{RestLiClient: s.client})
+	case "associationTyperef":
+		return reflect.ValueOf(&associationtyperef.Client{RestLiClient: s.client})
+	default:
+		log.Panicln("Unknown test suite")
+		return reflect.Value{}
+	}
+}
 
 func TestGoRestli(rootT *testing.T) {
 	manifest := ReadManifest()
@@ -33,21 +79,21 @@ func TestGoRestli(rootT *testing.T) {
 		rootT.Run(testData.Name, func(t *testing.T) {
 			skippedTests := false
 			for _, o := range testData.Operations {
-				funcName := strcase.ToCamel(o.Name)
-
 				if dup, ok := operations[o.Name]; ok {
 					rootT.Fatalf("Multiple operations named %s: %v and %v", o.Name, o, dup)
 				} else {
 					operations[o.Name] = o
 				}
 
-				testMethod := reflect.ValueOf(s).MethodByName(funcName)
-				if testMethod != (reflect.Value{}) {
+				if testMethod := o.TestMethod(); testMethod != nil {
 					s.oLock.Lock()
 					s.o = o
 					s.oLock.Unlock()
 					t.Run(o.Name, func(t *testing.T) {
-						testMethod.Call([]reflect.Value{reflect.ValueOf(t)})
+						testMethod.Func.Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(t), testData.GetClient(s)})
+						if t.Skipped() {
+							skippedTests = true
+						}
 					})
 				} else {
 					skippedTests = true
@@ -57,7 +103,7 @@ func TestGoRestli(rootT *testing.T) {
 				}
 			}
 			if skippedTests {
-				t.Skip("All tests were skipped!")
+				t.Skip("Some tests were skipped!")
 			}
 		})
 	}
@@ -75,7 +121,7 @@ const UnexpectedRequestStatus = 666
 func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// memory barrier for reading the Operation field since requests are served from different goroutines
 	s.oLock.Lock()
-	defer s.oLock.Unlock()
+	s.oLock.Unlock()
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -117,11 +163,14 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	res.WriteHeader(s.o.Response.StatusCode)
 	for h := range s.o.Response.Header {
 		res.Header().Set(h, s.o.Response.Header.Get(h))
 	}
-	_, _ = res.Write(s.o.ResponseBytes)
+	res.WriteHeader(s.o.Response.StatusCode)
+	_, err := res.Write(s.o.ResponseBytes)
+	if err != nil {
+		log.Panicln(err)
+	}
 }
 
 func writeErrorResponse(res http.ResponseWriter, format string, args ...interface{}) {

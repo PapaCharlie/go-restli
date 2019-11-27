@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -23,21 +26,19 @@ func ReadRequestFromFile(filename string) (*http.Request, []byte, error) {
 		log.Panicln("Could not open", filename, err)
 	}
 	defer f.Close()
-	return ReadRequest(bufio.NewReader(f))
-}
+	r := bufio.NewReader(f)
 
-func ReadRequest(reader *bufio.Reader) (*http.Request, []byte, error) {
-	req, err := http.ReadRequest(reader)
+	req, err := http.ReadRequest(r)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Could not read request")
 	}
 	// ReadRequest only reads the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers. What remains of
 	// the buffer is the body of the request, which we need to preserve for subsequent reads
-	reqBytes, err := ioutil.ReadAll(reader)
+	reqBytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to read full request")
 	}
-	return req, reqBytes, nil
+	return req, adjustContentLength(filename, reqBytes, req.Header), nil
 }
 
 func ReadResponseFromFile(filename string, req *http.Request) (*http.Response, []byte, error) {
@@ -46,19 +47,32 @@ func ReadResponseFromFile(filename string, req *http.Request) (*http.Response, [
 		log.Panicln("Could not open", filename, err)
 	}
 	defer f.Close()
-	return ReadResponse(bufio.NewReader(f), req)
-}
+	r := bufio.NewReader(f)
 
-func ReadResponse(reader *bufio.Reader, req *http.Request) (*http.Response, []byte, error) {
-	res, err := http.ReadResponse(reader, req)
+	res, err := http.ReadResponse(r, req)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Could not read request")
 	}
 	// ReadResponse only reads the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers. What remains of
 	// the buffer is the body of the response, which we need to preserve for subsequent reads
-	resBytes, err := ioutil.ReadAll(reader)
+	resBytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to read full request")
 	}
-	return res, resBytes, nil
+	return res, adjustContentLength(filename, resBytes, res.Header), nil
+}
+
+func adjustContentLength(filename string, b []byte, h http.Header) []byte {
+	const contentLength = "Content-Length"
+	b = bytes.Trim(b, "\r\n")
+	cl := h.Get(contentLength)
+	if cl != "" {
+		cli, _ := strconv.Atoi(cl)
+		if len(b) != cli {
+			log.Printf("Content-Length header in %s indicates %d bytes, but body was %d bytes", filename, cli, len(b))
+			h.Set(contentLength, fmt.Sprintf("%d", len(b)))
+			return b
+		}
+	}
+	return nil
 }

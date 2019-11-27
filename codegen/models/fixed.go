@@ -32,6 +32,7 @@ func (f *FixedModel) UnmarshalJSON(data []byte) error {
 		return errors.Errorf("Not a fixed type: %s", string(data))
 	}
 	f.Identifier = t.Identifier
+	f.Identifier.Name = ExportedIdentifier(f.Identifier.Name)
 	f.Doc = t.Doc
 	f.Size = t.Size
 	return nil
