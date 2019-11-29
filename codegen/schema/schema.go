@@ -1,12 +1,14 @@
 package schema
 
 import (
-	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/codegen/schema/internal"
 	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 type Resource struct {
-	models.Identifier
+	file string
+
+	internal.Identifier
 	Schema      *ResourceModel
 	Path        string
 	Doc         string
@@ -76,13 +78,13 @@ type Entity struct {
 }
 
 type Method struct {
-	models.RecordModel
+	internal.RecordModel
 	Method          protocol.RestLiMethod
 	PagingSupported bool
 }
 
 type Endpoint struct {
-	models.RecordModel
+	internal.RecordModel
 	Returns *ResourceModel
 }
 

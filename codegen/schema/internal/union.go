@@ -1,4 +1,4 @@
-package models
+package internal
 
 import (
 	"encoding/json"
@@ -22,28 +22,12 @@ type UnionFieldModel struct {
 	Alias string
 }
 
-func (u *UnionFieldModel) UnmarshalJSON(data []byte) error {
-	m := &Model{}
-	if err := json.Unmarshal(data, m); err != nil {
-		return err
-	}
-	u.Type = m
-
-	type t UnionFieldModel
-	if err := json.Unmarshal(data, (*t)(u)); err != nil {
-		if !strings.Contains(err.Error(), "json: cannot unmarshal string into Go value of type") {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (u *UnionModel) UnmarshalJSON(data []byte) error {
 	var types []UnionFieldModel
 	if err := json.Unmarshal(data, &types); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
+
 	nullIndex := -1
 	for i, m := range types {
 		if primitive, ok := m.Type.BuiltinType.(*PrimitiveModel); ok && *primitive == NullPrimitive {
@@ -82,35 +66,6 @@ func (u *UnionModel) GoType() (def *Statement) {
 			field.Tag(tag.ToMap())
 		}
 	})
-}
-
-func (u *UnionFieldModel) name() string {
-	alias := u.alias()
-	return ExportedIdentifier(alias[strings.LastIndex(alias, ".")+1:])
-}
-
-func (u *UnionFieldModel) alias() string {
-	if u.Alias != "" {
-		return u.Alias
-	}
-	if u.Type.BuiltinType != nil {
-		switch u.Type.BuiltinType.(type) {
-		case *PrimitiveModel:
-			return u.Type.BuiltinType.(*PrimitiveModel)[0]
-		case *BytesModel:
-			return BytesModelTypeName
-		case *MapModel:
-			return MapModelTypeName
-		case *ArrayModel:
-			return ArrayModelTypeName
-		default:
-			log.Panicln("Unknown builtin type", u.Type.BuiltinType)
-		}
-	}
-	if _, isFixed := u.Type.ComplexType.(*FixedModel); isFixed {
-		return FixedModelTypeName
-	}
-	return u.Type.ComplexType.GetIdentifier().GetQualifiedClasspath()
 }
 
 func (u *UnionModel) restLiWriteToBuf(def *Group, accessor *Statement) {
@@ -166,4 +121,63 @@ func canonicalizeAccessor(accessor *Statement) string {
 		}
 	}
 	return label
+}
+
+func (u *UnionFieldModel) UnmarshalJSON(data []byte) error {
+	m := &struct {
+		Type  *Model
+		Alias string
+	}{}
+	if err := json.Unmarshal(data, m); err != nil {
+		if strings.Contains(err.Error(), "cannot unmarshal string into Go value of type struct") {
+			sm := &Model{}
+			err = json.Unmarshal(data, sm)
+			if err != nil {
+				return errors.Wrapf(err, "cannot deserialize %s as a union field", string(data))
+			}
+			m.Type = sm
+		} else {
+			return errors.Wrapf(err, "Could not deserialize %s as a union field", string(data))
+		}
+	}
+	u.Alias = m.Alias
+	u.Type = m.Type
+
+	type t UnionFieldModel
+	if err := json.Unmarshal(data, (*t)(u)); err != nil {
+		if !strings.Contains(err.Error(), "json: cannot unmarshal string into Go value of type") {
+			return errors.WithStack(err)
+		}
+	}
+
+	return nil
+}
+
+func (u *UnionFieldModel) name() string {
+	alias := u.alias()
+	return ExportedIdentifier(alias[strings.LastIndex(alias, ".")+1:])
+}
+
+func (u *UnionFieldModel) alias() string {
+	if u.Alias != "" {
+		return u.Alias
+	}
+	if u.Type.BuiltinType != nil {
+		switch u.Type.BuiltinType.(type) {
+		case *PrimitiveModel:
+			return u.Type.BuiltinType.(*PrimitiveModel)[0]
+		case *BytesModel:
+			return BytesModelTypeName
+		case *MapModel:
+			return MapModelTypeName
+		case *ArrayModel:
+			return ArrayModelTypeName
+		default:
+			log.Panicln("Unknown builtin type", u.Type.BuiltinType)
+		}
+	}
+	if _, isFixed := u.Type.ComplexType.(*FixedModel); isFixed {
+		return FixedModelTypeName
+	}
+	return u.Type.ComplexType.GetIdentifier().GetQualifiedClasspath()
 }

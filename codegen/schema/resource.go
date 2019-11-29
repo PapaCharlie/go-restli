@@ -4,7 +4,7 @@ import (
 	"log"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
-	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/codegen/schema/internal"
 )
 
 const (
@@ -16,8 +16,12 @@ const (
 	FormatQueryUrl = "FormatQueryUrl"
 )
 
-func (r *Resource) GenerateCode() (code []*CodeFile) {
-	return generateResourceBindings(nil, r)
+func (r *Resource) GenerateCode() []*CodeFile {
+	code := generateResourceBindings(nil, r)
+	for _, f := range code {
+		f.SourceFilename = r.file
+	}
+	return code
 }
 
 func generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
@@ -87,7 +91,7 @@ func (c *Collection) generateResourceBindings(clientCodeFile *CodeFile, parentRe
 
 func (a *Association) generateResourceBindings(parentResources []*Resource, thisResource *Resource) (code []*CodeFile) {
 	if ct := a.identifier(thisResource).Type.ComplexType; ct != nil {
-		code = append(code, models.GenerateModelCode(ct))
+		code = append(code, internal.NewCodeFileForModel(ct))
 	}
 	for _, action := range a.Actions {
 		code = append(code, action.generate(parentResources, thisResource, false))
@@ -152,17 +156,17 @@ func (r *Resource) getEntity() *Entity {
 }
 
 func (a *Association) identifier(res *Resource) *Identifier {
-	r := new(models.RecordModel)
+	r := new(internal.RecordModel)
 	id := &Identifier{
 		Name: a.Identifier,
-		Type: &ResourceModel{&models.Model{ComplexType: r}},
+		Type: &ResourceModel{&internal.Model{ComplexType: r}},
 	}
 
 	r.Namespace = a.Namespace
 	r.Name = "AssocKey"
 
 	for _, k := range a.AssocKeys {
-		r.Fields = append(r.Fields, models.Field{
+		r.Fields = append(r.Fields, internal.Field{
 			Name: k.Name,
 			Type: k.Type.Model,
 		})

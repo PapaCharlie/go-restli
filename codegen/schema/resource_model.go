@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/codegen"
-	"github.com/PapaCharlie/go-restli/codegen/models"
+	"github.com/PapaCharlie/go-restli/codegen/schema/internal"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/pkg/errors"
 )
@@ -30,25 +30,25 @@ func (r *Resource) UnmarshalJSON(data []byte) error {
 }
 
 type ResourceModel struct {
-	*models.Model
+	*internal.Model
 }
 
 func (r *ResourceModel) UnmarshalJSON(data []byte) error {
-	r.Model = new(models.Model)
+	r.Model = new(internal.Model)
 
-	var primitive models.PrimitiveModel
+	var primitive internal.PrimitiveModel
 	if err := json.Unmarshal(data, &primitive); err == nil {
 		r.Model.BuiltinType = &primitive
 		return nil
 	}
 
-	var bytes models.BytesModel
+	var bytes internal.BytesModel
 	if err := json.Unmarshal(data, &bytes); err == nil {
 		r.Model.BuiltinType = &bytes
 		return nil
 	}
 
-	var ref models.ModelReference
+	var ref internal.ModelReference
 	if err := json.Unmarshal(data, &ref); err == nil {
 		if t := ref.Resolve(); t == nil {
 			return errors.Errorf("Unresolved reference %+v", ref)
@@ -75,7 +75,7 @@ type parameter struct {
 	Default   *string
 }
 
-func (p parameter) toField() (f models.Field) {
+func (p parameter) toField() (f internal.Field) {
 	f.Name = p.Name
 	f.Doc = p.Doc
 	f.Type = p.Type.Model
@@ -84,7 +84,7 @@ func (p parameter) toField() (f models.Field) {
 		// Special case for string default values: the @Optional annotation doesn't escape the string, it puts it as a
 		// literal, therefore we need to escape it before passing it in. Maps and lists are represented as `{}` and
 		// `[]` respectively, so no escaping there, and numeric values don't need to be escaped in JSON.
-		if primitive, ok := p.Type.BuiltinType.(*models.PrimitiveModel); ok && *primitive == models.StringPrimitive {
+		if primitive, ok := p.Type.BuiltinType.(*internal.PrimitiveModel); ok && *primitive == internal.StringPrimitive {
 			raw, _ := json.Marshal(*p.Default)
 			f.Default = json.RawMessage(raw)
 		} else {
@@ -178,16 +178,16 @@ func (f *Finder) UnmarshalJSON(data []byte) error {
 	f.PagingSupported = p.PagingSupported
 
 	if f.PagingSupported {
-		f.Fields = append(f.Fields, models.Field{
+		f.Fields = append(f.Fields, internal.Field{
 			Name:     "start",
 			Doc:      "PagingContext parameter",
-			Type:     &models.Model{BuiltinType: &models.IntPrimitive},
+			Type:     &internal.Model{BuiltinType: &internal.IntPrimitive},
 			Optional: true,
 		})
-		f.Fields = append(f.Fields, models.Field{
+		f.Fields = append(f.Fields, internal.Field{
 			Name:     "count",
 			Doc:      "PagingContext parameter",
-			Type:     &models.Model{BuiltinType: &models.IntPrimitive},
+			Type:     &internal.Model{BuiltinType: &internal.IntPrimitive},
 			Optional: true,
 		})
 	}

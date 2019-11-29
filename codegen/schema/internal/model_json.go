@@ -1,8 +1,9 @@
-package models
+package internal
 
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -26,9 +27,6 @@ func (w *WrongTypeError) Error() string {
 type Model struct {
 	BuiltinType BuiltinType
 	ComplexType ComplexType
-
-	namespace string
-	ref       *ModelReference
 }
 
 func (m *Model) String() string {
@@ -44,12 +42,7 @@ func (m *Model) String() string {
 		s = m.ComplexType
 	}
 
-	if m.ref != nil {
-		t = "Ref"
-		s = m.ref
-	}
-
-	return fmt.Sprintf("Model{namespace: %s, %s: %+v}", m.namespace, t, s)
+	return fmt.Sprintf("Model{%s: %+v}", t, s)
 }
 
 type hasInnerModels interface {
@@ -67,10 +60,7 @@ func (m *Model) innerModels() []*Model {
 }
 
 func (m *Model) UnmarshalJSON(data []byte) error {
-	defer func() {
-		m.propagateNamespaces()
-		m.registerOrReplaceRef()
-	}()
+	defer m.register()
 
 	model := &struct {
 		Namespace string `json:"namespace"`
@@ -78,49 +68,57 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	}{}
 
 	if err := json.Unmarshal(data, model); err != nil {
-		var unmarshalErrors []error
-		var subErr error
-
-		var bytes BytesModel
-		if subErr = json.Unmarshal(data, &bytes); subErr == nil {
-			m.BuiltinType = &bytes
-			return nil
+		if strings.Contains(err.Error(), "cannot unmarshal array") {
+			union := &UnionModel{}
+			if subErr := json.Unmarshal(data, union); subErr == nil {
+				m.BuiltinType = union
+				return nil
+			} else {
+				return errors.Errorf("could not deserialize union: %v, (%s)", subErr, string(data))
+			}
 		} else {
-			unmarshalErrors = append(unmarshalErrors, subErr)
-		}
+			var unmarshalErrors []error
+			var subErr error
 
-		var primitive PrimitiveModel
-		if subErr = json.Unmarshal(data, &primitive); subErr == nil {
-			m.BuiltinType = &primitive
-			return nil
-		} else {
-			unmarshalErrors = append(unmarshalErrors, subErr)
-		}
+			var bytes BytesModel
+			if subErr = json.Unmarshal(data, &bytes); subErr == nil {
+				m.BuiltinType = &bytes
+				return nil
+			} else {
+				unmarshalErrors = append(unmarshalErrors, subErr)
+			}
 
-		var reference ModelReference
-		if subErr = json.Unmarshal(data, &reference); subErr == nil {
-			m.ref = &reference
-			return nil
-		} else {
-			unmarshalErrors = append(unmarshalErrors, subErr)
-		}
+			var primitive PrimitiveModel
+			if subErr = json.Unmarshal(data, &primitive); subErr == nil {
+				m.BuiltinType = &primitive
+				return nil
+			} else {
+				unmarshalErrors = append(unmarshalErrors, subErr)
+			}
 
-		union := &UnionModel{}
-		if subErr = json.Unmarshal(data, union); subErr == nil {
-			m.BuiltinType = union
-			return nil
-		} else {
-			unmarshalErrors = append(unmarshalErrors, subErr)
-		}
+			var reference ModelReference
+			if subErr = json.Unmarshal(data, &reference); subErr == nil {
+				m.ComplexType = reference.Resolve()
+				return nil
+			} else {
+				unmarshalErrors = append(unmarshalErrors, subErr)
+			}
 
-		return errors.Errorf("illegal model type: %v, %v, (%s)", unmarshalErrors, err, string(data))
+			return errors.Errorf("illegal model type: %v, %+v: %s", unmarshalErrors, err, string(data))
+		}
 	}
 
-	m.namespace = model.Namespace
+	if model.Namespace != "" {
+		oldNamespace := currentNamespace
+		defer func() {
+			currentNamespace = oldNamespace
+		}()
+		currentNamespace = model.Namespace
+	}
 
 	var modelType string
 	if err := json.Unmarshal(model.Type, &modelType); err != nil {
-		return errors.Wrap(err, "type must either be a string or union")
+		return errors.Wrapf(err, "type must either be a string or union (%s)", model.Type)
 	}
 
 	switch modelType {
@@ -185,48 +183,25 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 
 	var referenceType ModelReference
 	if err := json.Unmarshal(model.Type, &referenceType); err == nil {
-		m.ref = &referenceType
+		m.ComplexType = referenceType.Resolve()
 		return nil
 	}
 
 	return errors.Errorf("could not deserialize %v into %v", string(data), m)
 }
 
-func (m *Model) propagateNamespaces() {
-	if m.ref != nil {
-		if m.namespace != "" && m.ref.Namespace == "" {
-			m.ref.Namespace = m.namespace
-		}
-	}
-
-	if m.ComplexType != nil {
-		m.ComplexType.setNamespace(m.namespace)
-	}
-
-	for _, child := range m.innerModels() {
-		if child.namespace == "" {
-			child.namespace = m.namespace
-		}
-		child.propagateNamespaces()
-	}
-}
-
-func (m *Model) registerOrReplaceRef() {
-	if m.ref != nil {
-		if resolvedModel := m.ref.Resolve(); resolvedModel != nil {
-			m.ComplexType = resolvedModel
-			m.ref = nil
-		}
-	}
-
+func (m *Model) register() {
 	if m.ComplexType != nil {
 		id := m.ComplexType.GetIdentifier()
-		if id.Namespace != "" && modelRegistry[id] == nil {
-			modelRegistry[id] = m.ComplexType
+		if id.Namespace != "" && ModelRegistry[id] == nil {
+			ModelRegistry[id] = &PdscModel{
+				Type: m.ComplexType,
+				File: currentFile,
+			}
 		}
 	}
 
 	for _, child := range m.innerModels() {
-		child.registerOrReplaceRef()
+		child.register()
 	}
 }

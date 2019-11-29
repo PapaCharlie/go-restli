@@ -1,4 +1,4 @@
-package models
+package internal
 
 import (
 	"log"
@@ -8,6 +8,15 @@ import (
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 )
+
+type PdscModel struct {
+	Type ComplexType
+	File string
+}
+
+func (p *PdscModel) toModel() *Model {
+	return &Model{ComplexType: p.Type}
+}
 
 type Identifier struct {
 	Namespace string `json:"namespace"`
@@ -40,8 +49,8 @@ func (i *Identifier) PackagePath() string {
 	} else {
 		p = strings.Replace(namespaceEscape.ReplaceAllString(i.Namespace, "${1}_internal${2}"), ".", "/", -1)
 	}
-	if GetPackagePrefix() != "" {
-		p = filepath.Join(GetPackagePrefix(), p)
+	if PackagePrefix != "" {
+		p = filepath.Join(PackagePrefix, p)
 	}
 	return p
 }
@@ -77,12 +86,18 @@ type ComplexType interface {
 	setNamespace(ns string)
 }
 
-func GenerateModelCode(m ComplexType) *CodeFile {
+func NewCodeFileForModel(ct ComplexType) *CodeFile {
 	return &CodeFile{
-		PackagePath: m.PackagePath(),
-		Filename:    m.GetIdentifier().Name,
-		Code:        m.GenerateCode(),
+		PackagePath: ct.PackagePath(),
+		Filename:    ct.GetIdentifier().Name,
+		Code:        ct.GenerateCode(),
 	}
+}
+
+func (m *PdscModel) GenerateModelCode() *CodeFile {
+	f := NewCodeFileForModel(m.Type)
+	f.SourceFilename = m.File
+	return f
 }
 
 func (m *Model) IsMapOrArray() bool {

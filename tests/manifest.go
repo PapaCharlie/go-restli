@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/codegen/cli"
-	"github.com/PapaCharlie/go-restli/codegen/schema"
+	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
@@ -26,9 +25,9 @@ type Manifest struct {
 }
 
 type WireProtocolTestData struct {
-	Name       string
-	Schema     *schema.Resource
-	Operations []Operation
+	Name        string
+	PackagePath string
+	Operations  []Operation
 }
 
 type Operation struct {
@@ -55,13 +54,8 @@ func (d *WireProtocolTestData) UnmarshalJSON(data []byte) error {
 	}
 
 	d.Name = testData.Name
+	d.PackagePath = strings.Replace(strings.TrimSuffix(strings.TrimPrefix(testData.Snapshot, "snapshots/"), ".snapshot.json"), ".", "/", -1)
 	d.Operations = testData.Operations
-
-	snapshot, err := cli.LoadSnapshotFromFile(filepath.Join(restLiClientTestSuite, testData.Snapshot))
-	if err != nil {
-		return errors.WithStack(err)
-	}
-	d.Schema = snapshot.Schema
 
 	return nil
 }
@@ -124,7 +118,7 @@ func (o *Operation) TestMethodName() string {
 func ReadManifest() *Manifest {
 	f := filepath.Join(restLiClientTestSuite, "manifest.json")
 	m := new(Manifest)
-	err := cli.ReadJSONFromFile(f, m)
+	err := codegen.ReadJSONFromFile(f, m)
 	if err != nil {
 		log.Panicln(err)
 	}

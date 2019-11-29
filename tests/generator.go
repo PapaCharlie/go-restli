@@ -8,30 +8,31 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/cli"
 )
 
 const (
 	restLiClientTestSuite  = "rest.li-test-suite/client-testsuite"
 	generatedPackageSuffix = "generated"
-	packagePrefix          = "github.com/PapaCharlie/go-restli/tests/" + generatedPackageSuffix
 )
+
+func init() {
+	codegen.PdscDirectory = filepath.Join(restLiClientTestSuite, "schemas")
+	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/tests/" + generatedPackageSuffix
+}
 
 //go:generate go run .
 func main() {
 	log.SetFlags(log.Lshortfile)
 
-	snapshotsDir := filepath.Join(restLiClientTestSuite, "snapshots")
-	if _, err := os.Stat(snapshotsDir); err != nil {
-		log.Panicln(snapshotsDir, "does not exist! Did you use `git clone --recurse-submodules`?", err)
-	}
-
-	snapshots, err := filepath.Glob(filepath.Join(snapshotsDir, "/*.snapshot.json"))
+	restspecsDir := filepath.Join(restLiClientTestSuite, "restspecs")
+	restspecs, err := filepath.Glob(restspecsDir + "/*.restspec.json")
 	if err != nil {
-		log.Panicln("Could list read", snapshotsDir, err)
+		log.Panicln("Could list read", restspecsDir, err)
 	}
-	if len(snapshots) == 0 {
-		log.Panicln("No snapshots found in", snapshotsDir)
+	if len(restspecs) == 0 {
+		log.Panicln("No restspecs found in", restspecsDir)
 	}
 
 	tmpDir, err := ioutil.TempDir("", "")
@@ -39,20 +40,20 @@ func main() {
 		log.Panicln("Failed to create temp directory", err)
 	}
 
-	err = cli.Run(snapshots, tmpDir, packagePrefix)
+	err = cli.Run(restspecs, tmpDir)
 	if err != nil {
-		log.Panicln("Could not generate code from snapshots", err)
+		log.Panicln("Could not generate code from restspecs", err)
 	}
 
 	_ = os.RemoveAll(generatedPackageSuffix)
-	err = os.Rename(filepath.Join(tmpDir, packagePrefix), generatedPackageSuffix)
+	err = os.Rename(filepath.Join(tmpDir, codegen.PackagePrefix), generatedPackageSuffix)
 	if err != nil {
 		log.Panicln("Failed to move the generated code", err)
 	}
 
 	_ = os.RemoveAll(tmpDir)
 
-	//generateClientTests()
+	generateClientTests()
 }
 
 // generateClientTests is ignored by default, but it can be used to bootstrap the test framework by generating empty
@@ -76,7 +77,7 @@ import (
 
 	. "%s"
 )
-`, wd.Schema.PackagePath()+"/"+wd.Schema.Name)
+`, filepath.Join(codegen.PackagePrefix, wd.PackagePath))
 				if err != nil {
 					log.Panicln(err)
 				}
