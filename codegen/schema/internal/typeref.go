@@ -16,6 +16,12 @@ type TyperefModel struct {
 	Ref *Model
 }
 
+func (r *TyperefModel) CopyWithAlias(alias string) ComplexType {
+	rCopy := *r
+	rCopy.Name = alias
+	return &rCopy
+}
+
 func (r *TyperefModel) UnmarshalJSON(data []byte) error {
 	t := &struct {
 		typeField

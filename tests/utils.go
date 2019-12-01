@@ -71,8 +71,7 @@ func adjustContentLength(filename string, b []byte, h http.Header) []byte {
 		if len(b) != cli {
 			log.Printf("Content-Length header in %s indicates %d bytes, but body was %d bytes", filename, cli, len(b))
 			h.Set(contentLength, fmt.Sprintf("%d", len(b)))
-			return b
 		}
 	}
-	return nil
+	return b
 }

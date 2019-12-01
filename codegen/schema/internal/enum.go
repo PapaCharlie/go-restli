@@ -18,6 +18,12 @@ type EnumModel struct {
 	SymbolDocs map[string]string
 }
 
+func (e *EnumModel) CopyWithAlias(alias string) ComplexType {
+	eCopy := *e
+	eCopy.Name = alias
+	return &eCopy
+}
+
 func (e *EnumModel) UnmarshalJSON(data []byte) error {
 	t := &struct {
 		Identifier

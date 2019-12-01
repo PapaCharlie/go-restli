@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/codegen"
@@ -34,6 +35,7 @@ func main() {
 	if len(restspecs) == 0 {
 		log.Panicln("No restspecs found in", restspecsDir)
 	}
+	sort.Strings(restspecs)
 
 	tmpDir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -52,8 +54,7 @@ func main() {
 	}
 
 	_ = os.RemoveAll(tmpDir)
-
-	generateClientTests()
+	//generateClientTests()
 }
 
 // generateClientTests is ignored by default, but it can be used to bootstrap the test framework by generating empty

@@ -33,25 +33,32 @@ type ResourceModel struct {
 	*internal.Model
 }
 
-func (r *ResourceModel) UnmarshalJSON(data []byte) error {
+func (r *ResourceModel) UnmarshalJSON(data []byte) (err error) {
 	r.Model = new(internal.Model)
 
+	defer func() {
+		if err == nil {
+			loadedModels = append(loadedModels, r.Model)
+		}
+	}()
+
 	var primitive internal.PrimitiveModel
-	if err := json.Unmarshal(data, &primitive); err == nil {
+	if err = json.Unmarshal(data, &primitive); err == nil {
 		r.Model.BuiltinType = &primitive
 		return nil
 	}
 
 	var bytes internal.BytesModel
-	if err := json.Unmarshal(data, &bytes); err == nil {
+	if err = json.Unmarshal(data, &bytes); err == nil {
 		r.Model.BuiltinType = &bytes
 		return nil
 	}
 
 	var ref internal.ModelReference
-	if err := json.Unmarshal(data, &ref); err == nil {
-		if t := ref.Resolve(); t == nil {
-			return errors.Errorf("Unresolved reference %+v", ref)
+	if err = json.Unmarshal(data, &ref); err == nil {
+		if t, resErr := ref.Resolve(); t == nil {
+			err = errors.WithStack(resErr)
+			return err
 		} else {
 			r.Model.ComplexType = t
 			return nil
@@ -61,8 +68,9 @@ func (r *ResourceModel) UnmarshalJSON(data []byte) error {
 	var unescapedType string
 	_ = json.Unmarshal(data, &unescapedType)
 
-	if err := json.Unmarshal([]byte(unescapedType), r.Model); err != nil {
-		return errors.Errorf("Failed to deserialize Resource model from %s: %+v", unescapedType, err)
+	if err = json.Unmarshal([]byte(unescapedType), r.Model); err != nil {
+		err = errors.Wrapf(err, "Failed to deserialize Resource model from %s", unescapedType)
+		return err
 	}
 
 	return nil

@@ -59,52 +59,60 @@ func (m *Model) innerModels() []*Model {
 	return nil
 }
 
-func (m *Model) UnmarshalJSON(data []byte) error {
-	defer m.register()
+func (m *Model) UnmarshalJSON(data []byte) (err error) {
+	defer func() {
+		if err != nil {
+			m.register()
+
+		}
+	}()
 
 	model := &struct {
 		Namespace string `json:"namespace"`
 		Type      json.RawMessage
+		Aliases   []string `json:"aliases"`
 	}{}
 
-	if err := json.Unmarshal(data, model); err != nil {
+	if err = json.Unmarshal(data, model); err != nil {
+		originalErr := err
 		if strings.Contains(err.Error(), "cannot unmarshal array") {
 			union := &UnionModel{}
-			if subErr := json.Unmarshal(data, union); subErr == nil {
+			if err = json.Unmarshal(data, union); err == nil {
 				m.BuiltinType = union
 				return nil
 			} else {
-				return errors.Errorf("could not deserialize union: %v, (%s)", subErr, string(data))
+				err = errors.Wrapf(err, "could not deserialize union: %v, (%s)", originalErr, string(data))
+				return err
 			}
 		} else {
 			var unmarshalErrors []error
-			var subErr error
 
 			var bytes BytesModel
-			if subErr = json.Unmarshal(data, &bytes); subErr == nil {
+			if err = json.Unmarshal(data, &bytes); err == nil {
 				m.BuiltinType = &bytes
 				return nil
 			} else {
-				unmarshalErrors = append(unmarshalErrors, subErr)
+				unmarshalErrors = append(unmarshalErrors, err)
 			}
 
 			var primitive PrimitiveModel
-			if subErr = json.Unmarshal(data, &primitive); subErr == nil {
+			if err = json.Unmarshal(data, &primitive); err == nil {
 				m.BuiltinType = &primitive
 				return nil
 			} else {
-				unmarshalErrors = append(unmarshalErrors, subErr)
+				unmarshalErrors = append(unmarshalErrors, err)
 			}
 
 			var reference ModelReference
-			if subErr = json.Unmarshal(data, &reference); subErr == nil {
-				m.ComplexType = reference.Resolve()
-				return nil
+			if err = json.Unmarshal(data, &reference); err == nil {
+				m.ComplexType, err = reference.Resolve()
+				return err
 			} else {
-				unmarshalErrors = append(unmarshalErrors, subErr)
+				unmarshalErrors = append(unmarshalErrors, err)
 			}
 
-			return errors.Errorf("illegal model type: %v, %+v: %s", unmarshalErrors, err, string(data))
+			err = errors.Errorf("illegal model type: %v, %+v (%s)", originalErr, unmarshalErrors, string(data))
+			return err
 		}
 	}
 
@@ -116,59 +124,68 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 		currentNamespace = model.Namespace
 	}
 
+	if len(model.Aliases) > 0 {
+		defer func() {
+			for _, alias := range model.Aliases {
+				registerComplexType(m.ComplexType.CopyWithAlias(alias))
+			}
+		}()
+	}
+
 	var modelType string
-	if err := json.Unmarshal(model.Type, &modelType); err != nil {
-		return errors.Wrapf(err, "type must either be a string or union (%s)", model.Type)
+	if err = json.Unmarshal(model.Type, &modelType); err != nil {
+		err = errors.Wrapf(err, "type must either be a string or union (%s)", model.Type)
+		return err
 	}
 
 	switch modelType {
 	case RecordModelTypeName:
 		recordType := &RecordModel{}
-		if err := json.Unmarshal(data, recordType); err == nil {
+		if err = errors.WithStack(json.Unmarshal(data, recordType)); err == nil {
 			m.ComplexType = recordType
 			return nil
 		} else {
-			return errors.WithStack(err)
+			return err
 		}
 	case EnumModelTypeName:
 		enumType := &EnumModel{}
-		if err := json.Unmarshal(data, enumType); err == nil {
+		if err = errors.WithStack(json.Unmarshal(data, enumType)); err == nil {
 			m.ComplexType = enumType
 			return nil
 		} else {
-			return errors.WithStack(err)
+			return err
 		}
 	case FixedModelTypeName:
 		fixedType := &FixedModel{}
-		if err := json.Unmarshal(data, fixedType); err == nil {
+		if err = errors.WithStack(json.Unmarshal(data, fixedType)); err == nil {
 			m.ComplexType = fixedType
 			return nil
 		} else {
-			return errors.WithStack(err)
+			return err
 		}
 	case MapModelTypeName:
 		mapType := &MapModel{}
-		if err := json.Unmarshal(data, mapType); err == nil {
+		if err = errors.WithStack(json.Unmarshal(data, mapType)); err == nil {
 			m.BuiltinType = mapType
 			return nil
 		} else {
-			return errors.WithStack(err)
+			return err
 		}
 	case ArrayModelTypeName:
 		arrayType := &ArrayModel{}
-		if err := json.Unmarshal(data, arrayType); err == nil {
+		if err = errors.WithStack(json.Unmarshal(data, arrayType)); err == nil {
 			m.BuiltinType = arrayType
 			return nil
 		} else {
-			return errors.WithStack(err)
+			return err
 		}
 	case TyperefModelTypeName:
 		typerefType := &TyperefModel{}
-		if err := json.Unmarshal(data, typerefType); err == nil {
+		if err = errors.WithStack(json.Unmarshal(data, typerefType)); err == nil {
 			m.ComplexType = typerefType
 			return nil
 		} else {
-			return errors.WithStack(err)
+			return err
 		}
 	case BytesModelTypeName:
 		m.BuiltinType = &BytesModel{}
@@ -176,29 +193,24 @@ func (m *Model) UnmarshalJSON(data []byte) error {
 	}
 
 	var primitiveType PrimitiveModel
-	if err := json.Unmarshal(model.Type, &primitiveType); err == nil {
+	if err = json.Unmarshal(model.Type, &primitiveType); err == nil {
 		m.BuiltinType = &primitiveType
 		return nil
 	}
 
 	var referenceType ModelReference
-	if err := json.Unmarshal(model.Type, &referenceType); err == nil {
-		m.ComplexType = referenceType.Resolve()
-		return nil
+	if err = json.Unmarshal(model.Type, &referenceType); err == nil {
+		m.ComplexType, err = referenceType.Resolve()
+		return err
 	}
 
-	return errors.Errorf("could not deserialize %v into %v", string(data), m)
+	err = errors.Errorf("could not deserialize %v into %v", string(data), m)
+	return err
 }
 
 func (m *Model) register() {
 	if m.ComplexType != nil {
-		id := m.ComplexType.GetIdentifier()
-		if id.Namespace != "" && ModelRegistry[id] == nil {
-			ModelRegistry[id] = &PdscModel{
-				Type: m.ComplexType,
-				File: currentFile,
-			}
-		}
+		registerComplexType(m.ComplexType)
 	}
 
 	for _, child := range m.innerModels() {

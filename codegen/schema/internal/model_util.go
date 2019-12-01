@@ -2,8 +2,13 @@ package internal
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -17,7 +22,76 @@ var (
 	CyclicModels  = make(map[Identifier]bool)
 )
 
-func ResolveCyclicDependencies() {
+func registerComplexType(t ComplexType) {
+	id := t.GetIdentifier()
+	if id.Namespace != "" && ModelRegistry[id] == nil {
+		ModelRegistry[id] = &PdscModel{
+			Type: t,
+			File: currentFile,
+		}
+	}
+}
+
+func LoadModels() error {
+	failedFiles := make(map[string]error)
+	err := filepath.Walk(codegen.PdscDirectory, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		m := new(Model)
+		err = codegen.ReadJSONFromFile(path, m)
+		if err != nil {
+			failedFiles[path] = err
+			return nil
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	failedFilesLength := len(failedFiles)
+	for len(failedFiles) != 0 {
+		for f := range failedFiles {
+			m := new(Model)
+			err = codegen.ReadJSONFromFile(f, m)
+			if err != nil {
+				failedFiles[f] = err
+			} else {
+				delete(failedFiles, f)
+			}
+		}
+
+		if len(failedFiles) == failedFilesLength {
+			return errors.Errorf("Failed to deserialize the following files: %+v", failedFiles)
+		}
+	}
+	return nil
+}
+
+func trimUnneededModels(models []*Model) {
+	loadedModels := make(map[Identifier]bool)
+	for _, m := range models {
+		if m.ComplexType != nil {
+			loadedModels[m.ComplexType.GetIdentifier()] = true
+		}
+		for dep := range m.allDependencies(nil) {
+			loadedModels[dep.GetIdentifier()] = true
+		}
+	}
+	for id := range ModelRegistry {
+		if !loadedModels[id] {
+			delete(ModelRegistry, id)
+		}
+	}
+}
+
+func ResolveCyclicDependencies(loadedModels []*Model) {
+	trimUnneededModels(loadedModels)
+
 	for _, pdscModel := range ModelRegistry {
 		m := pdscModel.toModel()
 		for {

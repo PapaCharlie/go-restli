@@ -83,7 +83,7 @@ type ComplexType interface {
 	GenerateCode() (def *Statement)
 	PackagePath() string
 	GetIdentifier() Identifier
-	setNamespace(ns string)
+	CopyWithAlias(alias string) ComplexType
 }
 
 func NewCodeFileForModel(ct ComplexType) *CodeFile {

@@ -26,6 +26,10 @@ import (
 	collectiontyperef "github.com/PapaCharlie/go-restli/tests/generated/testsuite/typerefs/collectionTyperef"
 )
 
+func init() {
+	log.SetFlags(log.Lshortfile)
+}
+
 func (o *Operation) TestMethod() *reflect.Method {
 	if m, ok := reflect.TypeOf(&TestServer{}).MethodByName(o.TestMethodName()); ok {
 		return &m

@@ -2,7 +2,7 @@ package internal
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -64,28 +64,44 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (r *ModelReference) Resolve() (t ComplexType) {
+type UnknownReferenceError struct {
+	Identifier
+	Cause error
+}
+
+func (u *UnknownReferenceError) Error() string {
+	return fmt.Sprintf("unknown type: %s", u.GetQualifiedClasspath())
+}
+
+func IsUnknownReferenceError(err error) bool {
+	_, ok := errors.Cause(err).(*UnknownReferenceError)
+	return ok
+}
+
+func (r *ModelReference) Resolve() (ComplexType, error) {
 	if r.Namespace == "" || r.Name == "" {
-		log.Panicf("Unresolvable reference in %s: %+v", currentFile, r)
+		return nil, errors.Errorf("Unresolvable reference in %s: %+v", currentFile, r)
 	}
 	if m, ok := ModelRegistry[Identifier(*r)]; ok {
-		return m.Type
+		return m.Type, nil
 	}
 
 	oldCurrentFile := currentFile
 	currentFile = filepath.Join(append(append([]string{codegen.PdscDirectory}, strings.Split(r.Namespace, ".")...), r.Name+".pdsc")...)
 	m := new(Model)
-	err := codegen.ReadJSONFromFile(currentFile, m)
-	if err != nil {
-		log.Panicln("Could not deserialize", currentFile, err)
+	if err := codegen.ReadJSONFromFile(currentFile, m); err != nil {
+		return nil, errors.WithStack(&UnknownReferenceError{
+			Identifier: Identifier(*r),
+			Cause:      err,
+		})
 	}
 	if m.ComplexType == nil {
-		log.Panicf("PDSC model loaded from %s does not define a ComplexType: %+v", currentFile, m)
+		return nil, errors.Errorf("PDSC model loaded from %s does not define a ComplexType: %+v", currentFile, m)
 	}
 	ModelRegistry[m.ComplexType.GetIdentifier()] = &PdscModel{
 		Type: m.ComplexType,
 		File: currentFile,
 	}
 	currentFile = oldCurrentFile
-	return m.ComplexType
+	return m.ComplexType, nil
 }

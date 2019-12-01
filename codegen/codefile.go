@@ -294,7 +294,7 @@ func GenerateAllImportsFile(outputDir string, codeFiles []*CodeFile) {
 func ReadJSONFromFile(filename string, s interface{}) error {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Panicln("Could not read", filename, err)
+		return errors.WithStack(err)
 	}
 
 	err = json.Unmarshal(data, s)

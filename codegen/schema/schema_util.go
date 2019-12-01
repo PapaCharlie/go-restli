@@ -8,30 +8,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-func LoadRestSpecs(restSpecs []string) (resources []*Resource, types []*internal.PdscModel, err error) {
-	var f string
-	defer func() {
-		if r := recover(); r != nil {
-			if f != "" {
-				log.Panicf("Failed to read %s: %+v", f, r)
-			} else {
-				log.Panicln(r)
-			}
-		}
-	}()
+var loadedModels []*internal.Model
 
-	for _, f = range restSpecs {
+func LoadRestSpecs(restSpecs []string) (resources []*Resource, types []*internal.PdscModel, err error) {
+	err = internal.LoadModels()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, f := range restSpecs {
 		log.Println(f)
 		r := &Resource{file: f}
-		err = codegen.ReadJSONFromFile(f, r)
+		err = errors.Wrapf(codegen.ReadJSONFromFile(f, r), "Failed to read restspec from %s", f)
 		if err != nil {
-			return nil, nil, errors.WithStack(err)
+			return nil, nil, err
 		}
 		resources = append(resources, r)
 	}
-	f = ""
 
-	internal.ResolveCyclicDependencies()
+	internal.ResolveCyclicDependencies(loadedModels)
 
 	for _, t := range internal.ModelRegistry {
 		types = append(types, t)

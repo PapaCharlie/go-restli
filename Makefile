@@ -21,4 +21,4 @@ integration-test: clean
 
 clean:
 	git -C tests/rest.li-test-suite reset --hard origin/master
-	rm -rf generated
+	rm -rf tests/generated

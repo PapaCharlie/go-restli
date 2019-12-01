@@ -41,20 +41,48 @@ func (r *RecordModel) UnmarshalJSON(data []byte) error {
 		Identifier
 		typeField
 		docField
-		Include []*Model `json:"include"`
-		Fields  []Field  `json:"fields"`
+		Include json.RawMessage `json:"include"`
+		Fields  []Field         `json:"fields"`
 	}{}
-	if err := json.Unmarshal(data, t); err != nil {
-		return err
+	// Includes clauses can include models defined in the fields (and vice versa), so we try to deserialize the includes
+	// before, then after if any issues occur.
+	var includes []*Model
+	deserializeIncludes := len(t.Include) > 0
+	if deserializeIncludes {
+		if err := json.Unmarshal(t.Include, &includes); err != nil {
+			if !IsUnknownReferenceError(err) {
+				return errors.WithStack(err)
+			}
+		}
+		deserializeIncludes = false
 	}
+
+	if err := errors.WithStack(json.Unmarshal(data, t)); err != nil {
+		if !IsUnknownReferenceError(err) {
+			return err
+		}
+	}
+
+	if deserializeIncludes {
+		if err := json.Unmarshal(t.Include, &includes); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
 	if t.Type != RecordModelTypeName {
 		return errors.Errorf("Not a record type: %s", string(data))
 	}
 	r.Identifier = t.Identifier
 	r.Doc = t.Doc
-	r.Include = t.Include
+	r.Include = includes
 	r.Fields = t.Fields
 	return nil
+}
+
+func (r *RecordModel) CopyWithAlias(alias string) ComplexType {
+	rCopy := *r
+	rCopy.Name = alias
+	return &rCopy
 }
 
 func (r *RecordModel) innerModels() (models []*Model) {

@@ -38,6 +38,12 @@ func (f *FixedModel) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (f *FixedModel) CopyWithAlias(alias string) ComplexType {
+	fCopy := *f
+	fCopy.Name = alias
+	return &fCopy
+}
+
 func (f *FixedModel) GenerateCode() (def *Statement) {
 	def = Empty()
 	AddWordWrappedComment(def, f.Doc).Line()
