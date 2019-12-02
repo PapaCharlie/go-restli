@@ -45,11 +45,10 @@ func (m *Model) String() string {
 	return fmt.Sprintf("Model{%s: %+v}", t, s)
 }
 
-type hasInnerModels interface {
-	innerModels() []*Model
-}
-
 func (m *Model) innerModels() []*Model {
+	type hasInnerModels interface {
+		innerModels() []*Model
+	}
 	if im, ok := m.ComplexType.(hasInnerModels); ok {
 		return im.innerModels()
 	}

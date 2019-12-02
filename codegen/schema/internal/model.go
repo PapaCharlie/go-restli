@@ -44,7 +44,10 @@ func (i *Identifier) PackagePath() string {
 		log.Panicf("%+v has no namespace!", i)
 	}
 	var p string
-	if CyclicModels[*i] {
+	//if _, ok := DependencyGraph[*i]; !ok {
+	//	log.Println(DependencyGraph, i)
+	//}
+	if DependencyGraph.IsCyclic(*i) {
 		p = "conflictResolution"
 	} else {
 		p = strings.Replace(namespaceEscape.ReplaceAllString(i.Namespace, "${1}_internal${2}"), ".", "/", -1)

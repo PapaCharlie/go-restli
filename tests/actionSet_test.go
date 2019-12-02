@@ -83,7 +83,7 @@ func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c *Client) {
 }
 
 func (s *TestServer) ActionsetEchoComplexTypesUnion(t *testing.T, c *Client) {
-	union := conflictresolution.NewUnionOfComplexTypes()
+	union := testsuite.NewUnionOfComplexTypes()
 	union.ComplexTypeUnion.Fruits = new(conflictresolution.Fruits)
 	*union.ComplexTypeUnion.Fruits = conflictresolution.Fruits_APPLE
 
