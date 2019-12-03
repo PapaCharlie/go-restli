@@ -2,6 +2,7 @@ package internal
 
 import (
 	"log"
+	"sort"
 	"strings"
 )
 
@@ -25,19 +26,20 @@ func (set *IdentifierSet) Get(id Identifier) bool {
 	return (*set)[id]
 }
 
-func (set *IdentifierSet) String() string {
+func (set IdentifierSet) String() string {
 	var classes []string
-	for s := range *set {
-		classes = append(classes, s.String())
+	for s := range set {
+		classes = append(classes, s.GetQualifiedClasspath())
 	}
+	sort.Strings(classes)
 	return "{" + strings.Join(classes, ", ") + "}"
 }
 
 type GraphNode struct {
-	Identifier
-	Parents  IdentifierSet
-	Children IdentifierSet
-	IsCyclic bool
+	Identifier Identifier
+	Parents    IdentifierSet
+	Children   IdentifierSet
+	IsCyclic   bool
 }
 
 type Graph map[Identifier]*GraphNode
@@ -78,9 +80,13 @@ func (g *Graph) AllDependencies(id Identifier, set IdentifierSet) IdentifierSet 
 }
 
 func (g *Graph) FindCycle(nextNode Identifier, depth int, path Path) []Identifier {
-	if cycleStart, ok := path.VisitedNamespaces[nextNode.Namespace]; ok && len(path.VisitedNamespaces) > 1 {
-		// cycle!
-		return append(path.ToIdentifierSequence(cycleStart), nextNode)
+	if cycle := path.IntroducesCycle(nextNode, depth); len(cycle) > 0 {
+		return cycle
+	}
+
+	// We've already seen this node, but it didn't introduce a cycle. Don't descend into its children
+	if _, ok := path.VisitedNodes[nextNode]; ok {
+		return nil
 	}
 
 	newPath := path.CopyWith(nextNode, depth)
@@ -167,13 +173,22 @@ func (p *Path) CopyWith(id Identifier, depth int) Path {
 	return newPath
 }
 
-func (p *Path) ToIdentifierSequence(cycleStart int) []Identifier {
-	seq := make([]Identifier, len(p.VisitedNodes)-cycleStart)
-	log.Printf("%d %d %d %+v", len(p.VisitedNodes), cycleStart, cap(seq), p)
-	for id, index := range p.VisitedNodes {
-		if index >= cycleStart {
-			seq[index-cycleStart] = id
+func (p *Path) IntroducesCycle(nextNode Identifier, depth int) []Identifier {
+	if cycleStart, ok := p.VisitedNamespaces[nextNode.Namespace]; ok {
+		for _, d := range p.VisitedNamespaces {
+			if d > cycleStart {
+				// This means we visited this namespace strictly after the original visit to nextNode's namespace. In
+				// other words: nextNode is introducing a cycle
+				seq := make([]Identifier, len(p.VisitedNodes)-cycleStart+1)
+				for id, index := range p.VisitedNodes {
+					if index >= cycleStart {
+						seq[index-cycleStart] = id
+					}
+				}
+				seq[len(seq)-1] = nextNode
+				return seq
+			}
 		}
 	}
-	return seq
+	return nil
 }

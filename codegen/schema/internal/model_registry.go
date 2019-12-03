@@ -67,6 +67,16 @@ func (reg *modelRegistry) trimUnneededModels(loadedModels []*Model) {
 			delete(reg.unresolvedModels, id)
 		}
 	}
+	for id := range reg.resolvedTypes {
+		if !loadedModelIdentifiers[id] {
+			delete(reg.resolvedTypes, id)
+		}
+	}
+	for id := range DependencyGraph {
+		if !loadedModelIdentifiers[id] {
+			delete(DependencyGraph, id)
+		}
+	}
 }
 
 func (reg *modelRegistry) Resolve(id Identifier) (ComplexType, error) {
@@ -82,6 +92,15 @@ func (reg *modelRegistry) GetModels() (types []*PdscModel) {
 		types = append(types, t)
 	}
 	return types
+}
+
+func (reg *modelRegistry) GetSourceFileFilename(id Identifier) string {
+	if m, ok := reg.resolvedTypes[id]; ok {
+		return m.File
+	} else {
+		log.Panicf("Unknown model: %s", id)
+		return ""
+	}
 }
 
 func (reg *modelRegistry) resolveModels() error {

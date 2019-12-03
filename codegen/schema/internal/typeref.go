@@ -49,6 +49,13 @@ func (r *TyperefModel) innerModels() []*Model {
 
 func (r *TyperefModel) GenerateCode() (def *Statement) {
 	def = Empty()
+
+	if ref := r.Ref.ComplexType; ref != nil {
+		// TODO
+		log.Printf("Warning: type references to non-primitive types are not yet supported (%s)", r.Identifier)
+		return def
+	}
+
 	AddWordWrappedComment(def, r.Doc).Line()
 	def.Type().Id(r.Name).Add(r.Ref.GoType()).Line().Line()
 
@@ -99,6 +106,6 @@ func (r *TyperefModel) GenerateCode() (def *Statement) {
 		return def
 	}
 
-	log.Panicln("Illegal typeref type:", r.Ref)
+	log.Panicf("Illegal typeref type %s defined in %s", r.Ref, ModelRegistry.GetSourceFileFilename(r.Identifier))
 	return nil
 }

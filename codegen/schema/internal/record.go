@@ -41,33 +41,13 @@ func (r *RecordModel) UnmarshalJSON(data []byte) error {
 		Identifier
 		typeField
 		docField
-		Include json.RawMessage `json:"include"`
-		Fields  []Field         `json:"fields"`
+		Include []*Model `json:"include"`
+		Fields  []Field  `json:"fields"`
 	}{}
 	t.Namespace = currentNamespace // default to the current namespace if none is specified
-	// Includes clauses can include models defined in the fields (and vice versa), so we try to deserialize the includes
-	// before, then after if any issues occur.
-	var includes []*Model
-	deserializeIncludes := len(t.Include) > 0
-	if deserializeIncludes {
-		if err := json.Unmarshal(t.Include, &includes); err != nil {
-			if !IsUnknownReferenceError(err) {
-				return errors.WithStack(err)
-			}
-		}
-		deserializeIncludes = false
-	}
 
 	if err := errors.WithStack(json.Unmarshal(data, t)); err != nil {
-		if !IsUnknownReferenceError(err) {
-			return err
-		}
-	}
-
-	if deserializeIncludes {
-		if err := json.Unmarshal(t.Include, &includes); err != nil {
-			return errors.WithStack(err)
-		}
+		return errors.WithStack(err)
 	}
 
 	if t.Type != RecordModelTypeName {
@@ -75,7 +55,7 @@ func (r *RecordModel) UnmarshalJSON(data []byte) error {
 	}
 	r.Identifier = t.Identifier
 	r.Doc = t.Doc
-	r.Include = includes
+	r.Include = t.Include
 	r.Fields = t.Fields
 	return nil
 }

@@ -2,7 +2,6 @@ package internal
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -61,20 +60,6 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-type UnknownReferenceError struct {
-	Identifier
-	Cause error
-}
-
-func (u *UnknownReferenceError) Error() string {
-	return fmt.Sprintf("unknown type: %s", u.Identifier)
-}
-
-func IsUnknownReferenceError(err error) bool {
-	_, ok := errors.Cause(err).(*UnknownReferenceError)
-	return ok
 }
 
 func (r *ModelReference) resolveOrRegisterPending(m *Model) bool {
