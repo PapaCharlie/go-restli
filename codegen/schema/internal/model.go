@@ -3,24 +3,20 @@ package internal
 import (
 	"log"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	. "github.com/PapaCharlie/go-restli/codegen"
 	. "github.com/dave/jennifer/jen"
 )
 
-type PdscModel struct {
-	Type ComplexType
-	File string
-}
-
-func (p *PdscModel) toModel() *Model {
-	return &Model{ComplexType: p.Type}
-}
-
 type Identifier struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
+}
+
+func (i Identifier) String() string {
+	return i.GetQualifiedClasspath()
 }
 
 func (i *Identifier) GetIdentifier() Identifier {
@@ -39,14 +35,13 @@ func (i *Identifier) GoType() *Statement {
 	return Qual(i.PackagePath(), i.Name)
 }
 
+var namespaceEscape = regexp.MustCompile("([/.])_?internal([/.]?)")
+
 func (i *Identifier) PackagePath() string {
 	if i.Namespace == "" {
 		log.Panicf("%+v has no namespace!", i)
 	}
 	var p string
-	//if _, ok := DependencyGraph[*i]; !ok {
-	//	log.Println(DependencyGraph, i)
-	//}
 	if DependencyGraph.IsCyclic(*i) {
 		p = "conflictResolution"
 	} else {
@@ -60,12 +55,6 @@ func (i *Identifier) PackagePath() string {
 
 func (i *Identifier) receiver() string {
 	return ReceiverName(i.Name)
-}
-
-func (i *Identifier) setNamespace(ns string) {
-	if i.Namespace == "" {
-		i.Namespace = ns
-	}
 }
 
 func (m *Model) GoType() (def *Statement) {

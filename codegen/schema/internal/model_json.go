@@ -60,9 +60,10 @@ func (m *Model) innerModels() []*Model {
 
 func (m *Model) UnmarshalJSON(data []byte) (err error) {
 	defer func() {
-		if err != nil {
-			m.register()
-
+		if err == nil {
+			if m.ComplexType != nil {
+				ModelRegistry.registerComplexType(m.ComplexType)
+			}
 		}
 	}()
 
@@ -104,8 +105,8 @@ func (m *Model) UnmarshalJSON(data []byte) (err error) {
 
 			var reference ModelReference
 			if err = json.Unmarshal(data, &reference); err == nil {
-				m.ComplexType, err = reference.Resolve()
-				return err
+				reference.resolveOrRegisterPending(m)
+				return nil
 			} else {
 				unmarshalErrors = append(unmarshalErrors, err)
 			}
@@ -126,7 +127,7 @@ func (m *Model) UnmarshalJSON(data []byte) (err error) {
 	if len(model.Aliases) > 0 {
 		defer func() {
 			for _, alias := range model.Aliases {
-				registerComplexType(m.ComplexType.CopyWithAlias(alias))
+				ModelRegistry.registerComplexType(m.ComplexType.CopyWithAlias(alias))
 			}
 		}()
 	}
@@ -199,20 +200,10 @@ func (m *Model) UnmarshalJSON(data []byte) (err error) {
 
 	var referenceType ModelReference
 	if err = json.Unmarshal(model.Type, &referenceType); err == nil {
-		m.ComplexType, err = referenceType.Resolve()
-		return err
+		referenceType.resolveOrRegisterPending(m)
+		return nil
 	}
 
 	err = errors.Errorf("could not deserialize %v into %v", string(data), m)
 	return err
-}
-
-func (m *Model) register() {
-	if m.ComplexType != nil {
-		registerComplexType(m.ComplexType)
-	}
-
-	for _, child := range m.innerModels() {
-		child.register()
-	}
 }

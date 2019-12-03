@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 
 	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/codegen/schema"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -14,7 +14,8 @@ func CodeGenerator() *cobra.Command {
 	var outputDir string
 
 	cmd := &cobra.Command{
-		Use: "go-restli [flags] RESTLI_SPECS",
+		Use:          "go-restli [flags] RESTLI_SPECS",
+		SilenceUsage: true,
 		PreRunE: func(*cobra.Command, []string) (err error) {
 			if outputDir == "" {
 				return fmt.Errorf("must specify an output directory")
@@ -51,7 +52,7 @@ func CodeGenerator() *cobra.Command {
 func Run(restSpecs []string, outputDir string) error {
 	resources, types, err := schema.LoadRestSpecs(restSpecs)
 	if err != nil {
-		log.Panicln(err)
+		return err
 	}
 
 	var codeFiles []*codegen.CodeFile
@@ -72,7 +73,7 @@ func Run(restSpecs []string, outputDir string) error {
 	for _, code := range codeFiles {
 		file, err := code.Write(outputDir)
 		if err != nil {
-			log.Fatalf("Could not generate code for %+v: %+v", code, err)
+			return errors.Wrapf(err, "Could not generate code for %+v", code)
 		} else {
 			fmt.Println(file)
 		}

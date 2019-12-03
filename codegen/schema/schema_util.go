@@ -28,9 +28,7 @@ func LoadRestSpecs(restSpecs []string) (resources []*Resource, types []*internal
 
 	internal.ResolveCyclicDependencies(loadedModels)
 
-	for _, t := range internal.ModelRegistry {
-		types = append(types, t)
-	}
+	types = internal.ModelRegistry.GetModels()
 
 	return resources, types, nil
 }

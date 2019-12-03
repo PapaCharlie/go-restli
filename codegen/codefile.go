@@ -3,6 +3,7 @@ package codegen
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -291,15 +292,54 @@ func GenerateAllImportsFile(outputDir string, codeFiles []*CodeFile) {
 	}
 }
 
+type MalformedPdscFileError struct {
+	Filename    string
+	SyntaxError *json.SyntaxError
+}
+
+func (m *MalformedPdscFileError) Error() string {
+	return fmt.Sprintf("malformed .pdsc file %s at %d: %+v", m.Filename, m.SyntaxError.Offset, m.SyntaxError)
+}
+
 func ReadJSONFromFile(filename string, s interface{}) error {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	err = json.Unmarshal(data, s)
-	if err != nil {
+	// Apparently the rest.li spec allows C-style comments in pdsc files. We can gracefully handle SyntaxErrors caused
+	// by such comments by removing the comment and retrying the file
+	for {
+		err = json.Unmarshal(data, s)
+
+		if syntaxErr, ok := err.(*json.SyntaxError); ok {
+			// Special case, the zero-valued Offset is an unrecoverable SyntaxError
+			if syntaxErr.Offset == 0 {
+				return syntaxErr
+			}
+			// The SyntaxError gives the offset+1 otherwise, likely to indicate the difference between the zero-value
+			// and an actual offset?
+			offset := int(syntaxErr.Offset - 1)
+
+			var endOfComment string
+			if data[offset] == '/' {
+				switch data[offset+1] {
+				case '/':
+					endOfComment = "\n"
+				case '*':
+					endOfComment = "*/"
+				default:
+					return errors.WithStack(&MalformedPdscFileError{Filename: filename, SyntaxError: syntaxErr})
+				}
+				eol := bytes.Index(data[offset:], []byte(endOfComment))
+				if eol == -1 {
+					return errors.WithStack(&MalformedPdscFileError{Filename: filename, SyntaxError: syntaxErr})
+				}
+				data = append(data[:offset], data[offset+eol+len(endOfComment):]...)
+				continue
+			}
+		}
+
 		return errors.WithStack(err)
 	}
-	return nil
 }

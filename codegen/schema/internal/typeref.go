@@ -29,6 +29,7 @@ func (r *TyperefModel) UnmarshalJSON(data []byte) error {
 		Identifier
 		Ref *Model `json:"ref"`
 	}{}
+	t.Namespace = currentNamespace // default to the current namespace if none is specified
 	if err := json.Unmarshal(data, t); err != nil {
 		return err
 	}

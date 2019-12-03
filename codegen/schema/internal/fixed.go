@@ -25,6 +25,7 @@ func (f *FixedModel) UnmarshalJSON(data []byte) error {
 		typeField
 		Size int `json:"size"`
 	}{}
+	t.Namespace = currentNamespace // default to the current namespace if none is specified
 	if err := json.Unmarshal(data, t); err != nil {
 		return err
 	}

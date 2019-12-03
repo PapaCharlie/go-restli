@@ -44,6 +44,7 @@ func (r *RecordModel) UnmarshalJSON(data []byte) error {
 		Include json.RawMessage `json:"include"`
 		Fields  []Field         `json:"fields"`
 	}{}
+	t.Namespace = currentNamespace // default to the current namespace if none is specified
 	// Includes clauses can include models defined in the fields (and vice versa), so we try to deserialize the includes
 	// before, then after if any issues occur.
 	var includes []*Model

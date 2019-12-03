@@ -28,7 +28,7 @@ func (set *IdentifierSet) Get(id Identifier) bool {
 func (set *IdentifierSet) String() string {
 	var classes []string
 	for s := range *set {
-		classes = append(classes, s.GetQualifiedClasspath())
+		classes = append(classes, s.String())
 	}
 	return "{" + strings.Join(classes, ", ") + "}"
 }
@@ -41,6 +41,8 @@ type GraphNode struct {
 }
 
 type Graph map[Identifier]*GraphNode
+
+var DependencyGraph = make(Graph)
 
 func (g *Graph) getOrCreate(id Identifier) *GraphNode {
 	if _, ok := (*g)[id]; !ok {
@@ -109,7 +111,7 @@ func (g *Graph) FlagCyclic(id Identifier) {
 
 func buildDependencyGraph() {
 	DependencyGraph = make(Graph)
-	for id, t := range ModelRegistry {
+	for id, t := range ModelRegistry.resolvedTypes {
 		children := (&Model{ComplexType: t.Type}).flattenInnerModels()
 		DependencyGraph.SetChildren(id, children)
 		for child := range children {
@@ -125,7 +127,7 @@ func flagCyclicDependencies() {
 			if len(cycle) > 0 {
 				var identifiers []string
 				for _, cyclicModel := range cycle {
-					identifiers = append(identifiers, cyclicModel.GetQualifiedClasspath())
+					identifiers = append(identifiers, cyclicModel.String())
 				}
 				log.Println("Detected cyclic dependency:", strings.Join(identifiers, " -> "))
 

@@ -32,6 +32,7 @@ func (e *EnumModel) UnmarshalJSON(data []byte) error {
 		Symbols    []string          `json:"symbols"`
 		SymbolDocs map[string]string `json:"symbolDocs"`
 	}{}
+	t.Namespace = currentNamespace // default to the current namespace if none is specified
 	if err := json.Unmarshal(data, t); err != nil {
 		return err
 	}

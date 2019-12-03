@@ -3,11 +3,10 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
+	"log"
 	"regexp"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +47,7 @@ func (r *ModelReference) UnmarshalJSON(data []byte) error {
 		return errors.Errorf("Cannot be in %v, got: %s", illegalReferenceTypes, string(data))
 	}
 
-	if !validReferenceType.Match([]byte(name)) {
+	if !validReferenceType.MatchString(name) {
 		return errors.Errorf("Illegal reference type: |%s|", name)
 	}
 
@@ -70,7 +69,7 @@ type UnknownReferenceError struct {
 }
 
 func (u *UnknownReferenceError) Error() string {
-	return fmt.Sprintf("unknown type: %s", u.GetQualifiedClasspath())
+	return fmt.Sprintf("unknown type: %s", u.Identifier)
 }
 
 func IsUnknownReferenceError(err error) bool {
@@ -78,30 +77,20 @@ func IsUnknownReferenceError(err error) bool {
 	return ok
 }
 
-func (r *ModelReference) Resolve() (ComplexType, error) {
+func (r *ModelReference) resolveOrRegisterPending(m *Model) bool {
 	if r.Namespace == "" || r.Name == "" {
-		return nil, errors.Errorf("Unresolvable reference in %s: %+v", currentFile, r)
+		log.Panicf("Unresolvable reference in %s: %+v", currentFile, r)
 	}
-	if m, ok := ModelRegistry[Identifier(*r)]; ok {
-		return m.Type, nil
+	id := Identifier(*r)
+	if t, ok := ModelRegistry.resolvedTypes[id]; ok {
+		m.ComplexType = t.Type
+		return true
+	} else {
+		ModelRegistry.addUnresolvedModel(id, m)
+		return false
 	}
+}
 
-	oldCurrentFile := currentFile
-	currentFile = filepath.Join(append(append([]string{codegen.PdscDirectory}, strings.Split(r.Namespace, ".")...), r.Name+".pdsc")...)
-	m := new(Model)
-	if err := codegen.ReadJSONFromFile(currentFile, m); err != nil {
-		return nil, errors.WithStack(&UnknownReferenceError{
-			Identifier: Identifier(*r),
-			Cause:      err,
-		})
-	}
-	if m.ComplexType == nil {
-		return nil, errors.Errorf("PDSC model loaded from %s does not define a ComplexType: %+v", currentFile, m)
-	}
-	ModelRegistry[m.ComplexType.GetIdentifier()] = &PdscModel{
-		Type: m.ComplexType,
-		File: currentFile,
-	}
-	currentFile = oldCurrentFile
-	return m.ComplexType, nil
+func (r *ModelReference) Resolve() (ComplexType, error) {
+	return ModelRegistry.Resolve(Identifier(*r))
 }
