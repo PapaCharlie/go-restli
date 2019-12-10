@@ -5,23 +5,23 @@ import (
 	"strconv"
 )
 
-func (r *RestLiCodec) EncodeInt(v int32) string {
+func (r *RestLiCodec) EncodeInt32(v int32) string {
 	return fmt.Sprintf("%d", v)
 }
 
-func (r *RestLiCodec) EncodeLong(v int64) string {
+func (r *RestLiCodec) EncodeInt64(v int64) string {
 	return fmt.Sprintf("%d", v)
 }
 
-func (r *RestLiCodec) EncodeFloat(v float32) string {
+func (r *RestLiCodec) EncodeFloat32(v float32) string {
 	return fmt.Sprintf("%g", v)
 }
 
-func (r *RestLiCodec) EncodeDouble(v float64) string {
+func (r *RestLiCodec) EncodeFloat64(v float64) string {
 	return fmt.Sprintf("%g", v)
 }
 
-func (r *RestLiCodec) EncodeBoolean(v bool) string {
+func (r *RestLiCodec) EncodeBool(v bool) string {
 	return fmt.Sprintf("%t", v)
 }
 
@@ -33,7 +33,7 @@ func (r *RestLiCodec) EncodeBytes(v Bytes) string {
 	return r.EncodeString(string(v))
 }
 
-func (r *RestLiCodec) DecodeInt(data string, v *int32) error {
+func (r *RestLiCodec) DecodeInt32(data string, v *int32) error {
 	i, err := strconv.ParseInt(data, 10, 32)
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func (r *RestLiCodec) DecodeInt(data string, v *int32) error {
 	return nil
 }
 
-func (r *RestLiCodec) DecodeLong(data string, v *int64) error {
+func (r *RestLiCodec) DecodeInt64(data string, v *int64) error {
 	i, err := strconv.ParseInt(data, 10, 64)
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (r *RestLiCodec) DecodeLong(data string, v *int64) error {
 	return nil
 }
 
-func (r *RestLiCodec) DecodeFloat(data string, v *float32) error {
+func (r *RestLiCodec) DecodeFloat32(data string, v *float32) error {
 	f, err := strconv.ParseFloat(data, 32)
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (r *RestLiCodec) DecodeFloat(data string, v *float32) error {
 	return nil
 }
 
-func (r *RestLiCodec) DecodeDouble(data string, v *float64) error {
+func (r *RestLiCodec) DecodeFloat64(data string, v *float64) error {
 	f, err := strconv.ParseFloat(data, 64)
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func (r *RestLiCodec) DecodeDouble(data string, v *float64) error {
 	return nil
 }
 
-func (r *RestLiCodec) DecodeBoolean(data string, v *bool) error {
+func (r *RestLiCodec) DecodeBool(data string, v *bool) error {
 	b, err := strconv.ParseBool(data)
 	if err != nil {
 		return err

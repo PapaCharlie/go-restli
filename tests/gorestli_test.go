@@ -1,4 +1,4 @@
-package main
+package tests
 
 import (
 	"encoding/json"
@@ -15,14 +15,12 @@ import (
 
 	"github.com/PapaCharlie/go-restli/protocol"
 	actionset "github.com/PapaCharlie/go-restli/tests/generated/testsuite/actionSet"
-	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/association"
 	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/collection"
 	collectionreturnentity "github.com/PapaCharlie/go-restli/tests/generated/testsuite/collectionReturnEntity"
 	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/complexkey"
 	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/keywithunion/keywithunion"
 	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/params"
 	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/simple"
-	associationtyperef "github.com/PapaCharlie/go-restli/tests/generated/testsuite/typerefs/associationTyperef"
 	collectiontyperef "github.com/PapaCharlie/go-restli/tests/generated/testsuite/typerefs/collectionTyperef"
 )
 
@@ -38,32 +36,35 @@ func (o *Operation) TestMethod() *reflect.Method {
 	}
 }
 
-func (d *WireProtocolTestData) GetClient(s *TestServer) reflect.Value {
+func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
+	v := new(reflect.Value)
 	switch d.Name {
 	case "collectionReturnEntity":
-		return reflect.ValueOf(collectionreturnentity.NewClient(s.client))
+		*v = reflect.ValueOf(collectionreturnentity.NewClient(s.client))
+		return v
 	case "collection":
-		return reflect.ValueOf(collection.NewClient(s.client))
+		*v = reflect.ValueOf(collection.NewClient(s.client))
+		return v
 	case "complexkey":
-		return reflect.ValueOf(complexkey.NewClient(s.client))
-	case "association":
-		return reflect.ValueOf(association.NewClient(s.client))
+		*v = reflect.ValueOf(complexkey.NewClient(s.client))
+		return v
 	case "simple":
-		return reflect.ValueOf(simple.NewClient(s.client))
+		*v = reflect.ValueOf(simple.NewClient(s.client))
+		return v
 	case "actionSet":
-		return reflect.ValueOf(actionset.NewClient(s.client))
+		*v = reflect.ValueOf(actionset.NewClient(s.client))
+		return v
 	case "keywithunion":
-		return reflect.ValueOf(keywithunion.NewClient(s.client))
+		*v = reflect.ValueOf(keywithunion.NewClient(s.client))
+		return v
 	case "params":
-		return reflect.ValueOf(params.NewClient(s.client))
+		*v = reflect.ValueOf(params.NewClient(s.client))
+		return v
 	case "collectionTyperef":
-		return reflect.ValueOf(collectiontyperef.NewClient(s.client))
-	case "associationTyperef":
-		return reflect.ValueOf(associationtyperef.NewClient(s.client))
-	default:
-		log.Panicln("Unknown test suite")
-		return reflect.Value{}
+		*v = reflect.ValueOf(collectiontyperef.NewClient(s.client))
+		return v
 	}
+	return nil
 }
 
 func TestGoRestli(rootT *testing.T) {
@@ -89,12 +90,14 @@ func TestGoRestli(rootT *testing.T) {
 					operations[o.Name] = o
 				}
 
-				if testMethod := o.TestMethod(); testMethod != nil {
+				client := testData.GetClient(s)
+				testMethod := o.TestMethod()
+				if client != nil && testMethod != nil {
 					s.oLock.Lock()
 					s.o = o
 					s.oLock.Unlock()
 					t.Run(o.Name, func(t *testing.T) {
-						testMethod.Func.Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(t), testData.GetClient(s)})
+						testMethod.Func.Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(t), *client})
 						if t.Skipped() {
 							skippedTests = true
 						}

@@ -1,16 +1,20 @@
-package main
+package tests
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/codegen"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
+)
+
+const (
+	restLiClientTestSuite = "rest.li-test-suite/client-testsuite"
 )
 
 type Manifest struct {
@@ -116,9 +120,13 @@ func (o *Operation) TestMethodName() string {
 }
 
 func ReadManifest() *Manifest {
-	f := filepath.Join(restLiClientTestSuite, "manifest.json")
+	f, err := os.Open(filepath.Join(restLiClientTestSuite, "manifest.json"))
+	if err != nil {
+		log.Panicln(err)
+	}
+
 	m := new(Manifest)
-	err := codegen.ReadJSONFromFile(f, m)
+	err = json.NewDecoder(f).Decode(m)
 	if err != nil {
 		log.Panicln(err)
 	}

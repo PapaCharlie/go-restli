@@ -1,0 +1,58 @@
+package codegen
+
+import (
+	. "github.com/dave/jennifer/jen"
+)
+
+type MethodType string
+
+const (
+	REST_METHOD MethodType = "REST_METHOD"
+	ACTION      MethodType = "ACTION"
+	FINDER      MethodType = "FINDER"
+)
+
+type Method struct {
+	MethodType MethodType
+	Name       string
+	Doc        string
+	Path       string
+	OnEntity   bool
+	PathKeys   []PathKey
+	Params     []Field
+	Return     *RestliType
+}
+
+type PathKey struct {
+	Name string
+	Type RestliType
+}
+
+func (m *Method) addEntityTypes(def *Group) {
+	addEntityTypes(def, m.PathKeys)
+}
+
+func addEntityTypes(def *Group, pathKeys []PathKey) {
+	for _, pk := range pathKeys {
+		d := def.Id(pk.Name)
+		if pk.Type.Reference != nil {
+			d.Add(pk.Type.PointerType())
+		} else {
+			d.Add(pk.Type.GoType())
+		}
+	}
+}
+
+func (m *Method) entityParams() (params []Code) {
+	for _, p := range m.PathKeys {
+		params = append(params, Id(p.Name))
+	}
+	return params
+}
+
+func (r *Resource) callFormatQueryUrl(def *Group) {
+	def.List(Id(UrlVar), Err()).
+		Op(":=").
+		Id(ClientReceiver).Dot(FormatQueryUrl).
+		Call(Lit(r.RootResourceName), Id(PathVar))
+}
