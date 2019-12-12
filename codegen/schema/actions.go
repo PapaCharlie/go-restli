@@ -21,21 +21,20 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 		resources = append(resources, thisResource)
 	}
 
-	addClientFunc(c.Code, ExportedIdentifier(a.ActionName)+"Action")
-	c.Code.ParamsFunc(func(def *Group) {
-		addEntityTypes(def, resources)
-		if hasParams {
-			def.Id("params").Op("*").Id(a.StructName)
-		}
-	})
-
 	returns := a.Returns != nil
 
-	c.Code.ParamsFunc(func(def *Group) {
-		if returns {
-			def.Op("*").Add(a.Returns.GoType())
-		}
-		def.Error()
+	thisResource.addClientFunc(c.Code, a.ActionDoc, func(def *Statement) *Statement {
+		return def.Id(ExportedIdentifier(a.ActionName) + "Action").ParamsFunc(func(def *Group) {
+			addEntityTypes(def, resources)
+			if hasParams {
+				def.Id("params").Op("*").Id(a.StructName)
+			}
+		}).ParamsFunc(func(def *Group) {
+			if returns {
+				def.Op("*").Add(a.Returns.GoType())
+			}
+			def.Error()
+		})
 	})
 
 	c.Code.BlockFunc(func(def *Group) {
@@ -53,7 +52,7 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 			errReturnParams = []Code{Err()}
 		}
 
-		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(pathFunc).Call(entityParams(resources)...)
 		IfErrReturn(def, errReturnParams...).Line()
 		def.Id(Path).Op("+=").Lit("?action=").Op("+").Id(ExportedIdentifier(a.ActionName + "Action"))
 

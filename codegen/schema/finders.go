@@ -16,15 +16,17 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 
 	returnType := Index().Add(thisResource.Schema.Model.GoType())
 
-	def := addClientFunc(c.Code, FindBy+ExportedIdentifier(f.FinderName)).
-		ParamsFunc(func(def *Group) {
-			addEntityTypes(def, parentResources)
-			def.Id("params").Op("*").Id(f.StructName)
-		}).
-		Params(Add(returnType), Error())
+	def := thisResource.addClientFunc(c.Code, f.Doc, func(def *Statement) *Statement {
+		return def.Id(FindBy+ExportedIdentifier(f.FinderName)).
+			ParamsFunc(func(def *Group) {
+				addEntityTypes(def, parentResources)
+				def.Id("params").Op("*").Id(f.StructName)
+			}).
+			Params(Add(returnType), Error())
+	})
 
 	def.BlockFunc(func(def *Group) {
-		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourcePath).Call(entityParams(parentResources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ResourcePath).Call(entityParams(parentResources)...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.Id("query").Op(":=").Qual("net/url", "Values").Block()

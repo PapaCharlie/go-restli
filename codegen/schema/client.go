@@ -10,6 +10,8 @@ import (
 )
 
 const (
+	RestLiClient = "RestLiClient"
+
 	ResourcePath       = "ResourcePath"
 	ResourceEntityPath = "ResourceEntityPath"
 )
@@ -25,7 +27,11 @@ func (r *Resource) generateClient(parentResources []*Resource) (c *CodeFile) {
 	}).Line().Line()
 
 	AddWordWrappedComment(c.Code, r.Doc).Line()
-	c.Code.Type().Id(Client).Struct(Qual(ProtocolPackage, "RestLiClient")).Line().Line()
+	c.Code.Type().Id("Client").InterfaceFunc(func(def *Group) { r.interfaceDefinition = def }).Line().Line()
+	c.Code.Type().Id(Client).Struct(Op("*").Qual(ProtocolPackage, RestLiClient)).Line().Line()
+	c.Code.Func().Id("NewClient").Params(Id("c").Op("*").Qual(ProtocolPackage, RestLiClient)).Id("Client").
+		Block(Return(Op("&").Id(Client).Values(Id("c")))).
+		Line().Line()
 
 	resources := make([]*Resource, 0, len(parentResources)+1)
 	resources = append(resources, parentResources...)
@@ -41,7 +47,7 @@ func (r *Resource) generateClient(parentResources []*Resource) (c *CodeFile) {
 }
 
 func addResourcePathFunc(def *Statement, funcName string, resources []*Resource, path string) {
-	addClientFunc(def, funcName).ParamsFunc(func(def *Group) {
+	def.Func().Id(funcName).ParamsFunc(func(def *Group) {
 		addEntityTypes(def, resources)
 	}).Params(String(), Error()).BlockFunc(func(def *Group) {
 		def.Var().Id(Path).String()
@@ -93,8 +99,14 @@ func entityParams(resources []*Resource) []Code {
 	return params
 }
 
-func addClientFunc(def *Statement, funcName string) *Statement {
-	return AddFuncOnReceiver(def, ClientReceiver, Client, funcName)
+func (r *Resource) addClientFunc(def *Statement, doc string, funcCreator func(def *Statement) *Statement) *Statement {
+	f := funcCreator(Empty())
+	AddWordWrappedComment(r.interfaceDefinition.Empty(), doc)
+	r.interfaceDefinition.Add(f)
+	AddWordWrappedComment(def, doc).Line()
+	return def.Func().
+		Params(Id(ClientReceiver).Op("*").Id(Client)).
+		Add(f)
 }
 
 func rootResourceName(parentResources []*Resource, thisResource *Resource) string {

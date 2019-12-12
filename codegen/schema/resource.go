@@ -13,7 +13,7 @@ const (
 	Res            = "res"
 	Url            = "url"
 	Path           = "path"
-	Client         = "Client"
+	Client         = "client"
 
 	FormatQueryUrl    = "FormatQueryUrl"
 	DoAndIgnore       = "DoAndIgnore"

@@ -3,6 +3,7 @@ package schema
 import (
 	"github.com/PapaCharlie/go-restli/codegen/schema/internal"
 	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/dave/jennifer/jen"
 )
 
 type Resource struct {
@@ -16,6 +17,8 @@ type Resource struct {
 	Collection  *Collection
 	Association *Association
 	ActionsSet  *ActionsSet
+
+	interfaceDefinition *jen.Group
 }
 
 type HasFinders struct {
@@ -92,6 +95,7 @@ type Finder struct {
 	Endpoint
 	FinderName      string
 	StructName      string
+	FinderDoc       string
 	PagingSupported bool
 }
 
@@ -99,4 +103,5 @@ type Action struct {
 	Endpoint
 	ActionName string
 	StructName string
+	ActionDoc  string
 }

@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 
@@ -162,6 +163,8 @@ func (a *Action) UnmarshalJSON(data []byte) error {
 	a.ActionName = a.Endpoint.Name
 	a.StructName = codegen.ExportedIdentifier(a.Name + "ActionParams")
 	a.Endpoint.Name = a.StructName
+	a.ActionDoc = a.Endpoint.Doc
+	a.Endpoint.Doc = fmt.Sprintf("%s contains all the parameters for the %s action", a.StructName, a.ActionName)
 
 	return nil
 }
@@ -175,6 +178,8 @@ func (f *Finder) UnmarshalJSON(data []byte) error {
 	f.FinderName = f.Endpoint.Name
 	f.StructName = codegen.ExportedIdentifier(FindBy + codegen.ExportedIdentifier(f.Name) + "Params")
 	f.Endpoint.Name = f.StructName
+	f.FinderDoc = f.Endpoint.Doc
+	f.Endpoint.Doc = fmt.Sprintf("%s contains all the parameters for the %s finder", f.StructName, f.FinderName)
 
 	p := &struct {
 		PagingSupported bool

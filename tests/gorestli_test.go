@@ -41,25 +41,25 @@ func (o *Operation) TestMethod() *reflect.Method {
 func (d *WireProtocolTestData) GetClient(s *TestServer) reflect.Value {
 	switch d.Name {
 	case "collectionReturnEntity":
-		return reflect.ValueOf(&collectionreturnentity.Client{RestLiClient: s.client})
+		return reflect.ValueOf(collectionreturnentity.NewClient(s.client))
 	case "collection":
-		return reflect.ValueOf(&collection.Client{RestLiClient: s.client})
+		return reflect.ValueOf(collection.NewClient(s.client))
 	case "complexkey":
-		return reflect.ValueOf(&complexkey.Client{RestLiClient: s.client})
+		return reflect.ValueOf(complexkey.NewClient(s.client))
 	case "association":
-		return reflect.ValueOf(&association.Client{RestLiClient: s.client})
+		return reflect.ValueOf(association.NewClient(s.client))
 	case "simple":
-		return reflect.ValueOf(&simple.Client{RestLiClient: s.client})
+		return reflect.ValueOf(simple.NewClient(s.client))
 	case "actionSet":
-		return reflect.ValueOf(&actionset.Client{RestLiClient: s.client})
+		return reflect.ValueOf(actionset.NewClient(s.client))
 	case "keywithunion":
-		return reflect.ValueOf(&keywithunion.Client{RestLiClient: s.client})
+		return reflect.ValueOf(keywithunion.NewClient(s.client))
 	case "params":
-		return reflect.ValueOf(&params.Client{RestLiClient: s.client})
+		return reflect.ValueOf(params.NewClient(s.client))
 	case "collectionTyperef":
-		return reflect.ValueOf(&collectiontyperef.Client{RestLiClient: s.client})
+		return reflect.ValueOf(collectiontyperef.NewClient(s.client))
 	case "associationTyperef":
-		return reflect.ValueOf(&associationtyperef.Client{RestLiClient: s.client})
+		return reflect.ValueOf(associationtyperef.NewClient(s.client))
 	default:
 		log.Panicln("Unknown test suite")
 		return reflect.Value{}
@@ -73,7 +73,7 @@ func TestGoRestli(rootT *testing.T) {
 	s.oLock = new(sync.Mutex)
 	s.server = httptest.NewServer(s)
 	serverUrl, _ := url.Parse(s.server.URL)
-	s.client = protocol.RestLiClient{
+	s.client = &protocol.RestLiClient{
 		Client:           &http.Client{},
 		HostnameResolver: &protocol.SimpleHostnameSupplier{Hostname: serverUrl},
 	}
@@ -117,7 +117,7 @@ type TestServer struct {
 	o      Operation
 	oLock  *sync.Mutex
 	server *httptest.Server
-	client protocol.RestLiClient
+	client *protocol.RestLiClient
 }
 
 const UnexpectedRequestStatus = 666

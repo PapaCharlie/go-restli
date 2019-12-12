@@ -26,27 +26,28 @@ func (m *Method) generate(parentResources []*Resource, thisResource *Resource) *
 	}
 }
 
-func (m *Method) addMethodFunc(parentResources []*Resource, thisResource *Resource) *Statement {
+func (m *Method) addMethodFunc(thisResource *Resource, funcCreator func(def *Statement) *Statement) *Statement {
 	def := Empty()
 
 	AddWordWrappedComment(def, m.Doc).Line()
-	addClientFunc(def, strcase.ToCamel(m.Method.String()))
+	thisResource.addClientFunc(def, m.Doc, func(def *Statement) *Statement {
+		return funcCreator(def.Id(strcase.ToCamel(m.Method.String())))
+	})
 	return def
 }
 
 func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource) *Statement {
-	def := m.addMethodFunc(parentResources, thisResource)
-
 	resources := append([]*Resource(nil), parentResources...)
 	resources = append(resources, thisResource)
-	def.ParamsFunc(func(def *Group) {
-		addEntityTypes(def, resources)
+
+	def := m.addMethodFunc(thisResource, func(def *Statement) *Statement {
+		return def.ParamsFunc(func(def *Group) {
+			addEntityTypes(def, resources)
+		}).Params(Op("*").Add(thisResource.Schema.Model.GoType()), Error())
 	})
 
-	def.Params(Op("*").Add(thisResource.Schema.Model.GoType()), Error())
-
 	def.BlockFunc(func(def *Group) {
-		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		callFormatQueryUrl(def, parentResources, thisResource)
@@ -63,21 +64,19 @@ func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource
 }
 
 func (m *Method) generateUpdate(parentResources []*Resource, thisResource *Resource) *Statement {
-	def := m.addMethodFunc(parentResources, thisResource)
-
 	resources := append([]*Resource(nil), parentResources...)
 	resources = append(resources, thisResource)
 
 	paramName := "o"
-	def.ParamsFunc(func(def *Group) {
-		addEntityTypes(def, resources)
-		def.Id(paramName).Op("*").Add(thisResource.Schema.GoType())
+	def := m.addMethodFunc(thisResource, func(def *Statement) *Statement {
+		return def.ParamsFunc(func(def *Group) {
+			addEntityTypes(def, resources)
+			def.Id(paramName).Op("*").Add(thisResource.Schema.GoType())
+		}).Params(Error())
 	})
 
-	def.Params(Error())
-
 	def.BlockFunc(func(def *Group) {
-		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Err()).Line()
 
 		callFormatQueryUrl(def, parentResources, thisResource)
@@ -98,19 +97,17 @@ func (m *Method) generateUpdate(parentResources []*Resource, thisResource *Resou
 }
 
 func (m *Method) generateDelete(parentResources []*Resource, thisResource *Resource) *Statement {
-	def := m.addMethodFunc(parentResources, thisResource)
-
 	resources := append([]*Resource(nil), parentResources...)
 	resources = append(resources, thisResource)
 
-	def.ParamsFunc(func(def *Group) {
-		addEntityTypes(def, resources)
+	def := m.addMethodFunc(thisResource, func(def *Statement) *Statement {
+		return def.ParamsFunc(func(def *Group) {
+			addEntityTypes(def, resources)
+		}).Params(Error())
 	})
 
-	def.Params(Error())
-
 	def.BlockFunc(func(def *Group) {
-		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Err()).Line()
 
 		callFormatQueryUrl(def, parentResources, thisResource)
