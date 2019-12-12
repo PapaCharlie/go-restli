@@ -46,18 +46,17 @@ func (m *Method) generateGet(parentResources []*Resource, thisResource *Resource
 	def.Params(Op("*").Add(thisResource.Schema.Model.GoType()), Error())
 
 	def.BlockFunc(func(def *Group) {
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
+		callFormatQueryUrl(def, parentResources, thisResource)
 		IfErrReturn(def, Nil(), Err()).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.Method_get))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(Url), RestLiMethod(protocol.Method_get))
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.Id("result").Op(":=").New(thisResource.Schema.Model.GoType())
-		def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Id("result"))
-		IfErrReturn(def, Nil(), Err()).Line()
-		def.Return(Id("result"), Err())
+		def.Id(DoAndDecodeResult).Op(":=").New(thisResource.Schema.Model.GoType())
+		callDoAndDecode(def)
+		def.Return(Id(DoAndDecodeResult), Err())
 	})
 
 	return def
@@ -78,19 +77,19 @@ func (m *Method) generateUpdate(parentResources []*Resource, thisResource *Resou
 	def.Params(Error())
 
 	def.BlockFunc(func(def *Group) {
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Err()).Line()
 
-		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
+		callFormatQueryUrl(def, parentResources, thisResource)
 		IfErrReturn(def, Err()).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(Id("url"), RestLiMethod(protocol.Method_update), Id(paramName))
-		IfErrReturn(def, Err()).Line()
-
-		def.List(Id("res"), Err()).Op(":=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(Id(Url), RestLiMethod(protocol.Method_update), Id(paramName))
 		IfErrReturn(def, Err()).Line()
 
-		def.If(Id("res").Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
-			def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(Url), Id("res").Dot("StatusCode")))
+		def.List(Id(Res), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(Req))
+		IfErrReturn(def, Err()).Line()
+
+		def.If(Id(Res).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
+			def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(Url), Id(Res).Dot("StatusCode")))
 		})
 		def.Return(Nil())
 	})
@@ -111,19 +110,19 @@ func (m *Method) generateDelete(parentResources []*Resource, thisResource *Resou
 	def.Params(Error())
 
 	def.BlockFunc(func(def *Group) {
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourceEntityPath).Call(entityParams(resources)...)
 		IfErrReturn(def, Err()).Line()
 
-		def.List(Id(Url), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
+		callFormatQueryUrl(def, parentResources, thisResource)
 		IfErrReturn(def, Err()).Line()
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("DeleteRequest").Call(Id("url"), RestLiMethod(protocol.Method_update))
-		IfErrReturn(def, Err()).Line()
-
-		def.List(Id("res"), Err()).Op(":=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("DeleteRequest").Call(Id(Url), RestLiMethod(protocol.Method_update))
 		IfErrReturn(def, Err()).Line()
 
-		def.If(Id("res").Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
-			def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(Url), Id("res").Dot("StatusCode")))
+		def.List(Id(Res), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(Req))
+		IfErrReturn(def, Err()).Line()
+
+		def.If(Id(Res).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
+			def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(Url), Id(Res).Dot("StatusCode")))
 		})
 		def.Return(Nil())
 	})

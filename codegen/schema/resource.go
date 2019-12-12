@@ -12,8 +12,13 @@ const (
 	Req            = "req"
 	Res            = "res"
 	Url            = "url"
+	Path           = "path"
 	Client         = "Client"
-	FormatQueryUrl = "FormatQueryUrl"
+
+	FormatQueryUrl    = "FormatQueryUrl"
+	DoAndIgnore       = "DoAndIgnore"
+	DoAndDecode       = "DoAndDecode"
+	DoAndDecodeResult = "doAndDecodeResult"
 )
 
 func (r *Resource) GenerateCode() []*CodeFile {

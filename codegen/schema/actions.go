@@ -16,8 +16,7 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 		c.Code.Add(a.GenerateCode())
 	}
 
-	var resources []*Resource
-	resources = append(resources, parentResources...)
+	resources := append([]*Resource(nil), parentResources...)
 	if isOnEntity {
 		resources = append(resources, thisResource)
 	}
@@ -54,11 +53,11 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 			errReturnParams = []Code{Err()}
 		}
 
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).Call(entityParams(resources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(pathFunc).Call(entityParams(resources)...)
 		IfErrReturn(def, errReturnParams...).Line()
-		def.Id("path").Op("+=").Lit("?action=").Op("+").Id(ExportedIdentifier(a.ActionName + "Action"))
+		def.Id(Path).Op("+=").Lit("?action=").Op("+").Id(ExportedIdentifier(a.ActionName + "Action"))
 
-		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
+		callFormatQueryUrl(def, parentResources, thisResource)
 		IfErrReturn(def, errReturnParams...).Line()
 
 		req := def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver)
@@ -68,17 +67,15 @@ func (a *Action) generate(parentResources []*Resource, thisResource *Resource, i
 		} else {
 			params = Struct().Block()
 		}
-		req.Dot("JsonPostRequest").Call(Id("url"), RestLiMethod(protocol.Method_action), params)
+		req.Dot("JsonPostRequest").Call(Id(Url), RestLiMethod(protocol.Method_action), params)
 		IfErrReturn(def, errReturnParams...).Line()
 
 		if returns {
-			def.Id("result").Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
-			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
-			IfErrReturn(def, errReturnParams...).Line()
-
-			def.Return(Op("&").Id("result").Dot("Value"), Nil())
+			def.Id(DoAndDecodeResult).Op(":=").Struct(Id("Value").Add(a.Returns.GoType())).Block()
+			callDoAndDecode(def)
+			def.Return(Op("&").Id(DoAndDecodeResult).Dot("Value"), Nil())
 		} else {
-			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(Req))
+			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(Req))
 			IfErrReturn(def, errReturnParams...).Line()
 			def.Return(Nil())
 		}

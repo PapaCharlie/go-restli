@@ -178,7 +178,7 @@ type SingleServiceClient struct {
 	uri *watchedUri
 }
 
-func (c *SingleServiceClient) GetHostnameForQuery(query string) (*url.URL, error) {
+func (c *SingleServiceClient) ResolveHostnameAndContextForQuery(query string) (*url.URL, error) {
 	return c.uri.getHostnameForQuery()
 }
 
@@ -203,14 +203,8 @@ type R2D2Client struct {
 	conn *zk.Conn
 }
 
-func (c *R2D2Client) GetHostnameForQuery(query string) (*url.URL, error) {
-	idx := strings.Index(query[1:], "/")
-	if idx == -1 {
-		idx = len(query[1:])
-	}
-	serviceName := query[1 : idx+1]
-
-	uri, err := getOrCreateService(serviceName, c.conn)
+func (c *R2D2Client) ResolveHostnameAndContextForQuery(resourceBaseName string, query *url.URL) (*url.URL, error) {
+	uri, err := getOrCreateService(resourceBaseName, c.conn)
 	if err != nil {
 		return nil, err
 	}

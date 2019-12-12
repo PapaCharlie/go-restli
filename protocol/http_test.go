@@ -55,7 +55,7 @@ func TestRestLiClient_FormatQuery(t *testing.T) {
 }
 
 func (c *RestLiClient) formatQuery(t *testing.T, query string) string {
-	u, err := c.FormatQueryUrl(query)
+	u, err := c.FormatQueryUrl("search", query)
 	if err != nil {
 		t.Fatal(err)
 	}

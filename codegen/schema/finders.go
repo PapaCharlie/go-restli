@@ -24,7 +24,7 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 		Params(Add(returnType), Error())
 
 	def.BlockFunc(func(def *Group) {
-		def.List(Id("path"), Err()).Op(":=").Id(ClientReceiver).Dot(ResourcePath).Call(entityParams(parentResources)...)
+		def.List(Id(Path), Err()).Op(":=").Id(ClientReceiver).Dot(ResourcePath).Call(entityParams(parentResources)...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.Id("query").Op(":=").Qual("net/url", "Values").Block()
@@ -55,18 +55,17 @@ func (f *Finder) generate(parentResources []*Resource, thisResource *Resource) *
 			def.Line()
 		}
 
-		def.Id("path").Op("+=").Lit("?").Op("+").Id("query").Dot("Encode").Call()
+		def.Id(Path).Op("+=").Lit("?").Op("+").Id("query").Dot("Encode").Call()
 
-		def.List(Id("url"), Err()).Op(":=").Id(ClientReceiver).Dot(FormatQueryUrl).Call(Id("path"))
+		callFormatQueryUrl(def, parentResources, thisResource)
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id("url"), RestLiMethod(protocol.Method_finder))
+		def.List(Id(Req), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(Url), RestLiMethod(protocol.Method_finder))
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.Id("result").Op(":=").Struct(Id("Elements").Add(returnType)).Block()
-		def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndDecode").Call(Id(Req), Op("&").Id("result"))
-		IfErrReturn(def, Nil(), Err()).Line()
-		def.Return(Id("result").Dot("Elements"), Nil())
+		def.Id(DoAndDecodeResult).Op(":=").Struct(Id("Elements").Add(returnType)).Block()
+		callDoAndDecode(def)
+		def.Return(Id(DoAndDecodeResult).Dot("Elements"), Nil())
 	})
 
 	return c

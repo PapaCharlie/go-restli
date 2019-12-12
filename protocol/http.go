@@ -116,12 +116,17 @@ type SimpleHostnameSupplier struct {
 	Hostname *url.URL
 }
 
-func (s *SimpleHostnameSupplier) GetHostnameForQuery(string) (*url.URL, error) {
+func (s *SimpleHostnameSupplier) ResolveHostnameAndContextForQuery(string, *url.URL) (*url.URL, error) {
 	return s.Hostname, nil
 }
 
 type HostnameResolver interface {
-	GetHostnameForQuery(query string) (*url.URL, error)
+	// ResolveHostnameAndContextForQuery takes in the name of the service for which to resolve the hostname, along with
+	// the URL for the query that is about to be sent. The service name is often the top-level parent resource's name,
+	// but can be any unique identifier for a D2 endpoint. Some HostnameResolver implementations will choose to ignore
+	// this parameter and resolve hostnames using a different strategy. By default, the generated code will always pass
+	// in the top-level parent resource's name.
+	ResolveHostnameAndContextForQuery(serviceName string, query *url.URL) (*url.URL, error)
 }
 
 type RestLiClient struct {
@@ -139,14 +144,14 @@ func getFirstPathSegment(path string) string {
 	}
 }
 
-func (c *RestLiClient) FormatQueryUrl(rawQuery string) (*url.URL, error) {
+func (c *RestLiClient) FormatQueryUrl(resourceBasename, rawQuery string) (*url.URL, error) {
 	rawQuery = "/" + strings.TrimPrefix(rawQuery, "/")
-	hostUrl, err := c.GetHostnameForQuery(rawQuery)
+	query, err := url.Parse(rawQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	query, err := url.Parse(rawQuery)
+	hostUrl, err := c.ResolveHostnameAndContextForQuery(resourceBasename, query)
 	if err != nil {
 		return nil, err
 	}

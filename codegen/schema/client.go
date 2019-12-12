@@ -44,7 +44,7 @@ func addResourcePathFunc(def *Statement, funcName string, resources []*Resource,
 	addClientFunc(def, funcName).ParamsFunc(func(def *Group) {
 		addEntityTypes(def, resources)
 	}).Params(String(), Error()).BlockFunc(func(def *Group) {
-		def.Var().Id("path").String()
+		def.Var().Id(Path).String()
 
 		for _, resource := range resources {
 			if id := resource.getIdentifier(); id != nil {
@@ -61,17 +61,17 @@ func addResourcePathFunc(def *Statement, funcName string, resources []*Resource,
 				if idx < 0 {
 					log.Panicf("%s does not appear in %s", pattern, path)
 				}
-				def.Id("path").Op("+=").Lit(path[:idx]).Op("+").Id(id.EncodedVariableName())
+				def.Id(Path).Op("+=").Lit(path[:idx]).Op("+").Id(id.EncodedVariableName())
 				path = path[idx+len(pattern):]
 			}
 		}
 		def.Line()
 
 		if path != "" {
-			def.Id("path").Op("+=").Lit(path)
+			def.Id(Path).Op("+=").Lit(path)
 		}
 
-		def.Return(Id("path"), Nil())
+		def.Return(Id(Path), Nil())
 	}).Line().Line()
 }
 
@@ -95,4 +95,26 @@ func entityParams(resources []*Resource) []Code {
 
 func addClientFunc(def *Statement, funcName string) *Statement {
 	return AddFuncOnReceiver(def, ClientReceiver, Client, funcName)
+}
+
+func rootResourceName(parentResources []*Resource, thisResource *Resource) string {
+	var resource *Resource
+	if len(parentResources) > 0 {
+		resource = parentResources[0]
+	} else {
+		resource = thisResource
+	}
+	return resource.Name
+}
+
+func callFormatQueryUrl(def *Group, parentResources []*Resource, thisResource *Resource) {
+	def.List(Id(Url), Err()).
+		Op(":=").
+		Id(ClientReceiver).Dot(FormatQueryUrl).
+		Call(Lit(rootResourceName(parentResources, thisResource)), Id(Path))
+}
+
+func callDoAndDecode(def *Group) {
+	def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot(DoAndDecode).Call(Id(Req), Op("&").Id(DoAndDecodeResult))
+	IfErrReturn(def, Nil(), Err()).Line()
 }
