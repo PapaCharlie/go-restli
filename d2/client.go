@@ -178,7 +178,7 @@ type SingleServiceClient struct {
 	uri *watchedUri
 }
 
-func (c *SingleServiceClient) ResolveHostnameAndContextForQuery(query string) (*url.URL, error) {
+func (c *SingleServiceClient) ResolveHostnameAndContextForQuery(serviceName string, query *url.URL) (*url.URL, error) {
 	return c.uri.getHostnameForQuery()
 }
 
