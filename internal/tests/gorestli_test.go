@@ -13,15 +13,15 @@ import (
 	"sync"
 	"testing"
 
+	actionset "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/actionSet"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection"
+	collectionreturnentity "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collectionReturnEntity"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/params"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/simple"
+	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/typerefs/collectionTyperef"
 	"github.com/PapaCharlie/go-restli/protocol"
-	actionset "github.com/PapaCharlie/go-restli/tests/generated/testsuite/actionSet"
-	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/collection"
-	collectionreturnentity "github.com/PapaCharlie/go-restli/tests/generated/testsuite/collectionReturnEntity"
-	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/keywithunion/keywithunion"
-	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/params"
-	"github.com/PapaCharlie/go-restli/tests/generated/testsuite/simple"
-	collectiontyperef "github.com/PapaCharlie/go-restli/tests/generated/testsuite/typerefs/collectionTyperef"
 )
 
 func init() {

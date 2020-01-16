@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/internal/codegen"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )

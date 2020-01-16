@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -21,12 +20,11 @@ func Must(req *http.Request, err error) *http.Request {
 }
 
 func ReadRequestFromFile(filename string) (*http.Request, []byte, error) {
-	f, err := os.Open(filename)
+	reqBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Panicln("Could not open", filename, err)
+		return nil, nil, errors.Wrapf(err, "Could not read %s", filename)
 	}
-	defer f.Close()
-	r := bufio.NewReader(f)
+	r := bufio.NewReader(bytes.NewBuffer(reqBytes))
 
 	req, err := http.ReadRequest(r)
 	if err != nil {
@@ -34,20 +32,16 @@ func ReadRequestFromFile(filename string) (*http.Request, []byte, error) {
 	}
 	// ReadRequest only reads the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers. What remains of
 	// the buffer is the body of the request, which we need to preserve for subsequent reads
-	reqBytes, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to read full request")
-	}
+	reqBytes, _ = ioutil.ReadAll(r)
 	return req, adjustContentLength(filename, reqBytes, req.Header), nil
 }
 
 func ReadResponseFromFile(filename string, req *http.Request) (*http.Response, []byte, error) {
-	f, err := os.Open(filename)
+	resBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Panicln("Could not open", filename, err)
+		return nil, nil, errors.Wrapf(err, "Could not read %s", filename)
 	}
-	defer f.Close()
-	r := bufio.NewReader(f)
+	r := bufio.NewReader(bytes.NewBuffer(resBytes))
 
 	res, err := http.ReadResponse(r, req)
 	if err != nil {
@@ -55,10 +49,7 @@ func ReadResponseFromFile(filename string, req *http.Request) (*http.Response, [
 	}
 	// ReadResponse only reads the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers. What remains of
 	// the buffer is the body of the response, which we need to preserve for subsequent reads
-	resBytes, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to read full request")
-	}
+	resBytes, _ = ioutil.ReadAll(r)
 	return res, adjustContentLength(filename, resBytes, res.Header), nil
 }
 

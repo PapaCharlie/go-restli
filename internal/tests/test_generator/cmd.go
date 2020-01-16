@@ -2,15 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/PapaCharlie/go-restli/codegen/cmd"
-	"github.com/PapaCharlie/go-restli/tests"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/codegen"
+	"github.com/PapaCharlie/go-restli/internal/codegen"
+	"github.com/PapaCharlie/go-restli/internal/codegen/cmd"
+	"github.com/PapaCharlie/go-restli/internal/tests"
 	"github.com/pkg/errors"
 )
 
@@ -19,7 +19,7 @@ const (
 )
 
 func init() {
-	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/tests/" + generatedPackageSuffix
+	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/" + generatedPackageSuffix
 }
 
 func main() {
@@ -50,7 +50,7 @@ func generateClientTests() {
 		testFilename := wd.Name + "_test.go"
 		f, err := os.Open(testFilename)
 		if err != nil {
-			if ! os.IsNotExist(err) {
+			if !os.IsNotExist(err) {
 				panicIfErrf(err, "Failed to open test file for %s: %s", wd.Name, testFilename)
 			}
 			f, err = os.Create(testFilename)

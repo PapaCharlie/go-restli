@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/tests/generated/conflictResolution"
-	. "github.com/PapaCharlie/go-restli/tests/generated/testsuite/simple"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
+	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/simple"
 	"github.com/stretchr/testify/require"
 )
 

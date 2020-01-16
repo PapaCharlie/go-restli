@@ -13,4 +13,4 @@ spec-parser/out/
 *.ipr
 *.iws
 bin/
-classpath_jar.go
+internal/codegen/cmd/classpath_jar.go
