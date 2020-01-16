@@ -20,7 +20,6 @@ import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
-import io.papacharlie.gorestli.json.RestliType.*;
 import io.papacharlie.gorestli.json.Typeref;
 import java.io.File;
 import java.util.ArrayList;
