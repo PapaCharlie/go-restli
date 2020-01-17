@@ -51,7 +51,7 @@ func GenerateCode(specBytes []byte, outputDir string) error {
 	for _, code := range codeFiles {
 		file, err := code.Write(outputDir)
 		if err != nil {
-			return errors.Wrapf(err, "go-restli: Could not generate code for %+v", code)
+			return errors.Wrapf(err, "go-restli: Could not generate code for %+v:\n%s", code, code.Code.GoString())
 		} else {
 			fmt.Println(file)
 		}
