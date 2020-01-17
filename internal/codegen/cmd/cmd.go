@@ -30,6 +30,12 @@ func CodeGenerator() *cobra.Command {
 				if len(args) == 0 {
 					return errors.New("go-restli: Must specify at least one restspec file")
 				}
+
+				if schemaDir == "" {
+					return errors.New("go-restli: Must specify a schema dir")
+				} else if _, err := os.Stat(schemaDir); err != nil {
+					return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
+				}
 			} else {
 				switch len(args) {
 				case 0:
@@ -49,12 +55,6 @@ func CodeGenerator() *cobra.Command {
 				}
 			}
 
-			if schemaDir == "" {
-				return errors.New("go-restli: Must specify a schema dir")
-			} else if _, err := os.Stat(schemaDir); err != nil {
-				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
-			}
-
 			return nil
 		},
 		PreRunE: func(_ *cobra.Command, args []string) (err error) {
@@ -72,6 +72,8 @@ func CodeGenerator() *cobra.Command {
 
 	if len(Jar) > 0 {
 		cmd.Use += " REST_SPEC [REST_SPEC...]"
+		cmd.Flags().StringVarP(&schemaDir, "schema-dir", "s", "", "The directory that contains all the .pdsc/.pdl " +
+			"files that may be needed")
 	} else {
 		cmd.Use += " [SPEC_FILE]"
 	}
@@ -79,8 +81,6 @@ func CodeGenerator() *cobra.Command {
 	cmd.Flags().StringVarP(&codegen.PackagePrefix, "package-prefix", "p", "", "The namespace to prefix all generated "+
 		"packages with (e.g. github.com/PapaCharlie/go-restli/generated)")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "The directory in which to output the generated files")
-	cmd.Flags().StringVarP(&schemaDir, "schema-dir", "s", "", "The directory that contains all the .pdsc/.pdl files "+
-		"that may be needed")
 
 	return cmd
 }
