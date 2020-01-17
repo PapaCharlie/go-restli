@@ -51,7 +51,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		c.Code.Add(record.GenerateCode())
 	}
 
-	AddWordWrappedComment(c.Code, a.Doc)
+	AddWordWrappedComment(c.Code, a.Doc).Line()
 	r.addClientFunc(c.Code, a)
 
 	c.Code.BlockFunc(func(def *Group) {

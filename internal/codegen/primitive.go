@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json"
+	"reflect"
 
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
@@ -19,7 +20,7 @@ var PrimitiveTypes = []PrimitiveType{
 	{Type: "float64", newInstance: func() interface{} { return new(float64) }},
 	{Type: "bool", newInstance: func() interface{} { return new(bool) }},
 	{Type: "string", newInstance: func() interface{} { return new(string) }},
-	{Type: "bytes", newInstance: func() interface{} { return []byte(nil) }},
+	{Type: "bytes", newInstance: func() interface{} { return new([]byte) }},
 }
 
 func (p *PrimitiveType) UnmarshalJSON(data []byte) error {
@@ -49,11 +50,11 @@ func (p *PrimitiveType) GoType() *Statement {
 func (p *PrimitiveType) getLit(rawJson string) interface{} {
 	v := p.newInstance()
 
-	err := json.Unmarshal([]byte(rawJson), &v)
+	err := json.Unmarshal([]byte(rawJson), v)
 	if err != nil {
 		Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
 	}
-	return v
+	return reflect.ValueOf(v).Elem().Interface()
 }
 
 func (p *PrimitiveType) encode(accessor *Statement) *Statement {
