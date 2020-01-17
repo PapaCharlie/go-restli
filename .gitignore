@@ -5,3 +5,12 @@ generated/
 go-restli
 *.swp
 *.swo
+spec-parser/out/
+.gradle/
+.DS_STORE
+.gradle/
+*.iml
+*.ipr
+*.iws
+bin/
+internal/codegen/cmd/classpath_jar.go
