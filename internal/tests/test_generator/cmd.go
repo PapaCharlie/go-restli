@@ -28,7 +28,7 @@ func main() {
 
 	restSpecs, err := filepath.Glob("rest.li-test-suite/client-testsuite/restspecs/*")
 	panicIfErrf(err, "Could not glob restspecs")
-	specBytes, err := cmd.ExecuteJar(append([]string{"rest.li-test-suite/client-testsuite/schemas"}, restSpecs...))
+	specBytes, err := cmd.ExecuteJar("rest.li-test-suite/client-testsuite/schemas", restSpecs)
 	panicIfErrf(err, "Could not execute jar")
 	err = codegen.GenerateCode(specBytes, tmpDir)
 	panicIfErrf(err, "Failed to generate code")

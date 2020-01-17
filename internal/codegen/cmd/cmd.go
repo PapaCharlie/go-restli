@@ -19,14 +19,47 @@ var Version string
 func CodeGenerator() *cobra.Command {
 	var specBytes []byte
 	var outputDir string
+	var schemaDir string
 
 	cmd := &cobra.Command{
 		Use:          "go-restli",
 		SilenceUsage: true,
 		Version:      Version,
+		Args: func(_ *cobra.Command, args []string) error {
+			if len(Jar) > 0 {
+				if len(args) == 0 {
+					return errors.New("go-restli: Must specify at least one restspec file")
+				}
+			} else {
+				switch len(args) {
+				case 0:
+					stat, err := os.Stdin.Stat()
+					if err != nil {
+						return errors.Wrap(err, "go-restli: Could not stat stdin")
+					}
+					if (stat.Mode() & os.ModeCharDevice) != 0 {
+						return errors.New("go-restli: No stdin and no spec file given")
+					}
+				case 1:
+					if _, err := os.Stat(args[0]); err != nil {
+						return errors.Wrap(err, "go-restli: Must specify a valid spec file")
+					}
+				default:
+					return errors.New("go-restli: Too many arguments")
+				}
+			}
+
+			if schemaDir == "" {
+				return errors.New("go-restli: Must specify a schema dir")
+			} else if _, err := os.Stat(schemaDir); err != nil {
+				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
+			}
+
+			return nil
+		},
 		PreRunE: func(_ *cobra.Command, args []string) (err error) {
 			if len(Jar) > 0 {
-				specBytes, err = ExecuteJar(args)
+				specBytes, err = ExecuteJar(schemaDir, args)
 			} else {
 				specBytes, err = ReadSpec(args)
 			}
@@ -38,7 +71,7 @@ func CodeGenerator() *cobra.Command {
 	}
 
 	if len(Jar) > 0 {
-		cmd.Use += " PEGASUS_DIR REST_SPEC,[REST_SPEC...]"
+		cmd.Use += " REST_SPEC [REST_SPEC...]"
 	} else {
 		cmd.Use += " [SPEC_FILE]"
 	}
@@ -46,11 +79,13 @@ func CodeGenerator() *cobra.Command {
 	cmd.Flags().StringVarP(&codegen.PackagePrefix, "package-prefix", "p", "", "The namespace to prefix all generated "+
 		"packages with (e.g. github.com/PapaCharlie/go-restli/generated)")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "The directory in which to output the generated files")
+	cmd.Flags().StringVarP(&schemaDir, "schema-dir", "s", "", "The directory that contains all the .pdsc/.pdl files "+
+		"that may be needed")
 
 	return cmd
 }
 
-func ExecuteJar(args []string) ([]byte, error) {
+func ExecuteJar(schemaDir string, restSpecs []string) ([]byte, error) {
 	if len(Jar) == 0 {
 		log.Panicln("No jar!")
 	}
@@ -75,7 +110,7 @@ func ExecuteJar(args []string) ([]byte, error) {
 		return nil, err
 	}
 
-	c := exec.Command("java", append([]string{"-jar", f.Name()}, args...)...)
+	c := exec.Command("java", append([]string{"-jar", f.Name(), schemaDir}, restSpecs...)...)
 	stdout, err := c.Output()
 	if err != nil {
 		return nil, err
@@ -91,14 +126,6 @@ func ExecuteJar(args []string) ([]byte, error) {
 
 func ReadSpec(args []string) ([]byte, error) {
 	if len(args) == 0 {
-		stat, err := os.Stdin.Stat()
-		if err != nil {
-			return nil, errors.Wrap(err, "go-restli: Could not stat stdin")
-		}
-		if (stat.Mode() & os.ModeCharDevice) != 0 {
-			return nil, errors.New("go-restli: No stdin and no spec file given")
-		}
-
 		specBytes, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return nil, errors.Wrap(err, "go-restli: Could not read spec from stdin")
