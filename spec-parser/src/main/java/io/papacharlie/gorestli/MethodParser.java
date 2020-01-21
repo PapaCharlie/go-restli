@@ -97,7 +97,7 @@ public class MethodParser {
           parameter.getName(),
           parameter.getDoc(),
           _typeParser.parseFromRestSpec(parameter.getType()),
-          parameter.isOptional()));
+          (parameter.hasOptional() && parameter.isOptional()) || parameter.hasDefault()));
     }
     return fields;
   }
