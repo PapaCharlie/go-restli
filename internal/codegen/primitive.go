@@ -39,6 +39,16 @@ func (p *PrimitiveType) UnmarshalJSON(data []byte) error {
 	return errors.Errorf("Unknown type: %s", primitiveType)
 }
 
+func (p *PrimitiveType) Cast(accessor *Statement) *Statement {
+	var cast *Statement
+	if p.Type == "bytes" {
+		cast = Index().Byte()
+	} else {
+		cast = Id(p.Type)
+	}
+	return cast.Call(accessor)
+}
+
 func (p *PrimitiveType) GoType() *Statement {
 	if p.Type == "bytes" {
 		return Bytes()

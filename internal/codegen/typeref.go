@@ -27,7 +27,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 
 	if pt := r.Ref.Primitive; pt != nil {
 		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
-			def.Return(pt.encode(Id(pt.Type).Call(Op("*").Id(r.Receiver()))), Nil())
+			def.Return(pt.encode(pt.Cast(Op("*").Id(r.Receiver()))), Nil())
 		}).Line().Line()
 		AddRestLiDecode(def, r.Receiver(), r.Name, func(def *Group) {
 			def.Return(pt.decode(Id(r.Receiver())))
