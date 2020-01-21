@@ -14,3 +14,4 @@ spec-parser/out/
 *.iws
 bin/
 internal/codegen/cmd/classpath_jar.go
+releases/

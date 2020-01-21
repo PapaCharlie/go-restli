@@ -1,8 +1,18 @@
 SHELL := zsh
 
-VERSION ?= $(shell make -s get-latest-version)
+define get-version
+ref=HEAD; tag=""; while true ; do \
+  tag=$$(git tag -l "v*" --contains "$$ref") ; \
+  [[ -n "$$tag" ]] && break ; \
+  ref="$${ref}^" ; \
+done ; \
+echo "$${tag#v}"$$([[ HEAD == "$$ref" ]] || echo "-SNAPSHOT")
+endef
+
+VERSION := $(shell $(get-version))
 JARGO := internal/codegen/cmd/classpath_jar.go
-FAT_JAR := spec-parser/build/libs/go-restli-spec-parser.jar
+FAT_JAR := spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar
+GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/generated
 PACKAGES := ./internal/codegen ./d2 ./protocol
@@ -34,7 +44,7 @@ clean:
 	rm -rf internal/tests/generated
 
 $(FAT_JAR): $(shell git ls-files spec-parser)
-	cd spec-parser && ./gradlew build fatJar
+	$(GRADLEW) build fatJar
 	touch $(FAT_JAR) # touch the jar after the build to inform make that the file is fresh
 
 $(JARGO): $(FAT_JAR)
@@ -42,9 +52,16 @@ $(JARGO): $(FAT_JAR)
 	gzip -9 -c $(FAT_JAR) | base64 -w 120 >> $(JARGO)
 	echo '`)' >> $(JARGO)
 
-get-latest-version:
-	@ref=HEAD; tag=""; while [[ -z "$$tag" ]] ; do tag=$$(git tag -l "v*" --contains "$$ref") ; ref="$${ref}^" ; done && echo "$${tag#v}"$$([[ HEAD == "$$ref" ]] || echo "-SNAPSHOT")
-
-release:
+release: build
 	rm -rf ~/.m2/repository/io/papacharlie/
-	cd spec-parser && ./gradlew -Pversion=$(VERSION) publishToMavenLocal
+	$(GRADLEW) publishToMavenLocal
+	mkdir -p releases/$(VERSION)
+	cp \
+		bin/go-restli_darwin-amd64 \
+		bin/go-restli_linux-amd64 \
+		spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar \
+		spec-parser/build/libs/spec-parser-$(VERSION)-javadoc.jar \
+		spec-parser/build/libs/spec-parser-$(VERSION)-sources.jar \
+		spec-parser/build/libs/spec-parser-$(VERSION).jar \
+		spec-parser/build/publications/mavenJava/pom-default.xml \
+		releases/$(VERSION)

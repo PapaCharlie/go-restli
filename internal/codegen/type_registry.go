@@ -22,36 +22,32 @@ type registeredType struct {
 
 type typeRegistry map[Identifier]*registeredType
 
-func (reg *typeRegistry) Register(t ComplexType) {
-	if _, ok := (*reg)[t.GetIdentifier()]; ok {
-		Logger.Panicf("Cannot register type %s twice!", t.GetIdentifier())
+func (reg typeRegistry) Register(t ComplexType) {
+	id := t.GetIdentifier()
+	if _, ok := reg[id]; ok {
+		Logger.Panicf("Cannot register type %s twice!", id)
 	}
-	(*reg)[t.GetIdentifier()] = &registeredType{Type: t}
+	reg[id] = &registeredType{Type: t}
 }
 
-func (reg *typeRegistry) get(id Identifier) *registeredType {
-	t, ok := (*reg)[id]
+func (reg typeRegistry) get(id Identifier) *registeredType {
+	t, ok := reg[id]
 	if !ok {
 		Logger.Panicf("Unknown type: %s", id)
 	}
 	return t
 }
 
-func (reg *typeRegistry) Resolve(id Identifier) ComplexType {
+func (reg typeRegistry) Resolve(id Identifier) ComplexType {
 	return reg.get(id).Type
 }
 
-func (reg *typeRegistry) IsCyclic(id Identifier) bool {
-	t := (*reg)[id]
-	if t == nil {
-		return false
-	} else {
-		return t.IsCyclic
-	}
+func (reg typeRegistry) IsCyclic(id Identifier) bool {
+	return reg.get(id).IsCyclic
 }
 
-func (reg *typeRegistry) GenerateTypeCode() (files []*CodeFile) {
-	for _, t := range *reg {
+func (reg typeRegistry) GenerateTypeCode() (files []*CodeFile) {
+	for _, t := range reg {
 		files = append(files, &CodeFile{
 			SourceFile:  t.Type.GetSourceFile(),
 			PackagePath: t.Type.GetIdentifier().PackagePath(),
@@ -62,28 +58,29 @@ func (reg *typeRegistry) GenerateTypeCode() (files []*CodeFile) {
 	return files
 }
 
-func (reg *typeRegistry) FindCycle(nextNode Identifier, depth int, path Path) []Identifier {
-	if cycle := path.IntroducesCycle(nextNode, depth); len(cycle) > 0 {
+func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
+	if cycle := path.IntroducesCycle(nextNode); len(cycle) > 0 {
 		return cycle
 	}
 
 	// We've already seen this node, but it didn't introduce a cycle. Don't descend into its children
-	if _, ok := path.VisitedNodes[nextNode]; ok {
+	if path.SeenNode(nextNode) {
 		return nil
 	}
 
-	newPath := path.CopyWith(nextNode, depth)
+	newPath := path.Add(nextNode)
 	for c := range reg.get(nextNode).Type.InnerTypes() {
 		if !reg.IsCyclic(c) {
-			if p := reg.FindCycle(c, depth+1, newPath); len(p) > 0 {
+			if p := reg.FindCycle(c, newPath); len(p) > 0 {
 				return p
 			}
 		}
 	}
+
 	return nil
 }
 
-func (reg *typeRegistry) FlagCyclic(id Identifier) {
+func (reg typeRegistry) FlagCyclic(id Identifier) {
 	node := reg.get(id)
 	node.IsCyclic = true
 	for c := range node.Type.InnerTypes() {
@@ -93,10 +90,10 @@ func (reg *typeRegistry) FlagCyclic(id Identifier) {
 	}
 }
 
-func (reg *typeRegistry) FlagCyclicDependencies() {
-	for id := range *reg {
+func (reg typeRegistry) FlagCyclicDependencies() {
+	for id := range reg {
 		for {
-			cycle := reg.FindCycle(id, 0, Path{})
+			cycle := reg.FindCycle(id, Path{})
 			if len(cycle) > 0 {
 				var identifiers []string
 				for _, cyclicModel := range cycle {
@@ -114,47 +111,52 @@ func (reg *typeRegistry) FlagCyclicDependencies() {
 	}
 }
 
-type Path struct {
-	VisitedNodes      map[Identifier]int
-	VisitedNamespaces map[string]int
-}
-
-func (p *Path) CopyWith(id Identifier, depth int) Path {
-	newPath := Path{
-		VisitedNodes:      make(map[Identifier]int, len(p.VisitedNodes)+1),
-		VisitedNamespaces: make(map[string]int),
-	}
-
-	for i, d := range p.VisitedNodes {
-		newPath.VisitedNodes[i] = d
-	}
-	newPath.VisitedNodes[id] = depth
-
-	for n, d := range p.VisitedNamespaces {
-		newPath.VisitedNamespaces[n] = d
-	}
-	if _, ok := newPath.VisitedNamespaces[id.Namespace]; !ok {
-		newPath.VisitedNamespaces[id.Namespace] = depth
-	}
-
-	return newPath
-}
-
-func (p *Path) IntroducesCycle(nextNode Identifier, depth int) []Identifier {
-	if cycleStart, ok := p.VisitedNamespaces[nextNode.Namespace]; ok {
-		for _, d := range p.VisitedNamespaces {
-			if d > cycleStart {
-				// This means we visited this namespace strictly after the original visit to nextNode's namespace. In
-				// other words: nextNode is introducing a cycle
-				seq := make([]Identifier, len(p.VisitedNodes)-cycleStart+1)
-				for id, index := range p.VisitedNodes {
-					if index >= cycleStart {
-						seq[index-cycleStart] = id
+func (reg typeRegistry) FindAllDependents(id Identifier) IdentifierSet {
+	dependents := IdentifierSet{id: true}
+	added := true
+	for added {
+		added = false
+		for id, c := range reg {
+			for inner := range c.Type.InnerTypes() {
+				if dependents.Get(inner) {
+					if !dependents.Get(id) {
+						dependents.Add(id)
+						added = true
 					}
 				}
-				seq[len(seq)-1] = nextNode
-				return seq
 			}
+		}
+	}
+	return dependents
+}
+
+type Path []Identifier
+
+func (p Path) Add(id Identifier) Path {
+	return append(append(Path(nil), p...), id)
+}
+
+func (p Path) SeenNode(id Identifier) bool {
+	// This can probably be made a little faster by having a lookup map on the side, but these dependency chains likely
+	// won't grow past the dozen or so elements, which means this should be fast enough not to be noticeable during code
+	// generation
+	for _, node := range p {
+		if node == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (p Path) IntroducesCycle(nextNode Identifier) Path {
+	inSameNamespace := true
+	for i := len(p) - 1; i >= 0; i-- {
+		if p[i].Namespace != nextNode.Namespace {
+			inSameNamespace = false
+			continue
+		}
+		if !inSameNamespace && p[i].Namespace == nextNode.Namespace {
+			return append(append(Path(nil), p[i:]...), nextNode)
 		}
 	}
 	return nil

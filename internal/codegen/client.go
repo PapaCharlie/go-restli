@@ -17,7 +17,7 @@ type Resource struct {
 }
 
 func (r *Resource) PackagePath() string {
-	return Identifier{Namespace: r.Namespace}.PackagePath()
+	return FqcpToPackagePath(r.Namespace)
 }
 
 func (r *Resource) GenerateCode() []*CodeFile {

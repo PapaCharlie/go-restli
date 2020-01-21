@@ -72,7 +72,7 @@ func CodeGenerator() *cobra.Command {
 
 	if len(Jar) > 0 {
 		cmd.Use += " REST_SPEC [REST_SPEC...]"
-		cmd.Flags().StringVarP(&schemaDir, "schema-dir", "s", "", "The directory that contains all the .pdsc/.pdl " +
+		cmd.Flags().StringVarP(&schemaDir, "schema-dir", "s", "", "The directory that contains all the .pdsc/.pdl "+
 			"files that may be needed")
 	} else {
 		cmd.Use += " [SPEC_FILE]"
