@@ -6,8 +6,6 @@ import (
 
 type Bytes []byte
 
-func (b *Bytes) RestLiEncodable() {}
-
 func (b *Bytes) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(string(*b))
 }

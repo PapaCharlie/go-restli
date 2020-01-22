@@ -38,20 +38,20 @@ func (s *TestServer) ActionsetEchoMessage(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoMessageArray(t *testing.T, c Client) {
-	messageArray := []conflictresolution.Message{
+	messageArray := []*conflictresolution.Message{
 		{Message: "test message"},
 		{Message: "another message"},
 	}
 	res, err := c.EchoMessageArrayAction(&EchoMessageArrayActionParams{Messages: messageArray})
 	require.NoError(t, err)
-	require.Equal(t, messageArray, *res, "Invalid response from server")
+	require.Equal(t, messageArray, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetEchoStringArray(t *testing.T, c Client) {
 	stringArray := []string{"string one", "string two"}
 	res, err := c.EchoStringArrayAction(&EchoStringArrayActionParams{Strings: stringArray})
 	require.NoError(t, err)
-	require.Equal(t, stringArray, *res, "Invalid response from server")
+	require.Equal(t, stringArray, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetEchoStringMap(t *testing.T, c Client) {
@@ -61,7 +61,7 @@ func (s *TestServer) ActionsetEchoStringMap(t *testing.T, c Client) {
 	}
 	res, err := c.EchoStringMapAction(&EchoStringMapActionParams{Strings: stringMap})
 	require.NoError(t, err)
-	require.Equal(t, stringMap, *res, "Invalid response from server")
+	require.Equal(t, stringMap, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
@@ -72,7 +72,7 @@ func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
-	union := testsuite.NewUnionOfPrimitives()
+	union := &testsuite.UnionOfPrimitives{}
 	union.InitializePrimitivesUnion()
 	union.PrimitivesUnion.Long = new(int64)
 	*union.PrimitivesUnion.Long = 100
@@ -83,7 +83,7 @@ func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) {
-	union := testsuite.NewUnionOfComplexTypes()
+	union := &testsuite.UnionOfComplexTypes{}
 	union.ComplexTypeUnion.Fruits = new(conflictresolution.Fruits)
 	*union.ComplexTypeUnion.Fruits = conflictresolution.Fruits_APPLE
 

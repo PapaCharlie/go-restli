@@ -42,7 +42,7 @@ func (r *Record) field(f Field) *Statement {
 }
 
 func (f *Field) IsPointer() bool {
-	return f.IsOptional || f.DefaultValue != nil
+	return (f.IsOptional || f.DefaultValue != nil) && !f.Type.IsMapOrArray()
 }
 
 func (r *Record) GenerateCode() (def *Statement) {
@@ -62,29 +62,31 @@ func (r *Record) GenerateCode() (def *Statement) {
 				field.Add(f.Type.GoType())
 			}
 
-			field.Tag(JsonFieldTag(f.Name, f.IsPointer()))
+			field.Tag(JsonFieldTag(f.Name, f.IsOptional || f.DefaultValue != nil))
 		}
 	}).Line().Line()
 
 	hasDefaultValue := r.generatePopulateDefaultValues(def)
 	hasUnionField := r.generateValidateUnionFields(def)
 
-	def.Func().
-		Id("New" + r.Name).Params().
-		Params(Id(r.Receiver()).Op("*").Id(r.Name))
-	def.BlockFunc(func(def *Group) {
-		def.Id(r.Receiver()).Op("=").New(Id(r.Name))
-		for _, f := range r.Fields {
-			if f.Type.Reference == nil {
-				continue
+	if hasDefaultValue {
+		def.Func().
+			Id(r.defaultValuesConstructor()).Params().
+			Params(Id(r.Receiver()).Op("*").Id(r.Name))
+		def.BlockFunc(func(def *Group) {
+			def.Id(r.Receiver()).Op("=").New(Id(r.Name))
+			for _, f := range r.Fields {
+				if f.Type.Reference == nil {
+					continue
+				}
+				if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsPointer() && record.hasDefaultValue() {
+					def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
+				}
 			}
-			if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsPointer() {
-				def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), "New"+record.Name).Call()
-			}
-		}
-		def.Add(r.populateDefaultValues)
-		def.Return()
-	}).Line().Line()
+			def.Add(r.populateDefaultValues)
+			def.Return()
+		}).Line().Line()
+	}
 
 	if hasDefaultValue || hasUnionField {
 		r.jsonSerDe(def)
@@ -132,7 +134,9 @@ func (r *Record) restLiSerDe(def *Statement) {
 
 func (r *Record) jsonSerDe(def *Statement) {
 	AddMarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
-		def.Add(r.populateDefaultValues, r.validateUnionFields)
+		// No need to add default values on the way out if they weren't specified
+		//def.Add(r.populateDefaultValues)
+		def.Add(r.validateUnionFields)
 		def.Type().Id("_t").Id(r.Name)
 		def.Return(Qual(EncodingJson, Marshal).Call(Call(Op("*").Id("_t")).Call(Id(r.Receiver()))))
 	}).Line().Line()
@@ -160,8 +164,7 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 			return
 		// For convenience, we create empty maps of the right type if the default value is the empty map
 		case t.Map != nil && emptyMapRegex.MatchString(rawJson):
-			def.Id("val").Op(":=").Make(t.GoType(), Lit(0))
-			def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
+			def.Id(r.Receiver()).Dot(name).Op("=").Make(t.GoType(), Lit(0))
 			return
 		// Enum values can also be added as literals
 		case t.Reference != nil:
@@ -184,17 +187,19 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 	})
 }
 
+func (r *Record) hasDefaultValue() bool {
+	for _, f := range r.Fields {
+		if f.DefaultValue != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Record) generatePopulateDefaultValues(def *Statement) bool {
 	r.populateDefaultValues = Empty()
 
-	hasDefault := false
-	for _, f := range r.Fields {
-		if f.DefaultValue != nil {
-			hasDefault = true
-			break
-		}
-	}
-	if !hasDefault {
+	if !r.hasDefaultValue() {
 		return false
 	}
 
@@ -258,4 +263,8 @@ func (r *Record) generateInitializeUnionFields(def *Statement) {
 				Block(Id(r.Receiver()).Dot(ExportedIdentifier(f.Name)).Op("=").New(union.GoType()))
 		}
 	}
+}
+
+func (r *Record) defaultValuesConstructor() string {
+	return "New" + r.Name + "WithDefaultValues"
 }

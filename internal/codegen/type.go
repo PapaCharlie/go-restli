@@ -72,16 +72,42 @@ func (t *RestliType) GoType() *Statement {
 	case t.Reference != nil:
 		return Qual(t.Reference.PackagePath(), t.Reference.Name)
 	case t.Array != nil:
-		return Index().Add(t.Array.GoType())
+		return Index().Add(t.Array.ReferencedType())
 	case t.Map != nil:
-		return Map(String()).Add(t.Map.GoType())
+		return Map(String()).Add(t.Map.ReferencedType())
 	default:
 		return t.Union.GoType()
 	}
 }
 
+func (t *RestliType) ReferencedType() *Statement {
+	switch {
+	case t.Primitive != nil:
+		// No need to reference primitive types, makes it more convenient to call methods
+		return t.GoType()
+	case t.Reference != nil:
+		// If the typeref is backed by a primitive, then don't take the reference either
+		if ref, ok := t.Reference.Resolve().(*Typeref); ok && ref.isPrimitive() {
+			return t.GoType()
+		}
+	case t.Union != nil:
+		// Union types are structs of references, we don't need to add another layer
+		return t.GoType()
+	}
+	return t.PointerType()
+}
+
+func (t *RestliType) IsMapOrArray() bool {
+	return t.Array != nil || t.Map != nil || (t.Primitive != nil && t.Primitive.IsBytes())
+}
+
 func (t *RestliType) PointerType() *Statement {
-	return Op("*").Add(t.GoType())
+	if t.IsMapOrArray() {
+		// Never use pointers to maps or arrays since they are already reference types. We can just use them as-is
+		return t.GoType()
+	} else {
+		return Op("*").Add(t.GoType())
+	}
 }
 
 func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
@@ -124,7 +150,7 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 			def.If(Add(accessor).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
 				writeStringToBuf(def, Lit("("+m.Alias+":"))
 				fieldAccessor := Add(accessor).Dot(m.name())
-				if m.Type.Reference == nil {
+				if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
 					fieldAccessor = Op("*").Add(fieldAccessor)
 				}
 				m.Type.WriteToBuf(def, fieldAccessor)

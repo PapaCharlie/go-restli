@@ -34,12 +34,7 @@ func (m *Method) addEntityTypes(def *Group) {
 
 func addEntityTypes(def *Group, pathKeys []PathKey) {
 	for _, pk := range pathKeys {
-		d := def.Id(pk.Name)
-		if pk.Type.Reference != nil {
-			d.Add(pk.Type.PointerType())
-		} else {
-			d.Add(pk.Type.GoType())
-		}
+		def.Id(pk.Name).Add(pk.Type.ReferencedType())
 	}
 }
 
