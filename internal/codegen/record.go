@@ -42,7 +42,7 @@ func (r *Record) field(f Field) *Statement {
 }
 
 func (f *Field) IsPointer() bool {
-	return f.IsOptional || f.DefaultValue != nil
+	return (f.IsOptional || f.DefaultValue != nil) && !f.Type.IsMapOrArray()
 }
 
 func (r *Record) GenerateCode() (def *Statement) {
@@ -62,7 +62,7 @@ func (r *Record) GenerateCode() (def *Statement) {
 				field.Add(f.Type.GoType())
 			}
 
-			field.Tag(JsonFieldTag(f.Name, f.IsPointer()))
+			field.Tag(JsonFieldTag(f.Name, f.IsOptional || f.DefaultValue != nil))
 		}
 	}).Line().Line()
 
@@ -132,7 +132,9 @@ func (r *Record) restLiSerDe(def *Statement) {
 
 func (r *Record) jsonSerDe(def *Statement) {
 	AddMarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
-		def.Add(r.populateDefaultValues, r.validateUnionFields)
+		// No need to add default values on the way out if they weren't specified
+		//def.Add(r.populateDefaultValues)
+		def.Add(r.validateUnionFields)
 		def.Type().Id("_t").Id(r.Name)
 		def.Return(Qual(EncodingJson, Marshal).Call(Call(Op("*").Id("_t")).Call(Id(r.Receiver()))))
 	}).Line().Line()
@@ -160,8 +162,7 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 			return
 		// For convenience, we create empty maps of the right type if the default value is the empty map
 		case t.Map != nil && emptyMapRegex.MatchString(rawJson):
-			def.Id("val").Op(":=").Make(t.GoType(), Lit(0))
-			def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
+			def.Id(r.Receiver()).Dot(name).Op("=").Make(t.GoType(), Lit(0))
 			return
 		// Enum values can also be added as literals
 		case t.Reference != nil:

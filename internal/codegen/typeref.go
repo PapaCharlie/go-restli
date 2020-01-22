@@ -60,3 +60,15 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	Logger.Panicf("Illegal typeref type %+v defined in %s", r.Ref, r.GetSourceFile())
 	return nil
 }
+
+func (r *Typeref) isPrimitive() bool {
+	switch {
+	case r.Ref.Primitive != nil:
+		return true
+	case r.Ref.Reference != nil:
+		if ref, ok := r.Ref.Reference.Resolve().(*Typeref); ok {
+			return ref.isPrimitive()
+		}
+	}
+	return false
+}

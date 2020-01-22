@@ -90,7 +90,11 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		if returns {
 			def.Id(DoAndDecodeResult).Op(":=").Struct(Id("Value").Add(a.Return.GoType())).Block()
 			callDoAndDecode(def)
-			def.Return(Op("&").Id(DoAndDecodeResult).Dot("Value"), Nil())
+			returnValue := Id(DoAndDecodeResult).Dot("Value")
+			if !a.Return.IsMapOrArray() {
+				returnValue = Op("&").Add(returnValue)
+			}
+			def.Return(returnValue, Nil())
 		} else {
 			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(ReqVar))
 			def.Return(Err())
