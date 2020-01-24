@@ -69,22 +69,24 @@ func (r *Record) GenerateCode() (def *Statement) {
 	hasDefaultValue := r.generatePopulateDefaultValues(def)
 	hasUnionField := r.generateValidateUnionFields(def)
 
-	def.Func().
-		Id("New" + r.Name).Params().
-		Params(Id(r.Receiver()).Op("*").Id(r.Name))
-	def.BlockFunc(func(def *Group) {
-		def.Id(r.Receiver()).Op("=").New(Id(r.Name))
-		for _, f := range r.Fields {
-			if f.Type.Reference == nil {
-				continue
+	if hasDefaultValue {
+		def.Func().
+			Id(r.defaultValuesConstructor()).Params().
+			Params(Id(r.Receiver()).Op("*").Id(r.Name))
+		def.BlockFunc(func(def *Group) {
+			def.Id(r.Receiver()).Op("=").New(Id(r.Name))
+			for _, f := range r.Fields {
+				if f.Type.Reference == nil {
+					continue
+				}
+				if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsPointer() && record.hasDefaultValue() {
+					def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
+				}
 			}
-			if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsPointer() {
-				def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), "New"+record.Name).Call()
-			}
-		}
-		def.Add(r.populateDefaultValues)
-		def.Return()
-	}).Line().Line()
+			def.Add(r.populateDefaultValues)
+			def.Return()
+		}).Line().Line()
+	}
 
 	if hasDefaultValue || hasUnionField {
 		r.jsonSerDe(def)
@@ -185,17 +187,19 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 	})
 }
 
+func (r *Record) hasDefaultValue() bool {
+	for _, f := range r.Fields {
+		if f.DefaultValue != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *Record) generatePopulateDefaultValues(def *Statement) bool {
 	r.populateDefaultValues = Empty()
 
-	hasDefault := false
-	for _, f := range r.Fields {
-		if f.DefaultValue != nil {
-			hasDefault = true
-			break
-		}
-	}
-	if !hasDefault {
+	if !r.hasDefaultValue() {
 		return false
 	}
 
@@ -259,4 +263,8 @@ func (r *Record) generateInitializeUnionFields(def *Statement) {
 				Block(Id(r.Receiver()).Dot(ExportedIdentifier(f.Name)).Op("=").New(union.GoType()))
 		}
 	}
+}
+
+func (r *Record) defaultValuesConstructor() string {
+	return "New" + r.Name + "WithDefaultValues"
 }

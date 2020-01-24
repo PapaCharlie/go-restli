@@ -72,7 +72,7 @@ func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
-	union := testsuite.NewUnionOfPrimitives()
+	union := &testsuite.UnionOfPrimitives{}
 	union.InitializePrimitivesUnion()
 	union.PrimitivesUnion.Long = new(int64)
 	*union.PrimitivesUnion.Long = 100
@@ -83,7 +83,7 @@ func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) {
-	union := testsuite.NewUnionOfComplexTypes()
+	union := &testsuite.UnionOfComplexTypes{}
 	union.ComplexTypeUnion.Fruits = new(conflictresolution.Fruits)
 	*union.ComplexTypeUnion.Fruits = conflictresolution.Fruits_APPLE
 
