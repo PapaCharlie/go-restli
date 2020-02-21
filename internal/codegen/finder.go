@@ -2,10 +2,13 @@ package codegen
 
 import (
 	"fmt"
-
 	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
+
+const EncodeFinderParams = "EncodeFinderParams"
+
+type FinderParams Record
 
 func (m *Method) finderFuncName() string {
 	return FindBy + ExportedIdentifier(m.Name)
@@ -34,7 +37,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 
 	c.Code.Const().Id(ExportedIdentifier(FindBy + ExportedIdentifier(f.Name))).Op("=").Lit(f.Name).Line()
 
-	record := &Record{
+	params := &FinderParams{
 		NamedType: NamedType{
 			Identifier: Identifier{
 				Name:      f.finderStructType(),
@@ -44,7 +47,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		},
 		Fields: f.Params,
 	}
-	c.Code.Add(record.GenerateCode())
+	c.Code.Add(params.GenerateCode(f)).Line().Line()
 
 	AddWordWrappedComment(c.Code, f.Doc).Line()
 	r.addClientFunc(c.Code, f)
@@ -53,35 +56,8 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		def.List(Id(PathVar), Err()).Op(":=").Id(ResourcePath).Call(f.entityParams()...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.Id("query").Op(":=").Qual("net/url", "Values").Block()
-		def.Id("query").Dot("Set").Call(Lit("q"), Lit(f.Name))
-		def.Line()
-
-		for _, field := range f.Params {
-			accessor := Id("params").Dot(ExportedIdentifier(field.Name))
-
-			setBlock := def.Empty()
-			if field.IsPointer() {
-				setBlock.If(Add(accessor).Op("!=").Nil())
-			}
-
-			if field.IsPointer() && field.Type.Reference == nil && field.Type.Union == nil {
-				accessor = Op("*").Add(accessor)
-			}
-			varName := field.Name + "Str"
-
-			setBlock.BlockFunc(func(def *Group) {
-				assignment, hasError := field.Type.RestLiURLEncodeModel(accessor)
-				if hasError {
-					def.List(Id(varName), Err()).Op(":=").Add(assignment)
-					IfErrReturn(def, Nil(), Err())
-				} else {
-					def.Id(varName).Op(":=").Add(assignment)
-				}
-				def.Id("query").Dot("Set").Call(Lit(field.Name), Id(varName))
-			})
-			def.Line()
-		}
+		def.List(Id("query"), Err()).Op(":=").Id("params").Dot(EncodeFinderParams).Call()
+		IfErrReturn(def, Nil(), Err()).Line()
 
 		def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query").Dot("Encode").Call()
 
@@ -97,4 +73,45 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 	})
 
 	return c
+}
+
+func (p *FinderParams) GenerateCode(f *Method) *Statement {
+	def := Empty()
+	def.Add((*Record)(p).generateStruct()).Line().Line()
+
+	receiver := (*Record)(p).Receiver()
+	return AddFuncOnReceiver(def, receiver, p.Name, EncodeFinderParams).
+		Params().
+		Params(Id("query").Qual("net/url", "Values"), Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.Id(Codec).Op(":=").Qual(ProtocolPackage, RestLiUrlEncoder).Line()
+
+			def.Id("query").Op("=").Make(Qual("net/url", "Values"))
+			def.Id("query").Dot("Set").Call(Lit("q"), Lit(f.Name))
+			def.Line()
+
+			def.Var().Id("buf").Qual("strings", "Builder")
+
+			for _, field := range f.Params {
+				accessor := Id(receiver).Dot(ExportedIdentifier(field.Name))
+
+				setBlock := def.Empty()
+				if field.IsPointer() {
+					setBlock.If(Add(accessor).Op("!=").Nil())
+				}
+
+				if field.IsPointer() && field.Type.Reference == nil && field.Type.Union == nil {
+					accessor = Op("*").Add(accessor)
+				}
+
+				setBlock.BlockFunc(func(def *Group) {
+					field.Type.WriteToBuf(def, accessor)
+					def.Id("query").Dot("Set").Call(Lit(field.Name), Id("buf").Dot("String").Call())
+					Id("buf").Dot("Reset").Call()
+				})
+				def.Line()
+			}
+
+			def.Return(Id("query"), Err())
+		})
 }

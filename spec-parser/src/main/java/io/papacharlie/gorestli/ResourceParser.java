@@ -47,6 +47,11 @@ public class ResourceParser {
   }
 
   public Set<Resource> parse() {
+    if (_schema.hasCollection() && _schema.getCollection().getIdentifier().hasParams()) {
+      Utils.log("Complex Key resources are not supported. Skipping %s and its children.%n", _namespaceChain);
+      return Collections.emptySet();
+    }
+
     Resource resource = newResource();
     MethodParser methodParser = new MethodParser(_typeParser, _schema, _pathKeys);
 

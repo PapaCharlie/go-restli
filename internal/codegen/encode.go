@@ -23,6 +23,6 @@ func (t *RestliType) RestLiEncodeModel(encoder string, accessor *Statement) (*St
 		return Add(encoderRef).Dot("Encode" + ExportedIdentifier(t.Primitive.Type)).Call(accessor), false
 	}
 
-	Logger.Panicln(t, "cannot be url encoded")
+	Logger.Panicf("%+v cannot be url encoded", t)
 	return nil, false
 }

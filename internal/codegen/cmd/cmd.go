@@ -111,6 +111,7 @@ func ExecuteJar(schemaDir string, restSpecs []string) ([]byte, error) {
 	}
 
 	c := exec.Command("java", append([]string{"-jar", f.Name(), schemaDir}, restSpecs...)...)
+	c.Stderr = os.Stderr
 	stdout, err := c.Output()
 	if err != nil {
 		return nil, err

@@ -45,12 +45,8 @@ func (f *Field) IsPointer() bool {
 	return (f.IsOptional || f.DefaultValue != nil) && !f.Type.IsMapOrArray()
 }
 
-func (r *Record) GenerateCode() (def *Statement) {
-	def = Empty()
-
-	AddWordWrappedComment(def, r.Doc).Line()
-
-	def.Type().Id(r.Name).StructFunc(func(def *Group) {
+func (r *Record) generateStruct() *Statement {
+	return Type().Id(r.Name).StructFunc(func(def *Group) {
 		for _, f := range r.Fields {
 			field := def.Empty()
 			AddWordWrappedComment(field, f.Doc).Line()
@@ -64,7 +60,14 @@ func (r *Record) GenerateCode() (def *Statement) {
 
 			field.Tag(JsonFieldTag(f.Name, f.IsOptional || f.DefaultValue != nil))
 		}
-	}).Line().Line()
+	})
+}
+
+func (r *Record) GenerateCode() (def *Statement) {
+	def = Empty()
+
+	AddWordWrappedComment(def, r.Doc).Line()
+	def.Add(r.generateStruct()).Line().Line()
 
 	hasDefaultValue := r.generatePopulateDefaultValues(def)
 	hasUnionField := r.generateValidateUnionFields(def)

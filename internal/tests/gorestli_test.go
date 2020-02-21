@@ -16,8 +16,6 @@ import (
 	actionset "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/actionSet"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection"
 	collectionreturnentity "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collectionReturnEntity"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/params"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/simple"
 	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/typerefs/collectionTyperef"
@@ -45,17 +43,11 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 	case "collection":
 		*v = reflect.ValueOf(collection.NewClient(s.client))
 		return v
-	case "complexkey":
-		*v = reflect.ValueOf(complexkey.NewClient(s.client))
-		return v
 	case "simple":
 		*v = reflect.ValueOf(simple.NewClient(s.client))
 		return v
 	case "actionSet":
 		*v = reflect.ValueOf(actionset.NewClient(s.client))
-		return v
-	case "keywithunion":
-		*v = reflect.ValueOf(keywithunion.NewClient(s.client))
 		return v
 	case "params":
 		*v = reflect.ValueOf(params.NewClient(s.client))

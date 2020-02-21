@@ -43,6 +43,7 @@ clean:
 	git -C internal/tests/rest.li-test-suite reset --hard origin/master
 	rm -rf internal/tests/generated
 
+fat-jar: $(FAT_JAR)
 $(FAT_JAR): $(shell git ls-files spec-parser)
 	$(GRADLEW) build fatJar
 	touch $(FAT_JAR) # touch the jar after the build to inform make that the file is fresh

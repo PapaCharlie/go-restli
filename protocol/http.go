@@ -284,6 +284,10 @@ func (c *RestLiClient) doAndConsumeBody(req *http.Request, bodyConsumer func(bod
 		return res, err
 	}
 
+	if v := res.Header.Get(RestLiHeader_ProtocolVersion); v != RestLiProtocolVersion {
+		return nil, fmt.Errorf("go-restli: Unsupported rest.li protocol version: %s", v)
+	}
+
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, err
