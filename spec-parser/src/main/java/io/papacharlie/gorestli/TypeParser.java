@@ -1,7 +1,9 @@
 package io.papacharlie.gorestli;
 
+import com.google.common.base.Preconditions;
 import com.linkedin.data.schema.ArrayDataSchema;
 import com.linkedin.data.schema.DataSchema;
+import com.linkedin.data.schema.DataSchemaLocation;
 import com.linkedin.data.schema.DataSchemaResolver;
 import com.linkedin.data.schema.EnumDataSchema;
 import com.linkedin.data.schema.FixedDataSchema;
@@ -43,7 +45,9 @@ public class TypeParser {
     Set<DataType> dataTypes = new HashSet<>();
     SnapshotGenerator generator = new SnapshotGenerator(resourceSchema, _dataSchemaResolver);
     for (NamedDataSchema schema : generator.generateModelList()) {
-      File sourceFile = _dataSchemaResolver.nameToDataSchemaLocations().get(schema.getBindingName()).getSourceFile();
+      DataSchemaLocation location = _dataSchemaResolver.nameToDataSchemaLocations().get(schema.getFullName());
+      Preconditions.checkNotNull(location, "Could not resolve original location for %s", schema.getFullName());
+      File sourceFile = location.getSourceFile();
       DataType dataType;
       switch (schema.getType()) {
         case RECORD:
