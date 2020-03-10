@@ -84,7 +84,7 @@ func IsErrorResponse(res *http.Response) error {
 	var err error
 	var body []byte
 
-	if res.Header.Get(RestLiHeader_ErrorResponse) == "true" {
+	if strings.ToLower(res.Header.Get(RestLiHeader_ErrorResponse)) == "true" {
 		defer res.Body.Close()
 		body, err = ioutil.ReadAll(res.Body)
 		if err != nil {
