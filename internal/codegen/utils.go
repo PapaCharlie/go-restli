@@ -25,10 +25,11 @@ const (
 
 	FindBy = "FindBy"
 
-	ReqVar  = "req"
-	ResVar  = "res"
-	UrlVar  = "url"
-	PathVar = "path"
+	ReqVar   = "req"
+	ResVar   = "res"
+	UrlVar   = "url"
+	PathVar  = "path"
+	PatchVar = "patch"
 
 	ClientReceiver      = "c"
 	ClientType          = "client"
