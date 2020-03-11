@@ -97,6 +97,10 @@ func (t *RestliType) ReferencedType() *Statement {
 	return t.PointerType()
 }
 
+func (t *RestliType) IsUnion() bool {
+	return t.Union != nil
+}
+
 func (t *RestliType) IsMapOrArray() bool {
 	return t.Array != nil || t.Map != nil || (t.Primitive != nil && t.Primitive.IsBytes())
 }

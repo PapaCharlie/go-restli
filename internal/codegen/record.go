@@ -42,7 +42,7 @@ func (r *Record) field(f Field) *Statement {
 }
 
 func (f *Field) IsPointer() bool {
-	return (f.IsOptional || f.DefaultValue != nil) && !f.Type.IsMapOrArray()
+	return !f.Type.IsUnion() && !f.Type.IsMapOrArray()
 }
 
 func (r *Record) generateStruct() *Statement {
@@ -58,7 +58,7 @@ func (r *Record) generateStruct() *Statement {
 				field.Add(f.Type.GoType())
 			}
 
-			field.Tag(JsonFieldTag(f.Name, f.IsOptional || f.DefaultValue != nil))
+			field.Tag(JsonFieldTag(f.Name, true))
 		}
 	})
 }
