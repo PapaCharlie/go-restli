@@ -8,6 +8,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
+const CreateParam = "create"
 const UpdateParam = "update"
 const PartialUpdateSetParam = "set"
 const PartialUpdateDeleteParam = "delete"
@@ -33,6 +34,9 @@ func (m *Method) restMethodFuncParams(def *Group, resourceSchema *RestliType) {
 	switch m.RestLiMethod() {
 	case protocol.Method_get:
 		m.addEntityTypes(def)
+	case protocol.Method_create:
+		m.addEntityTypes(def)
+		def.Id(CreateParam).Add(resourceSchema.PointerType())
 	case protocol.Method_update:
 		m.addEntityTypes(def)
 		def.Id(UpdateParam).Add(resourceSchema.PointerType())
@@ -50,6 +54,8 @@ func (m *Method) restMethodFuncReturnParams(def *Group) {
 	case protocol.Method_get:
 		def.Add(m.Return.PointerType())
 		def.Error()
+	case protocol.Method_create:
+		def.Error()
 	case protocol.Method_update:
 		def.Error()
 	case protocol.Method_partial_update:
@@ -64,6 +70,8 @@ func (r *Resource) GenerateRestMethodCode(m *Method) *Statement {
 	switch m.RestLiMethod() {
 	case protocol.Method_get:
 		return r.generateGet(m)
+	case protocol.Method_create:
+		return r.generateCreate(m)
 	case protocol.Method_update:
 		return r.generateUpdate(m)
 	case protocol.Method_partial_update:
@@ -100,6 +108,31 @@ func (r *Resource) generateGet(m *Method) *Statement {
 		def.Id(DoAndDecodeResult).Op(":=").New(m.Return.GoType())
 		callDoAndDecode(def)
 		def.Return(Id(DoAndDecodeResult), Err())
+	})
+
+	return def
+}
+
+func (r *Resource) generateCreate(m *Method) *Statement {
+	def := Empty()
+	r.addClientFunc(def, m)
+
+	def.BlockFunc(func(def *Group) {
+		m.callResourcePath(def)
+		IfErrReturn(def, Err()).Line()
+		r.callFormatQueryUrl(def)
+		IfErrReturn(def, Err()).Line()
+
+		def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(Id(UrlVar), RestLiMethod(protocol.Method_create), Id(CreateParam))
+		IfErrReturn(def, Err()).Line()
+
+		def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndDecode).Call(Id(ReqVar), Id(CreateParam))
+		IfErrReturn(def, Err()).Line()
+
+		def.If(Id(ResVar).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
+			def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode")))
+		})
+		def.Return(Nil())
 	})
 
 	return def
