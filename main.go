@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/PapaCharlie/go-restli/internal/codegen/cmd"
+	"github.com/bored-engineer/go-restli/internal/codegen/cmd"
 )
 
 func main() {

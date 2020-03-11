@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/PapaCharlie/go-restli/internal/codegen"
+	"github.com/bored-engineer/go-restli/internal/codegen"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -79,7 +79,7 @@ func CodeGenerator() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&codegen.PackagePrefix, "package-prefix", "p", "", "The namespace to prefix all generated "+
-		"packages with (e.g. github.com/PapaCharlie/go-restli/generated)")
+		"packages with (e.g. github.com/bored-engineer/go-restli/generated)")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "The directory in which to output the generated files")
 
 	return cmd

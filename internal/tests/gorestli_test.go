@@ -13,13 +13,13 @@ import (
 	"sync"
 	"testing"
 
-	actionset "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/actionSet"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection"
-	collectionreturnentity "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collectionReturnEntity"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/params"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/simple"
-	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/typerefs/collectionTyperef"
-	"github.com/PapaCharlie/go-restli/protocol"
+	actionset "github.com/bored-engineer/go-restli/internal/tests/generated/testsuite/actionSet"
+	"github.com/bored-engineer/go-restli/internal/tests/generated/testsuite/collection"
+	collectionreturnentity "github.com/bored-engineer/go-restli/internal/tests/generated/testsuite/collectionReturnEntity"
+	"github.com/bored-engineer/go-restli/internal/tests/generated/testsuite/params"
+	"github.com/bored-engineer/go-restli/internal/tests/generated/testsuite/simple"
+	collectiontyperef "github.com/bored-engineer/go-restli/internal/tests/generated/testsuite/typerefs/collectionTyperef"
+	"github.com/bored-engineer/go-restli/protocol"
 )
 
 func init() {

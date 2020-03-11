@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/bored-engineer/go-restli/protocol"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 )

@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/internal/codegen"
-	"github.com/PapaCharlie/go-restli/internal/codegen/cmd"
-	"github.com/PapaCharlie/go-restli/internal/tests"
+	"github.com/bored-engineer/go-restli/internal/codegen"
+	"github.com/bored-engineer/go-restli/internal/codegen/cmd"
+	"github.com/bored-engineer/go-restli/internal/tests"
 	"github.com/pkg/errors"
 )
 
@@ -19,7 +19,7 @@ const (
 )
 
 func init() {
-	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/" + generatedPackageSuffix
+	codegen.PackagePrefix = "github.com/bored-engineer/go-restli/internal/tests/" + generatedPackageSuffix
 }
 
 func main() {

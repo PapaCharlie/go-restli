@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/bored-engineer/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
@@ -33,7 +33,7 @@ const (
 
 	NetHttp = "net/http"
 
-	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"
+	ProtocolPackage = "github.com/bored-engineer/go-restli/protocol"
 )
 
 var (

@@ -3,7 +3,7 @@ package codegen
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/bored-engineer/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
