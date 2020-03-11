@@ -14,7 +14,7 @@ JARGO := internal/codegen/cmd/classpath_jar.go
 FAT_JAR := spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar
 GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 
-PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/generated
+PACKAGE_PREFIX := github.com/bored-engineer/go-restli/generated
 PACKAGES := ./internal/codegen ./d2 ./protocol
 
 build: generate test integration-test
@@ -24,7 +24,7 @@ build: generate test integration-test
 bin/go-restli_%: $(shell git ls-files | grep "\.go")
 	export GOOS=$(word 1,$(subst -, ,$(*F))) ; \
 	export GOARCH=$(word 2,$(subst -, ,$(*F))) ; \
-	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/internal/codegen/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
+	go build -tags=jar -ldflags "-s -w -X github.com/bored-engineer/go-restli/internal/codegen/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
 generate:
 	go generate $(PACKAGES)
