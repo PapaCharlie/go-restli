@@ -11,11 +11,13 @@ import (
 func (s *TestServer) SimpleGet(t *testing.T, c Client) {
 	res, err := c.Get()
 	require.NoError(t, err)
-	require.Equal(t, "test message", res.Message, "Invalid response from server")
+	msg := "test message"
+	require.Equal(t, &msg, res.Message, "Invalid response from server")
 }
 
 func (s *TestServer) SimpleUpdate(t *testing.T, c Client) {
-	err := c.Update(&conflictresolution.Message{Message: "updated message"})
+	msg := "updated message"
+	err := c.Update(&conflictresolution.Message{Message: &msg})
 	require.NoError(t, err)
 }
 

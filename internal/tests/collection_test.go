@@ -51,11 +51,13 @@ func (s *TestServer) SubCollectionOfCollectionGet(t *testing.T, c Client) {
 func (s *TestServer) SubSimpleOfCollectionGet(t *testing.T, c Client) {
 	res, err := colletionSubSimple.NewClient(s.client).Get(1)
 	require.NoError(t, err)
-	require.Equal(t, &conflictresolution.Message{Message: "sub simple message"}, res, "Invalid response from server")
+	msg := "sub simple message"
+	require.Equal(t, &conflictresolution.Message{Message: &msg}, res, "Invalid response from server")
 }
 
 func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
-	params := &FindBySearchParams{Keyword: "message"}
+	keyword := "message"
+	params := &FindBySearchParams{Keyword: &keyword}
 	expectedMessages := []*conflictresolution.Message{newMessage(1, "test message"), newMessage(2, "another message")}
 	res, err := c.FindBySearch(params)
 	require.NoError(t, err)
@@ -65,6 +67,6 @@ func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
 func newMessage(id int64, message string) *conflictresolution.Message {
 	return &conflictresolution.Message{
 		Id:      &id,
-		Message: message,
+		Message: &message,
 	}
 }
