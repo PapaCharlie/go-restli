@@ -50,7 +50,7 @@ $(FAT_JAR): $(shell git ls-files spec-parser)
 
 $(JARGO): $(FAT_JAR)
 	echo -e '// +build jar\n\npackage cmd\n\nimport "encoding/base64"\n\nvar Jar, _ = base64.StdEncoding.DecodeString(`' > $(JARGO)
-	gzip -9 -c $(FAT_JAR) | base64 -w 120 >> $(JARGO)
+	gzip -9 -c $(FAT_JAR) | base64 | fold -w 120 >> $(JARGO)
 	echo '`)' >> $(JARGO)
 
 release: build
