@@ -6,7 +6,6 @@ import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.tools.clientgen.RestSpecParser;
 import com.linkedin.util.FileUtil;
 import io.papacharlie.gorestli.json.GoRestliSpec;
-import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
 import java.io.File;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -15,8 +14,8 @@ import java.util.stream.Collectors;
 
 
 public class GoRestliRestSpecParser {
+  private final String _resolverPath;
   private final String[] _restSpecPaths;
-  private final TypeParser _typeParser;
   private final GoRestliSpec _snapshot = new GoRestliSpec();
 
   public GoRestliRestSpecParser(String resolverPath, String restSpecDir) {
@@ -30,17 +29,18 @@ public class GoRestliRestSpecParser {
   }
 
   private GoRestliRestSpecParser(String resolverPath, String[] restSpecPaths) {
+    _resolverPath = resolverPath;
     _restSpecPaths = restSpecPaths;
-    _typeParser = new TypeParser(new DataSchemaParser(resolverPath).getSchemaResolver());
   }
 
   public GoRestliSpec parse() {
     RestSpecParser.ParseResult restSpecParseResult = new RestSpecParser().parseSources(_restSpecPaths);
 
     for (Pair<ResourceSchema, File> result : restSpecParseResult.getSchemaAndFiles()) {
-      Set<DataType> dataTypes = _typeParser.extractDataTypes(result.first);
-      _snapshot._dataTypes.addAll(dataTypes);
-      _snapshot._resources.addAll(new ResourceParser(result.first, result.second, _typeParser).parse());
+      TypeParser typeParser = new TypeParser(new DataSchemaParser(_resolverPath).getSchemaResolver());
+      typeParser.extractDataTypes(result.first);
+      _snapshot._resources.addAll(new ResourceParser(result.first, result.second, typeParser).parse());
+      _snapshot._dataTypes.addAll(typeParser.getDataTypes());
     }
 
     return _snapshot;

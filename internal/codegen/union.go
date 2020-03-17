@@ -42,15 +42,13 @@ func (u *UnionType) validateUnionFields(def *Group, accessor *Statement) {
 					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
 						def.Id(isSet).Op("=").True()
 					}).Else().BlockFunc(func(def *Group) {
-						def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-						def.Return()
+						def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
 					})
 				}
 			}).Line()
 	}
 	def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-		def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMessage))
-		def.Return()
+		def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
 	})
 }
 

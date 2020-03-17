@@ -48,7 +48,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 			},
 			Fields: a.Params,
 		}
-		c.Code.Add(record.GenerateCode())
+		c.Code.Add(record.generateStruct()).Line()
 	}
 
 	AddWordWrappedComment(c.Code, a.Doc).Line()

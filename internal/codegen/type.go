@@ -144,22 +144,19 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 		return
 	default:
-		label := "end" + canonicalizeAccessor(accessor)
-
-		for _, m := range *t.Union {
-			def.If(Add(accessor).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
-				writeStringToBuf(def, Lit("("+m.Alias+":"))
-				fieldAccessor := Add(accessor).Dot(m.name())
-				if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
-					fieldAccessor = Op("*").Add(fieldAccessor)
-				}
-				m.Type.WriteToBuf(def, fieldAccessor)
-				def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-				def.Goto().Id(label)
-			}).Line()
-		}
-
-		def.Id(label).Op(":")
+		def.Switch().BlockFunc(func(def *Group) {
+			for _, m := range *t.Union {
+				def.Case(Add(accessor).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
+					writeStringToBuf(def, Lit("("+m.Alias+":"))
+					fieldAccessor := Add(accessor).Dot(m.name())
+					if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
+						fieldAccessor = Op("*").Add(fieldAccessor)
+					}
+					m.Type.WriteToBuf(def, fieldAccessor)
+					def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+				})
+			}
+		})
 	}
 }
 

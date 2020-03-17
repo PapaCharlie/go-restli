@@ -13,6 +13,7 @@ import com.linkedin.data.schema.RecordDataSchema;
 import com.linkedin.data.schema.TyperefDataSchema;
 import com.linkedin.data.schema.UnionDataSchema;
 import com.linkedin.data.schema.UnionDataSchema.Member;
+import com.linkedin.restli.restspec.IdentifierSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestSpecCodec;
 import com.linkedin.restli.tools.snapshot.gen.SnapshotGenerator;
@@ -25,6 +26,7 @@ import io.papacharlie.gorestli.json.RestliType;
 import io.papacharlie.gorestli.json.Typeref;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -35,14 +37,15 @@ import static io.papacharlie.gorestli.json.RestliType.*;
 
 
 public class TypeParser {
+  private final Set<DataType> _dataTypes = new HashSet<>();
+
   private final DataSchemaResolver _dataSchemaResolver;
 
   public TypeParser(DataSchemaResolver dataSchemaResolver) {
     _dataSchemaResolver = dataSchemaResolver;
   }
 
-  public Set<DataType> extractDataTypes(ResourceSchema resourceSchema) {
-    Set<DataType> dataTypes = new HashSet<>();
+  public void extractDataTypes(ResourceSchema resourceSchema) {
     SnapshotGenerator generator = new SnapshotGenerator(resourceSchema, _dataSchemaResolver);
     for (NamedDataSchema schema : generator.generateModelList()) {
       DataSchemaLocation location = _dataSchemaResolver.nameToDataSchemaLocations().get(schema.getFullName());
@@ -66,9 +69,16 @@ public class TypeParser {
           System.err.printf("Don't know what to do with %s%n", schema);
           continue;
       }
-      dataTypes.add(dataType);
+      _dataTypes.add(dataType);
     }
-    return dataTypes;
+  }
+
+  public Set<DataType> getDataTypes() {
+    return Collections.unmodifiableSet(_dataTypes);
+  }
+
+  public RestliType parseFromRestSpec(String schema) {
+    return fromDataSchema(RestSpecCodec.textToSchema(schema, _dataSchemaResolver));
   }
 
   private DataType parseDataType(RecordDataSchema schema, File sourceFile) {
@@ -108,14 +118,12 @@ public class TypeParser {
     return new DataType(new Fixed(schema, sourceFile, schema.getSize()));
   }
 
-  public RestliType parseFromRestSpec(String schema) {
-    return fromDataSchema(RestSpecCodec.textToSchema(schema, _dataSchemaResolver));
-  }
 
   public RestliType fromDataSchema(DataSchema schema) {
     if (JAVA_TO_GO_PRIMTIIVE_TYPE.containsKey(schema.getType())) {
       return new RestliType(JAVA_TO_GO_PRIMTIIVE_TYPE.get(schema.getType()), null, null, null, null);
     }
+
     switch (schema.getType()) {
       case TYPEREF:
       case RECORD:

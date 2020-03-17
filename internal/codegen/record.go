@@ -42,32 +42,43 @@ func (r *Record) field(f Field) *Statement {
 }
 
 func (f *Field) IsPointer() bool {
-	return (f.IsOptional || f.DefaultValue != nil) && !f.Type.IsMapOrArray()
+	return f.IsOptionalOrDefault() && !f.Type.IsMapOrArray()
+}
+
+func (f *Field) IsOptionalOrDefault() bool {
+	return f.IsOptional || f.DefaultValue != nil
+}
+
+func (r *Record) GenerateCode() *Statement {
+	return Empty().
+		Add(r.generateStruct()).Line().Line().
+		Add(r.generateMarshalingCode()).Line().Line().
+		Add(r.generateRestliEncoder()).Line().Line().
+		Add(r.generatePatchStructs()).Line()
 }
 
 func (r *Record) generateStruct() *Statement {
-	return Type().Id(r.Name).StructFunc(func(def *Group) {
-		for _, f := range r.Fields {
-			field := def.Empty()
-			AddWordWrappedComment(field, f.Doc).Line()
-			field.Id(ExportedIdentifier(f.Name))
+	return AddWordWrappedComment(Empty(), r.Doc).Line().
+		Type().Id(r.Name).
+		StructFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				field := def.Empty()
+				AddWordWrappedComment(field, f.Doc).Line()
+				field.Id(ExportedIdentifier(f.Name))
 
-			if f.IsPointer() {
-				field.Add(f.Type.PointerType())
-			} else {
-				field.Add(f.Type.GoType())
+				if f.IsPointer() {
+					field.Add(f.Type.PointerType())
+				} else {
+					field.Add(f.Type.GoType())
+				}
+
+				field.Tag(JsonFieldTag(f.Name, f.IsOptionalOrDefault()))
 			}
-
-			field.Tag(JsonFieldTag(f.Name, f.IsOptional || f.DefaultValue != nil))
-		}
-	})
+		})
 }
 
-func (r *Record) GenerateCode() (def *Statement) {
-	def = Empty()
-
-	AddWordWrappedComment(def, r.Doc).Line()
-	def.Add(r.generateStruct()).Line().Line()
+func (r *Record) generateMarshalingCode() *Statement {
+	def := Empty()
 
 	hasDefaultValue := r.generatePopulateDefaultValues(def)
 	hasUnionField := r.generateValidateUnionFields(def)
@@ -91,31 +102,67 @@ func (r *Record) GenerateCode() (def *Statement) {
 		}).Line().Line()
 	}
 
-	if hasDefaultValue || hasUnionField {
-		r.jsonSerDe(def)
+	if hasUnionField {
+		AddMarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
+			def.Add(r.validateUnionFields)
+			def.Type().Id("_t").Id(r.Name)
+			def.Return(Qual(EncodingJson, Marshal).Call(Call(Op("*").Id("_t")).Call(Id(r.Receiver()))))
+		}).Line().Line()
 	}
-	r.restLiSerDe(def)
+
+	if hasDefaultValue || hasUnionField {
+		AddUnmarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
+			def.Type().Id("_t").Id(r.Name)
+			def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Call(Op("*").Id("_t")).Call(Id(r.Receiver())))
+			IfErrReturn(def).Line()
+			def.Add(r.populateDefaultValues, r.validateUnionFields)
+			def.Return()
+		}).Line().Line()
+	}
 	r.generateInitializeUnionFields(def)
 
 	return def
 }
 
-func (r *Record) restLiSerDe(def *Statement) {
-	AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
+func (r *Record) generatePatchStructs() *Statement {
+	// TODO
+	return Empty()
+}
+
+func (r *Record) generateRestliEncoder() *Statement {
+	return AddRestLiEncode(Empty(), r.Receiver(), r.Name, func(def *Group) {
 		def.Add(r.populateDefaultValues, r.validateUnionFields)
 
+		const needsCommaVar = "needsComma"
+		needsComma := false
+		for _, f := range r.Fields[:len(r.Fields)-1] {
+			needsComma = needsComma || f.IsOptionalOrDefault()
+		}
+
+		if needsComma {
+			def.Id(needsCommaVar).Op(":=").False()
+		}
 		def.Var().Id("buf").Qual("strings", "Builder")
 		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
 
 		for i, f := range r.Fields {
 			serialize := def.Empty()
-			if f.IsPointer() {
-				serialize.If(r.field(f).Op("!=").Nil())
+			if f.IsOptionalOrDefault() {
+				if f.Type.IsMapOrArray() {
+					serialize.If(Len(r.field(f)).Op(">").Lit(0))
+				} else {
+					serialize.If(r.field(f).Op("!=").Nil())
+				}
 			}
 
 			serialize.BlockFunc(func(def *Group) {
-				if i != 0 {
-					def.Id("buf").Dot("WriteByte").Call(LitRune(','))
+				if needsComma && i > 0 {
+					writeComma := Id("buf").Dot("WriteByte").Call(LitRune(','))
+					if r.Fields[i-1].IsOptionalOrDefault() {
+						def.If(Id(needsCommaVar)).Block(writeComma)
+					} else {
+						def.Add(writeComma)
+					}
 				}
 
 				accessor := r.field(f)
@@ -125,6 +172,10 @@ func (r *Record) restLiSerDe(def *Statement) {
 
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + ":"))
 				f.Type.WriteToBuf(def, accessor)
+
+				if needsComma && f.IsOptionalOrDefault() && i < len(r.Fields)-1 {
+					def.Id(needsCommaVar).Op("=").True()
+				}
 			})
 			serialize.Line()
 		}
@@ -132,25 +183,7 @@ func (r *Record) restLiSerDe(def *Statement) {
 
 		def.Id("data").Op("=").Id("buf").Dot("String").Call()
 		def.Return()
-	}).Line().Line()
-}
-
-func (r *Record) jsonSerDe(def *Statement) {
-	AddMarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
-		// No need to add default values on the way out if they weren't specified
-		//def.Add(r.populateDefaultValues)
-		def.Add(r.validateUnionFields)
-		def.Type().Id("_t").Id(r.Name)
-		def.Return(Qual(EncodingJson, Marshal).Call(Call(Op("*").Id("_t")).Call(Id(r.Receiver()))))
-	}).Line().Line()
-
-	AddUnmarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
-		def.Type().Id("_t").Id(r.Name)
-		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Call(Op("*").Id("_t")).Call(Id(r.Receiver())))
-		IfErrReturn(def).Line()
-		def.Add(r.populateDefaultValues, r.validateUnionFields)
-		def.Return()
-	}).Line().Line()
+	})
 }
 
 func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType) {
@@ -235,7 +268,7 @@ func (r *Record) generateValidateUnionFields(def *Statement) bool {
 
 	AddFuncOnReceiver(def, r.Receiver(), r.Name, ValidateUnionFields).
 		Params().
-		Params(Err().Error()).
+		Params(Error()).
 		BlockFunc(func(def *Group) {
 			for _, f := range r.Fields {
 				if union := f.Type.Union; union != nil {
@@ -249,7 +282,7 @@ func (r *Record) generateValidateUnionFields(def *Statement) bool {
 					})
 				}
 			}
-			def.Return()
+			def.Return(Nil())
 		}).Line().Line()
 
 	r.validateUnionFields.Err().Op("=").Id(r.Receiver()).Dot(ValidateUnionFields).Call().Line()

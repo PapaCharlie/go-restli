@@ -48,10 +48,10 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 
 		AddFuncOnReceiver(def, r.Receiver(), r.Name, ValidateUnionFields).
 			Params().
-			Params(Err().Error()).
+			Params(Error()).
 			BlockFunc(func(def *Group) {
 				union.validateUnionFields(def, Id(r.Receiver()))
-				def.Line().Return()
+				def.Line().Return(Nil())
 			})
 
 		return def

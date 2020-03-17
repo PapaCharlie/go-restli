@@ -38,7 +38,7 @@ func main() {
 	panicIfErrf(err, "Failed to move the generated code")
 
 	_ = os.RemoveAll(tmpDir)
-	//generateClientTests()
+	// generateClientTests()
 }
 
 // generateClientTests is ignored by default, but it can be used to bootstrap the test framework by generating empty

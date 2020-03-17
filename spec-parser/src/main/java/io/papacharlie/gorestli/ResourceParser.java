@@ -96,11 +96,15 @@ public class ResourceParser {
         ? _typeParser.parseFromRestSpec(_schema.getSchema())
         : null;
     return new Resource(
-        String.join(".", _namespaceChain),
+        namespace(),
         _schema.getDoc(),
         _resourceFilename,
         _rootResourceName,
         resourceType);
+  }
+
+  private String namespace() {
+    return String.join(".", _namespaceChain);
   }
 
   private void addRestMethods(Resource resource, List<String> restMethods) {
