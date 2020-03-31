@@ -134,12 +134,12 @@ func (r *Record) generateRestliEncoder() *Statement {
 		def.Add(r.populateDefaultValues, r.validateUnionFields)
 
 		const needsCommaVar = "needsComma"
-		needsComma := false
+		usesNeedsComma := false
 		for _, f := range r.Fields[:len(r.Fields)-1] {
-			needsComma = needsComma || f.IsOptionalOrDefault()
+			usesNeedsComma = usesNeedsComma || f.IsOptionalOrDefault()
 		}
 
-		if needsComma {
+		if usesNeedsComma {
 			def.Id(needsCommaVar).Op(":=").False()
 		}
 		def.Var().Id("buf").Qual("strings", "Builder")
@@ -156,9 +156,9 @@ func (r *Record) generateRestliEncoder() *Statement {
 			}
 
 			serialize.BlockFunc(func(def *Group) {
-				if needsComma && i > 0 {
+				if i > 0 {
 					writeComma := Id("buf").Dot("WriteByte").Call(LitRune(','))
-					if r.Fields[i-1].IsOptionalOrDefault() {
+					if r.Fields[i-1].IsOptionalOrDefault() && usesNeedsComma {
 						def.If(Id(needsCommaVar)).Block(writeComma)
 					} else {
 						def.Add(writeComma)
@@ -173,7 +173,7 @@ func (r *Record) generateRestliEncoder() *Statement {
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + ":"))
 				f.Type.WriteToBuf(def, accessor)
 
-				if needsComma && f.IsOptionalOrDefault() && i < len(r.Fields)-1 {
+				if usesNeedsComma && f.IsOptionalOrDefault() && i < len(r.Fields)-1 {
 					def.Id(needsCommaVar).Op("=").True()
 				}
 			})
