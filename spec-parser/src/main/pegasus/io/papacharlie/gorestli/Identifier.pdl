@@ -1,0 +1,6 @@
+namespace io.papacharlie.gorestli
+
+record Identifier {
+  `namespace`: string
+  name: string
+}

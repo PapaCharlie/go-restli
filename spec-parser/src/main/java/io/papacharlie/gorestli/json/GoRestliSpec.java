@@ -1,6 +1,7 @@
 package io.papacharlie.gorestli.json;
 
-import com.google.common.base.Preconditions;
+import io.papacharlie.gorestli.Enum;
+import io.papacharlie.gorestli.Typeref;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,7 +21,6 @@ public class GoRestliSpec {
       _fixed = fixed;
       _record = record;
       _typeref = typeref;
-      Preconditions.checkNotNull(getNamedType(), "Must specify at least one type");
     }
 
     public DataType(Enum anEnum) {
@@ -37,32 +37,6 @@ public class GoRestliSpec {
 
     public DataType(Typeref typeref) {
       this(null, null, null, typeref);
-    }
-
-    @Override
-    public int hashCode() {
-      return getNamedType().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof DataType)) {
-        return false;
-      }
-      return getNamedType().equals(((DataType) obj).getNamedType());
-    }
-
-    private NamedType getNamedType() {
-      if (_enum != null) {
-        return _enum;
-      }
-      if (_fixed != null) {
-        return _fixed;
-      }
-      if (_record != null) {
-        return _record;
-      }
-      return _typeref;
     }
   }
 }

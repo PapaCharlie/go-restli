@@ -1,0 +1,26 @@
+namespace io.papacharlie.gorestli
+
+/**
+ * Represents a type supported by Restli
+ * reference: Identifier,
+ * `array`: RestliType,
+ * `map`: RestliType,
+ * `union`: array[
+ *   record UnionMember {
+ *     type: RestliType
+ *     alias: string
+ *   }
+ * ]
+ */
+typeref RestliType = union[
+  primitive: string,
+  reference: Identifier,
+  `array`: RestliType,
+  `map`: RestliType,
+  `union`: array[
+    record UnionMember {
+      type: RestliType
+      alias: string
+    }
+  ]
+]

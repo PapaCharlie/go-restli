@@ -26,8 +26,16 @@ bin/go-restli_%: $(shell git ls-files | grep "\.go")
 	export GOARCH=$(word 2,$(subst -, ,$(*F))) ; \
 	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/internal/codegen/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
-generate:
+generate: $(FAT_JAR)
+	$(MAKE) imports
 	go generate $(PACKAGES)
+	tmpdir=$$(mktemp -d) && \
+		java -jar $(FAT_JAR) spec-parser/src/main/pegasus spec-parser/src/main/pegasus/goRestliSpec.restspec.json | \
+			go run . --package-prefix github.com/PapaCharlie/go-restli/internal/generated --output-dir "$$tmpdir" && \
+		rm -rf internal/generated && \
+		mv "$$tmpdir/github.com/PapaCharlie/go-restli/internal/generated" internal/ && \
+		rm -rf "$$tmpdir"
+	$(MAKE) imports
 
 test: generate imports
 	go test $(PACKAGES)

@@ -1,0 +1,8 @@
+namespace io.papacharlie.gorestli
+
+record NamedDataType {
+  name: string
+  `namespace`: string
+  doc: string
+  sourceFilename: string
+}

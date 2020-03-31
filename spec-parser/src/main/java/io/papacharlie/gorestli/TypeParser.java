@@ -13,17 +13,16 @@ import com.linkedin.data.schema.RecordDataSchema;
 import com.linkedin.data.schema.TyperefDataSchema;
 import com.linkedin.data.schema.UnionDataSchema;
 import com.linkedin.data.schema.UnionDataSchema.Member;
-import com.linkedin.restli.restspec.IdentifierSchema;
+import com.linkedin.data.template.StringArray;
+import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestSpecCodec;
 import com.linkedin.restli.tools.snapshot.gen.SnapshotGenerator;
-import io.papacharlie.gorestli.json.Enum;
 import io.papacharlie.gorestli.json.Fixed;
 import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
-import io.papacharlie.gorestli.json.Typeref;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -107,17 +106,21 @@ public class TypeParser {
   }
 
   private DataType parseDataType(EnumDataSchema schema, File sourceFile) {
-    return new DataType(new Enum(schema, sourceFile, schema.getSymbols(), schema.getSymbolDocs()));
+    return new DataType(new Enum()
+        .setMetadata(metadata(schema, sourceFile))
+        .setSymbols(new StringArray(schema.getSymbols()))
+        .setSymbolToDoc(new StringMap(schema.getSymbolDocs())));
   }
 
   private DataType parseDataType(TyperefDataSchema schema, File sourceFile) {
-    return new DataType(new Typeref(schema, sourceFile, fromDataSchema(schema.getDereferencedDataSchema())));
+    return new DataType(new Typeref()
+        .setMetadata(metadata(schema, sourceFile))
+        .setRef(fromDataSchema(schema.getDereferencedDataSchema())));
   }
 
   private DataType parseDataType(FixedDataSchema schema, File sourceFile) {
     return new DataType(new Fixed(schema, sourceFile, schema.getSize()));
   }
-
 
   public RestliType fromDataSchema(DataSchema schema) {
     if (JAVA_TO_GO_PRIMTIIVE_TYPE.containsKey(schema.getType())) {
@@ -150,6 +153,14 @@ public class TypeParser {
       default:
         throw new UnknownTypeException(schema.getType());
     }
+  }
+
+  public static NamedDataType metadata(NamedDataSchema schema, File sourceFile) {
+    return new NamedDataType()
+        .setName(schema.getName())
+        .setNamespace(schema.getNamespace())
+        .setDoc(schema.getDoc())
+        .setSourceFilename(sourceFile.getAbsolutePath());
   }
 
   public static class UnknownTypeException extends RuntimeException {

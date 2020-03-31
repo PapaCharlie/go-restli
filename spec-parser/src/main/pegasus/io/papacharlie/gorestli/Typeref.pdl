@@ -1,0 +1,6 @@
+namespace io.papacharlie.gorestli
+
+record Typeref {
+  metadata: NamedDataType
+  ref: RestliType
+}

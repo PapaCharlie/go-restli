@@ -1,3 +1,12 @@
+import com.linkedin.pegasus.generator.PegasusDataTemplateGenerator
+
+
+buildscript {
+  dependencies {
+    classpath group: "com.linkedin.pegasus", name: "restli-tools", version: pegasusVersion
+  }
+}
+
 plugins {
   id "java-library"
   id "idea"
@@ -23,9 +32,26 @@ test {
   useTestNG()
 }
 
+File generatedRestliCode = file("src/mainGenerated/java")
+task generateRestliBindings {
+  // I couldn't for the life of me figure out how to import and run the "pegasus" plugin, so we're going to stick to
+  // calling the generator manually for now
+  doLast {
+    String inputPath = file("src/main/pegasus").absolutePath
+    String outputPath = generatedRestliCode.absolutePath
+    String defaultPackage = "io.papacharlie.gorestli"
+    String[] sources = fileTree("src/main/pegasus").files.collect { it.absolutePath }.toArray(new String[0])
+    PegasusDataTemplateGenerator.run(inputPath, defaultPackage, inputPath, false, false, outputPath, sources)
+  }
+}
+compileJava.dependsOn generateRestliBindings
+sourceSets.main.java.srcDir generatedRestliCode
+
+def mainClass = "io.papacharlie.gorestli.GoRestliRestSpecParser"
+
 task fatJar(type: Jar) { Jar ->
   manifest {
-    attributes "Main-Class": "io.papacharlie.gorestli.GoRestliRestSpecParser"
+    attributes "Main-Class": mainClass
   }
   archiveBaseName = "go-restli-spec-parser"
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -35,9 +61,13 @@ task fatJar(type: Jar) { Jar ->
 
 group = "io.papacharlie"
 
+javadoc {
+  exclude "src/mainGenerated/**"
+}
+
 java {
-    withJavadocJar()
-    withSourcesJar()
+  withJavadocJar()
+  withSourcesJar()
 }
 
 publishing {

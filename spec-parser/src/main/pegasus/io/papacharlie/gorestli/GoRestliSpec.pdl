@@ -1,0 +1,21 @@
+namespace io.papacharlie.gorestli
+
+/**
+ * This record is a representation of the code that needs to be generated for a go-restli client against a set of
+ * resources.
+ */
+record GoRestliSpec {
+  /**
+   * An array of unique restli data types, e.g. records, enums or typerefs.
+   */
+  types: array[
+    union[
+      Enum,
+      Record,
+      Fixed,
+      Typeref
+    ]
+  ]
+
+  resources: array[Resource]
+}

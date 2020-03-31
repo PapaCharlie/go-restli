@@ -1,0 +1,14 @@
+namespace io.papacharlie.gorestli
+
+record Record {
+  metadata: NamedDataType
+  fields: array[
+    record Field {
+      name: string
+      doc: string
+      type: RestliType
+      `optional`: boolean
+      defaultValue: optional string
+    }
+  ]
+}

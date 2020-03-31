@@ -1,0 +1,13 @@
+{
+  "name": "goRestliSpec",
+  "namespace": "io.papacharlie.gorestli",
+  "path": "/goRestliSpec",
+  "schema": "io.papacharlie.gorestli.GoRestliSpec",
+  "doc": "Dummy resource to force the code generator to generate code to deserialize GoRestliSpec",
+  "simple": {
+    "supports": [],
+    "entity": {
+      "path": "/goRestliSpec"
+    }
+  }
+}

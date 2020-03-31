@@ -1,0 +1,6 @@
+namespace io.papacharlie.gorestli
+
+record Fixed {
+  metadata: NamedDataType
+  size : int
+}

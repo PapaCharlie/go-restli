@@ -1,0 +1,4 @@
+namespace io.papacharlie.gorestli
+
+record Resource {
+}

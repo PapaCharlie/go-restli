@@ -1,0 +1,7 @@
+namespace io.papacharlie.gorestli
+
+record Enum {
+  metadata: NamedDataType
+  symbols: array[string]
+  symbolToDoc: map[string, string]
+}
