@@ -5,7 +5,7 @@ import java.io.File;
 
 
 public class Typeref extends NamedType {
-  public RestliType _ref;
+  public final RestliType _ref;
 
   public Typeref(NamedDataSchema namedDataSchema, File sourceFile, RestliType refType) {
     super(namedDataSchema, sourceFile);

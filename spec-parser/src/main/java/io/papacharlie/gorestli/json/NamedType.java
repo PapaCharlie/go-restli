@@ -1,6 +1,7 @@
 package io.papacharlie.gorestli.json;
 
 import com.linkedin.data.schema.NamedDataSchema;
+import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
 import java.util.Objects;
 
@@ -20,6 +21,10 @@ public abstract class NamedType {
     _namespace = namespace;
     _doc = doc;
     _sourceFile = sourceFile.getAbsolutePath();
+  }
+
+  public RestliType restliType() {
+    return new RestliType(null, new Identifier(_namespace, _name), null, null, null);
   }
 
   @Override

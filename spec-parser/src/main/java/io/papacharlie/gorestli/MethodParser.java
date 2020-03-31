@@ -1,5 +1,6 @@
 package io.papacharlie.gorestli;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.restspec.ActionSchema;
@@ -31,9 +32,10 @@ public class MethodParser {
   private final String _path;
   private final List<PathKey> _pathKeys;
   private final String _entityPath;
-  private final List<PathKey> _entityPathKeys;
+  private final PathKey _entityPathKey;
 
-  public MethodParser(TypeParser typeParser, ResourceSchema resource, List<PathKey> pathKeys) {
+  public MethodParser(TypeParser typeParser, ResourceSchema resource, List<PathKey> parentPathKeys,
+      PathKey entityPathKey) {
     _typeParser = typeParser;
     _resource = resource;
     if (_resource.getSchema() != null) {
@@ -42,14 +44,14 @@ public class MethodParser {
       _resourceSchema = null;
     }
     _path = resource.getPath();
-    _pathKeys = pathKeys;
-    if (resource.getCollection() != null) {
+    _pathKeys = parentPathKeys;
+    if (resource.getCollection() != null && entityPathKey != null) {
       CollectionSchema collectionSchema = resource.getCollection();
       _entityPath = collectionSchema.getEntity().getPath();
-      _entityPathKeys = Utils.append(_pathKeys, PathKey.forCollection(collectionSchema, _typeParser));
+      _entityPathKey = entityPathKey;
     } else {
       _entityPath = null;
-      _entityPathKeys = null;
+      _entityPathKey = null;
     }
   }
 
@@ -109,8 +111,9 @@ public class MethodParser {
     method._onEntity = onEntity;
 
     if (onEntity) {
+      Preconditions.checkNotNull(_entityPathKey);
       method._path = _entityPath;
-      method._pathKeys = _entityPathKeys;
+      method._pathKeys = Utils.append(_pathKeys, _entityPathKey);
     } else {
       method._path = _path;
       method._pathKeys = _pathKeys;

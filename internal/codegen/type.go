@@ -162,10 +162,11 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 
 type GoRestliSpec struct {
 	DataTypes []struct {
-		Enum    *Enum
-		Fixed   *Fixed
-		Record  *Record
-		Typeref *Typeref
+		Enum       *Enum
+		Fixed      *Fixed
+		Record     *Record
+		Typeref    *Typeref
+		ComplexKey *ComplexKey
 	}
 	Resources []Resource
 }
@@ -188,6 +189,8 @@ func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
 			complexType = t.Record
 		case t.Typeref != nil:
 			complexType = t.Typeref
+		case t.ComplexKey != nil:
+			complexType = t.ComplexKey
 		default:
 			return errors.New("go-restli: Must declare at least one underlying type")
 		}

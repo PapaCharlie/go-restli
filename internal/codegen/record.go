@@ -38,7 +38,7 @@ type Field struct {
 }
 
 func (r *Record) field(f Field) *Statement {
-	return Id(r.Receiver()).Dot(ExportedIdentifier(f.Name))
+	return Id(r.Receiver()).Dot(f.FieldName())
 }
 
 func (f *Field) IsPointer() bool {
@@ -47,6 +47,10 @@ func (f *Field) IsPointer() bool {
 
 func (f *Field) IsOptionalOrDefault() bool {
 	return f.IsOptional || f.DefaultValue != nil
+}
+
+func (f *Field) FieldName() string {
+	return ExportedIdentifier(f.Name)
 }
 
 func (r *Record) GenerateCode() *Statement {
@@ -64,7 +68,7 @@ func (r *Record) generateStruct() *Statement {
 			for _, f := range r.Fields {
 				field := def.Empty()
 				AddWordWrappedComment(field, f.Doc).Line()
-				field.Id(ExportedIdentifier(f.Name))
+				field.Id(f.FieldName())
 
 				if f.IsPointer() {
 					field.Add(f.Type.PointerType())
@@ -242,7 +246,7 @@ func (r *Record) generatePopulateDefaultValues(def *Statement) bool {
 	AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateDefaultValues).Params().BlockFunc(func(def *Group) {
 		for _, f := range r.Fields {
 			if f.DefaultValue != nil {
-				r.setDefaultValue(def, ExportedIdentifier(f.Name), *f.DefaultValue, &f.Type)
+				r.setDefaultValue(def, f.FieldName(), *f.DefaultValue, &f.Type)
 				def.Line()
 			}
 		}
@@ -274,11 +278,11 @@ func (r *Record) generateValidateUnionFields(def *Statement) bool {
 				if union := f.Type.Union; union != nil {
 					def.BlockFunc(func(def *Group) {
 						if f.IsPointer() {
-							def.If(Id(r.Receiver()).Dot(ExportedIdentifier(f.Name)).Op("==").Nil()).
+							def.If(Id(r.Receiver()).Dot(f.FieldName()).Op("==").Nil()).
 								Block(Return(Nil())).Line()
 						}
 
-						union.validateUnionFields(def, Id(r.Receiver()).Dot(ExportedIdentifier(f.Name)))
+						union.validateUnionFields(def, Id(r.Receiver()).Dot(f.FieldName()))
 					})
 				}
 			}
@@ -294,9 +298,9 @@ func (r *Record) generateValidateUnionFields(def *Statement) bool {
 func (r *Record) generateInitializeUnionFields(def *Statement) {
 	for _, f := range r.Fields {
 		if union := f.Type.Union; union != nil && f.IsPointer() {
-			AddFuncOnReceiver(def, r.Receiver(), r.Name, "Initialize"+ExportedIdentifier(f.Name)).
+			AddFuncOnReceiver(def, r.Receiver(), r.Name, "Initialize"+f.FieldName()).
 				Params().
-				Block(Id(r.Receiver()).Dot(ExportedIdentifier(f.Name)).Op("=").New(union.GoType()))
+				Block(Id(r.Receiver()).Dot(f.FieldName()).Op("=").New(union.GoType()))
 		}
 	}
 }

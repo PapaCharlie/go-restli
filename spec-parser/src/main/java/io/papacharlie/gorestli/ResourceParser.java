@@ -22,38 +22,50 @@ public class ResourceParser {
   private final TypeParser _typeParser;
   private final List<String> _namespaceChain;
   private final List<PathKey> _pathKeys;
-  private final String _resourceFilename;
+  private final PathKey _entityPathKey;
+  private final File _resourceFile;
   private final MethodParser _methodParser;
 
-  private ResourceParser(ResourceSchema schema, String resourceFilename, String rootResourceName,
-      TypeParser typeParser, List<String> namespaceChain, List<PathKey> pathKeys) {
+  private ResourceParser(ResourceSchema schema, File resourceFile, String rootResourceName, TypeParser typeParser,
+      List<String> namespaceChain, List<PathKey> pathKeys) {
     _schema = schema;
-    _resourceFilename = resourceFilename;
+    _resourceFile = resourceFile;
     _rootResourceName = rootResourceName;
     _typeParser = typeParser;
     _namespaceChain = Utils.append(namespaceChain, schema.getName());
     _pathKeys = pathKeys;
-    _methodParser = new MethodParser(_typeParser, _schema, _pathKeys);
+
+    if (_schema.getCollection() != null) {
+      _entityPathKey =
+          _typeParser.collectionPathKey(_schema.getName(), namespace(), _schema.getCollection(), _resourceFile);
+    } else {
+      _entityPathKey = null;
+    }
+    _methodParser = new MethodParser(_typeParser, _schema, _pathKeys, _entityPathKey);
   }
 
-  private ResourceParser(ResourceParser parent, ResourceSchema subResource, PathKey pathKey) {
-    this(subResource, parent._resourceFilename, parent._rootResourceName, parent._typeParser, parent._namespaceChain,
-        pathKey == null ? parent._pathKeys : Utils.append(parent._pathKeys, pathKey));
+  private ResourceParser(ResourceParser parent, ResourceSchema subResource) {
+    this(
+        subResource,
+        parent._resourceFile,
+        parent._rootResourceName,
+        parent._typeParser,
+        parent._namespaceChain,
+        parent._entityPathKey == null ? parent._pathKeys : Utils.append(parent._pathKeys, parent._entityPathKey));
   }
 
-  public ResourceParser(ResourceSchema schema, File resourceFilename, TypeParser typeParser) {
-    this(schema, resourceFilename.toString(), schema.getName(), typeParser,
-        Collections.singletonList(schema.getNamespace()), Collections.emptyList());
+  public ResourceParser(ResourceSchema schema, File resourceFile, TypeParser typeParser) {
+    this(
+        schema,
+        resourceFile,
+        schema.getName(),
+        typeParser,
+        Collections.singletonList(schema.getNamespace()),
+        Collections.emptyList());
   }
 
   public Set<Resource> parse() {
-    if (_schema.hasCollection() && _schema.getCollection().getIdentifier().hasParams()) {
-      Utils.log("Complex Key resources are not supported. Skipping %s and its children.%n", _namespaceChain);
-      return Collections.emptySet();
-    }
-
     Resource resource = newResource();
-    MethodParser methodParser = new MethodParser(_typeParser, _schema, _pathKeys);
 
     Set<Resource> resourcesAndSubResources = new HashSet<>();
     resourcesAndSubResources.add(resource);
@@ -68,7 +80,7 @@ public class ResourceParser {
       addRestMethods(resource, simple.getSupports());
 
       for (ResourceSchema subResource : Utils.emptyIfNull(simple.getEntity().getSubresources())) {
-        resourcesAndSubResources.addAll(new ResourceParser(this, subResource, null).parse());
+        resourcesAndSubResources.addAll(new ResourceParser(this, subResource).parse());
       }
     }
 
@@ -79,12 +91,11 @@ public class ResourceParser {
       addRestMethods(resource, collection.getSupports());
 
       for (FinderSchema finder : Utils.emptyIfNull(collection.getFinders())) {
-        resource.addMethod(methodParser.newFinderMethod(finder));
+        resource.addMethod(_methodParser.newFinderMethod(finder));
       }
 
-      PathKey pathKey = PathKey.forCollection(collection, _typeParser);
       for (ResourceSchema subResource : Utils.emptyIfNull(collection.getEntity().getSubresources())) {
-        resourcesAndSubResources.addAll(new ResourceParser(this, subResource, pathKey).parse());
+        resourcesAndSubResources.addAll(new ResourceParser(this, subResource).parse());
       }
     }
 
@@ -98,7 +109,7 @@ public class ResourceParser {
     return new Resource(
         namespace(),
         _schema.getDoc(),
-        _resourceFilename,
+        _resourceFile.getAbsolutePath(),
         _rootResourceName,
         resourceType);
   }

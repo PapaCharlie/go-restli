@@ -13,13 +13,15 @@ import com.linkedin.data.schema.RecordDataSchema;
 import com.linkedin.data.schema.TyperefDataSchema;
 import com.linkedin.data.schema.UnionDataSchema;
 import com.linkedin.data.schema.UnionDataSchema.Member;
-import com.linkedin.restli.restspec.IdentifierSchema;
+import com.linkedin.restli.restspec.CollectionSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestSpecCodec;
 import com.linkedin.restli.tools.snapshot.gen.SnapshotGenerator;
+import io.papacharlie.gorestli.json.ComplexKey;
 import io.papacharlie.gorestli.json.Enum;
 import io.papacharlie.gorestli.json.Fixed;
 import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
+import io.papacharlie.gorestli.json.Method.PathKey;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
@@ -81,6 +83,22 @@ public class TypeParser {
     return fromDataSchema(RestSpecCodec.textToSchema(schema, _dataSchemaResolver));
   }
 
+  public PathKey collectionPathKey(String resourceName, String resourceNamespace, CollectionSchema collection,
+      File specFile) {
+    RestliType pkType;
+    if (collection.getIdentifier().hasParams()) {
+      RestliType keyType = parseFromRestSpec(collection.getIdentifier().getType());
+      RestliType paramsType = parseFromRestSpec(collection.getIdentifier().getParams());
+      ComplexKey key = new ComplexKey(resourceName, resourceNamespace, specFile, keyType, paramsType);
+      _dataTypes.add(new DataType(key));
+      pkType = key.restliType();
+    } else {
+      pkType = parseFromRestSpec(collection.getIdentifier().getType());
+    }
+
+    return new PathKey(collection.getIdentifier().getName(), pkType);
+  }
+
   private DataType parseDataType(RecordDataSchema schema, File sourceFile) {
     List<Field> fields = new ArrayList<>();
     for (RecordDataSchema.Field field : schema.getFields()) {
@@ -117,7 +135,6 @@ public class TypeParser {
   private DataType parseDataType(FixedDataSchema schema, File sourceFile) {
     return new DataType(new Fixed(schema, sourceFile, schema.getSize()));
   }
-
 
   public RestliType fromDataSchema(DataSchema schema) {
     if (JAVA_TO_GO_PRIMTIIVE_TYPE.containsKey(schema.getType())) {

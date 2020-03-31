@@ -10,8 +10,7 @@ public class Enum extends NamedType {
   public final List<String> _symbols;
   public final Map<String, String> _symbolToDoc;
 
-  public Enum(NamedDataSchema namedDataSchema, File sourceFile, List<String> symbols,
-      Map<String, String> symbolToDoc) {
+  public Enum(NamedDataSchema namedDataSchema, File sourceFile, List<String> symbols, Map<String, String> symbolToDoc) {
     super(namedDataSchema, sourceFile);
     _symbols = symbols;
     _symbolToDoc = symbolToDoc;

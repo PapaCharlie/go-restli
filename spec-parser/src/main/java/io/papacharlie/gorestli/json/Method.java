@@ -1,7 +1,5 @@
 package io.papacharlie.gorestli.json;
 
-import com.linkedin.restli.restspec.CollectionSchema;
-import io.papacharlie.gorestli.TypeParser;
 import io.papacharlie.gorestli.json.Record.Field;
 import java.util.List;
 
@@ -29,12 +27,6 @@ public class Method {
     public PathKey(String name, RestliType type) {
       _name = name;
       _type = type;
-    }
-
-    public static PathKey forCollection(CollectionSchema collection, TypeParser typeParser) {
-      return new PathKey(
-          collection.getIdentifier().getName(),
-          typeParser.parseFromRestSpec(collection.getIdentifier().getType()));
     }
   }
 }

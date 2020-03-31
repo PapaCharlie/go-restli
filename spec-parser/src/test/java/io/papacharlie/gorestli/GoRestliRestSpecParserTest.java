@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
 
 public class GoRestliRestSpecParserTest {
   private static Path TEST_SUITE_ROOT =
-      Paths.get(System.getProperty("user.dir"), "../tests/rest.li-test-suite/client-testsuite")
+      Paths.get(System.getProperty("user.dir"), "../internal/tests/rest.li-test-suite/client-testsuite")
           .toAbsolutePath()
           .normalize();
 

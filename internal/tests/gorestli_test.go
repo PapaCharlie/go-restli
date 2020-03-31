@@ -3,6 +3,8 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -55,6 +57,12 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 	case "collectionTyperef":
 		*v = reflect.ValueOf(collectiontyperef.NewClient(s.client))
 		return v
+	case "complexkey":
+		*v = reflect.ValueOf(complexkey.NewClient(s.client))
+		return v
+	case "keywithunion":
+		*v = reflect.ValueOf(keywithunion.NewClient(s.client))
+		return v
 	}
 	return nil
 }
@@ -73,6 +81,12 @@ func TestGoRestli(rootT *testing.T) {
 
 	operations := make(map[string]Operation)
 	for _, testData := range manifest.WireProtocolTestData {
+		if testData.GetClient(s) == nil {
+			rootT.Run(testData.Name, func(t *testing.T) {
+				t.Skipf("Skipping tests for unsupported resource: \"%s\"", testData.Name)
+			})
+			continue
+		}
 		rootT.Run(testData.Name, func(t *testing.T) {
 			skippedTests := false
 			for _, o := range testData.Operations {
@@ -84,7 +98,7 @@ func TestGoRestli(rootT *testing.T) {
 
 				client := testData.GetClient(s)
 				testMethod := o.TestMethod()
-				if client != nil && testMethod != nil {
+				if testMethod != nil {
 					s.oLock.Lock()
 					s.o = o
 					s.oLock.Unlock()

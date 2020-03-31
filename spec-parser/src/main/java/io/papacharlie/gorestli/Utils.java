@@ -52,4 +52,32 @@ public class Utils {
   public static void log(String format, Object... args) {
     System.err.printf("[go-restli] " + LOG_TIME_FORMAT.format(LocalDateTime.now()) + " " + format, args);
   }
+
+  private static final String FORCED_EXPORT_PREFIX = "Exported_";
+
+  public static String exportedIdentifier(String identifier) {
+    StringBuilder buf = new StringBuilder();
+
+    int firstCodePoint = identifier.codePointAt(0);
+    if (!Character.isAlphabetic(firstCodePoint)) {
+      buf.append(FORCED_EXPORT_PREFIX);
+      if (identifier.charAt(0) == '_') {
+        identifier = identifier.substring(1);
+      }
+    } else {
+      buf.appendCodePoint(Character.toUpperCase(firstCodePoint));
+      identifier = identifier.substring(1);
+    }
+
+    for (int i = 0; i < identifier.length(); i++) {
+      int c = identifier.codePointAt(i);
+      if (Character.isAlphabetic(c)) {
+        buf.appendCodePoint(c);
+      } else {
+        buf.append('_');
+      }
+    }
+
+    return buf.toString();
+  }
 }
