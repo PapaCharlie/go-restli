@@ -28,6 +28,17 @@ func (u *UnionType) GoType() *Statement {
 	})
 }
 
+func (u *UnionType) FieldGoType() *Statement {
+	return StructFunc(func(def *Group) {
+		for _, m := range *u {
+			field := def.Empty()
+			field.Id(m.name())
+			field.Add(m.Type.FieldGoType())
+			field.Tag(JsonFieldTag(m.Alias, true))
+		}
+	})
+}
+
 func (u *UnionType) validateUnionFields(def *Group, accessor *Statement) {
 	isSet := "is" + canonicalizeAccessor(accessor) + "Set"
 	def.Id(isSet).Op(":=").False().Line()

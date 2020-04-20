@@ -80,6 +80,36 @@ func (t *RestliType) GoType() *Statement {
 	}
 }
 
+func (t *RestliType) FieldGoType() *Statement {
+	switch {
+	case t.IsUnion():
+		return t.Union.FieldGoType()
+	case t.IsFieldRecord():
+		return Qual(t.Reference.PackagePath(), t.Reference.Name+"_Fields")
+	default:
+		return Bool()
+	}
+}
+
+// GenerateField adds the append calls for this type or a recursive call
+func (t *RestliType) GenerateField(def *Group, accessor *Statement, name string) {
+	switch {
+	case t.IsUnion():
+		for _, f := range *t.Union {
+			f.Type.GenerateField(def, accessor.Clone().Dot(f.name()), name+"."+f.Alias)
+		}
+	case t.IsFieldRecord():
+		def.Add(accessor).Dot(GatherFields).Call(
+			Id(PrefixParam).Op("+").Lit(name+"."),
+			Id(FieldsParam),
+		)
+	default:
+		def.If(accessor.Op("==").True()).BlockFunc(func(def *Group) {
+			def.Op("*").Id(FieldsParam).Op("=").Append(Op("*").Id(FieldsParam), Id(PrefixParam).Op("+").Lit(name))
+		}).Line()
+	}
+}
+
 func (t *RestliType) ReferencedType() *Statement {
 	switch {
 	case t.Primitive != nil:
@@ -95,6 +125,18 @@ func (t *RestliType) ReferencedType() *Statement {
 		return t.GoType()
 	}
 	return t.PointerType()
+}
+
+func (t *RestliType) IsUnion() bool {
+	return t.Union != nil
+}
+
+func (t *RestliType) IsFieldRecord() bool {
+	if t.Reference != nil {
+		_, ok := t.Reference.Resolve().(*Record)
+		return ok
+	}
+	return false
 }
 
 func (t *RestliType) IsMapOrArray() bool {

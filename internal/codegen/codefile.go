@@ -15,6 +15,9 @@ import (
 )
 
 const (
+	Strings = "strings"
+	Join    = "Join"
+
 	EncodingJson  = "encoding/json"
 	Unmarshal     = "Unmarshal"
 	UnmarshalJSON = "UnmarshalJSON"
@@ -30,6 +33,10 @@ const (
 
 	PopulateDefaultValues = "populateDefaultValues"
 	ValidateUnionFields   = "validateUnionFields"
+
+	GatherFields = "GatherFields"
+	FieldsParam  = "fields"
+	PrefixParam  = "prefix"
 
 	NetHttp = "net/http"
 

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 
 	. "github.com/dave/jennifer/jen"
@@ -27,6 +28,18 @@ func (r *Record) InnerTypes() IdentifierSet {
 	}
 
 	return innerTypes
+}
+
+func (r *Record) PartialName() string {
+	return r.Name + "_Partial"
+}
+
+func (r *Record) FieldsName() string {
+	return r.Name + "_Fields"
+}
+
+func (r *Record) PatchName() string {
+	return r.Name + "_Patch"
 }
 
 type Field struct {
@@ -58,7 +71,9 @@ func (r *Record) GenerateCode() *Statement {
 		Add(r.generateStruct()).Line().Line().
 		Add(r.generateMarshalingCode()).Line().Line().
 		Add(r.generateRestliEncoder()).Line().Line().
-		Add(r.generatePatchStructs()).Line()
+		Add(r.generatePartialStruct()).Line().Line().
+		Add(r.generateFieldsStruct()).Line().Line().
+		Add(r.generatePatchStruct()).Line()
 }
 
 func (r *Record) generateStruct() *Statement {
@@ -128,9 +143,83 @@ func (r *Record) generateMarshalingCode() *Statement {
 	return def
 }
 
-func (r *Record) generatePatchStructs() *Statement {
-	// TODO
-	return Empty()
+func (r *Record) generatePartialStruct() *Statement {
+	return AddWordWrappedComment(
+		Empty(),
+		fmt.Sprintf("%s is %s but with optional values", r.PartialName(), r.Name),
+	).Line().Type().Id(r.PartialName()).
+		StructFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				field := def.Empty()
+				AddWordWrappedComment(field, f.Doc).Line()
+				field.Id(f.FieldName())
+
+				// Unions, maps and arrays have in-built nil values, no need for a pointer
+				if !f.Type.IsUnion() && !f.Type.IsMapOrArray() {
+					field.Add(f.Type.PointerType())
+				} else {
+					field.Add(f.Type.GoType())
+				}
+
+				field.Tag(JsonFieldTag(f.Name, true))
+			}
+		})
+}
+
+func (r *Record) generateFieldsStruct() *Statement {
+	def := Empty()
+	// Generate the struct
+	AddWordWrappedComment(def,
+		fmt.Sprintf("%s is a list of fields in *%s and *%s", r.FieldsName(), r.Name, r.PartialName()),
+	).Line().Type().Id(r.FieldsName()).
+		StructFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				field := def.Empty()
+				AddWordWrappedComment(field, f.Doc).Line()
+				field.Id(f.FieldName())
+				field.Add(f.Type.FieldGoType())
+				field.Tag(JsonFieldTag(f.Name, true))
+			}
+		}).Line().Line()
+	// Add the gatherFields method
+	receiver := ReceiverName(r.Name)
+	AddFuncOnReceiver(def, receiver, r.FieldsName(), GatherFields).
+		Params(Id(PrefixParam).String(), Id(FieldsParam).Op("*").Index().String()).
+		BlockFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				f.Type.GenerateField(def, Id(receiver).Dot(f.FieldName()), f.Name)
+			}
+		}).Line().Line()
+	// MarshalJSON calls gatherFields with no prefix
+	AddMarshalJSON(def, receiver, r.FieldsName(), func(def *Group) {
+		def.Var().Id(FieldsParam).Index().String()
+		def.Id(receiver).Dot(GatherFields).Call(Lit(""), Op("&").Id(FieldsParam))
+		def.Return(Qual(EncodingJson, Marshal).Call(Op("&").Id(FieldsParam)))
+	}).Line().Line()
+	// String calls gatherFields with no prefix then strings.Join with a comma
+	AddStringer(def, receiver, r.FieldsName(), func(def *Group) {
+		def.Var().Id(FieldsParam).Index().String()
+		def.Id(receiver).Dot(GatherFields).Call(Lit(""), Op("&").Id(FieldsParam))
+		def.Return(Qual(Strings, Join).Call(Id(FieldsParam), Lit(",")))
+	}).Line().Line()
+	return def
+}
+
+func (r *Record) generatePatchStruct() *Statement {
+	return AddWordWrappedComment(
+		Empty(),
+		fmt.Sprintf("%s applies a patch to *%s", r.PatchName(), r.Name),
+	).Line().Type().Id(r.PatchName()).
+		StructFunc(func(def *Group) {
+			partial := def.Empty()
+			partial.Id("Update")
+			partial.Add(Qual(r.PackagePath(), r.PartialName()))
+			partial.Tag(JsonFieldTag("$set", true))
+			fields := def.Empty()
+			fields.Id("Delete")
+			fields.Add(Qual(r.PackagePath(), r.FieldsName()))
+			fields.Tag(JsonFieldTag("$delete", true))
+		})
 }
 
 func (r *Record) generateRestliEncoder() *Statement {
