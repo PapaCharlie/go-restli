@@ -16,6 +16,7 @@ public class Method {
   public String _doc;
   public String _path;
   public boolean _onEntity;
+  public PathKey _entityPathKey;
   public List<PathKey> _pathKeys;
   public List<Field> _params;
   public RestliType _return;

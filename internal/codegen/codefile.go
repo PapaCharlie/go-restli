@@ -22,6 +22,7 @@ const (
 	MarshalJSON   = "MarshalJSON"
 
 	Codec                = "codec"
+	RestLiHeaderID       = "RestLiHeader_ID"
 	RestLiEncode         = "RestLiEncode"
 	RestLiDecode         = "RestLiDecode"
 	RestLiCodec          = "RestLiCodec"
@@ -188,7 +189,7 @@ func AddRestLiEncode(def *Statement, receiver, typeName string, f func(def *Grou
 
 func AddRestLiDecode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
 	return AddFuncOnReceiver(def, receiver, typeName, RestLiDecode).
-		Params(Id(Codec).Qual(ProtocolPackage, RestLiCodec), Id("data").String()).
+		Params(Id(Codec).Op("*").Qual(ProtocolPackage, RestLiCodec), Id("data").String()).
 		Params(Err().Error()).
 		BlockFunc(f)
 }

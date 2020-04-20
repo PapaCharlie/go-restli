@@ -10,12 +10,12 @@ type RestLiCodec struct {
 	decoder func(string) (string, error)
 }
 
-var RestLiUrlEncoder = RestLiCodec{
+var RestLiUrlEncoder = &RestLiCodec{
 	encoder: url.QueryEscape,
 	decoder: url.QueryUnescape,
 }
 
-var RestLiReducedEncoder = RestLiCodec{
+var RestLiReducedEncoder = &RestLiCodec{
 	encoder: strings.NewReplacer(
 		",", url.QueryEscape(","),
 		"(", url.QueryEscape("("),
@@ -27,5 +27,8 @@ var RestLiReducedEncoder = RestLiCodec{
 
 type RestLiEncodable interface {
 	RestLiEncode(*RestLiCodec, *strings.Builder) error
-	// RestLiDecode(*RestLiCodec, string) error
+}
+
+type RestLiDecodable interface {
+	RestLiDecode(*RestLiCodec, string) error
 }

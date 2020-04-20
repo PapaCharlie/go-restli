@@ -60,18 +60,6 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	return nil
 }
 
-func (r *Typeref) isPrimitive() bool {
-	switch {
-	case r.Ref.Primitive != nil:
-		return true
-	case r.Ref.Reference != nil:
-		if ref, ok := r.Ref.Reference.Resolve().(*Typeref); ok {
-			return ref.isPrimitive()
-		}
-	}
-	return false
-}
-
 func (r *Typeref) underlyingPrimitiveType() *PrimitiveType {
 	switch {
 	case r.Ref.Primitive != nil:

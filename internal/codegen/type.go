@@ -85,11 +85,9 @@ func (t *RestliType) ReferencedType() *Statement {
 	case t.Primitive != nil:
 		// No need to reference primitive types, makes it more convenient to call methods
 		return t.GoType()
-	case t.Reference != nil:
+	case t.PrimitiveTyperef() != nil:
 		// If the typeref is backed by a primitive, then don't take the reference either
-		if ref, ok := t.Reference.Resolve().(*Typeref); ok && ref.isPrimitive() {
-			return t.GoType()
-		}
+		return t.GoType()
 	case t.Union != nil:
 		// Union types are structs of references, we don't need to add another layer
 		return t.GoType()
@@ -156,6 +154,18 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 			}
 		})
 	}
+}
+
+func (t *RestliType) PrimitiveTyperef() *PrimitiveType {
+	if t.Reference == nil {
+		return nil
+	}
+
+	if ref, ok := t.Reference.Resolve().(*Typeref); ok {
+		return ref.underlyingPrimitiveType()
+	}
+
+	return nil
 }
 
 type GoRestliSpec struct {

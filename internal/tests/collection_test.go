@@ -11,6 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func (s *TestServer) CollectionCreate(t *testing.T, c Client) {
+	id, err := c.Create(&conflictresolution.Message{
+		Message: "test message",
+	})
+	require.NoError(t, err)
+	require.Equal(t, id, int64(1))
+}
+
+func (s *TestServer) CollectionCreate500(t *testing.T, c Client) {
+	id, err := c.Create(newMessage(3, "internal error test"))
+	require.Errorf(t, err, "Did not receive an error from the server (got %+v)", id)
+	require.Equal(t, err.(*protocol.RestLiError).Status, 500)
+}
+
+func (s *TestServer) CollectionCreateErrorDetails(t *testing.T, c Client) {
+	id, err := c.Create(newMessage(3, "error details test"))
+	require.Errorf(t, err, "Did not receive an error from the server (got %+v)", id)
+	require.Equal(t, err.(*protocol.RestLiError).Status, 400)
+}
+
 func (s *TestServer) CollectionGet(t *testing.T, c Client) {
 	id := int64(1)
 	res, err := c.Get(id)
