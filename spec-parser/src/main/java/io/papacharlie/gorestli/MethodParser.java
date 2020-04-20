@@ -109,6 +109,7 @@ public class MethodParser {
     method._name = name;
     method._methodType = methodType;
     method._onEntity = onEntity;
+    method._entityPathKey = _entityPathKey;
 
     if (onEntity) {
       Preconditions.checkNotNull(_entityPathKey);

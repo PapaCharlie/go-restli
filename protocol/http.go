@@ -16,6 +16,7 @@ import (
 const (
 	RestLiProtocolVersion = "2.0.0"
 
+	RestLiHeader_ID              = "X-RestLi-Id"
 	RestLiHeader_Method          = "X-RestLi-Method"
 	RestLiHeader_ProtocolVersion = "X-RestLi-Protocol-Version"
 	RestLiHeader_ErrorResponse   = "X-RestLi-Error-Response"

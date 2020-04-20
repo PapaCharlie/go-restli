@@ -13,14 +13,15 @@ const (
 )
 
 type Method struct {
-	MethodType MethodType
-	Name       string
-	Doc        string
-	Path       string
-	OnEntity   bool
-	PathKeys   []PathKey
-	Params     []Field
-	Return     *RestliType
+	MethodType    MethodType
+	Name          string
+	Doc           string
+	Path          string
+	OnEntity      bool
+	EntityPathKey *PathKey
+	PathKeys      []PathKey
+	Params        []Field
+	Return        *RestliType
 }
 
 type PathKey struct {

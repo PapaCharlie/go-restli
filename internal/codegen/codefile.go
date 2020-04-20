@@ -22,6 +22,7 @@ const (
 	MarshalJSON   = "MarshalJSON"
 
 	Codec                = "codec"
+	RestLiHeaderID       = "RestLiHeader_ID"
 	RestLiEncode         = "RestLiEncode"
 	RestLiDecode         = "RestLiDecode"
 	RestLiCodec          = "RestLiCodec"

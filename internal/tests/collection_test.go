@@ -11,6 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func (s *TestServer) CollectionCreate(t *testing.T, c Client) {
+	id, err := c.Create(&conflictresolution.Message{
+		Message: "test message",
+	})
+	require.NoError(t, err)
+	require.Equal(t, id, int64(1))
+}
+
 func (s *TestServer) CollectionGet(t *testing.T, c Client) {
 	id := int64(1)
 	res, err := c.Get(id)

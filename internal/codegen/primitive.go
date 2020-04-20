@@ -11,16 +11,17 @@ import (
 type PrimitiveType struct {
 	Type        string
 	newInstance func() interface{}
+	empty       interface{}
 }
 
 var PrimitiveTypes = []PrimitiveType{
-	{Type: "int32", newInstance: func() interface{} { return new(int32) }},
-	{Type: "int64", newInstance: func() interface{} { return new(int64) }},
-	{Type: "float32", newInstance: func() interface{} { return new(float32) }},
-	{Type: "float64", newInstance: func() interface{} { return new(float64) }},
-	{Type: "bool", newInstance: func() interface{} { return new(bool) }},
-	{Type: "string", newInstance: func() interface{} { return new(string) }},
-	{Type: "bytes", newInstance: func() interface{} { return new([]byte) }},
+	{Type: "int32", newInstance: func() interface{} { return new(int32) }, empty: int32(0)},
+	{Type: "int64", newInstance: func() interface{} { return new(int64) }, empty: int64(0)},
+	{Type: "float32", newInstance: func() interface{} { return new(float32) }, empty: float32(0.0)},
+	{Type: "float64", newInstance: func() interface{} { return new(float64) }, empty: float64(0.0)},
+	{Type: "bool", newInstance: func() interface{} { return new(bool) }, empty: false},
+	{Type: "string", newInstance: func() interface{} { return new(string) }, empty: ""},
+	{Type: "bytes", newInstance: func() interface{} { return new([]byte) }, empty: nil},
 }
 
 func (p *PrimitiveType) UnmarshalJSON(data []byte) error {
@@ -41,6 +42,10 @@ func (p *PrimitiveType) UnmarshalJSON(data []byte) error {
 
 func (p *PrimitiveType) IsBytes() bool {
 	return p.Type == "bytes"
+}
+
+func (p *PrimitiveType) Nil() *Statement {
+	return Lit(p.empty)
 }
 
 func (p *PrimitiveType) Cast(accessor *Statement) *Statement {

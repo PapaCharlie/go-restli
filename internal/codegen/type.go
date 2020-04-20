@@ -25,6 +25,15 @@ type RestliType struct {
 	Union     *UnionType
 }
 
+func (t *RestliType) Nil() *Statement {
+	switch {
+	case t.Primitive != nil:
+		return t.Primitive.Nil()
+	default:
+		return Nil()
+	}
+}
+
 func (t *RestliType) UnmarshalJSON(data []byte) error {
 	type _t RestliType
 	err := json.Unmarshal(data, (*_t)(t))
