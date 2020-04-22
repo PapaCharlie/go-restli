@@ -146,7 +146,12 @@ func (r *Record) generateMarshalingCode() *Statement {
 func (r *Record) generatePartialStruct() *Statement {
 	return AddWordWrappedComment(
 		Empty(),
-		fmt.Sprintf("%s is %s but with optional values", r.PartialName(), r.Name),
+		fmt.Sprintf(
+			"%s is %s where all fields can be optionally set. "+
+				"Intended for use with patch requests and projections",
+			r.PartialName(),
+			r.Name,
+		),
 	).Line().Type().Id(r.PartialName()).
 		StructFunc(func(def *Group) {
 			for _, f := range r.Fields {
@@ -166,41 +171,80 @@ func (r *Record) generatePartialStruct() *Statement {
 		})
 }
 
+// GenerateSelected gathers the selected fields and returns a []string
+func GenerateSelected(t *RestliType, def *Group, accessor *Statement, name string) {
+	switch {
+	case t.IsUnion():
+		for _, f := range *t.Union {
+			GenerateSelected(&f.Type, def, accessor.Clone().Dot(f.name()), name+"."+f.Alias)
+		}
+	case t.IsRecord():
+		def.For(List(Id("_"), Id(FieldVar)).Op(":=").Range().Add(accessor).Dot(Selected).Call()).
+			BlockFunc(func(def *Group) {
+				def.Id(SelectedVar).Op("=").Append(Id(SelectedVar), Lit(name+".").Op("+").Id(FieldVar))
+			})
+	default:
+		def.If(accessor).BlockFunc(func(def *Group) {
+			def.Id(SelectedVar).Op("=").Append(Id(SelectedVar), Lit(name))
+		}).Line()
+	}
+}
+
+func FieldGoType(t *RestliType) *Statement {
+	switch {
+	case t.IsUnion():
+		return StructFunc(func(def *Group) {
+			for _, m := range *t.Union {
+				field := def.Empty()
+				field.Id(m.name())
+				field.Add(FieldGoType(&m.Type))
+				field.Tag(JsonFieldTag(m.Alias, true))
+			}
+		})
+	case t.IsRecord():
+		return Qual(t.Reference.PackagePath(), t.Reference.Name+"_Fields")
+	default:
+		return Bool()
+	}
+}
+
 func (r *Record) generateFieldsStruct() *Statement {
 	def := Empty()
 	// Generate the struct
 	AddWordWrappedComment(def,
-		fmt.Sprintf("%s is a list of fields in *%s and *%s", r.FieldsName(), r.Name, r.PartialName()),
+		fmt.Sprintf(
+			"%s is used to represent a selection of the fields from %s. "+
+				"Toggling the value of a field represents selecting it for a projection",
+			r.FieldsName(),
+			r.Name,
+		),
 	).Line().Type().Id(r.FieldsName()).
 		StructFunc(func(def *Group) {
 			for _, f := range r.Fields {
 				field := def.Empty()
 				AddWordWrappedComment(field, f.Doc).Line()
 				field.Id(f.FieldName())
-				field.Add(f.Type.FieldGoType())
+				field.Add(FieldGoType(&f.Type))
 				field.Tag(JsonFieldTag(f.Name, true))
 			}
 		}).Line().Line()
-	// Add the gatherFields method
+	// Add the selected method
 	receiver := ReceiverName(r.Name)
-	AddFuncOnReceiver(def, receiver, r.FieldsName(), GatherFields).
-		Params(Id(PrefixParam).String(), Id(FieldsParam).Op("*").Index().String()).
+	AddFuncOnReceiver(def, receiver, r.FieldsName(), Selected).Params().Index().String().
 		BlockFunc(func(def *Group) {
+			def.Var().Id(SelectedVar).Index().String()
 			for _, f := range r.Fields {
-				f.Type.GenerateField(def, Id(receiver).Dot(f.FieldName()), f.Name)
+				GenerateSelected(&f.Type, def, Id(receiver).Dot(f.FieldName()), f.Name)
 			}
+			def.Return(Id(SelectedVar))
 		}).Line().Line()
 	// MarshalJSON calls gatherFields with no prefix
 	AddMarshalJSON(def, receiver, r.FieldsName(), func(def *Group) {
-		def.Var().Id(FieldsParam).Index().String()
-		def.Id(receiver).Dot(GatherFields).Call(Lit(""), Op("&").Id(FieldsParam))
-		def.Return(Qual(EncodingJson, Marshal).Call(Op("&").Id(FieldsParam)))
+		def.Return(Qual(EncodingJson, Marshal).Call(Id(receiver).Dot(Selected).Call()))
 	}).Line().Line()
 	// String calls gatherFields with no prefix then strings.Join with a comma
 	AddStringer(def, receiver, r.FieldsName(), func(def *Group) {
-		def.Var().Id(FieldsParam).Index().String()
-		def.Id(receiver).Dot(GatherFields).Call(Lit(""), Op("&").Id(FieldsParam))
-		def.Return(Qual(Strings, Join).Call(Id(FieldsParam), Lit(",")))
+		def.Return(Qual("fmt", "Sprint").Call(Id(receiver).Dot(Selected).Call(), Lit(",")))
 	}).Line().Line()
 	return def
 }
@@ -211,14 +255,12 @@ func (r *Record) generatePatchStruct() *Statement {
 		fmt.Sprintf("%s applies a patch to *%s", r.PatchName(), r.Name),
 	).Line().Type().Id(r.PatchName()).
 		StructFunc(func(def *Group) {
-			partial := def.Empty()
-			partial.Id("Update")
-			partial.Add(Qual(r.PackagePath(), r.PartialName()))
-			partial.Tag(JsonFieldTag("$set", true))
-			fields := def.Empty()
-			fields.Id("Delete")
-			fields.Add(Qual(r.PackagePath(), r.FieldsName()))
-			fields.Tag(JsonFieldTag("$delete", true))
+			def.Id("Update").
+				Qual(r.PackagePath(), r.PartialName()).
+				Tag(JsonFieldTag("$set", true))
+			def.Id("Delete").
+				Qual(r.PackagePath(), r.FieldsName()).
+				Tag(JsonFieldTag("$delete", true))
 		})
 }
 

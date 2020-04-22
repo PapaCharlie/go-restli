@@ -15,9 +15,6 @@ import (
 )
 
 const (
-	Strings = "strings"
-	Join    = "Join"
-
 	EncodingJson  = "encoding/json"
 	Unmarshal     = "Unmarshal"
 	UnmarshalJSON = "UnmarshalJSON"
@@ -25,6 +22,7 @@ const (
 	MarshalJSON   = "MarshalJSON"
 
 	Codec                = "codec"
+	RestLiHeaderID       = "RestLiHeader_ID"
 	RestLiEncode         = "RestLiEncode"
 	RestLiDecode         = "RestLiDecode"
 	RestLiCodec          = "RestLiCodec"
@@ -34,9 +32,9 @@ const (
 	PopulateDefaultValues = "populateDefaultValues"
 	ValidateUnionFields   = "validateUnionFields"
 
-	GatherFields = "GatherFields"
-	FieldsParam  = "fields"
-	PrefixParam  = "prefix"
+	Selected    = "Selected"
+	SelectedVar = "selected"
+	FieldVar    = "field"
 
 	NetHttp = "net/http"
 
