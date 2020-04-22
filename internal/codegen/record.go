@@ -34,8 +34,8 @@ func (r *Record) PartialName() string {
 	return r.Name + "_Partial"
 }
 
-func (r *Record) FieldsName() string {
-	return r.Name + "_Fields"
+func (r *Record) ProjectorName() string {
+	return r.Name + "_Projector"
 }
 
 func (r *Record) PatchName() string {
@@ -72,7 +72,7 @@ func (r *Record) GenerateCode() *Statement {
 		Add(r.generateMarshalingCode()).Line().Line().
 		Add(r.generateRestliEncoder()).Line().Line().
 		Add(r.generatePartialStruct()).Line().Line().
-		Add(r.generateFieldsStruct()).Line().Line().
+		Add(r.generateProjectorStruct()).Line().Line().
 		Add(r.generatePatchStruct()).Line()
 }
 
@@ -190,47 +190,47 @@ func GenerateSelected(t *RestliType, def *Group, accessor *Statement, name strin
 	}
 }
 
-func FieldGoType(t *RestliType) *Statement {
+func ProjectorGoType(t *RestliType) *Statement {
 	switch {
 	case t.IsUnion():
 		return StructFunc(func(def *Group) {
 			for _, m := range *t.Union {
 				field := def.Empty()
 				field.Id(m.name())
-				field.Add(FieldGoType(&m.Type))
+				field.Add(ProjectorGoType(&m.Type))
 				field.Tag(JsonFieldTag(m.Alias, true))
 			}
 		})
 	case t.IsRecord():
-		return Qual(t.Reference.PackagePath(), t.Reference.Name+"_Fields")
+		return Qual(t.Reference.PackagePath(), t.Reference.Name+"_Projector")
 	default:
 		return Bool()
 	}
 }
 
-func (r *Record) generateFieldsStruct() *Statement {
+func (r *Record) generateProjectorStruct() *Statement {
 	def := Empty()
 	// Generate the struct
 	AddWordWrappedComment(def,
 		fmt.Sprintf(
 			"%s is used to represent a selection of the fields from %s. "+
 				"Toggling the value of a field represents selecting it for a projection",
-			r.FieldsName(),
+			r.ProjectorName(),
 			r.Name,
 		),
-	).Line().Type().Id(r.FieldsName()).
+	).Line().Type().Id(r.ProjectorName()).
 		StructFunc(func(def *Group) {
 			for _, f := range r.Fields {
 				field := def.Empty()
 				AddWordWrappedComment(field, f.Doc).Line()
 				field.Id(f.FieldName())
-				field.Add(FieldGoType(&f.Type))
+				field.Add(ProjectorGoType(&f.Type))
 				field.Tag(JsonFieldTag(f.Name, true))
 			}
 		}).Line().Line()
 	// Add the selected method
 	receiver := ReceiverName(r.Name)
-	AddFuncOnReceiver(def, receiver, r.FieldsName(), Selected).Params().Index().String().
+	AddFuncOnReceiver(def, receiver, r.ProjectorName(), Selected).Params().Index().String().
 		BlockFunc(func(def *Group) {
 			def.Var().Id(SelectedVar).Index().String()
 			for _, f := range r.Fields {
@@ -239,12 +239,12 @@ func (r *Record) generateFieldsStruct() *Statement {
 			def.Return(Id(SelectedVar))
 		}).Line().Line()
 	// MarshalJSON calls gatherFields with no prefix
-	AddMarshalJSON(def, receiver, r.FieldsName(), func(def *Group) {
+	AddMarshalJSON(def, receiver, r.ProjectorName(), func(def *Group) {
 		def.Return(Qual(EncodingJson, Marshal).Call(Id(receiver).Dot(Selected).Call()))
 	}).Line().Line()
 	// String calls gatherFields with no prefix then strings.Join with a comma
-	AddStringer(def, receiver, r.FieldsName(), func(def *Group) {
-		def.Return(Qual("fmt", "Sprint").Call(Id(receiver).Dot(Selected).Call(), Lit(",")))
+	AddStringer(def, receiver, r.ProjectorName(), func(def *Group) {
+		def.Return(Qual("fmt", "Sprint").Call(Id(receiver).Dot(Selected).Call()))
 	}).Line().Line()
 	return def
 }
@@ -259,7 +259,7 @@ func (r *Record) generatePatchStruct() *Statement {
 				Qual(r.PackagePath(), r.PartialName()).
 				Tag(JsonFieldTag("$set", true))
 			def.Id("Delete").
-				Qual(r.PackagePath(), r.FieldsName()).
+				Qual(r.PackagePath(), r.ProjectorName()).
 				Tag(JsonFieldTag("$delete", true))
 		})
 }
