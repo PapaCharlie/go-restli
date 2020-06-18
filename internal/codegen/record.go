@@ -135,6 +135,11 @@ func (r *Record) generatePatchStructs() *Statement {
 
 func (r *Record) generateRestliEncoder() *Statement {
 	return AddRestLiEncode(Empty(), r.Receiver(), r.Name, func(def *Group) {
+		if len(r.Fields) == 0 {
+			def.Return(Lit(""), Nil())
+			return
+		}
+
 		def.Add(r.populateDefaultValues, r.validateUnionFields)
 
 		const needsCommaVar = "needsComma"
