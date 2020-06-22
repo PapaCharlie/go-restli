@@ -91,7 +91,14 @@ func (p *FinderParams) GenerateCode(f *Method) *Statement {
 			def.Id("query").Dot("Set").Call(Lit("q"), Lit(f.Name))
 			def.Line()
 
-			def.Var().Id("buf").Qual("strings", "Builder")
+			// Primitives and References don't need to be encoded through a buffer, only declare one if maps, arrays or
+			// unions are present
+			for _, field := range f.Params {
+				if field.Type.Primitive == nil && field.Type.Reference == nil {
+					def.Var().Id("buf").Qual("strings", "Builder")
+					break
+				}
+			}
 
 			for _, field := range f.Params {
 				accessor := Id(receiver).Dot(ExportedIdentifier(field.Name))
@@ -106,9 +113,19 @@ func (p *FinderParams) GenerateCode(f *Method) *Statement {
 				}
 
 				setBlock.BlockFunc(func(def *Group) {
-					field.Type.WriteToBuf(def, accessor)
-					def.Id("query").Dot("Set").Call(Lit(field.Name), Id("buf").Dot("String").Call())
-					Id("buf").Dot("Reset").Call()
+					switch {
+					case field.Type.Primitive != nil:
+						def.Id("query").Dot("Set").Call(Lit(field.Name), field.Type.Primitive.encode(accessor))
+					case field.Type.Reference != nil:
+						def.Var().Id("tmp").String()
+						def.List(Id("tmp"), Err()).Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec))
+						IfErrReturn(def)
+						def.Id("query").Dot("Set").Call(Lit(field.Name), Id("tmp"))
+					default:
+						field.Type.WriteToBuf(def, accessor)
+						def.Id("query").Dot("Set").Call(Lit(field.Name), Id("buf").Dot("String").Call())
+						def.Id("buf").Dot("Reset").Call()
+					}
 				})
 				def.Line()
 			}
