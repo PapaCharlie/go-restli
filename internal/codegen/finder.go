@@ -60,7 +60,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		def.List(Id("query"), Err()).Op(":=").Id("params").Dot(EncodeFinderParams).Call()
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query").Dot("Encode").Call()
+		def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query")
 
 		r.callFormatQueryUrl(def)
 		IfErrReturn(def, Nil(), Err()).Line()
@@ -83,53 +83,10 @@ func (p *FinderParams) GenerateCode(f *Method) *Statement {
 	receiver := (*Record)(p).Receiver()
 	return AddFuncOnReceiver(def, receiver, p.Name, EncodeFinderParams).
 		Params().
-		Params(Id("query").Qual("net/url", "Values"), Err().Error()).
+		Params(Id("data").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
 			def.Id(Codec).Op(":=").Qual(ProtocolPackage, RestLiUrlEncoder).Line()
 
-			def.Id("query").Op("=").Make(Qual("net/url", "Values"))
-			def.Id("query").Dot("Set").Call(Lit("q"), Lit(f.Name))
-			def.Line()
-
-			// Primitives and References don't need to be encoded through a buffer, only declare one if maps, arrays or
-			// unions are present
-			for _, field := range f.Params {
-				if field.Type.Primitive == nil && field.Type.Reference == nil {
-					def.Var().Id("buf").Qual("strings", "Builder")
-					break
-				}
-			}
-
-			for _, field := range f.Params {
-				accessor := Id(receiver).Dot(ExportedIdentifier(field.Name))
-
-				setBlock := def.Empty()
-				if field.IsPointer() {
-					setBlock.If(Add(accessor).Op("!=").Nil())
-				}
-
-				if field.IsPointer() && field.Type.Reference == nil && field.Type.Union == nil {
-					accessor = Op("*").Add(accessor)
-				}
-
-				setBlock.BlockFunc(func(def *Group) {
-					switch {
-					case field.Type.Primitive != nil:
-						def.Id("query").Dot("Set").Call(Lit(field.Name), field.Type.Primitive.encode(accessor))
-					case field.Type.Reference != nil:
-						def.Var().Id("tmp").String()
-						def.List(Id("tmp"), Err()).Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec))
-						IfErrReturn(def)
-						def.Id("query").Dot("Set").Call(Lit(field.Name), Id("tmp"))
-					default:
-						field.Type.WriteToBuf(def, accessor)
-						def.Id("query").Dot("Set").Call(Lit(field.Name), Id("buf").Dot("String").Call())
-						def.Id("buf").Dot("Reset").Call()
-					}
-				})
-				def.Line()
-			}
-
-			def.Return(Id("query"), Err())
+			(*Record)(p).generateEncoder(def, &f.Name)
 		})
 }

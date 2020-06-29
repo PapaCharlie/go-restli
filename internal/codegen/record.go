@@ -3,6 +3,7 @@ package codegen
 import (
 	"encoding/json"
 	"regexp"
+	"sort"
 
 	. "github.com/dave/jennifer/jen"
 )
@@ -135,64 +136,97 @@ func (r *Record) generatePatchStructs() *Statement {
 
 func (r *Record) generateRestliEncoder() *Statement {
 	return AddRestLiEncode(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		if len(r.Fields) == 0 {
-			def.Return(Lit(""), Nil())
-			return
-		}
+		r.generateEncoder(def, nil)
+	})
+}
 
-		def.Add(r.populateDefaultValues, r.validateUnionFields)
+func (r *Record) generateEncoder(def *Group, finderName *string) {
+	if len(r.Fields) == 0 {
+		def.Return(Lit(""), Nil())
+		return
+	}
 
-		const needsCommaVar = "needsComma"
-		usesNeedsComma := false
-		for _, f := range r.Fields[:len(r.Fields)-1] {
-			usesNeedsComma = usesNeedsComma || f.IsOptionalOrDefault()
-		}
+	var nameDelimiter string
+	var fieldDelimiter rune
+	if finderName != nil {
+		nameDelimiter = "="
+		fieldDelimiter = '&'
+	} else {
+		nameDelimiter = ":"
+		fieldDelimiter = ','
+	}
 
-		if usesNeedsComma {
-			def.Id(needsCommaVar).Op(":=").False()
-		}
-		def.Var().Id("buf").Qual("strings", "Builder")
+	def.Add(r.validateUnionFields)
+
+	const needsDelimiterVar = "needsDelimiter"
+	usesNeedsDelimiter := false
+	for _, f := range r.Fields[:len(r.Fields)-1] {
+		usesNeedsDelimiter = usesNeedsDelimiter || f.IsOptionalOrDefault()
+	}
+
+	if usesNeedsDelimiter {
+		def.Id(needsDelimiterVar).Op(":=").False()
+	}
+
+	def.Var().Id("buf").Qual("strings", "Builder")
+	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
+	}
 
-		for i, f := range r.Fields {
-			serialize := def.Empty()
-			if f.IsOptionalOrDefault() {
-				if f.Type.IsMapOrArray() {
-					serialize.If(Len(r.field(f)).Op(">").Lit(0))
+	fields := append([]Field(nil), r.Fields...)
+
+	const finderNameParam = "q"
+	qIndex := -1
+	if finderName != nil {
+		sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
+		fields = append(fields[:qIndex], append([]Field{{}}, fields[qIndex:]...)...)
+	}
+
+	for i, f := range fields {
+		serialize := def.Empty()
+		if f.IsOptionalOrDefault() {
+			if f.Type.IsMapOrArray() {
+				serialize.If(Len(r.field(f)).Op(">").Lit(0))
+			} else {
+				serialize.If(r.field(f).Op("!=").Nil())
+			}
+		}
+
+		serialize.BlockFunc(func(def *Group) {
+			if i > 0 {
+				writeDelimiter := Id("buf").Dot("WriteByte").Call(LitRune(fieldDelimiter))
+				if fields[i-1].IsOptionalOrDefault() && usesNeedsDelimiter {
+					def.If(Id(needsDelimiterVar)).Block(writeDelimiter)
 				} else {
-					serialize.If(r.field(f).Op("!=").Nil())
+					def.Add(writeDelimiter)
 				}
 			}
 
-			serialize.BlockFunc(func(def *Group) {
-				if i > 0 {
-					writeComma := Id("buf").Dot("WriteByte").Call(LitRune(','))
-					if r.Fields[i-1].IsOptionalOrDefault() && usesNeedsComma {
-						def.If(Id(needsCommaVar)).Block(writeComma)
-					} else {
-						def.Add(writeComma)
-					}
-				}
-
+			if i == qIndex {
+				def.Id("buf").Dot("WriteString").Call(Lit(finderNameParam + nameDelimiter + *finderName))
+			} else {
 				accessor := r.field(f)
 				if f.IsPointer() && f.Type.Reference == nil && f.Type.Union == nil {
 					accessor = Op("*").Add(accessor)
 				}
 
-				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + ":"))
+				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + nameDelimiter))
 				f.Type.WriteToBuf(def, accessor)
 
-				if usesNeedsComma && f.IsOptionalOrDefault() && i < len(r.Fields)-1 {
-					def.Id(needsCommaVar).Op("=").True()
+				if usesNeedsDelimiter && f.IsOptionalOrDefault() && i < len(fields)-1 {
+					def.Id(needsDelimiterVar).Op("=").True()
 				}
-			})
-			serialize.Line()
-		}
+			}
+		})
+		serialize.Line()
+	}
+	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+	}
 
-		def.Id("data").Op("=").Id("buf").Dot("String").Call()
-		def.Return()
-	})
+	def.Id("data").Op("=").Id("buf").Dot("String").Call()
+	def.Return()
 }
 
 func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType) {
