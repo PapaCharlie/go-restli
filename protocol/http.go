@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	//"github.com/pkg/errors"
+	// "github.com/pkg/errors"
 )
 
 const (
@@ -134,16 +134,6 @@ type RestLiClient struct {
 	HostnameResolver
 }
 
-// Assumes a leading slash
-func getFirstPathSegment(path string) string {
-	idx := strings.Index(path[1:], "/")
-	if idx > 0 {
-		return path[:idx+1]
-	} else {
-		return path
-	}
-}
-
 func (c *RestLiClient) FormatQueryUrl(resourceBasename, rawQuery string) (*url.URL, error) {
 	rawQuery = "/" + strings.TrimPrefix(rawQuery, "/")
 	query, err := url.Parse(rawQuery)
@@ -156,19 +146,17 @@ func (c *RestLiClient) FormatQueryUrl(resourceBasename, rawQuery string) (*url.U
 		return nil, err
 	}
 
-	hostPath := hostUrl.EscapedPath()
-	if hostPath == "" || hostPath == "/" {
+	resolvedPath := "/" + strings.TrimSuffix(strings.TrimPrefix(hostUrl.EscapedPath(), "/"), "/")
+
+	if resolvedPath == "/" {
 		return hostUrl.ResolveReference(query), nil
 	}
-	// The restli spec allows for at most one context path segment. If not, it becomes impossible to know when the
-	// context ends and the query begins
-	firstHostSegment := getFirstPathSegment(hostPath)
-	firstQuerySegment := getFirstPathSegment(query.EscapedPath())
-	if firstHostSegment == firstQuerySegment {
-		return hostUrl.ResolveReference(query), nil
-	} else {
-		return hostUrl.Parse(firstHostSegment + query.RequestURI())
+
+	if idx := strings.Index(resolvedPath, resourceBasename); idx >= 0 {
+		resolvedPath = resolvedPath[:idx-1]
 	}
+
+	return hostUrl.Parse(resolvedPath + query.RequestURI())
 }
 
 func SetJsonAcceptHeader(req *http.Request) {

@@ -5,13 +5,6 @@ import (
 	"testing"
 )
 
-var (
-	seasBroker       = mustParse("/seas-broker")
-	seasBrokerSearch = mustParse("/seas-broker/search")
-	emptyContext     = mustParse("")
-	slashContext     = mustParse("/")
-)
-
 const query = "/search?action=search"
 
 func mustParse(u string) *url.URL {
@@ -29,35 +22,53 @@ func TestRestLiClient_FormatQuery(t *testing.T) {
 		HostnameResolver: supplier,
 	}
 
-	expected := "/seas-broker/search?action=search"
-
-	supplier.Hostname = seasBroker
-	if expected != c.formatQuery(t, query) {
-		t.Errorf("Host: %s, Expected: %s, Got: %s", supplier.Hostname, expected, c.formatQuery(t, query))
+	tests := []struct {
+		Name     string
+		Expected string
+		Values   []*url.URL
+	}{
+		{
+			Name:     "One segment",
+			Expected: "/seas-broker/search?action=search",
+			Values: []*url.URL{
+				mustParse("/seas-broker"),
+				mustParse("/seas-broker/search"),
+			},
+		},
+		{
+			Name:     "Multiple segments",
+			Expected: "/api/v2/search?action=search",
+			Values: []*url.URL{
+				mustParse("/api/v2"),
+				mustParse("/api/v2/"),
+				mustParse("/api/v2/search"),
+			},
+		},
+		{
+			Name:     "Simple contexts",
+			Expected: "/search?action=search",
+			Values: []*url.URL{
+				mustParse(""),
+				mustParse("/"),
+			},
+		},
 	}
 
-	supplier.Hostname = seasBrokerSearch
-	if expected != c.formatQuery(t, query) {
-		t.Errorf("Host: %s, Expected: %s, Got: %s", supplier.Hostname, expected, c.formatQuery(t, query))
-	}
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			for _, v := range test.Values {
+				supplier.Hostname = v
 
-	expected = "/search?action=search"
+				u, err := c.FormatQueryUrl("search", query)
+				if err != nil {
+					t.Fatal(err)
+				}
+				q := u.String()
 
-	supplier.Hostname = emptyContext
-	if expected != c.formatQuery(t, query) {
-		t.Errorf("Host: %s, Expected: %s, Got: %s", supplier.Hostname, expected, c.formatQuery(t, query))
+				if test.Expected != q {
+					t.Errorf("Host: %s, Expected: %s, Got: %s", supplier.Hostname, test.Expected, q)
+				}
+			}
+		})
 	}
-
-	supplier.Hostname = slashContext
-	if expected != c.formatQuery(t, query) {
-		t.Errorf("Host: %s, Expected: %s, Got: %s", supplier.Hostname, expected, c.formatQuery(t, query))
-	}
-}
-
-func (c *RestLiClient) formatQuery(t *testing.T, query string) string {
-	u, err := c.FormatQueryUrl("search", query)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return u.String()
 }
