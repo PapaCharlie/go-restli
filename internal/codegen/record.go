@@ -158,20 +158,11 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 
 	def.Add(r.validateUnionFields)
 
-	const needsDelimiterVar = "needsDelimiter"
-	usesNeedsDelimiter := false
-	for _, f := range r.Fields[:len(r.Fields)-1] {
-		usesNeedsDelimiter = usesNeedsDelimiter || f.IsOptionalOrDefault()
-	}
-
-	if usesNeedsDelimiter {
-		def.Id(needsDelimiterVar).Op(":=").False()
-	}
-
 	def.Var().Id("buf").Qual("strings", "Builder")
 	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
 	}
+	def.Line()
 
 	fields := append([]Field(nil), r.Fields...)
 
@@ -182,6 +173,8 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
 		fields = append(fields[:qIndex], append([]Field{{}}, fields[qIndex:]...)...)
 	}
+
+	bufLenCheckNeeded := len(fields) > 1 && fields[0].IsOptionalOrDefault()
 
 	for i, f := range fields {
 		serialize := def.Empty()
@@ -196,8 +189,8 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 		serialize.BlockFunc(func(def *Group) {
 			if i > 0 {
 				writeDelimiter := Id("buf").Dot("WriteByte").Call(LitRune(fieldDelimiter))
-				if fields[i-1].IsOptionalOrDefault() && usesNeedsDelimiter {
-					def.If(Id(needsDelimiterVar)).Block(writeDelimiter)
+				if bufLenCheckNeeded {
+					def.If(Id("buf").Dot("Len").Call().Op("!=").Lit(0)).Block(writeDelimiter)
 				} else {
 					def.Add(writeDelimiter)
 				}
@@ -213,13 +206,13 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + nameDelimiter))
 				f.Type.WriteToBuf(def, accessor)
-
-				if usesNeedsDelimiter && f.IsOptionalOrDefault() && i < len(fields)-1 {
-					def.Id(needsDelimiterVar).Op("=").True()
-				}
 			}
 		})
 		serialize.Line()
+
+		if !f.IsOptionalOrDefault() {
+			bufLenCheckNeeded = false
+		}
 	}
 	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
