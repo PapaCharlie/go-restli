@@ -181,8 +181,8 @@ func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(def *Gro
 
 func AddRestLiEncode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
 	return AddFuncOnReceiver(def, receiver, typeName, RestLiEncode).
-		Params(Id(Codec).Qual(ProtocolPackage, RestLiCodec)).
-		Params(Id("data").String(), Err().Error()).
+		Params(Id(Codec).Op("*").Qual(ProtocolPackage, RestLiCodec), Id("buf").Op("*").Qual("strings", "Builder")).
+		Params(Err().Error()).
 		BlockFunc(f)
 }
 

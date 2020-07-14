@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json"
+	"log"
 	"regexp"
 	"sort"
 
@@ -136,14 +137,14 @@ func (r *Record) generatePatchStructs() *Statement {
 
 func (r *Record) generateRestliEncoder() *Statement {
 	return AddRestLiEncode(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateEncoder(def, nil)
+		r.generateEncoder(def, nil, nil)
+		def.Return(Nil())
 	})
 }
 
-func (r *Record) generateEncoder(def *Group, finderName *string) {
-	if len(r.Fields) == 0 {
-		def.Return(Lit(""), Nil())
-		return
+func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParamsType *Identifier) {
+	if finderName != nil && complexKeyParamsType != nil {
+		log.Panicln("Cannot provide both a finderName and a complexKeyParamType")
 	}
 
 	var nameDelimiter string
@@ -158,7 +159,6 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 
 	def.Add(r.validateUnionFields)
 
-	def.Var().Id("buf").Qual("strings", "Builder")
 	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
 	}
@@ -173,8 +173,24 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
 		fields = append(fields[:qIndex], append([]Field{{}}, fields[qIndex:]...)...)
 	}
+	complexKeyParamsIndex := -1
+	if complexKeyParamsType != nil {
+		fields = append([]Field{{
+			Name:       "Params",
+			IsOptional: true,
+		}}, fields...)
+		complexKeyParamsIndex = 0
+	}
 
-	bufLenCheckNeeded := len(fields) > 1 && fields[0].IsOptionalOrDefault()
+	if len(r.Fields) == 0 {
+		return
+	}
+
+	const needsDelimiterVar = "needsDelimiter"
+	needsDelimiterCheckNeeded := len(fields) > 1 && fields[0].IsOptionalOrDefault()
+	if needsDelimiterCheckNeeded {
+		def.Id(needsDelimiterVar).Op(":=").False()
+	}
 
 	for i, f := range fields {
 		serialize := def.Empty()
@@ -189,8 +205,8 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 		serialize.BlockFunc(func(def *Group) {
 			if i > 0 {
 				writeDelimiter := Id("buf").Dot("WriteByte").Call(LitRune(fieldDelimiter))
-				if bufLenCheckNeeded {
-					def.If(Id("buf").Dot("Len").Call().Op("!=").Lit(0)).Block(writeDelimiter)
+				if needsDelimiterCheckNeeded {
+					def.If(Id(needsDelimiterVar)).Block(writeDelimiter)
 				} else {
 					def.Add(writeDelimiter)
 				}
@@ -198,6 +214,10 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 
 			if i == qIndex {
 				def.Id("buf").Dot("WriteString").Call(Lit(finderNameParam + nameDelimiter + *finderName))
+			} else if i == complexKeyParamsIndex {
+				def.Id("buf").Dot("WriteString").Call(Lit("$params:"))
+				def.Err().Op(":=").Add(r.field(f)).Dot(RestLiEncode).Call(Id(Codec), Id("buf"))
+				IfErrReturn(def, Err())
 			} else {
 				accessor := r.field(f)
 				if f.IsPointer() && f.Type.Reference == nil && f.Type.Union == nil {
@@ -207,19 +227,21 @@ func (r *Record) generateEncoder(def *Group, finderName *string) {
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + nameDelimiter))
 				f.Type.WriteToBuf(def, accessor)
 			}
+
+			if !f.IsOptionalOrDefault() {
+				needsDelimiterCheckNeeded = false
+			}
+
+			if needsDelimiterCheckNeeded && i < len(fields)-1 {
+				def.Id(needsDelimiterVar).Op("=").True()
+			}
 		})
 		serialize.Line()
 
-		if !f.IsOptionalOrDefault() {
-			bufLenCheckNeeded = false
-		}
 	}
 	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 	}
-
-	def.Id("data").Op("=").Id("buf").Dot("String").Call()
-	def.Return()
 }
 
 func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType) {
@@ -306,18 +328,7 @@ func (r *Record) generateValidateUnionFields(def *Statement) bool {
 		Params().
 		Params(Error()).
 		BlockFunc(func(def *Group) {
-			for _, f := range r.Fields {
-				if union := f.Type.Union; union != nil {
-					def.BlockFunc(func(def *Group) {
-						if f.IsPointer() {
-							def.If(Id(r.Receiver()).Dot(f.FieldName()).Op("==").Nil()).
-								Block(Return(Nil())).Line()
-						}
-
-						union.validateUnionFields(def, Id(r.Receiver()).Dot(f.FieldName()))
-					})
-				}
-			}
+			r.unionFieldValidator(def)
 			def.Return(Nil())
 		}).Line().Line()
 
@@ -325,6 +336,21 @@ func (r *Record) generateValidateUnionFields(def *Statement) bool {
 	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return()).Line()
 
 	return true
+}
+
+func (r *Record) unionFieldValidator(def *Group) {
+	for _, f := range r.Fields {
+		if union := f.Type.Union; union != nil {
+			def.BlockFunc(func(def *Group) {
+				if f.IsPointer() {
+					def.If(Id(r.Receiver()).Dot(f.FieldName()).Op("==").Nil()).
+						Block(Return(Nil())).Line()
+				}
+
+				union.validateUnionFields(def, Id(r.Receiver()).Dot(f.FieldName()))
+			})
+		}
+	}
 }
 
 func (r *Record) generateInitializeUnionFields(def *Statement) {

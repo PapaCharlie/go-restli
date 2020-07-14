@@ -1,19 +1,19 @@
 package io.papacharlie.gorestli.json;
 
 import io.papacharlie.gorestli.Utils;
+import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
 
 
 public class ComplexKey extends NamedType {
   private static final String DOC_FORMAT = "Complex Key for %s";
 
-  public final RestliType _key;
-  public final RestliType _params;
+  public final Identifier _key;
+  public final Identifier _params;
 
-  public ComplexKey(String resourceName, String resourceNamespace, File restSpecFile, RestliType key,
-      RestliType params) {
-    super(complexKeyTypeName(resourceName), resourceNamespace,
-        String.format(DOC_FORMAT, resourceName), restSpecFile);
+  public ComplexKey(String resourceName, String resourceNamespace, File restSpecFile, Identifier key,
+      Identifier params) {
+    super(complexKeyTypeName(resourceName), resourceNamespace, String.format(DOC_FORMAT, resourceName), restSpecFile);
     _key = key;
     _params = params;
   }

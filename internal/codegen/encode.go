@@ -15,12 +15,17 @@ func (t *RestliType) RestLiReducedEncodeModel(accessor *Statement) (def *Stateme
 func (t *RestliType) RestLiEncodeModel(encoder string, accessor *Statement) (*Statement, bool) {
 	encoderRef := Qual(ProtocolPackage, encoder)
 
-	if t.Reference != nil {
-		return Add(accessor).Dot(RestLiEncode).Call(encoderRef), true
+	if t.Primitive != nil {
+		return encoderRef.Dot("Encode" + ExportedIdentifier(t.Primitive.Type)).Call(accessor), false
 	}
 
-	if t.Primitive != nil {
-		return Add(encoderRef).Dot("Encode" + ExportedIdentifier(t.Primitive.Type)).Call(accessor), false
+	if ref, ok := t.Reference.Resolve().(*Typeref); ok && ref.isPrimitive() {
+		p := ref.underlyingPrimitiveType()
+		return encoderRef.Dot("Encode" + ExportedIdentifier(p.Type)).Call(p.Cast(accessor)), false
+	}
+
+	if t.Reference != nil {
+		return encoderRef.Dot("Encode").Call(accessor), true
 	}
 
 	Logger.Panicf("%+v cannot be url encoded", t)

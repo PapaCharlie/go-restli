@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/dave/jennifer/jen"
 )
 
 var namespaceEscape = regexp.MustCompile("([/.])_?internal([/.]?)")
@@ -40,6 +42,10 @@ func (i Identifier) PackagePath() string {
 		p = i.Namespace
 	}
 	return FqcpToPackagePath(p)
+}
+
+func (i Identifier) Qual() *jen.Statement {
+	return jen.Qual(i.PackagePath(), i.Name)
 }
 
 func (i *Identifier) Receiver() string {

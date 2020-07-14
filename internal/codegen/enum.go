@@ -88,12 +88,15 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	}).Line().Line()
 
 	AddRestLiEncode(def, receiver, e.Name, func(def *Group) {
-		def.Id("data").Op("=").Id(receiver).Dot("String").Call()
-		def.Return()
+		def.Id("buf").Dot("WriteString").Call(Id(Codec).Dot("EncodeString").Call(Id(receiver).Dot("String").Call()))
+		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, receiver, e.Name, func(def *Group) {
-		def.List(Op("*").Id(receiver), Err()).Op("=").Id(getter).Call(Id("data"))
-		def.Return()
+		def.Var().Id("value").String()
+		def.Err().Op("=").Id(Codec).Dot("DecodeString").Call(Id("data"), Op("&").Id("value"))
+		IfErrReturn(def, Err())
+		def.List(Op("*").Id(receiver)).Op("=").Id(values).Index(Id("value"))
+		def.Return(Nil())
 	}).Line().Line()
 
 	return def

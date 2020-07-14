@@ -27,7 +27,8 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 
 	if pt := r.Ref.Primitive; pt != nil {
 		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
-			def.Return(pt.encode(pt.Cast(Op("*").Id(r.Receiver()))), Nil())
+			writeStringToBuf(def, pt.encode(pt.Cast(Op("*").Id(r.Receiver()))))
+			def.Return(Nil())
 		}).Line().Line()
 		AddRestLiDecode(def, r.Receiver(), r.Name, func(def *Group) {
 			def.Return(pt.decode(Id(r.Receiver())))
@@ -39,11 +40,9 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	if union := r.Ref.Union; union != nil {
 		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
 			def.Err().Op("=").Id(r.Receiver()).Dot(ValidateUnionFields).Call()
-			def.If(Err().Op("!=").Nil()).Block(Return()).Line()
-			def.Var().Id("buf").Qual("strings", "Builder")
+			IfErrReturn(def, Err())
 			r.Ref.WriteToBuf(def, Id(r.Receiver()))
-			def.Id("data").Op("=").Id("buf").Dot("String").Call()
-			def.Return()
+			def.Return(Nil())
 		}).Line().Line()
 
 		AddFuncOnReceiver(def, r.Receiver(), r.Name, ValidateUnionFields).
@@ -71,4 +70,16 @@ func (r *Typeref) isPrimitive() bool {
 		}
 	}
 	return false
+}
+
+func (r *Typeref) underlyingPrimitiveType() *PrimitiveType {
+	switch {
+	case r.Ref.Primitive != nil:
+		return r.Ref.Primitive
+	case r.Ref.Reference != nil:
+		if ref, ok := r.Ref.Reference.Resolve().(*Typeref); ok {
+			return ref.underlyingPrimitiveType()
+		}
+	}
+	return nil
 }

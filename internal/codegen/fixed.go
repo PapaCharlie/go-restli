@@ -40,7 +40,8 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	}).Line().Line()
 
 	AddRestLiEncode(def, receiver, f.Name, func(def *Group) {
-		def.Return(Id(Codec).Dot("EncodeBytes").Call(Id(receiver).Index(Op(":"))), Nil())
+		def.Id("buf").Dot("WriteString").Call(Id(Codec).Dot("EncodeBytes").Call(Id(receiver).Index(Op(":"))))
+		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, receiver, f.Name, func(def *Group) {
 		def.Id("bytes").Op(":=").Make(Bytes(), Lit(f.Size))

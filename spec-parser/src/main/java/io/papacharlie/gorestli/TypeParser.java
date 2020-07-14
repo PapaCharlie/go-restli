@@ -88,8 +88,11 @@ public class TypeParser {
     RestliType pkType;
     if (collection.getIdentifier().hasParams()) {
       RestliType keyType = parseFromRestSpec(collection.getIdentifier().getType());
+      Preconditions.checkNotNull(keyType._reference, "Complex key \"key\" must be a record type");
       RestliType paramsType = parseFromRestSpec(collection.getIdentifier().getParams());
-      ComplexKey key = new ComplexKey(resourceName, resourceNamespace, specFile, keyType, paramsType);
+      Preconditions.checkNotNull(paramsType._reference, "Complex key \"params\" must be a record type");
+      ComplexKey key =
+          new ComplexKey(resourceName, resourceNamespace, specFile, keyType._reference, paramsType._reference);
       _dataTypes.add(new DataType(key));
       pkType = key.restliType();
     } else {

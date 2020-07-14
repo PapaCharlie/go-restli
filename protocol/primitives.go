@@ -3,6 +3,7 @@ package protocol
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 func (r *RestLiCodec) EncodeInt32(v int32) string {
@@ -31,6 +32,15 @@ func (r *RestLiCodec) EncodeString(v string) string {
 
 func (r *RestLiCodec) EncodeBytes(v Bytes) string {
 	return r.EncodeString(string(v))
+}
+
+func (r *RestLiCodec) Encode(e RestLiEncodable) (string, error) {
+	buf := new(strings.Builder)
+	err := e.RestLiEncode(r, buf)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func (r *RestLiCodec) DecodeInt32(data string, v *int32) error {

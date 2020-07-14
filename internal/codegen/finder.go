@@ -86,7 +86,10 @@ func (p *FinderParams) GenerateCode(f *Method) *Statement {
 		Params(Id("data").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
 			def.Id(Codec).Op(":=").Qual(ProtocolPackage, RestLiUrlEncoder).Line()
+			def.Var().Id("buf").Qual("strings", "Builder")
 
-			(*Record)(p).generateEncoder(def, &f.Name)
+			(*Record)(p).generateEncoder(def, &f.Name, nil)
+
+			def.Return(Id("buf").Dot("String").Call(), Nil())
 		})
 }

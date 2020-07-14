@@ -70,7 +70,7 @@ func (t *RestliType) GoType() *Statement {
 	case t.Primitive != nil:
 		return t.Primitive.GoType()
 	case t.Reference != nil:
-		return Qual(t.Reference.PackagePath(), t.Reference.Name)
+		return t.Reference.Qual()
 	case t.Array != nil:
 		return Index().Add(t.Array.ReferencedType())
 	case t.Map != nil:
@@ -115,10 +115,8 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 	case t.Primitive != nil:
 		writeStringToBuf(def, t.Primitive.encode(accessor))
 	case t.Reference != nil:
-		def.Var().Id("tmp").String()
-		def.List(Id("tmp"), Err()).Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec))
+		def.Err().Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec), Id("buf"))
 		IfErrReturn(def)
-		writeStringToBuf(def, Id("tmp"))
 	case t.Array != nil:
 		writeStringToBuf(def, Lit("List("))
 

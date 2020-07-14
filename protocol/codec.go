@@ -26,6 +26,6 @@ var RestLiReducedEncoder = RestLiCodec{
 }
 
 type RestLiEncodable interface {
-	RestLiEncode(codec RestLiCodec) (data string, err error)
-	RestLiDecode(codec RestLiCodec, data string) (err error)
+	RestLiEncode(*RestLiCodec, *strings.Builder) error
+	// RestLiDecode(*RestLiCodec, string) error
 }
