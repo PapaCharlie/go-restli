@@ -137,10 +137,16 @@ func (r *Resource) generateCreate(m *Method) *Statement {
 		})
 
 		if m.isCreatedEntityIdInHeaders() {
+			accessor := Id(CreateResponseId)
+			if m.EntityPathKey.Type.Primitive != nil {
+				accessor = Op("&").Add(accessor)
+			}
+
 			def.Err().Op("=").Add(m.EntityPathKey.Type.RestLiReducedDecodeModel(
 				Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID)),
-				Op("&").Id(CreateResponseId),
+				accessor,
 			))
+
 			IfErrReturn(def, returns...)
 			def.Return(Id(CreateResponseId), Nil())
 		} else {
