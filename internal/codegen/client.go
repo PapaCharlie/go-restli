@@ -21,64 +21,55 @@ func (r *Resource) PackagePath() string {
 }
 
 func (r *Resource) GenerateCode() []*CodeFile {
-	c := &CodeFile{
-		SourceFile:  r.SourceFile,
-		PackagePath: r.PackagePath(),
-		Filename:    "client",
-		Code:        Empty(),
-	}
+	client := r.NewCodeFile("client")
 
-	var generatedRestMethods []Code
-
-	AddWordWrappedComment(c.Code, r.Doc).Line()
-	c.Code.Type().Id(ClientInterfaceType).InterfaceFunc(func(def *Group) {
+	AddWordWrappedComment(client.Code, r.Doc).Line()
+	client.Code.Type().Id(ClientInterfaceType).InterfaceFunc(func(def *Group) {
 		for _, m := range r.Methods {
-			if m.MethodType != REST_METHOD {
-				AddWordWrappedComment(def.Empty(), m.Doc)
-			} else {
-				if code := r.GenerateRestMethodCode(m); code != nil {
-					generatedRestMethods = append(generatedRestMethods, code.Line().Line())
-				} else {
-					// this method is not currently supported, don't add it to the interface
-					continue
-				}
+			AddWordWrappedComment(def.Empty(), m.Doc)
+			if m.MethodType == REST_METHOD && !isMethodSupported(m.RestLiMethod()) {
+				Logger.Printf("Warning: %s method is not currently implemented", m.Name)
+				continue
 			}
-			def.Add(r.clientFunc(m))
+			def.Add(r.clientFuncDeclaration(m, false))
+			def.Add(r.clientFuncDeclaration(m, true))
 		}
 	}).Line().Line()
-	c.Code.Type().Id(ClientType).Struct(Op("*").Qual(ProtocolPackage, RestLiClient)).Line().Line()
-	c.Code.Func().Id("NewClient").Params(Id("c").Op("*").Qual(ProtocolPackage, RestLiClient)).Id("Client").
+	client.Code.Type().Id(ClientType).Struct(Op("*").Qual(ProtocolPackage, RestLiClient)).Line().Line()
+	client.Code.Func().Id("NewClient").Params(Id("c").Op("*").Qual(ProtocolPackage, RestLiClient)).Id("Client").
 		Block(Return(Op("&").Id(ClientType).Values(Id("c")))).
 		Line().Line()
 
 	for _, m := range r.Methods {
 		if !m.OnEntity {
-			r.addResourcePathFunc(c.Code, ResourcePath, m)
+			r.addResourcePathFunc(client.Code, ResourcePath, m)
 			break
 		}
 	}
 
 	for _, m := range r.Methods {
 		if m.OnEntity {
-			r.addResourcePathFunc(c.Code, ResourceEntityPath, m)
+			r.addResourcePathFunc(client.Code, ResourceEntityPath, m)
 			break
 		}
 	}
 
-	c.Code.Add(generatedRestMethods...)
-
-	codeFiles := []*CodeFile{c}
+	codeFiles := []*CodeFile{client}
 
 	for _, m := range r.Methods {
 		switch m.MethodType {
 		case REST_METHOD:
-			// This is generated during the interface definition
+			if isMethodSupported(m.RestLiMethod()) {
+				client.Code.Add(r.GenerateRestMethodCode(m)).Line().Line()
+			}
 		case ACTION:
 			codeFiles = append(codeFiles, r.GenerateActionCode(m))
 		case FINDER:
 			codeFiles = append(codeFiles, r.GenerateFinderCode(m))
 		}
 	}
+
+	codeFiles = append(codeFiles, r.generateTestCode())
 
 	return codeFiles
 }
@@ -116,4 +107,44 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 
 		def.Return(Id(PathVar), Nil())
 	}).Line().Line()
+}
+
+func (r *Resource) generateTestCode() *CodeFile {
+
+	const (
+		mock       = "Mock"
+		structName = mock + ClientInterfaceType
+	)
+
+	var structFields []Code
+
+	funcs := Empty()
+
+	for _, m := range r.Methods {
+		if m.MethodType == REST_METHOD && !isMethodSupported(m.RestLiMethod()) {
+			continue
+		}
+		structFields = append(structFields,
+			Id(mock+r.methodFuncName(m, false)).Func().ParamsFunc(func(def *Group) {
+				def.Id("ctx").Qual("context", "Context")
+				r.methodFuncParams(m, def)
+			}).ParamsFunc(r.methodReturnParams(m)),
+		)
+		r.addClientFuncDeclarations(funcs, structName, m, func(def *Group) {
+			def.Return(Id(ClientReceiver).Dot(mock + r.methodFuncName(m, false)).CallFunc(func(def *Group) {
+				def.Id(ContextVar)
+				for _, p := range append(m.entityParams(), m.methodCallParams()...) {
+					def.Add(p)
+				}
+			}))
+		}).Line().Line()
+	}
+
+	clientTest := r.NewCodeFile("client")
+	clientTest.PackagePath += "_test"
+
+	clientTest.Code.Type().Id(structName).Struct(structFields...).Line().Line()
+	clientTest.Code.Add(funcs)
+
+	return clientTest
 }

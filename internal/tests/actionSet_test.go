@@ -13,21 +13,19 @@ func (s *TestServer) ActionsetEcho(t *testing.T, c Client) {
 	input := "Is anybody out there?"
 	output, err := c.EchoAction(&EchoActionParams{Input: input})
 	require.NoError(t, err)
-	require.Equal(t, &input, output, "Invalid response from server")
+	require.Equal(t, input, output, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetReturnInt(t *testing.T, c Client) {
 	res, err := c.ReturnIntAction()
 	require.NoError(t, err)
-	i := int32(42)
-	require.Equal(t, &i, res, "Invalid response from server")
+	require.Equal(t, int32(42), res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetReturnBool(t *testing.T, c Client) {
 	res, err := c.ReturnBoolAction()
 	require.NoError(t, err)
-	b := true
-	require.Equal(t, &b, res, "Invalid response from server")
+	require.Equal(t, true, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetEchoMessage(t *testing.T, c Client) {
@@ -68,7 +66,7 @@ func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
 	var urlTyperef testsuite.Url = "http://rest.li"
 	res, err := c.EchoTyperefUrlAction(&EchoTyperefUrlActionParams{UrlTyperef: urlTyperef})
 	require.NoError(t, err)
-	require.Equal(t, urlTyperef, *res, "Invalid response from server")
+	require.Equal(t, urlTyperef, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
@@ -109,7 +107,7 @@ func (s *TestServer) ActionsetMultipleInputs(t *testing.T, c Client) {
 		OptionalString: &optionalString,
 	})
 	require.NoError(t, err)
-	require.True(t, *res, "Invalid response from server")
+	require.True(t, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetMultipleInputsNoOptional(t *testing.T, c Client) {
@@ -119,5 +117,5 @@ func (s *TestServer) ActionsetMultipleInputsNoOptional(t *testing.T, c Client) {
 		UrlTyperef: "http//rest.li",
 	})
 	require.NoError(t, err)
-	require.True(t, *res, "Invalid response from server")
+	require.True(t, res, "Invalid response from server")
 }

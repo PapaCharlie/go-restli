@@ -19,9 +19,16 @@ func (m *Method) finderStructType() string {
 	return FindBy + ExportedIdentifier(m.Name) + "Params"
 }
 
-func (m *Method) finderFuncParams(def *Group) {
+func (r *Resource) finderFuncParams(m *Method, def *Group) {
 	m.addEntityTypes(def)
-	def.Id("params").Op("*").Id(m.finderStructType())
+	def.Id("params").Op("*").Qual(r.PackagePath(), m.finderStructType())
+}
+
+func (m *Method) finderMethodCallParams() (params []Code) {
+	if len(m.Params) > 0 {
+		params = append(params, Id("params"))
+	}
+	return params
 }
 
 func (m *Method) finderReturnType() Code {
@@ -50,10 +57,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 	}
 	c.Code.Add(params.GenerateCode(f)).Line().Line()
 
-	AddWordWrappedComment(c.Code, f.Doc).Line()
-	r.addClientFunc(c.Code, f)
-
-	c.Code.BlockFunc(func(def *Group) {
+	r.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
 		def.List(Id(PathVar), Err()).Op(":=").Id(ResourcePath).Call(f.entityParams()...)
 		IfErrReturn(def, Nil(), Err()).Line()
 
@@ -65,12 +69,13 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		r.callFormatQueryUrl(def)
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(UrlVar), RestLiMethod(protocol.Method_finder))
+		def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_finder))
 		IfErrReturn(def, Nil(), Err()).Line()
 
-		def.Id(DoAndDecodeResult).Op(":=").Struct(Id("Elements").Add(f.finderReturnType())).Block()
-		callDoAndDecode(def)
-		def.Return(Id(DoAndDecodeResult).Dot("Elements"), Nil())
+		accessor := Id("elements")
+		def.Var().Add(accessor).Struct(Id("Elements").Add(f.finderReturnType()))
+		callDoAndDecode(def, Op("&").Add(accessor), Nil())
+		def.Return(Add(accessor).Dot("Elements"), Nil())
 	})
 
 	return c

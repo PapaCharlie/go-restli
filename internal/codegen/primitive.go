@@ -71,6 +71,14 @@ func (p *PrimitiveType) getLit(rawJson string) interface{} {
 	return reflect.ValueOf(v).Elem().Interface()
 }
 
+func (p *PrimitiveType) zeroValueLit() *Statement {
+	if p.IsBytes() {
+		return Nil()
+	} else {
+		return Lit(reflect.ValueOf(p.newInstance()).Elem().Interface())
+	}
+}
+
 func (p *PrimitiveType) encode(accessor *Statement) *Statement {
 	return Id(Codec).Dot("Encode" + ExportedIdentifier(p.Type)).Call(accessor)
 }

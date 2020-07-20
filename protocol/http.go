@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -173,8 +174,8 @@ func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
 	req.Header.Set(RestLiHeader_Method, method.String())
 }
 
-func (c *RestLiClient) GetRequest(url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodGet, url.String(), emptyBuffer)
+func (c *RestLiClient) GetRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +186,8 @@ func (c *RestLiClient) GetRequest(url *url.URL, method RestLiMethod) (*http.Requ
 	return req, nil
 }
 
-func (c *RestLiClient) DeleteRequest(url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodDelete, url.String(), emptyBuffer)
+func (c *RestLiClient) DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
 	}
@@ -197,21 +198,21 @@ func (c *RestLiClient) DeleteRequest(url *url.URL, method RestLiMethod) (*http.R
 	return req, nil
 }
 
-func (c *RestLiClient) JsonPutRequest(url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
-	return jsonRequest(url, http.MethodPut, restLiMethod, contents)
+func (c *RestLiClient) JsonPutRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+	return jsonRequest(ctx, url, http.MethodPut, restLiMethod, contents)
 }
 
-func (c *RestLiClient) JsonPostRequest(url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
-	return jsonRequest(url, http.MethodPost, restLiMethod, contents)
+func (c *RestLiClient) JsonPostRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+	return jsonRequest(ctx, url, http.MethodPost, restLiMethod, contents)
 }
 
-func jsonRequest(url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
 	buf, err := json.Marshal(contents)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(httpMethod, url.String(), bytes.NewBuffer(buf))
+	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), bytes.NewBuffer(buf))
 	if err != nil {
 		return nil, err
 	}

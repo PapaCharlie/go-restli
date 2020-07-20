@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json"
+	"log"
 
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
@@ -80,19 +81,46 @@ func (t *RestliType) GoType() *Statement {
 	}
 }
 
-func (t *RestliType) ReferencedType() *Statement {
+func (t *RestliType) ShouldReference() bool {
 	switch {
 	case t.Primitive != nil:
 		// No need to reference primitive types, makes it more convenient to call methods
-		return t.GoType()
+		return false
 	case t.PrimitiveTyperef() != nil:
 		// If the typeref is backed by a primitive, then don't take the reference either
-		return t.GoType()
+		return false
 	case t.Union != nil:
 		// Union types are structs of references, we don't need to add another layer
+		return false
+	case t.IsMapOrArray():
+		// Maps and arrays are already reference types, no need to take the pointer
+		return false
+	}
+	return true
+}
+
+func (t *RestliType) ReferencedType() *Statement {
+	if t.ShouldReference() {
+		return t.PointerType()
+	} else {
 		return t.GoType()
 	}
-	return t.PointerType()
+}
+
+func (t *RestliType) ZeroValueReference() *Statement {
+	if t.Union != nil {
+		log.Panicln("Cannot use raw union type", t)
+	}
+
+	if p := t.Primitive; p != nil {
+		return p.zeroValueLit()
+	}
+
+	if p := t.PrimitiveTyperef(); p != nil {
+		return p.zeroValueLit()
+	}
+
+	return Nil()
 }
 
 func (t *RestliType) IsMapOrArray() bool {

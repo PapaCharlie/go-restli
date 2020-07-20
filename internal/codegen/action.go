@@ -11,11 +11,18 @@ func (m *Method) actionFuncName() string {
 	return ExportedIdentifier(m.Name + "Action")
 }
 
-func (m *Method) actionFuncParams(def *Group) {
+func (r *Resource) actionFuncParams(m *Method, def *Group) {
 	m.addEntityTypes(def)
 	if len(m.Params) > 0 {
-		def.Id("params").Op("*").Id(m.actionStructType())
+		def.Id("params").Op("*").Qual(r.PackagePath(), m.actionStructType())
 	}
+}
+
+func (m *Method) actionMethodCallParams() (params []Code) {
+	if len(m.Params) > 0 {
+		params = append(params, Id("params"))
+	}
+	return params
 }
 
 func (m *Method) actionStructType() string {
@@ -24,7 +31,7 @@ func (m *Method) actionStructType() string {
 
 func (m *Method) actionFuncReturnParams(def *Group) {
 	if m.Return != nil {
-		def.Add(m.Return.PointerType())
+		def.Add(m.Return.ReferencedType())
 	}
 	def.Error()
 }
@@ -51,10 +58,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		c.Code.Add(record.generateStruct()).Line()
 	}
 
-	AddWordWrappedComment(c.Code, a.Doc).Line()
-	r.addClientFunc(c.Code, a)
-
-	c.Code.BlockFunc(func(def *Group) {
+	r.addClientFuncDeclarations(c.Code, ClientType, a, func(def *Group) {
 		var pathFunc string
 		if a.OnEntity {
 			pathFunc = ResourceEntityPath
@@ -65,7 +69,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		returns := a.Return != nil
 		var errReturnParams []Code
 		if returns {
-			errReturnParams = []Code{Nil(), Err()}
+			errReturnParams = []Code{a.Return.ZeroValueReference(), Err()}
 		} else {
 			errReturnParams = []Code{Err()}
 		}
@@ -84,14 +88,15 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		} else {
 			params = Struct().Block()
 		}
-		req.Dot("JsonPostRequest").Call(Id(UrlVar), RestLiMethod(protocol.Method_action), params)
+		req.Dot("JsonPostRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_action), params)
 		IfErrReturn(def, errReturnParams...).Line()
 
 		if returns {
-			def.Id(DoAndDecodeResult).Op(":=").Struct(Id("Value").Add(a.Return.GoType())).Block()
-			callDoAndDecode(def)
-			returnValue := Id(DoAndDecodeResult).Dot("Value")
-			if !a.Return.IsMapOrArray() {
+			result := Id("actionResult")
+			def.Var().Add(result).Struct(Id("Value").Add(a.Return.GoType()))
+			callDoAndDecode(def, Op("&").Add(result), a.Return.ZeroValueReference())
+			returnValue := Add(result).Dot("Value")
+			if a.Return.ShouldReference() {
 				returnValue = Op("&").Add(returnValue)
 			}
 			def.Return(returnValue, Nil())

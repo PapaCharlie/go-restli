@@ -23,12 +23,14 @@ const (
 	DoAndDecode        = "DoAndDecode"
 	DoAndDecodeResult  = "doAndDecodeResult"
 
-	FindBy = "FindBy"
+	WithContext = "WithContext"
+	FindBy      = "FindBy"
 
-	ReqVar  = "req"
-	ResVar  = "res"
-	UrlVar  = "url"
-	PathVar = "path"
+	ReqVar     = "req"
+	ResVar     = "res"
+	UrlVar     = "url"
+	PathVar    = "path"
+	ContextVar = "ctx"
 
 	ClientReceiver      = "c"
 	ClientType          = "client"
@@ -95,34 +97,100 @@ func canonicalizeAccessor(accessor *Statement) string {
 	return label
 }
 
-func (r *Resource) clientFunc(m *Method) *Statement {
+func (r *Resource) methodFuncName(m *Method, withContext bool) string {
 	var name string
-	var params func(*Group)
-	var returnParams func(*Group)
 
 	switch m.MethodType {
 	case REST_METHOD:
 		name = m.restMethodFuncName()
-		params = func(def *Group) { m.restMethodFuncParams(def, r.ResourceSchema) }
-		returnParams = m.restMethodFuncReturnParams
 	case ACTION:
 		name = m.actionFuncName()
-		params = m.actionFuncParams
-		returnParams = m.actionFuncReturnParams
 	case FINDER:
 		name = m.finderFuncName()
-		params = m.finderFuncParams
+	}
+
+	if withContext {
+		name += WithContext
+	}
+
+	return name
+}
+
+func (r *Resource) methodFuncParams(m *Method, def *Group) {
+	switch m.MethodType {
+	case REST_METHOD:
+		r.restMethodFuncParams(m, def)
+	case ACTION:
+		r.actionFuncParams(m, def)
+	case FINDER:
+		r.finderFuncParams(m, def)
+	}
+}
+
+func (r *Resource) methodReturnParams(m *Method) func(*Group) {
+	var returnParams func(*Group)
+
+	switch m.MethodType {
+	case REST_METHOD:
+		returnParams = m.restMethodFuncReturnParams
+	case ACTION:
+		returnParams = m.actionFuncReturnParams
+	case FINDER:
 		returnParams = m.finderFuncReturnParams
 	}
 
-	return Id(name).ParamsFunc(params).ParamsFunc(returnParams)
+	return returnParams
 }
 
-func (r *Resource) addClientFunc(def *Statement, m *Method) *Statement {
-	return def.Func().Params(Id(ClientReceiver).Op("*").Id(ClientType)).Add(r.clientFunc(m))
+func (m *Method) methodCallParams() []Code {
+	var methodCallParams []Code
+
+	switch m.MethodType {
+	case REST_METHOD:
+		methodCallParams = m.restMethodCallParams()
+	case ACTION:
+		methodCallParams = m.actionMethodCallParams()
+	case FINDER:
+		methodCallParams = m.finderMethodCallParams()
+	}
+
+	return methodCallParams
 }
 
-func callDoAndDecode(def *Group) {
-	def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot(DoAndDecode).Call(Id(ReqVar), Op("&").Id(DoAndDecodeResult))
-	IfErrReturn(def, Nil(), Err()).Line()
+func (r *Resource) clientFuncDeclaration(m *Method, withContext bool) *Statement {
+	params := func(def *Group) {
+		if withContext {
+			def.Id("ctx").Qual("context", "Context")
+		}
+		r.methodFuncParams(m, def)
+	}
+
+	return Id(r.methodFuncName(m, withContext)).ParamsFunc(params).ParamsFunc(r.methodReturnParams(m))
+}
+
+func (r *Resource) addClientFuncDeclarations(def *Statement, clientType string, m *Method, block func(*Group)) *Statement {
+	clientFuncDeclarationStart := Func().Params(Id(ClientReceiver).Op("*").Id(clientType))
+
+	AddWordWrappedComment(def, m.Doc).Line().
+		Add(clientFuncDeclarationStart).
+		Add(r.clientFuncDeclaration(m, false)).
+		Block(Return(Id(ClientReceiver).Dot(r.methodFuncName(m, true)).CallFunc(func(def *Group) {
+			def.Qual("context", "Background").Call()
+			for _, p := range append(m.entityParams(), m.methodCallParams()...) {
+				def.Add(p)
+			}
+		}))).
+		Line().Line()
+
+	AddWordWrappedComment(def, m.Doc).Line().
+		Add(clientFuncDeclarationStart).
+		Add(r.clientFuncDeclaration(m, true)).
+		BlockFunc(block)
+
+	return def
+}
+
+func callDoAndDecode(def *Group, accessor *Statement, zeroValueInCaseOfError *Statement) {
+	def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot(DoAndDecode).Call(Id(ReqVar), accessor)
+	IfErrReturn(def, zeroValueInCaseOfError, Err()).Line()
 }
