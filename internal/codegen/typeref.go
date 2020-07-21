@@ -88,16 +88,16 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	}
 
 	if union := r.Union; union != nil {
-		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
-			union.encode(def, r.Receiver(), r.Name)
-		}).Line().Line()
-
 		AddFuncOnReceiver(def, r.Receiver(), r.Name, ValidateUnionFields).
 			Params().
 			Params(Error()).
 			BlockFunc(func(def *Group) {
 				union.validateUnionFields(def, r.Receiver(), r.Name)
 			})
+
+		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
+			union.encode(def, r.Receiver(), r.Name)
+		}).Line().Line()
 
 		return def
 	}

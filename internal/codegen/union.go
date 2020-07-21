@@ -65,13 +65,13 @@ func (u *UnionType) GoType() *Statement {
 }
 
 func (u *UnionType) validateUnionFields(def *Group, receiver string, typeName string) {
-	u.doForAllMembers(def, receiver, typeName, func(*Group, UnionMember) {
+	u.validateAllMembers(def, receiver, typeName, func(*Group, UnionMember) {
 		// nothing to do when simply validating
 	})
 }
 
 func (u *UnionType) encode(def *Group, receiver string, typeName string) {
-	u.doForAllMembers(def, receiver, typeName, func(def *Group, m UnionMember) {
+	u.validateAllMembers(def, receiver, typeName, func(def *Group, m UnionMember) {
 		writeStringToBuf(def, Lit("("+m.Alias+":"))
 		fieldAccessor := Id(receiver).Dot(m.name())
 		if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
@@ -82,7 +82,7 @@ func (u *UnionType) encode(def *Group, receiver string, typeName string) {
 	})
 }
 
-func (u *UnionType) doForAllMembers(def *Group, receiver string, typeName string, f func(def *Group, m UnionMember)) {
+func (u *UnionType) validateAllMembers(def *Group, receiver string, typeName string, f func(def *Group, m UnionMember)) {
 	isSet := "isSet"
 	def.Id(isSet).Op(":=").False().Line()
 
@@ -93,22 +93,20 @@ func (u *UnionType) doForAllMembers(def *Group, receiver string, typeName string
 		errorMessage = fmt.Sprintf("must specify exactly one union member of %s", typeName)
 	}
 
-	def.Switch().BlockFunc(func(def *Group) {
-		for i, m := range u.Members {
-			def.Case(Id(receiver).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
-				if i == 0 {
+	for i, m := range u.Members {
+		def.If(Id(receiver).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
+			if i == 0 {
+				def.Id(isSet).Op("=").True()
+			} else {
+				def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
 					def.Id(isSet).Op("=").True()
-				} else {
-					def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-						def.Id(isSet).Op("=").True()
-					}).Else().BlockFunc(func(def *Group) {
-						def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
-					})
-				}
-				f(def, m)
-			}).Line()
-		}
-	})
+				}).Else().BlockFunc(func(def *Group) {
+					def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
+				})
+			}
+			f(def, m)
+		}).Line()
+	}
 
 	if !u.HasNull {
 		def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
