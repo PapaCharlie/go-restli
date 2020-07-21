@@ -25,7 +25,6 @@ import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
 import io.papacharlie.gorestli.json.StandaloneUnion;
-import io.papacharlie.gorestli.json.Typeref;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,15 +53,15 @@ public class TypeParser {
   public void extractDataTypes(ResourceSchema resourceSchema) {
     SnapshotGenerator generator = new SnapshotGenerator(resourceSchema, _dataSchemaResolver);
     for (NamedDataSchema schema : generator.generateModelList()) {
-      DataSchemaLocation location = _dataSchemaResolver.nameToDataSchemaLocations().get(schema.getFullName());
-      Preconditions.checkNotNull(location, "Could not resolve original location for %s", schema.getFullName());
-      File sourceFile = location.getSourceFile();
+      File sourceFile = resolveSourceFile(schema);
       switch (schema.getType()) {
         case RECORD:
           parseDataType((RecordDataSchema) schema, sourceFile);
           break;
         case TYPEREF:
-          parseDataType((TyperefDataSchema) schema, sourceFile);
+          // TODO: fromDataSchema will generate underlying Union types if needed. Otherwise typerefs are implicitly
+          //  dropped until type coercers become a reality
+          fromDataSchema(schema, null, null, null);
           break;
         case ENUM:
           parseDataType((EnumDataSchema) schema, sourceFile);
@@ -124,31 +123,6 @@ public class TypeParser {
     registerDataType(new DataType(new Record(schema, sourceFile, fields)));
   }
 
-  private void parseDataType(TyperefDataSchema schema, File sourceFile) {
-    DataSchema refSchema = schema.getDereferencedDataSchema();
-    RestliType referencedType =
-        fromDataSchema(refSchema, schema.getNamespace(), sourceFile, Collections.singletonList(schema.getName()));
-
-    Typeref ref;
-
-    if (referencedType._primitive != null) {
-      ref = new Typeref(schema, sourceFile, referencedType._primitive);
-    } else if (referencedType._array != null || referencedType._map != null) {
-      ref = new Typeref(schema, sourceFile, referencedType._array, referencedType._map);
-    } else {
-      DataType underlyingType = _dataTypes.get(referencedType._reference);
-      if (underlyingType != null && underlyingType.getNamedType() instanceof StandaloneUnion) {
-        StandaloneUnion union = (StandaloneUnion) underlyingType.getNamedType();
-        _dataTypes.remove(referencedType._reference);
-        ref = new Typeref(schema, sourceFile, union._union);
-      } else {
-        ref = new Typeref(schema, sourceFile, referencedType._reference);
-      }
-    }
-
-    registerDataType(new DataType(ref));
-  }
-
   private void parseDataType(EnumDataSchema schema, File sourceFile) {
     registerDataType(new DataType(new Enum(schema, sourceFile, schema.getSymbols(), schema.getSymbolDocs())));
   }
@@ -165,6 +139,13 @@ public class TypeParser {
 
     switch (schema.getType()) {
       case TYPEREF:
+        TyperefDataSchema typeref = (TyperefDataSchema) schema;
+        if (typeref.getRef().getType() == TYPEREF) {
+          return fromDataSchema(typeref.getRef(), null, null, null);
+        } else {
+          return fromDataSchema(typeref.getRef(), typeref.getNamespace(), resolveSourceFile(typeref),
+              Collections.singletonList(typeref.getName()));
+        }
       case RECORD:
       case FIXED:
       case ENUM:
@@ -189,15 +170,21 @@ public class TypeParser {
             "Raw unions not supported outside of records or typerefs");
         UnionDataSchema unionSchema = (UnionDataSchema) schema;
 
+        String name = hierarchy.stream()
+            .map(Utils::exportedIdentifier)
+            .collect(Collectors.joining("_"));
+
+        Identifier identifier = new Identifier(namespace, name);
+        if (_dataTypes.containsKey(identifier)) {
+          return new RestliType(identifier);
+        }
+
         List<UnionMember> members = unionSchema.getMembers().stream()
             .map(m -> m.getType().getType() == NULL
                 ? null
                 : new UnionMember(fromDataSchema(m.getType(), namespace, sourceFile, hierarchy), m.getUnionMemberKey()))
             .collect(Collectors.toList());
 
-        String name = hierarchy.stream()
-            .map(Utils::exportedIdentifier)
-            .collect(Collectors.joining("_"));
         StandaloneUnion union = new StandaloneUnion(name, namespace, sourceFile, members);
         registerDataType(new DataType(union));
 
@@ -207,13 +194,19 @@ public class TypeParser {
     }
   }
 
+  private void registerDataType(DataType type) {
+    _dataTypes.putIfAbsent(type.getNamedType().getIdentifier(), type);
+  }
+
+  private File resolveSourceFile(NamedDataSchema namedSchema) {
+    DataSchemaLocation location = _dataSchemaResolver.nameToDataSchemaLocations().get(namedSchema.getFullName());
+    Preconditions.checkNotNull(location, "Could not resolve original location for %s", namedSchema.getFullName());
+    return location.getSourceFile();
+  }
+
   public static class UnknownTypeException extends RuntimeException {
     private UnknownTypeException(DataSchema.Type type) {
       super("Unknown type: " + type);
     }
-  }
-
-  private void registerDataType(DataType type) {
-    _dataTypes.put(type.getNamedType().getIdentifier(), type);
   }
 }

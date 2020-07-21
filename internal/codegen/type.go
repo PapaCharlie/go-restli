@@ -83,9 +83,6 @@ func (t *RestliType) ShouldReference() bool {
 	case t.Primitive != nil:
 		// No need to reference primitive types, makes it more convenient to call methods
 		return false
-	case t.PrimitiveTyperef() != nil:
-		// If the typeref is backed by a primitive, then don't take the reference either
-		return false
 	case t.IsMapOrArray():
 		// Maps and arrays are already reference types, no need to take the pointer
 		return false
@@ -104,13 +101,9 @@ func (t *RestliType) ReferencedType() *Statement {
 func (t *RestliType) ZeroValueReference() *Statement {
 	if p := t.Primitive; p != nil {
 		return p.zeroValueLit()
+	} else {
+		return Nil()
 	}
-
-	if p := t.PrimitiveTyperef(); p != nil {
-		return p.zeroValueLit()
-	}
-
-	return Nil()
 }
 
 func (t *RestliType) IsMapOrArray() bool {
@@ -142,24 +135,11 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 	}
 }
 
-func (t *RestliType) PrimitiveTyperef() *PrimitiveType {
-	if t.Reference == nil {
-		return nil
-	}
-
-	if ref, ok := t.Reference.Resolve().(*Typeref); ok {
-		return ref.underlyingPrimitiveType()
-	}
-
-	return nil
-}
-
 type GoRestliSpec struct {
 	DataTypes []struct {
 		Enum            *Enum            `json:"enum"`
 		Fixed           *Fixed           `json:"fixed"`
 		Record          *Record          `json:"record"`
-		Typeref         *Typeref         `json:"typeref"`
 		ComplexKey      *ComplexKey      `json:"complexKey"`
 		StandaloneUnion *StandaloneUnion `json:"standaloneUnion"`
 	} `json:"dataTypes"`
@@ -182,8 +162,6 @@ func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
 			complexType = t.Fixed
 		case t.Record != nil:
 			complexType = t.Record
-		case t.Typeref != nil:
-			complexType = t.Typeref
 		case t.ComplexKey != nil:
 			log.Printf("%+v", t.ComplexKey)
 			complexType = t.ComplexKey

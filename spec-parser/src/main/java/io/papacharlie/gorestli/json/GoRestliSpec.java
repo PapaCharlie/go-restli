@@ -13,7 +13,6 @@ public class GoRestliSpec {
     private Enum _enum;
     private Fixed _fixed;
     private Record _record;
-    private Typeref _typeref;
     private ComplexKey _complexKey;
     private StandaloneUnion _standaloneUnion;
 
@@ -27,10 +26,6 @@ public class GoRestliSpec {
 
     public DataType(Record record) {
       _record = Preconditions.checkNotNull(record);
-    }
-
-    public DataType(Typeref typeref) {
-      _typeref = Preconditions.checkNotNull(typeref);
     }
 
     public DataType(ComplexKey complexKey) {
@@ -63,9 +58,6 @@ public class GoRestliSpec {
       }
       if (_record != null) {
         return _record;
-      }
-      if (_typeref != null) {
-        return _typeref;
       }
       if (_complexKey != null) {
         return _complexKey;

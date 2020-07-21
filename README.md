@@ -54,6 +54,13 @@ entirely possible for schemas to introduce package cycles. To mitigate this, the
 dependency chains that introduce package cycles and move the offending models to a fixed package called
 `conflictResolution`.
 
+## Typeref support
+The Java code generator simply drops typerefs and directly references the underlying type, unless a coercer is
+registered. The plan here would be to support a notion of type coercion that can be plugged into the generator. This way
+types with native bindings can be deserialized from their raw values (e.g. a UUID type serialized as a string that can
+be deserialized into an actual `github.com/google/uuid`). For the time being, typerefs will altogether not be supported,
+and the raw underlying type will be used instead.
+
 ## TODO
 There are still many missing parts to this, including documentation and polish. I first focused on the biggest pain
 point in working with Rest.li in golang, which is to generate the structs that are used to send and receive requests to

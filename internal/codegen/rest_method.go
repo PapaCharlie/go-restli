@@ -18,7 +18,7 @@ func (m *Method) isCreatedEntityIdInHeaders() bool {
 		return false
 	}
 
-	return m.EntityPathKey.Type.Primitive != nil || m.EntityPathKey.Type.PrimitiveTyperef() != nil
+	return m.EntityPathKey.Type.Primitive != nil
 }
 
 func (m *Method) RestLiMethod() protocol.RestLiMethod {

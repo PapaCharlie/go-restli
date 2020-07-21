@@ -19,10 +19,6 @@ func (t *RestliType) RestLiEncodeModel(encoder string, accessor *Statement) (*St
 		return encoderRef.Dot("Encode" + ExportedIdentifier(t.Primitive.Type)).Call(accessor), false
 	}
 
-	if p := t.PrimitiveTyperef(); p != nil {
-		return encoderRef.Dot("Encode" + ExportedIdentifier(p.Type)).Call(p.Cast(accessor)), false
-	}
-
 	if t.Reference != nil {
 		return encoderRef.Dot("Encode").Call(accessor), true
 	}
