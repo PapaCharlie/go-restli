@@ -11,10 +11,7 @@ type ComplexKey struct {
 }
 
 func (ck *ComplexKey) InnerTypes() IdentifierSet {
-	return IdentifierSet{
-		ck.Key:    true,
-		ck.Params: true,
-	}
+	return NewIdentifierSet(ck.Key, ck.Params)
 }
 
 func (ck *ComplexKey) GenerateCode() *Statement {
@@ -31,8 +28,6 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 	}
 
 	return AddRestLiEncode(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.unionFieldValidator(def)
-		def.Line()
 		record.generateEncoder(def, nil, &ck.Params)
 		def.Return(Nil())
 	})

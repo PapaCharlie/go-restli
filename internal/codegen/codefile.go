@@ -30,11 +30,13 @@ const (
 	RestLiReducedEncoder = "RestLiReducedEncoder"
 
 	PopulateDefaultValues = "populateDefaultValues"
-	ValidateUnionFields   = "validateUnionFields"
+	ValidateUnionFields   = "ValidateUnionFields"
 
 	NetHttp = "net/http"
 
 	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"
+
+	ReadOnlyPermissions = os.FileMode(0555)
 )
 
 var (
@@ -112,7 +114,7 @@ func WriteJenFile(filename string, file *File) error {
 		}
 	}
 
-	if err := ioutil.WriteFile(filename, b.Bytes(), os.FileMode(0555)); err != nil {
+	if err := ioutil.WriteFile(filename, b.Bytes(), ReadOnlyPermissions); err != nil {
 		return errors.WithStack(err)
 	}
 

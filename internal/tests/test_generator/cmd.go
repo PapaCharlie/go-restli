@@ -15,6 +15,7 @@ import (
 )
 
 const (
+	parsedSpecFile         = "parsed-specs.json"
 	generatedPackageSuffix = "generated"
 )
 
@@ -30,14 +31,20 @@ func main() {
 	panicIfErrf(err, "Could not glob restspecs")
 	specBytes, err := cmd.ExecuteJar("rest.li-test-suite/client-testsuite/schemas", restSpecs)
 	panicIfErrf(err, "Could not execute jar")
+
+	_ = os.RemoveAll(parsedSpecFile)
+	log.Printf("Writing spec to %q", parsedSpecFile)
+	panicIfErr(ioutil.WriteFile(parsedSpecFile, specBytes, codegen.ReadOnlyPermissions))
+
+	_ = os.RemoveAll(generatedPackageSuffix)
 	err = codegen.GenerateCode(specBytes, tmpDir)
 	panicIfErrf(err, "Failed to generate code")
 
-	_ = os.RemoveAll(generatedPackageSuffix)
 	err = os.Rename(filepath.Join(tmpDir, codegen.PackagePrefix), generatedPackageSuffix)
 	panicIfErrf(err, "Failed to move the generated code")
 
 	_ = os.RemoveAll(tmpDir)
+
 	// generateClientTests()
 }
 

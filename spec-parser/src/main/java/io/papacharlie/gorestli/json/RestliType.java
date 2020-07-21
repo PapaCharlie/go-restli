@@ -2,8 +2,6 @@ package io.papacharlie.gorestli.json;
 
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.data.schema.DataSchema;
-import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 
@@ -23,14 +21,24 @@ public final class RestliType {
   public final Identifier _reference;
   public final RestliType _array;
   public final RestliType _map;
-  public final List<UnionMember> _union;
 
-  public RestliType(String primitive, Identifier reference, RestliType array, RestliType map, List<UnionMember> union) {
+  private RestliType(String primitive, Identifier reference, RestliType array, RestliType map) {
     _primitive = primitive;
     _reference = reference;
     _array = array;
     _map = map;
-    _union = (union == null) ? null : Collections.unmodifiableList(union);
+  }
+
+  public RestliType(String primitive) {
+    this(primitive, null, null, null);
+  }
+
+  public RestliType(Identifier reference) {
+    this(null, reference, null, null);
+  }
+
+  public RestliType(RestliType array, RestliType map) {
+    this(null, null, array, map);
   }
 
   public static class UnionMember {

@@ -70,14 +70,13 @@ func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
-	union := &testsuite.UnionOfPrimitives{}
-	union.InitializePrimitivesUnion()
+	var union testsuite.UnionOfPrimitives
 	union.PrimitivesUnion.Long = new(int64)
 	*union.PrimitivesUnion.Long = 100
 
-	res, err := c.EchoPrimitiveUnionAction(&EchoPrimitiveUnionActionParams{PrimitiveUnion: *union})
+	res, err := c.EchoPrimitiveUnionAction(&EchoPrimitiveUnionActionParams{PrimitiveUnion: union})
 	require.NoError(t, err)
-	require.Equal(t, *union, *res, "Invalid response from server")
+	require.Equal(t, &union, res, "Invalid response from server")
 }
 
 func (s *TestServer) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) {

@@ -1,31 +1,63 @@
 package codegen
 
 import (
+	"log"
+
 	. "github.com/dave/jennifer/jen"
 )
 
 type Typeref struct {
 	NamedType
-	Ref RestliType
+	Primitive *PrimitiveType `json:"primitive"`
+	Reference *Identifier    `json:"reference"`
+	Array     *RestliType    `json:"array"`
+	Map       *RestliType    `json:"map"`
+	Union     *UnionType     `json:"union"`
 }
 
 func (r *Typeref) InnerTypes() IdentifierSet {
-	return r.Ref.InnerTypes()
+	switch {
+	case r.Primitive != nil:
+		return nil
+	case r.Reference != nil:
+		return NewIdentifierSet(*r.Reference)
+	case r.Array != nil:
+		return r.Array.InnerTypes()
+	case r.Map != nil:
+		return r.Map.InnerTypes()
+	case r.Union != nil:
+		return r.Union.InnerModels()
+	default:
+		log.Panicf("Unknown reference type: %+v", r)
+		return nil
+	}
+}
+
+func (r *Typeref) refGoType() *Statement {
+	switch {
+	case r.Primitive != nil:
+		return r.Primitive.GoType()
+	case r.Reference != nil:
+		return r.Reference.Qual()
+	case r.Array != nil:
+		return r.Array.GoType()
+	case r.Map != nil:
+		return r.Map.GoType()
+	case r.Union != nil:
+		return r.Union.GoType()
+	default:
+		log.Panicf("Unknown reference type: %+v", r)
+		return nil
+	}
 }
 
 func (r *Typeref) GenerateCode() (def *Statement) {
 	def = Empty()
 
-	if ref := r.Ref.Reference; ref != nil {
-		// TODO
-		Logger.Printf("Warning: type references to non-primitive types are not yet supported (%s)", r.Identifier)
-		return def
-	}
-
 	AddWordWrappedComment(def, r.Doc).Line()
-	def.Type().Id(r.Name).Add(r.Ref.GoType()).Line().Line()
+	def.Type().Id(r.Name).Add(r.refGoType()).Line().Line()
 
-	if pt := r.Ref.Primitive; pt != nil {
+	if pt := r.underlyingPrimitiveType(); pt != nil {
 		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
 			writeStringToBuf(def, pt.encode(pt.Cast(Op("*").Id(r.Receiver()))))
 			def.Return(Nil())
@@ -37,35 +69,48 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		return def
 	}
 
-	if union := r.Ref.Union; union != nil {
+	if ref := r.Reference; ref != nil {
 		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
-			def.Err().Op("=").Id(r.Receiver()).Dot(ValidateUnionFields).Call()
-			IfErrReturn(def, Err())
-			r.Ref.WriteToBuf(def, Id(r.Receiver()))
-			def.Return(Nil())
+			def.Return(Parens(Op("*").Add(r.Reference.Qual()).Dot(RestLiEncode).Params(Id(Codec), Id("buf"))))
+		}).Line().Line()
+	}
+
+	if m := r.Array; m != nil {
+		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
+			writeArrayToBuf(def, Id(r.Receiver()), r.Array)
+		}).Line().Line()
+	}
+
+	if m := r.Map; m != nil {
+		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
+			writeMapToBuf(def, Id(r.Receiver()), r.Map)
+		}).Line().Line()
+	}
+
+	if union := r.Union; union != nil {
+		AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
+			union.encode(def, r.Receiver(), r.Name)
 		}).Line().Line()
 
 		AddFuncOnReceiver(def, r.Receiver(), r.Name, ValidateUnionFields).
 			Params().
 			Params(Error()).
 			BlockFunc(func(def *Group) {
-				union.validateUnionFields(def, Id(r.Receiver()))
-				def.Line().Return(Nil())
+				union.validateUnionFields(def, r.Receiver(), r.Name)
 			})
 
 		return def
 	}
 
-	Logger.Panicf("Illegal typeref type %+v defined in %s", r.Ref, r.GetSourceFile())
 	return nil
 }
 
 func (r *Typeref) underlyingPrimitiveType() *PrimitiveType {
 	switch {
-	case r.Ref.Primitive != nil:
-		return r.Ref.Primitive
-	case r.Ref.Reference != nil:
-		if ref, ok := r.Ref.Reference.Resolve().(*Typeref); ok {
+	case r.Primitive != nil:
+		return r.Primitive
+	case r.Reference != nil:
+		if ref, ok := r.Reference.Resolve().(*Typeref); ok {
 			return ref.underlyingPrimitiveType()
 		}
 	}

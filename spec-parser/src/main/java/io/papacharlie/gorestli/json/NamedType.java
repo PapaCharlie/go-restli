@@ -23,8 +23,12 @@ public abstract class NamedType {
     _sourceFile = sourceFile.getAbsolutePath();
   }
 
+  public Identifier getIdentifier() {
+    return new Identifier(_namespace, _name);
+  }
+
   public RestliType restliType() {
-    return new RestliType(null, new Identifier(_namespace, _name), null, null, null);
+    return new RestliType(getIdentifier());
   }
 
   @Override

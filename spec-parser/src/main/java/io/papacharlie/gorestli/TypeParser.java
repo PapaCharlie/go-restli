@@ -12,7 +12,6 @@ import com.linkedin.data.schema.NamedDataSchema;
 import com.linkedin.data.schema.RecordDataSchema;
 import com.linkedin.data.schema.TyperefDataSchema;
 import com.linkedin.data.schema.UnionDataSchema;
-import com.linkedin.data.schema.UnionDataSchema.Member;
 import com.linkedin.restli.restspec.CollectionSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestSpecCodec;
@@ -25,21 +24,26 @@ import io.papacharlie.gorestli.json.Method.PathKey;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
+import io.papacharlie.gorestli.json.StandaloneUnion;
 import io.papacharlie.gorestli.json.Typeref;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 import static com.linkedin.data.schema.DataSchema.Type.*;
 import static io.papacharlie.gorestli.json.RestliType.*;
 
 
 public class TypeParser {
-  private final Set<DataType> _dataTypes = new HashSet<>();
+  private final Map<Identifier, DataType> _dataTypes = new HashMap<>();
 
   private final DataSchemaResolver _dataSchemaResolver;
 
@@ -53,34 +57,31 @@ public class TypeParser {
       DataSchemaLocation location = _dataSchemaResolver.nameToDataSchemaLocations().get(schema.getFullName());
       Preconditions.checkNotNull(location, "Could not resolve original location for %s", schema.getFullName());
       File sourceFile = location.getSourceFile();
-      DataType dataType;
       switch (schema.getType()) {
         case RECORD:
-          dataType = parseDataType((RecordDataSchema) schema, sourceFile);
-          break;
-        case ENUM:
-          dataType = parseDataType((EnumDataSchema) schema, sourceFile);
+          parseDataType((RecordDataSchema) schema, sourceFile);
           break;
         case TYPEREF:
-          dataType = parseDataType((TyperefDataSchema) schema, sourceFile);
+          parseDataType((TyperefDataSchema) schema, sourceFile);
+          break;
+        case ENUM:
+          parseDataType((EnumDataSchema) schema, sourceFile);
           break;
         case FIXED:
-          dataType = parseDataType((FixedDataSchema) schema, sourceFile);
+          parseDataType((FixedDataSchema) schema, sourceFile);
           break;
         default:
           System.err.printf("Don't know what to do with %s%n", schema);
-          continue;
       }
-      _dataTypes.add(dataType);
     }
   }
 
   public Set<DataType> getDataTypes() {
-    return Collections.unmodifiableSet(_dataTypes);
+    return Collections.unmodifiableSet(new HashSet<>(_dataTypes.values()));
   }
 
   public RestliType parseFromRestSpec(String schema) {
-    return fromDataSchema(RestSpecCodec.textToSchema(schema, _dataSchemaResolver));
+    return fromDataSchema(RestSpecCodec.textToSchema(schema, _dataSchemaResolver), null, null, null);
   }
 
   public PathKey collectionPathKey(String resourceName, String resourceNamespace, CollectionSchema collection,
@@ -93,7 +94,7 @@ public class TypeParser {
       Preconditions.checkNotNull(paramsType._reference, "Complex key \"params\" must be a record type");
       ComplexKey key =
           new ComplexKey(resourceName, resourceNamespace, specFile, keyType._reference, paramsType._reference);
-      _dataTypes.add(new DataType(key));
+      registerDataType(new DataType(key));
       pkType = key.restliType();
     } else {
       pkType = parseFromRestSpec(collection.getIdentifier().getType());
@@ -102,46 +103,64 @@ public class TypeParser {
     return new PathKey(collection.getIdentifier().getName(), pkType);
   }
 
-  private DataType parseDataType(RecordDataSchema schema, File sourceFile) {
+  private void parseDataType(RecordDataSchema schema, File sourceFile) {
     List<Field> fields = new ArrayList<>();
     for (RecordDataSchema.Field field : schema.getFields()) {
-      DataSchema fieldType = field.getType();
+      RestliType fieldRestliType = fromDataSchema(
+          field.getType(),
+          schema.getNamespace(),
+          sourceFile,
+          Arrays.asList(schema.getName(), field.getName()));
       boolean optional = field.getOptional();
-      if (fieldType instanceof UnionDataSchema) {
-        for (Member unionMember : ((UnionDataSchema) fieldType).getMembers()) {
-          if (unionMember.getType().getType() == NULL) {
-            optional = true;
-            break;
-          }
-        }
-      }
 
       fields.add(new Field(
           field.getName(),
           field.getDoc(),
-          fromDataSchema(fieldType),
+          fieldRestliType,
           optional,
           field.getDefault()));
     }
 
-    return new DataType(new Record(schema, sourceFile, fields));
+    registerDataType(new DataType(new Record(schema, sourceFile, fields)));
   }
 
-  private DataType parseDataType(EnumDataSchema schema, File sourceFile) {
-    return new DataType(new Enum(schema, sourceFile, schema.getSymbols(), schema.getSymbolDocs()));
+  private void parseDataType(TyperefDataSchema schema, File sourceFile) {
+    DataSchema refSchema = schema.getDereferencedDataSchema();
+    RestliType referencedType =
+        fromDataSchema(refSchema, schema.getNamespace(), sourceFile, Collections.singletonList(schema.getName()));
+
+    Typeref ref;
+
+    if (referencedType._primitive != null) {
+      ref = new Typeref(schema, sourceFile, referencedType._primitive);
+    } else if (referencedType._array != null || referencedType._map != null) {
+      ref = new Typeref(schema, sourceFile, referencedType._array, referencedType._map);
+    } else {
+      DataType underlyingType = _dataTypes.get(referencedType._reference);
+      if (underlyingType != null && underlyingType.getNamedType() instanceof StandaloneUnion) {
+        StandaloneUnion union = (StandaloneUnion) underlyingType.getNamedType();
+        _dataTypes.remove(referencedType._reference);
+        ref = new Typeref(schema, sourceFile, union._union);
+      } else {
+        ref = new Typeref(schema, sourceFile, referencedType._reference);
+      }
+    }
+
+    registerDataType(new DataType(ref));
   }
 
-  private DataType parseDataType(TyperefDataSchema schema, File sourceFile) {
-    return new DataType(new Typeref(schema, sourceFile, fromDataSchema(schema.getDereferencedDataSchema())));
+  private void parseDataType(EnumDataSchema schema, File sourceFile) {
+    registerDataType(new DataType(new Enum(schema, sourceFile, schema.getSymbols(), schema.getSymbolDocs())));
   }
 
-  private DataType parseDataType(FixedDataSchema schema, File sourceFile) {
-    return new DataType(new Fixed(schema, sourceFile, schema.getSize()));
+  private void parseDataType(FixedDataSchema schema, File sourceFile) {
+    registerDataType(new DataType(new Fixed(schema, sourceFile, schema.getSize())));
   }
 
-  public RestliType fromDataSchema(DataSchema schema) {
+  private RestliType fromDataSchema(DataSchema schema, @Nullable String namespace, @Nullable File sourceFile,
+      @Nullable List<String> hierarchy) {
     if (JAVA_TO_GO_PRIMTIIVE_TYPE.containsKey(schema.getType())) {
-      return new RestliType(JAVA_TO_GO_PRIMTIIVE_TYPE.get(schema.getType()), null, null, null, null);
+      return new RestliType(JAVA_TO_GO_PRIMTIIVE_TYPE.get(schema.getType()));
     }
 
     switch (schema.getType()) {
@@ -150,23 +169,39 @@ public class TypeParser {
       case FIXED:
       case ENUM:
         NamedDataSchema namedSchema = (NamedDataSchema) schema;
-        return new RestliType(null, new Identifier(namedSchema.getNamespace(), namedSchema.getName()), null, null,
-            null);
+        return new RestliType(new Identifier(namedSchema.getNamespace(), namedSchema.getName()));
       case ARRAY:
-        return new RestliType(null, null, fromDataSchema(((ArrayDataSchema) schema).getItems()), null, null);
+        RestliType arrayType = fromDataSchema(
+            ((ArrayDataSchema) schema).getItems(),
+            namespace,
+            sourceFile,
+            Utils.append(hierarchy, "Array"));
+        return new RestliType(arrayType, null);
       case MAP:
-        return new RestliType(null, null, null, fromDataSchema(((MapDataSchema) schema).getValues()), null);
+        RestliType mapType = fromDataSchema(
+            ((MapDataSchema) schema).getValues(),
+            namespace,
+            sourceFile,
+            Utils.append(hierarchy, "Map"));
+        return new RestliType(null, mapType);
       case UNION:
-        UnionDataSchema union = (UnionDataSchema) schema;
-        List<UnionMember> unionMembers = union.getMembers().stream()
-            .filter(m -> m.getType().getType() != DataSchema.Type.NULL)
-            .map(m -> new UnionMember(fromDataSchema(m.getType()), m.getUnionMemberKey()))
+        Preconditions.checkState(namespace != null && hierarchy != null,
+            "Raw unions not supported outside of records or typerefs");
+        UnionDataSchema unionSchema = (UnionDataSchema) schema;
+
+        List<UnionMember> members = unionSchema.getMembers().stream()
+            .map(m -> m.getType().getType() == NULL
+                ? null
+                : new UnionMember(fromDataSchema(m.getType(), namespace, sourceFile, hierarchy), m.getUnionMemberKey()))
             .collect(Collectors.toList());
-        if (unionMembers.size() == 1) {
-          return unionMembers.get(0)._type;
-        } else {
-          return new RestliType(null, null, null, null, unionMembers);
-        }
+
+        String name = hierarchy.stream()
+            .map(Utils::exportedIdentifier)
+            .collect(Collectors.joining("_"));
+        StandaloneUnion union = new StandaloneUnion(name, namespace, sourceFile, members);
+        registerDataType(new DataType(union));
+
+        return new RestliType(union.getIdentifier());
       default:
         throw new UnknownTypeException(schema.getType());
     }
@@ -176,5 +211,9 @@ public class TypeParser {
     private UnknownTypeException(DataSchema.Type type) {
       super("Unknown type: " + type);
     }
+  }
+
+  private void registerDataType(DataType type) {
+    _dataTypes.put(type.getNamedType().getIdentifier(), type);
   }
 }

@@ -19,7 +19,6 @@ type Record struct {
 	Fields []Field
 
 	populateDefaultValues *Statement
-	validateUnionFields   *Statement
 }
 
 func (r *Record) InnerTypes() IdentifierSet {
@@ -59,8 +58,7 @@ func (r *Record) GenerateCode() *Statement {
 	return Empty().
 		Add(r.generateStruct()).Line().Line().
 		Add(r.generateMarshalingCode()).Line().Line().
-		Add(r.generateRestliEncoder()).Line().Line().
-		Add(r.generatePatchStructs()).Line()
+		Add(r.generateRestliEncoder()).Line()
 }
 
 func (r *Record) generateStruct() *Statement {
@@ -87,7 +85,6 @@ func (r *Record) generateMarshalingCode() *Statement {
 	def := Empty()
 
 	hasDefaultValue := r.generatePopulateDefaultValues(def)
-	hasUnionField := r.generateValidateUnionFields(def)
 
 	if hasDefaultValue {
 		def.Func().
@@ -106,33 +103,17 @@ func (r *Record) generateMarshalingCode() *Statement {
 			def.Add(r.populateDefaultValues)
 			def.Return()
 		}).Line().Line()
-	}
 
-	if hasUnionField {
-		AddMarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
-			def.Add(r.validateUnionFields)
-			def.Type().Id("_t").Id(r.Name)
-			def.Return(Qual(EncodingJson, Marshal).Call(Call(Op("*").Id("_t")).Call(Id(r.Receiver()))))
-		}).Line().Line()
-	}
-
-	if hasDefaultValue || hasUnionField {
 		AddUnmarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
 			def.Type().Id("_t").Id(r.Name)
 			def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Call(Op("*").Id("_t")).Call(Id(r.Receiver())))
 			IfErrReturn(def).Line()
-			def.Add(r.populateDefaultValues, r.validateUnionFields)
+			def.Add(r.populateDefaultValues)
 			def.Return()
 		}).Line().Line()
 	}
-	r.generateInitializeUnionFields(def)
 
 	return def
-}
-
-func (r *Record) generatePatchStructs() *Statement {
-	// TODO
-	return Empty()
 }
 
 func (r *Record) generateRestliEncoder() *Statement {
@@ -156,8 +137,6 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 		nameDelimiter = ":"
 		fieldDelimiter = ','
 	}
-
-	def.Add(r.validateUnionFields)
 
 	if finderName == nil {
 		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
@@ -220,7 +199,7 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 				IfErrReturn(def, Err())
 			} else {
 				accessor := r.field(f)
-				if f.IsPointer() && f.Type.Reference == nil && f.Type.Union == nil {
+				if f.IsPointer() && f.Type.Reference == nil {
 					accessor = Op("*").Add(accessor)
 				}
 
@@ -308,59 +287,6 @@ func (r *Record) generatePopulateDefaultValues(def *Statement) bool {
 
 	r.populateDefaultValues.Id(r.Receiver()).Dot(PopulateDefaultValues).Call().Line()
 	return true
-}
-
-func (r *Record) generateValidateUnionFields(def *Statement) bool {
-	r.validateUnionFields = Empty()
-
-	hasUnion := false
-	for _, f := range r.Fields {
-		if f.Type.Union != nil {
-			hasUnion = true
-			break
-		}
-	}
-	if !hasUnion {
-		return false
-	}
-
-	AddFuncOnReceiver(def, r.Receiver(), r.Name, ValidateUnionFields).
-		Params().
-		Params(Error()).
-		BlockFunc(func(def *Group) {
-			r.unionFieldValidator(def)
-			def.Return(Nil())
-		}).Line().Line()
-
-	r.validateUnionFields.Err().Op("=").Id(r.Receiver()).Dot(ValidateUnionFields).Call().Line()
-	r.validateUnionFields.If(Err().Op("!=").Nil()).Block(Return()).Line()
-
-	return true
-}
-
-func (r *Record) unionFieldValidator(def *Group) {
-	for _, f := range r.Fields {
-		if union := f.Type.Union; union != nil {
-			def.BlockFunc(func(def *Group) {
-				if f.IsPointer() {
-					def.If(Id(r.Receiver()).Dot(f.FieldName()).Op("==").Nil()).
-						Block(Return(Nil())).Line()
-				}
-
-				union.validateUnionFields(def, Id(r.Receiver()).Dot(f.FieldName()))
-			})
-		}
-	}
-}
-
-func (r *Record) generateInitializeUnionFields(def *Statement) {
-	for _, f := range r.Fields {
-		if union := f.Type.Union; union != nil && f.IsPointer() {
-			AddFuncOnReceiver(def, r.Receiver(), r.Name, "Initialize"+f.FieldName()).
-				Params().
-				Block(Id(r.Receiver()).Dot(f.FieldName()).Op("=").New(union.GoType()))
-		}
-	}
 }
 
 func (r *Record) defaultValuesConstructor() string {

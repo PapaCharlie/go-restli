@@ -112,7 +112,7 @@ func (reg typeRegistry) FlagCyclicDependencies() {
 }
 
 func (reg typeRegistry) FindAllDependents(id Identifier) IdentifierSet {
-	dependents := IdentifierSet{id: true}
+	dependents := NewIdentifierSet(id)
 	added := true
 	for added {
 		added = false

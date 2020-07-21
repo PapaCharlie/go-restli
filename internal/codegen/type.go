@@ -23,7 +23,6 @@ type RestliType struct {
 	Reference *Identifier
 	Array     *RestliType
 	Map       *RestliType
-	Union     *UnionType
 }
 
 func (t *RestliType) UnmarshalJSON(data []byte) error {
@@ -42,8 +41,6 @@ func (t *RestliType) UnmarshalJSON(data []byte) error {
 		return nil
 	case t.Map != nil:
 		return nil
-	case t.Union != nil:
-		return nil
 	default:
 		return errors.Errorf("go-restli: RestliType declares no underlying type! (%s)", string(data))
 	}
@@ -54,15 +51,14 @@ func (t *RestliType) InnerTypes() IdentifierSet {
 	case t.Primitive != nil:
 		return nil
 	case t.Reference != nil:
-		innerTypes := make(IdentifierSet)
-		innerTypes.Add(*t.Reference)
-		return innerTypes
+		return NewIdentifierSet(*t.Reference)
 	case t.Array != nil:
 		return t.Array.InnerTypes()
 	case t.Map != nil:
 		return t.Map.InnerTypes()
 	default:
-		return t.Union.InnerModels()
+		log.Panicf("Illegal restli type: %+v", t)
+		return nil
 	}
 }
 
@@ -77,7 +73,8 @@ func (t *RestliType) GoType() *Statement {
 	case t.Map != nil:
 		return Map(String()).Add(t.Map.ReferencedType())
 	default:
-		return t.Union.GoType()
+		log.Panicf("Illegal restli type: %+v", t)
+		return nil
 	}
 }
 
@@ -88,9 +85,6 @@ func (t *RestliType) ShouldReference() bool {
 		return false
 	case t.PrimitiveTyperef() != nil:
 		// If the typeref is backed by a primitive, then don't take the reference either
-		return false
-	case t.Union != nil:
-		// Union types are structs of references, we don't need to add another layer
 		return false
 	case t.IsMapOrArray():
 		// Maps and arrays are already reference types, no need to take the pointer
@@ -108,10 +102,6 @@ func (t *RestliType) ReferencedType() *Statement {
 }
 
 func (t *RestliType) ZeroValueReference() *Statement {
-	if t.Union != nil {
-		log.Panicln("Cannot use raw union type", t)
-	}
-
 	if p := t.Primitive; p != nil {
 		return p.zeroValueLit()
 	}
@@ -142,45 +132,13 @@ func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
 		writeStringToBuf(def, t.Primitive.encode(accessor))
 	case t.Reference != nil:
 		def.Err().Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec), Id("buf"))
-		IfErrReturn(def)
+		IfErrReturn(def, Err())
 	case t.Array != nil:
-		writeStringToBuf(def, Lit("List("))
-
-		def.For(List(Id("idx"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
-			def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
-			t.Array.WriteToBuf(def, Id("val"))
-		})
-
-		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-		return
+		writeArrayToBuf(def, accessor, t.Array)
 	case t.Map != nil:
-		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
-
-		def.Id("idx").Op(":=").Lit(0)
-		def.For(List(Id("key"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
-			def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
-			def.Id("idx").Op("++")
-			writeStringToBuf(def, Id(Codec).Dot("EncodeString").Call(Id("key")))
-			def.Id("buf").Dot("WriteByte").Call(LitRune(':'))
-			t.Map.WriteToBuf(def, Id("val"))
-		})
-
-		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-		return
+		writeMapToBuf(def, accessor, t.Map)
 	default:
-		def.Switch().BlockFunc(func(def *Group) {
-			for _, m := range *t.Union {
-				def.Case(Add(accessor).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
-					writeStringToBuf(def, Lit("("+m.Alias+":"))
-					fieldAccessor := Add(accessor).Dot(m.name())
-					if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
-						fieldAccessor = Op("*").Add(fieldAccessor)
-					}
-					m.Type.WriteToBuf(def, fieldAccessor)
-					def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-				})
-			}
-		})
+		log.Panicf("Illegal restli type: %+v", t)
 	}
 }
 
@@ -198,12 +156,13 @@ func (t *RestliType) PrimitiveTyperef() *PrimitiveType {
 
 type GoRestliSpec struct {
 	DataTypes []struct {
-		Enum       *Enum
-		Fixed      *Fixed
-		Record     *Record
-		Typeref    *Typeref
-		ComplexKey *ComplexKey
-	}
+		Enum            *Enum            `json:"enum"`
+		Fixed           *Fixed           `json:"fixed"`
+		Record          *Record          `json:"record"`
+		Typeref         *Typeref         `json:"typeref"`
+		ComplexKey      *ComplexKey      `json:"complexKey"`
+		StandaloneUnion *StandaloneUnion `json:"standaloneUnion"`
+	} `json:"dataTypes"`
 	Resources []Resource
 }
 
@@ -226,7 +185,10 @@ func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
 		case t.Typeref != nil:
 			complexType = t.Typeref
 		case t.ComplexKey != nil:
+			log.Printf("%+v", t.ComplexKey)
 			complexType = t.ComplexKey
+		case t.StandaloneUnion != nil:
+			complexType = t.StandaloneUnion
 		default:
 			return errors.New("go-restli: Must declare at least one underlying type")
 		}

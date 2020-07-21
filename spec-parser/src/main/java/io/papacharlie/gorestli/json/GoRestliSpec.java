@@ -15,6 +15,7 @@ public class GoRestliSpec {
     private Record _record;
     private Typeref _typeref;
     private ComplexKey _complexKey;
+    private StandaloneUnion _standaloneUnion;
 
     public DataType(Enum anEnum) {
       _enum = Preconditions.checkNotNull(anEnum);
@@ -36,6 +37,10 @@ public class GoRestliSpec {
       _complexKey = Preconditions.checkNotNull(complexKey);
     }
 
+    public DataType(StandaloneUnion standaloneUnion) {
+      _standaloneUnion = Preconditions.checkNotNull(standaloneUnion);
+    }
+
     @Override
     public int hashCode() {
       return getNamedType().hashCode();
@@ -49,7 +54,7 @@ public class GoRestliSpec {
       return getNamedType().equals(((DataType) obj).getNamedType());
     }
 
-    private NamedType getNamedType() {
+    public NamedType getNamedType() {
       if (_enum != null) {
         return _enum;
       }
@@ -64,6 +69,9 @@ public class GoRestliSpec {
       }
       if (_complexKey != null) {
         return _complexKey;
+      }
+      if (_standaloneUnion != null) {
+        return _standaloneUnion;
       }
       throw new IllegalStateException("No NamedType specified!");
     }

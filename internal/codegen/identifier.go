@@ -68,6 +68,14 @@ func FqcpToPackagePath(fqcp string) string {
 
 type IdentifierSet map[Identifier]bool
 
+func NewIdentifierSet(ids ...Identifier) IdentifierSet {
+	set := make(IdentifierSet)
+	for _, id := range ids {
+		set.Add(id)
+	}
+	return set
+}
+
 func (set IdentifierSet) Add(id Identifier) {
 	set[id] = true
 }
