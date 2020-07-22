@@ -78,6 +78,15 @@ func (t *RestliType) GoType() *Statement {
 	}
 }
 
+func (t *RestliType) Record() *Record {
+	if t.Reference == nil {
+		return nil
+	}
+
+	record, _ := t.Reference.Resolve().(*Record)
+	return record
+}
+
 func (t *RestliType) ShouldReference() bool {
 	switch {
 	case t.Primitive != nil:

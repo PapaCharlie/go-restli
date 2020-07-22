@@ -32,6 +32,8 @@ const (
 	PopulateDefaultValues = "populateDefaultValues"
 	ValidateUnionFields   = "ValidateUnionFields"
 
+	PartialUpdate = "_PartialUpdate"
+
 	NetHttp = "net/http"
 
 	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"

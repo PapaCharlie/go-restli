@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"regexp"
 	"sort"
@@ -28,6 +29,14 @@ func (r *Record) InnerTypes() IdentifierSet {
 	}
 
 	return innerTypes
+}
+
+func (r *Record) PartialUpdateStructName() string {
+	return r.Name + PartialUpdate
+}
+
+func (r *Record) PartialUpdateStruct() *Statement {
+	return Qual(r.PackagePath(), r.PartialUpdateStructName())
 }
 
 type Field struct {
@@ -58,7 +67,8 @@ func (r *Record) GenerateCode() *Statement {
 	return Empty().
 		Add(r.generateStruct()).Line().Line().
 		Add(r.generateMarshalingCode()).Line().Line().
-		Add(r.generateRestliEncoder()).Line()
+		Add(r.generateRestliEncoder()).Line().Line().
+		Add(r.generatePartialUpdateStruct()).Line()
 }
 
 func (r *Record) generateStruct() *Statement {
@@ -291,4 +301,106 @@ func (r *Record) generatePopulateDefaultValues(def *Statement) bool {
 
 func (r *Record) defaultValuesConstructor() string {
 	return "New" + r.Name + "WithDefaultValues"
+}
+
+func (r *Record) generatePartialUpdateStruct() *Statement {
+	def := Empty()
+
+	const (
+		DeleteField = "Delete"
+		UpdateField = "Update"
+	)
+
+	// Generate the struct
+	AddWordWrappedComment(def, fmt.Sprintf(
+		"%s is used to represent a partial update on %s. Toggling the value of a field\n"+
+			"in Delete represents selecting it for deletion in a partial update, while\n"+
+			"setting the value of a field in Update represents setting that field in the\n"+
+			"current struct. Other fields in this struct represent record fields that can\n"+
+			"themselves be partially updated.",
+		r.PartialUpdateStructName(), r.Name,
+	)).Line()
+
+	def.Type().Id(r.PartialUpdateStructName()).StructFunc(func(def *Group) {
+		def.Id(DeleteField).StructFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				def.Id(f.FieldName()).Bool()
+			}
+		})
+		def.Id(UpdateField).StructFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				def.Id(f.FieldName()).Add(Op("*").Add(f.Type.GoType()))
+			}
+		})
+		for _, f := range r.Fields {
+			if record := f.Type.Record(); record != nil {
+				def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct())
+			}
+		}
+	}).Line().Line()
+
+	AddMarshalJSON(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
+		partialUpdate := Id("partialUpdate")
+		rawMessage := Qual(EncodingJson, "RawMessage")
+		def.Var().Add(partialUpdate).StructFunc(func(def *Group) {
+			def.Id(DeleteField).Index().String().Tag(JsonFieldTag("$delete", true))
+			def.Id(UpdateField).Map(String()).Add(rawMessage).Tag(JsonFieldTag("$set", true))
+			for _, f := range r.Fields {
+				if record := f.Type.Record(); record != nil {
+					def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct()).Tag(JsonFieldTag(f.Name, true))
+				}
+			}
+		})
+		def.Add(partialUpdate).Dot(UpdateField).Op("=").Make(Map(String()).Add(rawMessage))
+		def.Line()
+
+		for _, f := range r.Fields {
+			errorMessage := fmt.Sprintf("Cannot both delete and update %q of %q", f.Name, r.Name)
+
+			isRecord := f.Type.Record() != nil
+			def.BlockFunc(func(def *Group) {
+				isDeleted := Id("isDeleted")
+				isUpdated := Id("isUpdated")
+				toInit := []Code{isDeleted}
+				if isRecord {
+					toInit = append(toInit, isUpdated)
+				}
+				def.Var().List(toInit...).Bool()
+
+				def.If(Id(r.Receiver()).Dot(DeleteField).Dot(f.FieldName())).BlockFunc(func(def *Group) {
+					def.Add(partialUpdate).Dot(DeleteField).Op("=").Append(Add(partialUpdate).Dot(DeleteField), Lit(f.Name))
+					def.Add(isDeleted).Op("=").True()
+				})
+
+				updateField := Id(r.Receiver()).Dot(UpdateField).Dot(f.FieldName())
+				def.If(Add(updateField).Op("!=").Nil()).BlockFunc(func(def *Group) {
+					def.If(isDeleted).BlockFunc(func(def *Group) {
+						def.Return(Nil(), Qual("fmt", "Errorf").Call(Lit(errorMessage)))
+					})
+					if isRecord {
+						def.Add(isUpdated).Op("=").True()
+					}
+
+					def.List(Id("data"), Err()).Op(":=").Qual(EncodingJson, Marshal).Call(updateField)
+					IfErrReturn(def, Nil(), Err())
+
+					def.Add(partialUpdate).Dot(UpdateField).Index(Lit(f.Name)).Op("=").Id("data")
+				})
+
+				if isRecord {
+					recordField := Id(r.Receiver()).Dot(f.FieldName())
+					def.If(Add(recordField).Op("!=").Nil()).BlockFunc(func(def *Group) {
+						def.If(Add(isDeleted).Op("||").Add(isUpdated)).BlockFunc(func(def *Group) {
+							def.Return(Nil(), Qual("fmt", "Errorf").Call(Lit(errorMessage)))
+						})
+						def.Add(partialUpdate).Dot(f.FieldName()).Op("=").Add(recordField)
+					})
+				}
+			}).Line()
+		}
+
+		def.Return(Qual(EncodingJson, Marshal).Call(partialUpdate))
+	})
+
+	return def
 }

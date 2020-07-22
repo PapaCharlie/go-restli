@@ -71,6 +71,7 @@ public class TypeParser {
           break;
         default:
           System.err.printf("Don't know what to do with %s%n", schema);
+          break;
       }
     }
   }

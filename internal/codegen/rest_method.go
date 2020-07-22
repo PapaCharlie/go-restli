@@ -6,9 +6,8 @@ import (
 )
 
 const (
-	CreateParam      = "create"
-	CreateResponseId = "createResponseId"
-	UpdateParam      = "update"
+	CreateParam = "create"
+	UpdateParam = "update"
 )
 
 // isCreatedEntityIdInHeaders returns true if the Create method is supposed to parse the created record's ID from the
@@ -25,8 +24,22 @@ func (m *Method) RestLiMethod() protocol.RestLiMethod {
 	return protocol.RestLiMethodNameMapping[m.Name]
 }
 
+var restMethodFuncNames = map[protocol.RestLiMethod]string{
+	protocol.Method_get:            "Get",
+	protocol.Method_create:         "Create",
+	protocol.Method_delete:         "Delete",
+	protocol.Method_update:         "Update",
+	protocol.Method_partial_update: "PartialUpdate",
+
+	protocol.Method_batch_get:            "BatchGet",
+	protocol.Method_batch_create:         "BatchCreate",
+	protocol.Method_batch_delete:         "BatchDelete",
+	protocol.Method_batch_update:         "BatchUpdate",
+	protocol.Method_batch_partial_update: "BatchPartialUpdate",
+}
+
 func (m *Method) restMethodFuncName() string {
-	return ExportedIdentifier(m.Name)
+	return restMethodFuncNames[m.RestLiMethod()]
 }
 
 func (r *Resource) restMethodFuncParams(m *Method, def *Group) {
@@ -39,6 +52,9 @@ func (r *Resource) restMethodFuncParams(m *Method, def *Group) {
 	case protocol.Method_update:
 		m.addEntityTypes(def)
 		def.Id(UpdateParam).Add(r.ResourceSchema.ReferencedType())
+	case protocol.Method_partial_update:
+		m.addEntityTypes(def)
+		def.Id(UpdateParam).Add(Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct()))
 	case protocol.Method_delete:
 		m.addEntityTypes(def)
 	}
@@ -56,6 +72,8 @@ func (m *Method) restMethodFuncReturnParams(def *Group) {
 		def.Error()
 	case protocol.Method_update:
 		def.Error()
+	case protocol.Method_partial_update:
+		def.Error()
 	case protocol.Method_delete:
 		def.Error()
 	}
@@ -67,16 +85,19 @@ func (m *Method) restMethodCallParams() (params []Code) {
 		params = append(params, Id(CreateParam))
 	case protocol.Method_update:
 		params = append(params, Id(UpdateParam))
+	case protocol.Method_partial_update:
+		params = append(params, Id(UpdateParam))
 	}
 
 	return params
 }
 
 var generators = map[protocol.RestLiMethod]func(*Resource, *Method, *Group){
-	protocol.Method_get:    generateGet,
-	protocol.Method_create: generateCreate,
-	protocol.Method_update: generateUpdate,
-	protocol.Method_delete: generateDelete,
+	protocol.Method_get:            generateGet,
+	protocol.Method_create:         generateCreate,
+	protocol.Method_update:         generateUpdate,
+	protocol.Method_partial_update: generatePartialUpdate,
+	protocol.Method_delete:         generateDelete,
 }
 
 func isMethodSupported(m protocol.RestLiMethod) bool {
@@ -175,6 +196,31 @@ func generateUpdate(r *Resource, m *Method, def *Group) {
 	IfErrReturn(def, Err()).Line()
 
 	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_update), Id(UpdateParam))
+	IfErrReturn(def, Err()).Line()
+
+	def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(ReqVar))
+	IfErrReturn(def, Err()).Line()
+
+	def.If(Id(ResVar).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
+		def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode")))
+	})
+	def.Return(Nil())
+}
+
+func generatePartialUpdate(r *Resource, m *Method, def *Group) {
+	m.callResourcePath(def)
+	IfErrReturn(def, Err()).Line()
+	r.callFormatQueryUrl(def)
+	IfErrReturn(def, Err()).Line()
+
+	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(
+		Id(ContextVar),
+		Id(UrlVar),
+		RestLiMethod(protocol.Method_partial_update),
+		Op("&").Struct(
+			Id("Patch").Add(Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct())).Tag(JsonFieldTag("patch", false)),
+		).Values(Dict{Id("Patch"): Id(UpdateParam)}),
+	)
 	IfErrReturn(def, Err()).Line()
 
 	def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(ReqVar))

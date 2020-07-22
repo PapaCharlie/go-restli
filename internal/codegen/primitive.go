@@ -13,14 +13,24 @@ type PrimitiveType struct {
 	newInstance func() interface{}
 }
 
+var (
+	Int32Primitive   = PrimitiveType{Type: "int32", newInstance: func() interface{} { return new(int32) }}
+	Int64Primitive   = PrimitiveType{Type: "int64", newInstance: func() interface{} { return new(int64) }}
+	Float32Primitive = PrimitiveType{Type: "float32", newInstance: func() interface{} { return new(float32) }}
+	Float64Primitive = PrimitiveType{Type: "float64", newInstance: func() interface{} { return new(float64) }}
+	BoolPrimitive    = PrimitiveType{Type: "bool", newInstance: func() interface{} { return new(bool) }}
+	StringPrimitive  = PrimitiveType{Type: "string", newInstance: func() interface{} { return new(string) }}
+	BytePrimitive    = PrimitiveType{Type: "bytes", newInstance: func() interface{} { return new([]byte) }}
+)
+
 var PrimitiveTypes = []PrimitiveType{
-	{Type: "int32", newInstance: func() interface{} { return new(int32) }},
-	{Type: "int64", newInstance: func() interface{} { return new(int64) }},
-	{Type: "float32", newInstance: func() interface{} { return new(float32) }},
-	{Type: "float64", newInstance: func() interface{} { return new(float64) }},
-	{Type: "bool", newInstance: func() interface{} { return new(bool) }},
-	{Type: "string", newInstance: func() interface{} { return new(string) }},
-	{Type: "bytes", newInstance: func() interface{} { return new([]byte) }},
+	Int32Primitive,
+	Int64Primitive,
+	Float32Primitive,
+	Float64Primitive,
+	BoolPrimitive,
+	StringPrimitive,
+	BytePrimitive,
 }
 
 func (p *PrimitiveType) UnmarshalJSON(data []byte) error {

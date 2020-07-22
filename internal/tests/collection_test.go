@@ -61,6 +61,23 @@ func (s *TestServer) CollectionUpdate400(t *testing.T, c Client) {
 		"to be deliberately missing. This can be chalked up as a win for the generated code's safety.")
 }
 
+func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
+	params := &FindBySearchParams{Keyword: "message"}
+	expectedMessages := []*conflictresolution.Message{newMessage(1, "test message"), newMessage(2, "another message")}
+	res, err := c.FindBySearch(params)
+	require.NoError(t, err)
+	require.Equal(t, expectedMessages, res)
+}
+
+func (s *TestServer) CollectionPartialUpdate(t *testing.T, c Client) {
+	id := int64(1)
+	patch := new(conflictresolution.Message_PartialUpdate)
+	message := "partial updated message"
+	patch.Update.Message = &message
+	err := c.PartialUpdate(id, patch)
+	require.NoError(t, err)
+}
+
 func (s *TestServer) SubCollectionOfCollectionGet(t *testing.T, c Client) {
 	id := int64(100)
 	res, err := colletionSubCollection.NewClient(s.client).Get(1, id)
@@ -72,14 +89,6 @@ func (s *TestServer) SubSimpleOfCollectionGet(t *testing.T, c Client) {
 	res, err := colletionSubSimple.NewClient(s.client).Get(1)
 	require.NoError(t, err)
 	require.Equal(t, &conflictresolution.Message{Message: "sub simple message"}, res, "Invalid response from server")
-}
-
-func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
-	params := &FindBySearchParams{Keyword: "message"}
-	expectedMessages := []*conflictresolution.Message{newMessage(1, "test message"), newMessage(2, "another message")}
-	res, err := c.FindBySearch(params)
-	require.NoError(t, err)
-	require.Equal(t, expectedMessages, res)
 }
 
 func newMessage(id int64, message string) *conflictresolution.Message {
