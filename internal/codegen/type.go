@@ -128,17 +128,17 @@ func (t *RestliType) PointerType() *Statement {
 	}
 }
 
-func (t *RestliType) WriteToBuf(def *Group, accessor *Statement) {
+func (t *RestliType) WriteToBuf(def *Group, accessor *Statement, returnOnError ...Code) {
 	switch {
 	case t.Primitive != nil:
 		writeStringToBuf(def, t.Primitive.encode(accessor))
 	case t.Reference != nil:
 		def.Err().Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec), Id("buf"))
-		IfErrReturn(def, Err())
+		IfErrReturn(def, append(append([]Code(nil), returnOnError...), Err())...)
 	case t.Array != nil:
-		writeArrayToBuf(def, accessor, t.Array)
+		writeArrayToBuf(def, accessor, t.Array, returnOnError...)
 	case t.Map != nil:
-		writeMapToBuf(def, accessor, t.Map)
+		writeMapToBuf(def, accessor, t.Map, returnOnError...)
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 	}

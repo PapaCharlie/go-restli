@@ -181,6 +181,11 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 		def.Id(needsDelimiterVar).Op(":=").False()
 	}
 
+	var returnOnError []Code
+	if finderName != nil {
+		returnOnError = append(returnOnError, Lit(""))
+	}
+
 	for i, f := range fields {
 		serialize := def.Empty()
 		if f.IsOptionalOrDefault() {
@@ -214,7 +219,7 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 				}
 
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + nameDelimiter))
-				f.Type.WriteToBuf(def, accessor)
+				f.Type.WriteToBuf(def, accessor, returnOnError...)
 			}
 
 			if !f.IsOptionalOrDefault() {

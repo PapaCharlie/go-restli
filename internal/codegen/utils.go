@@ -87,18 +87,18 @@ func writeStringToBuf(def *Group, s *Statement) *Statement {
 	return def.Id("buf").Dot("WriteString").Call(s)
 }
 
-func writeArrayToBuf(def *Group, accessor *Statement, items *RestliType) {
+func writeArrayToBuf(def *Group, accessor *Statement, items *RestliType, returnOnError ...Code) {
 	writeStringToBuf(def, Lit("List("))
 
 	def.For(List(Id("idx"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
 		def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
-		items.WriteToBuf(def, Id("val"))
+		items.WriteToBuf(def, Id("val"), returnOnError...)
 	})
 
 	def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 }
 
-func writeMapToBuf(def *Group, accessor *Statement, values *RestliType) {
+func writeMapToBuf(def *Group, accessor *Statement, values *RestliType, returnOnError ...Code) {
 	def.Id("buf").Dot("WriteByte").Call(LitRune('('))
 
 	def.Id("idx").Op(":=").Lit(0)
@@ -107,7 +107,7 @@ func writeMapToBuf(def *Group, accessor *Statement, values *RestliType) {
 		def.Id("idx").Op("++")
 		writeStringToBuf(def, Id(Codec).Dot("EncodeString").Call(Id("key")))
 		def.Id("buf").Dot("WriteByte").Call(LitRune(':'))
-		values.WriteToBuf(def, Id("val"))
+		values.WriteToBuf(def, Id("val"), returnOnError...)
 	})
 
 	def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
