@@ -16,9 +16,11 @@ type Cluster struct {
 }
 
 type Service struct {
-	Path        string
-	ServiceName string `json:"serviceName"`
-	ClusterName string `json:"clusterName"`
+	Path                        string
+	ServiceName                 string   `json:"serviceName"`
+	ClusterName                 string   `json:"clusterName"`
+	PrioritizedSchemes          []string `json:"prioritizedSchemes"`
+	SslSessionValidationStrings []string `json:"sslSessionValidationStrings"`
 }
 
 type UriProperty struct {
@@ -28,7 +30,6 @@ type UriProperty struct {
 
 type Uri struct {
 	Weights       map[url.URL]float64
-	ClusterName   string
 	Properties    map[url.URL]UriProperty
 	PartitionDesc map[url.URL]map[int]float64
 }
@@ -48,7 +49,6 @@ func (u *Uri) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	u.ClusterName = uri.ClusterName
 	u.Weights = make(map[url.URL]float64)
 	u.Properties = make(map[url.URL]UriProperty)
 	u.PartitionDesc = make(map[url.URL]map[int]float64)
