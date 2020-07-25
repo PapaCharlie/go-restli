@@ -25,6 +25,7 @@ import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
 import io.papacharlie.gorestli.json.StandaloneUnion;
+import io.papacharlie.gorestli.json.Typeref;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,8 +60,6 @@ public class TypeParser {
           parseDataType((RecordDataSchema) schema, sourceFile);
           break;
         case TYPEREF:
-          // TODO: fromDataSchema will generate underlying Union types if needed. Otherwise typerefs are implicitly
-          //  dropped until type coercers become a reality
           fromDataSchema(schema, null, null, null);
           break;
         case ENUM:
@@ -140,12 +139,21 @@ public class TypeParser {
 
     switch (schema.getType()) {
       case TYPEREF:
-        TyperefDataSchema typeref = (TyperefDataSchema) schema;
-        if (typeref.getRef().getType() == TYPEREF) {
-          return fromDataSchema(typeref.getRef(), null, null, null);
+        TyperefDataSchema typerefSchema = (TyperefDataSchema) schema;
+
+        GoPrimitive primitive = JAVA_TO_GO_PRIMTIIVE_TYPE.get(typerefSchema.getRef().getType());
+        if (primitive != null) {
+          Typeref typeref = new Typeref(typerefSchema, resolveSourceFile(typerefSchema), primitive);
+          registerDataType(new DataType(typeref));
+          return new RestliType(typeref.getIdentifier());
+        } else if (typerefSchema.getRef().getType() == TYPEREF) {
+          return fromDataSchema(typerefSchema.getRef(), null, null, null);
         } else {
-          return fromDataSchema(typeref.getRef(), typeref.getNamespace(), resolveSourceFile(typeref),
-              Collections.singletonList(typeref.getName()));
+          return fromDataSchema(
+              typerefSchema.getRef(),
+              typerefSchema.getNamespace(),
+              resolveSourceFile(typerefSchema),
+              Collections.singletonList(typerefSchema.getName()));
         }
       case RECORD:
       case FIXED:
@@ -196,7 +204,7 @@ public class TypeParser {
   }
 
   private void registerDataType(DataType type) {
-    _dataTypes.putIfAbsent(type.getNamedType().getIdentifier(), type);
+    _dataTypes.putIfAbsent(type.getIdentifier(), type);
   }
 
   private File resolveSourceFile(NamedDataSchema namedSchema) {

@@ -77,35 +77,29 @@ func (r *Resource) GenerateCode() []*CodeFile {
 func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Method) {
 	def.Func().Id(funcName).
 		ParamsFunc(func(def *Group) { m.addEntityTypes(def) }).
-		Params(String(), Error()).BlockFunc(func(def *Group) {
+		Params(Id("path").String(), Err().Error()).BlockFunc(func(def *Group) {
 
-		def.Var().Id(PathVar).String()
+		def.Id("buf").Op(":=").New(Qual("strings", "Builder")).Line()
+
 		path := m.Path
 		for _, pk := range m.PathKeys {
-			encodedVariableName := pk.Name + "Str"
-			assignment, hasError := pk.Type.RestLiURLEncodeModel(Id(pk.Name))
-			if hasError {
-				def.List(Id(encodedVariableName), Err()).Op(":=").Add(assignment)
-				IfErrReturn(def, Lit(""), Err())
-			} else {
-				def.Id(encodedVariableName).Op(":=").Add(assignment)
-			}
-
 			pattern := fmt.Sprintf("{%s}", pk.Name)
 			idx := strings.Index(path, pattern)
 			if idx < 0 {
 				Logger.Panicf("%s does not appear in %s", pattern, path)
 			}
-			def.Id(PathVar).Op("+=").Lit(path[:idx]).Op("+").Id(encodedVariableName)
+			writeStringToBuf(def, Lit(path[:idx]))
 			path = path[idx+len(pattern):]
+
+			pk.Type.WriteToBuf(def, Id(pk.Name), Qual(ProtocolPackage, RestLiUrlEncoder), Lit(""))
 		}
 		def.Line()
 
 		if path != "" {
-			def.Id(PathVar).Op("+=").Lit(path)
+			writeStringToBuf(def, Lit(path))
 		}
 
-		def.Return(Id(PathVar), Nil())
+		def.Return(Id("buf").Dot("String").Call(), Nil())
 	}).Line().Line()
 }
 

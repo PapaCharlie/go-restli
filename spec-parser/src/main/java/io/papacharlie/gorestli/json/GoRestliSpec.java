@@ -1,6 +1,7 @@
 package io.papacharlie.gorestli.json;
 
 import com.google.common.base.Preconditions;
+import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,6 +16,7 @@ public class GoRestliSpec {
     private Record _record;
     private ComplexKey _complexKey;
     private StandaloneUnion _standaloneUnion;
+    private Typeref _typeref;
 
     public DataType(Enum anEnum) {
       _enum = Preconditions.checkNotNull(anEnum);
@@ -36,6 +38,10 @@ public class GoRestliSpec {
       _standaloneUnion = Preconditions.checkNotNull(standaloneUnion);
     }
 
+    public DataType(Typeref typeref) {
+      _typeref = Preconditions.checkNotNull(typeref);
+    }
+
     @Override
     public int hashCode() {
       return getNamedType().hashCode();
@@ -49,7 +55,11 @@ public class GoRestliSpec {
       return getNamedType().equals(((DataType) obj).getNamedType());
     }
 
-    public NamedType getNamedType() {
+    public Identifier getIdentifier() {
+      return getNamedType().getIdentifier();
+    }
+
+    private NamedType getNamedType() {
       if (_enum != null) {
         return _enum;
       }
@@ -64,6 +74,9 @@ public class GoRestliSpec {
       }
       if (_standaloneUnion != null) {
         return _standaloneUnion;
+      }
+      if (_typeref != null) {
+        return _typeref;
       }
       throw new IllegalStateException("No NamedType specified!");
     }

@@ -3,7 +3,6 @@ package io.papacharlie.gorestli.json;
 import com.linkedin.data.schema.NamedDataSchema;
 import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
-import java.util.Objects;
 
 
 public abstract class NamedType {
@@ -33,7 +32,7 @@ public abstract class NamedType {
 
   @Override
   public int hashCode() {
-    return Objects.hash(_namespace, _name);
+    return getIdentifier().hashCode();
   }
 
   @Override
@@ -42,6 +41,6 @@ public abstract class NamedType {
       return false;
     }
     NamedType namedType = (NamedType) obj;
-    return _namespace.equals(namedType._namespace) && _name.equals(namedType._name);
+    return getIdentifier().equals(namedType.getIdentifier());
   }
 }

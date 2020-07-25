@@ -17,7 +17,7 @@ func (m *Method) isCreatedEntityIdInHeaders() bool {
 		return false
 	}
 
-	return m.EntityPathKey.Type.Primitive != nil
+	return m.EntityPathKey.Type.UnderlyingPrimitive() != nil
 }
 
 func (m *Method) RestLiMethod() protocol.RestLiMethod {

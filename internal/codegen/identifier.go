@@ -17,15 +17,11 @@ type Identifier struct {
 }
 
 func (i Identifier) String() string {
-	return i.GetQualifiedClasspath()
+	return i.Namespace + "." + i.Name
 }
 
 func (i *Identifier) GetIdentifier() Identifier {
 	return *i
-}
-
-func (i Identifier) GetQualifiedClasspath() string {
-	return i.Namespace + "." + i.Name
 }
 
 func (i Identifier) PackagePath() string {
@@ -97,7 +93,7 @@ func (set IdentifierSet) Get(id Identifier) bool {
 func (set IdentifierSet) String() string {
 	var classes []string
 	for s := range set {
-		classes = append(classes, s.GetQualifiedClasspath())
+		classes = append(classes, s.String())
 	}
 	sort.Strings(classes)
 	return "{" + strings.Join(classes, ", ") + "}"

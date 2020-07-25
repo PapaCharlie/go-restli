@@ -15,26 +15,23 @@ import java.util.stream.Collectors;
 
 public class GoRestliRestSpecParser {
   private final String _resolverPath;
-  private final String[] _restSpecPaths;
+  private final Set<String> _restSpecPaths;
   private final GoRestliSpec _snapshot = new GoRestliSpec();
 
   public GoRestliRestSpecParser(String resolverPath, String restSpecDir) {
     this(resolverPath, FileUtil.listFiles(new File(restSpecDir), f -> f.getName().endsWith(".restspec.json")).stream()
         .map(File::getAbsolutePath)
-        .toArray(String[]::new));
+        .collect(Collectors.toSet()));
   }
 
   public GoRestliRestSpecParser(String resolverPath, Set<String> restSpecPaths) {
-    this(resolverPath, restSpecPaths.toArray(new String[0]));
-  }
-
-  private GoRestliRestSpecParser(String resolverPath, String[] restSpecPaths) {
     _resolverPath = resolverPath;
     _restSpecPaths = restSpecPaths;
   }
 
   public GoRestliSpec parse() {
-    RestSpecParser.ParseResult restSpecParseResult = new RestSpecParser().parseSources(_restSpecPaths);
+    RestSpecParser.ParseResult restSpecParseResult =
+        new RestSpecParser().parseSources(_restSpecPaths.toArray(new String[0]));
 
     for (Pair<ResourceSchema, File> result : restSpecParseResult.getSchemaAndFiles()) {
       TypeParser typeParser = new TypeParser(new DataSchemaParser(_resolverPath).getSchemaResolver());

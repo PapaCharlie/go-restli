@@ -87,10 +87,22 @@ func (t *RestliType) Record() *Record {
 	return record
 }
 
-func (t *RestliType) ShouldReference() bool {
+func (t *RestliType) UnderlyingPrimitive() *PrimitiveType {
 	switch {
 	case t.Primitive != nil:
-		// No need to reference primitive types, makes it more convenient to call methods
+		return t.Primitive
+	case t.Reference != nil:
+		if typeref, ok := t.Reference.Resolve().(*Typeref); ok {
+			return typeref.Type
+		}
+	}
+	return nil
+}
+
+func (t *RestliType) ShouldReference() bool {
+	switch {
+	case t.UnderlyingPrimitive() != nil:
+		// No need to reference primitive types or typerefs, makes it more convenient to call methods
 		return false
 	case t.IsMapOrArray():
 		// Maps and arrays are already reference types, no need to take the pointer
@@ -108,7 +120,7 @@ func (t *RestliType) ReferencedType() *Statement {
 }
 
 func (t *RestliType) ZeroValueReference() *Statement {
-	if p := t.Primitive; p != nil {
+	if p := t.UnderlyingPrimitive(); p != nil {
 		return p.zeroValueLit()
 	} else {
 		return Nil()
@@ -116,7 +128,7 @@ func (t *RestliType) ZeroValueReference() *Statement {
 }
 
 func (t *RestliType) IsMapOrArray() bool {
-	return t.Array != nil || t.Map != nil || (t.Primitive != nil && t.Primitive.IsBytes())
+	return t.Array != nil || t.Map != nil || (t.UnderlyingPrimitive() != nil && t.UnderlyingPrimitive().IsBytes())
 }
 
 func (t *RestliType) PointerType() *Statement {
@@ -128,17 +140,17 @@ func (t *RestliType) PointerType() *Statement {
 	}
 }
 
-func (t *RestliType) WriteToBuf(def *Group, accessor *Statement, returnOnError ...Code) {
+func (t *RestliType) WriteToBuf(def *Group, accessor *Statement, encoderAccessor *Statement, returnOnError ...Code) {
 	switch {
 	case t.Primitive != nil:
-		writeStringToBuf(def, t.Primitive.encode(accessor))
+		writeStringToBuf(def, t.Primitive.encode(encoderAccessor, accessor))
 	case t.Reference != nil:
-		def.Err().Op("=").Add(accessor).Dot(RestLiEncode).Call(Id(Codec), Id("buf"))
+		def.Err().Op("=").Add(accessor).Dot(RestLiEncode).Call(encoderAccessor, Id("buf"))
 		IfErrReturn(def, append(append([]Code(nil), returnOnError...), Err())...)
 	case t.Array != nil:
-		writeArrayToBuf(def, accessor, t.Array, returnOnError...)
+		writeArrayToBuf(def, accessor, t.Array, encoderAccessor, returnOnError...)
 	case t.Map != nil:
-		writeMapToBuf(def, accessor, t.Map, returnOnError...)
+		writeMapToBuf(def, accessor, t.Map, encoderAccessor, returnOnError...)
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 	}
@@ -151,6 +163,7 @@ type GoRestliSpec struct {
 		Record          *Record          `json:"record"`
 		ComplexKey      *ComplexKey      `json:"complexKey"`
 		StandaloneUnion *StandaloneUnion `json:"standaloneUnion"`
+		Typeref         *Typeref         `json:"typeref"`
 	} `json:"dataTypes"`
 	Resources []Resource
 }
@@ -172,10 +185,11 @@ func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
 		case t.Record != nil:
 			complexType = t.Record
 		case t.ComplexKey != nil:
-			log.Printf("%+v", t.ComplexKey)
 			complexType = t.ComplexKey
 		case t.StandaloneUnion != nil:
 			complexType = t.StandaloneUnion
+		case t.Typeref != nil:
+			complexType = t.Typeref
 		default:
 			return errors.New("go-restli: Must declare at least one underlying type")
 		}

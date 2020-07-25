@@ -2,6 +2,9 @@ package io.papacharlie.gorestli;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
+import io.papacharlie.gorestli.json.RestliType.GoPrimitive;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -16,6 +19,8 @@ public class Utils {
   private static final Gson GSON = new GsonBuilder()
       .setFieldNamingStrategy(f -> StringUtils.removeStart(f.getName(), "_"))
       .setPrettyPrinting()
+      .registerTypeAdapter(GoPrimitive.class,
+          (JsonSerializer<GoPrimitive>) (src, typeOfSrc, context) -> new JsonPrimitive(src.name().toLowerCase()))
       .create();
   private static final DateTimeFormatter LOG_TIME_FORMAT = new DateTimeFormatterBuilder()
       .appendValue(ChronoField.YEAR, 4)

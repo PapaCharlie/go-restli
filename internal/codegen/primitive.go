@@ -89,10 +89,10 @@ func (p *PrimitiveType) zeroValueLit() *Statement {
 	}
 }
 
-func (p *PrimitiveType) encode(accessor *Statement) *Statement {
-	return Id(Codec).Dot("Encode" + ExportedIdentifier(p.Type)).Call(accessor)
+func (p *PrimitiveType) encode(encoderAccessor *Statement, accessor *Statement) *Statement {
+	return Add(encoderAccessor).Dot("Encode" + ExportedIdentifier(p.Type)).Call(accessor)
 }
 
-func (p *PrimitiveType) decode(accessor *Statement) *Statement {
-	return Id(Codec).Dot("Decode"+ExportedIdentifier(p.Type)).Call(Id("data"), Call(Op("*").Add(p.GoType())).Call(accessor))
+func (p *PrimitiveType) decode(encoderAccessor *Statement, accessor *Statement) *Statement {
+	return Add(encoderAccessor).Dot("Decode"+ExportedIdentifier(p.Type)).Call(Id("data"), Call(Op("*").Add(p.GoType())).Call(accessor))
 }

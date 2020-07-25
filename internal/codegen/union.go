@@ -34,7 +34,7 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		}).Line().Line()
 
 	AddRestLiEncode(def, unionReceiver, u.Name, func(def *Group) {
-		u.Union.encode(def, unionReceiver, u.Name)
+		u.Union.encode(def, unionReceiver, u.Name, Id(Codec))
 	}).Line().Line()
 
 	return def
@@ -70,14 +70,14 @@ func (u *UnionType) validateUnionFields(def *Group, receiver string, typeName st
 	})
 }
 
-func (u *UnionType) encode(def *Group, receiver string, typeName string) {
+func (u *UnionType) encode(def *Group, receiver string, typeName string, encoderAccessor *Statement) {
 	u.validateAllMembers(def, receiver, typeName, func(def *Group, m UnionMember) {
 		writeStringToBuf(def, Lit("("+m.Alias+":"))
 		fieldAccessor := Id(receiver).Dot(m.name())
 		if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
 			fieldAccessor = Op("*").Add(fieldAccessor)
 		}
-		m.Type.WriteToBuf(def, fieldAccessor)
+		m.Type.WriteToBuf(def, fieldAccessor, encoderAccessor)
 		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 	})
 }

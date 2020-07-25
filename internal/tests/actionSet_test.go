@@ -63,7 +63,7 @@ func (s *TestServer) ActionsetEchoStringMap(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
-	urlTyperef := "http://rest.li"
+	urlTyperef := testsuite.Url("http://rest.li")
 	res, err := c.EchoTyperefUrlAction(&EchoTyperefUrlActionParams{UrlTyperef: urlTyperef})
 	require.NoError(t, err)
 	require.Equal(t, urlTyperef, res, "Invalid response from server")

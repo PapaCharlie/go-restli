@@ -219,7 +219,7 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 				}
 
 				def.Id("buf").Dot("WriteString").Call(Lit(f.Name + nameDelimiter))
-				f.Type.WriteToBuf(def, accessor, returnOnError...)
+				f.Type.WriteToBuf(def, accessor, Id(Codec), returnOnError...)
 			}
 
 			if !f.IsOptionalOrDefault() {
@@ -242,8 +242,8 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 	def.If(Id(r.Receiver()).Dot(name).Op("==").Nil()).BlockFunc(func(def *Group) {
 		switch {
 		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
-		case t.Primitive != nil:
-			def.Id("val").Op(":=").Lit(t.Primitive.getLit(rawJson))
+		case t.UnderlyingPrimitive() != nil:
+			def.Id("val").Op(":=").Parens(t.GoType()).Lit(t.UnderlyingPrimitive().getLit(rawJson))
 			def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
 			return
 		// If the default value for an array is the empty array, we can leave it as nil since that will behave
