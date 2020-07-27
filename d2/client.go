@@ -101,7 +101,8 @@ func (c *R2D2Client) getServiceUris(serviceName string) (*Service, *serviceUris,
 			select {
 			case e := <-uriEvents:
 				watcher = c.handleUriUpdate(watcher, e)
-				if len(watcher.uris) > 0 { // wait for the first host update before returning
+				// Only return once at least one host is found (respecting the prioritized schemes)
+				if watcher.chooseHost(service.PrioritizedSchemes) != nil {
 					Logger.Println(watcher)
 					return watcher
 				}

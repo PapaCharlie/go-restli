@@ -20,7 +20,7 @@ func (t *RestliType) RestLiDecodeModel(encoder string, input *Statement, output 
 	}
 
 	if t.Primitive != nil {
-		return Add(decoderRef).Dot("Decode"+ExportedIdentifier(t.Primitive.Type)).Call(input, output)
+		return Add(decoderRef).Dot("Decode"+ExportedIdentifier(t.Primitive.Type)).Call(input, Op("&").Add(output))
 	}
 
 	Logger.Panicf("%+v cannot be url decoded", t)

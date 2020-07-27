@@ -174,7 +174,7 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 
 		def.Err().Op("=").Add(m.EntityPathKey.Type.RestLiReducedDecodeModel(
 			Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID)),
-			Op("&").Add(accessor),
+			accessor,
 		))
 
 		IfErrReturn(def, returns...)
