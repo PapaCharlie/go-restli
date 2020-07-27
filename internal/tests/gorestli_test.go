@@ -142,6 +142,12 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
+	if req.Method != s.o.Request.Method {
+		writeErrorResponse(res, `Methods did not match! Expected "%s", got "%s".`,
+			s.o.Request.Method, req.Method)
+		return
+	}
+
 	if req.RequestURI != s.o.Request.RequestURI {
 		writeErrorResponse(res, `RequestURIs did not match! Expected "%s", got "%s".`,
 			s.o.Request.RequestURI, req.RequestURI)

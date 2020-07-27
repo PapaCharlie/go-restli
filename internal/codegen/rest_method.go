@@ -213,7 +213,7 @@ func generatePartialUpdate(r *Resource, m *Method, def *Group) {
 	r.callFormatQueryUrl(def)
 	IfErrReturn(def, Err()).Line()
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(
+	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(
 		Id(ContextVar),
 		Id(UrlVar),
 		RestLiMethod(protocol.Method_partial_update),
