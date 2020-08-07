@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const emptyString = `''`
+
 func (r *RestLiCodec) EncodeInt32(v int32) string {
 	return fmt.Sprintf("%d", v)
 }
@@ -27,11 +29,19 @@ func (r *RestLiCodec) EncodeBool(v bool) string {
 }
 
 func (r *RestLiCodec) EncodeString(v string) string {
-	return r.encoder(v)
+	if len(v) == 0 {
+		return emptyString
+	} else {
+		return r.encoder(v)
+	}
 }
 
 func (r *RestLiCodec) EncodeBytes(v Bytes) string {
-	return r.EncodeString(string(v))
+	if len(v) == 0 {
+		return emptyString
+	} else {
+		return r.EncodeString(string(v))
+	}
 }
 
 func (r *RestLiCodec) Encode(e RestLiEncodable) (string, error) {
@@ -89,20 +99,30 @@ func (r *RestLiCodec) DecodeBool(data string, v *bool) error {
 }
 
 func (r *RestLiCodec) DecodeString(data string, v *string) error {
-	s, err := r.decoder(data)
-	if err != nil {
-		return err
+	if data == emptyString {
+		*v = ""
+		return nil
+	} else {
+		s, err := r.decoder(data)
+		if err != nil {
+			return err
+		}
+		*v = s
+		return nil
 	}
-	*v = s
-	return nil
 }
 
 func (r *RestLiCodec) DecodeBytes(data string, v *Bytes) error {
-	var s string
-	err := r.DecodeString(data, &s)
-	if err != nil {
-		return err
+	if data == emptyString {
+		*v = nil
+		return nil
+	} else {
+		var s string
+		err := r.DecodeString(data, &s)
+		if err != nil {
+			return err
+		}
+		*v = Bytes(s)
+		return nil
 	}
-	*v = Bytes(s)
-	return nil
 }
