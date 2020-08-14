@@ -1,10 +1,11 @@
 package tests
 
 import (
+	"testing"
+
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
 	"github.com/stretchr/testify/require"
-	"testing"
 
 	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
 )

@@ -1,0 +1,20 @@
+{
+  "name" : "collectionWithTyperefKey",
+  "namespace" : "extras",
+  "path" : "/collectionWithTyperefKey",
+  "schema" : "testsuite.Message",
+  "doc" : "",
+  "collection" : {
+    "identifier" : {
+      "name" : "key",
+      "type" : "testsuite.Time"
+    },
+    "supports" : [ "create" ],
+    "methods" : [ {
+      "method" : "create"
+    } ],
+    "entity" : {
+      "path" : "/collectionWithTyperefKey/{key}"
+    }
+  }
+}

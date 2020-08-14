@@ -9,48 +9,15 @@ import (
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/internal/codegen"
-	"github.com/PapaCharlie/go-restli/internal/codegen/cmd"
 	"github.com/PapaCharlie/go-restli/internal/tests"
 	"github.com/pkg/errors"
 )
 
-const (
-	parsedSpecFile         = "parsed-specs.json"
-	generatedPackageSuffix = "generated"
-)
-
 func init() {
-	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/" + generatedPackageSuffix
+	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/generated"
 }
 
 func main() {
-	tmpDir, err := ioutil.TempDir("", "")
-	panicIfErrf(err, "Failed to create temp directory")
-
-	restSpecs, err := filepath.Glob("rest.li-test-suite/client-testsuite/restspecs/*")
-	panicIfErrf(err, "Could not glob restspecs")
-	specBytes, err := cmd.ExecuteJar("rest.li-test-suite/client-testsuite/schemas", restSpecs)
-	panicIfErrf(err, "Could not execute jar")
-
-	_ = os.RemoveAll(parsedSpecFile)
-	log.Printf("Writing spec to %q", parsedSpecFile)
-	panicIfErr(ioutil.WriteFile(parsedSpecFile, specBytes, codegen.ReadOnlyPermissions))
-
-	_ = os.RemoveAll(generatedPackageSuffix)
-	err = codegen.GenerateCode(specBytes, tmpDir)
-	panicIfErrf(err, "Failed to generate code")
-
-	err = os.Rename(filepath.Join(tmpDir, codegen.PackagePrefix), generatedPackageSuffix)
-	panicIfErrf(err, "Failed to move the generated code")
-
-	_ = os.RemoveAll(tmpDir)
-
-	// generateClientTests()
-}
-
-// generateClientTests is ignored by default, but it can be used to bootstrap the test framework by generating empty
-// tests for all the tests that need to be implemented
-func generateClientTests() {
 	for _, wd := range tests.ReadManifest().WireProtocolTestData {
 		var testFileContents string
 

@@ -3,7 +3,7 @@ package codegen
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -42,27 +42,64 @@ var Logger = log.New(os.Stderr, "[go-restli] ", log.LstdFlags|log.Lshortfile)
 func GenerateCode(specBytes []byte, outputDir string) error {
 	var schemas GoRestliSpec
 
-	// Use a Decode regardless since it'll handle leading/trailing whitespace and other niceties
-	err := json.NewDecoder(bytes.NewBuffer(specBytes)).Decode(&schemas)
+	_ = os.MkdirAll(outputDir, os.ModePerm)
+	parsedSpecs := filepath.Join(outputDir, "parsed-specs.json")
+	_ = os.Remove(parsedSpecs)
+	err := ioutil.WriteFile(parsedSpecs, specBytes, ReadOnlyPermissions)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Failed to write parsed specs to %q", parsedSpecs)
+	}
+
+	// Use a Decoder regardless since it'll handle leading/trailing whitespace and other niceties
+	err = json.NewDecoder(bytes.NewBuffer(specBytes)).Decode(&schemas)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Could not deserialize GoRestliSpec")
 	}
 
+	tmpOutputDir, err := ioutil.TempDir("", "go-restli_*")
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Failed to create temporary directory")
+	}
+	defer os.RemoveAll(tmpOutputDir)
+
 	codeFiles := append(TypeRegistry.GenerateTypeCode(), schemas.GenerateClientCode()...)
 
 	for _, code := range codeFiles {
-		file, err := code.Write(outputDir)
+		err = code.Write(tmpOutputDir)
 		if err != nil {
 			return errors.Wrapf(err, "go-restli: Could not generate code for %+v:\n%s", code, code.Code.GoString())
-		} else {
-			fmt.Println(file)
 		}
 	}
 
-	return GenerateAllImportsFile(outputDir, codeFiles)
+	err = GenerateAllImportsTest(tmpOutputDir, codeFiles)
+	if err != nil {
+		return err
+	}
+
+	children, err := ioutil.ReadDir(tmpOutputDir)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not list %q", tmpOutputDir)
+	}
+
+	for _, c := range children {
+		source := filepath.Join(tmpOutputDir, c.Name())
+		destination := filepath.Join(outputDir, c.Name())
+
+		err = os.RemoveAll(destination)
+		if err != nil {
+			return errors.Wrapf(err, "go-restli: Failed to delete %q", destination)
+		}
+
+		err = os.Rename(source, destination)
+		if err != nil {
+			return errors.Wrapf(err, "go-restli: Failed to move %q to %q", source, destination)
+		}
+	}
+
+	return nil
 }
 
-func GenerateAllImportsFile(outputDir string, codeFiles []*CodeFile) error {
+func GenerateAllImportsTest(outputDir string, codeFiles []*CodeFile) error {
 	imports := make(map[string]bool)
 	for _, code := range codeFiles {
 		if code == nil {
@@ -76,7 +113,9 @@ func GenerateAllImportsFile(outputDir string, codeFiles []*CodeFile) error {
 	}
 	f.Func().Id("TestAllImports").Params(Op("*").Qual("testing", "T")).Block()
 
-	err := WriteJenFile(filepath.Join(outputDir, PackagePrefix, "all_imports_test.go"), f)
+	out := filepath.Join(outputDir, "all_imports_test.go")
+	_ = os.Remove(out)
+	err := WriteJenFile(out, f)
 	if err != nil {
 		return errors.Wrapf(err, "Could not write all imports file: %+v", err)
 	}

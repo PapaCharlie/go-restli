@@ -51,10 +51,6 @@ func (r *Record) field(f Field) *Statement {
 	return Id(r.Receiver()).Dot(f.FieldName())
 }
 
-func (f *Field) IsPointer() bool {
-	return f.IsOptionalOrDefault() && !f.Type.IsMapOrArray()
-}
-
 func (f *Field) IsOptionalOrDefault() bool {
 	return f.IsOptional || f.DefaultValue != nil
 }
@@ -80,7 +76,7 @@ func (r *Record) generateStruct() *Statement {
 				AddWordWrappedComment(field, f.Doc).Line()
 				field.Id(f.FieldName())
 
-				if f.IsPointer() {
+				if f.IsOptionalOrDefault() {
 					field.Add(f.Type.PointerType())
 				} else {
 					field.Add(f.Type.GoType())
@@ -106,7 +102,7 @@ func (r *Record) generateMarshalingCode() *Statement {
 				if f.Type.Reference == nil {
 					continue
 				}
-				if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsPointer() && record.hasDefaultValue() {
+				if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsOptionalOrDefault() && record.hasDefaultValue() {
 					def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
 				}
 			}
@@ -128,19 +124,34 @@ func (r *Record) generateMarshalingCode() *Statement {
 
 func (r *Record) generateRestliEncoder() *Statement {
 	return AddRestLiEncode(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateEncoder(def, nil, nil)
+		r.generateEncoder(def, false, nil, nil)
 		def.Return(Nil())
 	})
 }
 
-func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParamsType *Identifier) {
+func (r *Record) generateQueryParamEncoder(finderName *string) *Statement {
+	receiver := r.Receiver()
+	return AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
+		Params().
+		Params(Id("data").String(), Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.Id(Codec).Op(":=").Qual(ProtocolPackage, RestLiUrlEncoder).Line()
+			def.Id("buf").Op(":=").New(Qual("strings", "Builder"))
+
+			r.generateEncoder(def, true, finderName, nil)
+
+			def.Return(Id("buf").Dot("String").Call(), Nil())
+		})
+}
+
+func (r *Record) generateEncoder(def *Group, forQueryParams bool, finderName *string, complexKeyParamsType *Identifier) {
 	if finderName != nil && complexKeyParamsType != nil {
 		log.Panicln("Cannot provide both a finderName and a complexKeyParamType")
 	}
 
 	var nameDelimiter string
 	var fieldDelimiter rune
-	if finderName != nil {
+	if forQueryParams {
 		nameDelimiter = "="
 		fieldDelimiter = '&'
 	} else {
@@ -148,17 +159,17 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 		fieldDelimiter = ','
 	}
 
-	if finderName == nil {
+	if !forQueryParams {
 		def.Id("buf").Dot("WriteByte").Call(LitRune('('))
 	}
 	def.Line()
 
 	fields := append([]Field(nil), r.Fields...)
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 
 	const finderNameParam = "q"
 	qIndex := -1
 	if finderName != nil {
-		sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
 		fields = append(fields[:qIndex], append([]Field{{}}, fields[qIndex:]...)...)
 	}
@@ -182,18 +193,14 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 	}
 
 	var returnOnError []Code
-	if finderName != nil {
+	if forQueryParams {
 		returnOnError = append(returnOnError, Lit(""))
 	}
 
 	for i, f := range fields {
 		serialize := def.Empty()
 		if f.IsOptionalOrDefault() {
-			if f.Type.IsMapOrArray() {
-				serialize.If(Len(r.field(f)).Op(">").Lit(0))
-			} else {
-				serialize.If(r.field(f).Op("!=").Nil())
-			}
+			serialize.If(r.field(f).Op("!=").Nil())
 		}
 
 		serialize.BlockFunc(func(def *Group) {
@@ -214,7 +221,7 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 				IfErrReturn(def, Err())
 			} else {
 				accessor := r.field(f)
-				if f.IsPointer() && f.Type.Reference == nil {
+				if f.IsOptionalOrDefault() && f.Type.Reference == nil {
 					accessor = Op("*").Add(accessor)
 				}
 
@@ -231,9 +238,9 @@ func (r *Record) generateEncoder(def *Group, finderName *string, complexKeyParam
 			}
 		})
 		serialize.Line()
-
 	}
-	if finderName == nil {
+
+	if !forQueryParams {
 		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 	}
 }

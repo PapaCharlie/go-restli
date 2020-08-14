@@ -7,16 +7,22 @@ acquire all the PDSC/PDL models that your resources depend on, as well as their 
 tool as follows:
 ```bash
 go-restli \
-  --package-prefix github.com/PapaCharlie/go-restli/tests/generated \
-  --output-dir ./tests/generated \
-  --schema-dir ./pegasus \
-  idl/*.restspec.json
+	--output-dir internal/tests/generated \
+	--resolver-path internal/tests/rest.li-test-suite/client-testsuite/schemas \
+	--package-prefix github.com/PapaCharlie/go-restli/internal/tests/generated \
+	--named-schemas-to-generate testsuite.Primitives \
+	--named-schemas-to-generate testsuite.ComplexTypes \
+	internal/tests/rest.li-test-suite/client-testsuite/restspecs/*
 ```
-+ **--package-prefix**: All files will be generated inside of this namespace (e.g. `generated/`), and the generated
++ **-p/--package-prefix**: All files will be generated inside of this namespace (e.g. `generated/`), and the generated
   code will need to be imported accordingly.
-+ **--output-dir**: The directory in which to output the files. Any necessary subdirectories will be created.
-+ **--schema-dir**: The directory that contains all the `.pdsc` and `.pdl` files that may be used by the resources you
-  want to generate code for.
++ **-o/--output-dir**: The directory in which to output the files. Any necessary subdirectories will be created.
++ **-r/--resolver-path**: The directory that contains all the `.pdsc` and `.pdl` files that may be used by the resources
+  you want to generate code for.
++ **-n/--named-schemas-to-generate**: Generate bindings for these named schemas alongside the schemas required to call
+  the given resources. Note that it's not required to specify `.restspec.json` files if at least one named schema is
+  specified. Useful when rest.li schemas need to be used without calling rest.li resources. In other words, bindings can
+  be generated without the need for `.restspec.json` files!
 + All remaining parameters are the paths to the restspec files for the resources you want to call.
 
 ### Note on Java dependency
@@ -80,7 +86,7 @@ responses. Once a new resource type or method is implemented, please be sure to 
 feature. This is done by adding a new function on the `TestServer` struct for the corresponding name. For example, to
 test the `collection-get` test (see the corresponding object in the manifest), all that's needed is to add a
 correspondingly named method called `CollectionGet`, like this:
-```go
+```golang
 func (s *TestServer) CollectionGet(t *testing.T, c *Client) {
 	id := int64(1)
 	res, err := c.Get(id)

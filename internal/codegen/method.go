@@ -52,3 +52,9 @@ func (r *Resource) callFormatQueryUrl(def *Group) {
 		Id(ClientReceiver).Dot(FormatQueryUrl).
 		Call(Lit(r.RootResourceName), Id(PathVar))
 }
+
+func (r *Resource) callEncodeQueryParams(def *Group) {
+	def.List(Id(UrlVar), Err()).
+		Op("=").
+		Id(QueryParams).Dot(EncodeQueryParams).Call()
+}

@@ -7,9 +7,7 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-const EncodeFinderParams = "EncodeFinderParams"
-
-type FinderParams Record
+const EncodeQueryParams = "EncodeQueryParams"
 
 func (m *Method) finderFuncName() string {
 	return FindBy + ExportedIdentifier(m.Name)
@@ -21,12 +19,12 @@ func (m *Method) finderStructType() string {
 
 func (r *Resource) finderFuncParams(m *Method, def *Group) {
 	m.addEntityTypes(def)
-	def.Id("params").Op("*").Qual(r.PackagePath(), m.finderStructType())
+	def.Id(QueryParams).Op("*").Qual(r.PackagePath(), m.finderStructType())
 }
 
 func (m *Method) finderMethodCallParams() (params []Code) {
 	if len(m.Params) > 0 {
-		params = append(params, Id("params"))
+		params = append(params, Id(QueryParams))
 	}
 	return params
 }
@@ -45,7 +43,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 
 	c.Code.Const().Id(ExportedIdentifier(FindBy + ExportedIdentifier(f.Name))).Op("=").Lit(f.Name).Line()
 
-	params := &FinderParams{
+	params := &Record{
 		NamedType: NamedType{
 			Identifier: Identifier{
 				Name:      f.finderStructType(),
@@ -55,19 +53,11 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		},
 		Fields: f.Params,
 	}
-	c.Code.Add(params.GenerateCode(f)).Line().Line()
+	c.Code.Add(params.generateStruct()).Line().Line()
+	c.Code.Add(params.generateQueryParamEncoder(&f.Name))
 
 	r.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
-		def.List(Id(PathVar), Err()).Op(":=").Id(ResourcePath).Call(f.entityParams()...)
-		IfErrReturn(def, Nil(), Err()).Line()
-
-		def.List(Id("query"), Err()).Op(":=").Id("params").Dot(EncodeFinderParams).Call()
-		IfErrReturn(def, Nil(), Err()).Line()
-
-		def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query")
-
-		r.callFormatQueryUrl(def)
-		IfErrReturn(def, Nil(), Err()).Line()
+		formatQueryUrl(r, f, def, Nil(), Err())
 
 		def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_finder))
 		IfErrReturn(def, Nil(), Err()).Line()
@@ -79,22 +69,4 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 	})
 
 	return c
-}
-
-func (p *FinderParams) GenerateCode(f *Method) *Statement {
-	def := Empty()
-	def.Add((*Record)(p).generateStruct()).Line().Line()
-
-	receiver := (*Record)(p).Receiver()
-	return AddFuncOnReceiver(def, receiver, p.Name, EncodeFinderParams).
-		Params().
-		Params(Id("data").String(), Err().Error()).
-		BlockFunc(func(def *Group) {
-			def.Id(Codec).Op(":=").Qual(ProtocolPackage, RestLiUrlEncoder).Line()
-			def.Id("buf").Op(":=").New(Qual("strings", "Builder"))
-
-			(*Record)(p).generateEncoder(def, &f.Name, nil)
-
-			def.Return(Id("buf").Dot("String").Call(), Nil())
-		})
 }

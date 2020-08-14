@@ -3,11 +3,13 @@ package cmd
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/PapaCharlie/go-restli/internal/codegen"
 	"github.com/pkg/errors"
@@ -16,78 +18,106 @@ import (
 
 var Version string
 
-func CodeGenerator() *cobra.Command {
-	var specBytes []byte
-	var outputDir string
-	var schemaDir string
+type JarStdinParameters struct {
+	ResolverPath               string   `json:"resolverPath"`
+	RestSpecPaths              []string `json:"restSpecPaths"`
+	NamedDataSchemasToGenerate []string `json:"namedDataSchemasToGenerate"`
+}
 
+func CodeGenerator() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "go-restli",
 		SilenceUsage: true,
 		Version:      Version,
-		Args: func(_ *cobra.Command, args []string) error {
-			if len(Jar) > 0 {
-				if len(args) == 0 {
-					return errors.New("go-restli: Must specify at least one restspec file")
-				}
+	}
 
-				if schemaDir == "" {
-					return errors.New("go-restli: Must specify a schema dir")
-				} else if _, err := os.Stat(schemaDir); err != nil {
-					return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
-				}
-			} else {
-				switch len(args) {
-				case 0:
-					stat, err := os.Stdin.Stat()
-					if err != nil {
-						return errors.Wrap(err, "go-restli: Could not stat stdin")
-					}
-					if (stat.Mode() & os.ModeCharDevice) != 0 {
-						return errors.New("go-restli: No stdin and no spec file given")
-					}
-				case 1:
-					if _, err := os.Stat(args[0]); err != nil {
-						return errors.Wrap(err, "go-restli: Must specify a valid spec file")
-					}
-				default:
-					return errors.New("go-restli: Too many arguments")
-				}
+	var specBytes []byte
+	var outputDir string
+
+	cmd.Flags().StringVarP(&codegen.PackagePrefix, "package-prefix", "p", "",
+		"All files will be generated as sub-packages of this package.")
+	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", ".", "The directory in which to output the generated files")
+
+	if len(Jar) > 0 {
+		var params JarStdinParameters
+
+		cmd.Use += " REST_SPEC [REST_SPEC...]"
+		cmd.Short = strings.TrimSpace(`
+This standalone executable will parse all the .pdsc/.pdl files in -r/--resolver-path and produce
+bindings for the given rest specs, and all necessary associated schemas. By default, bindings are
+generated only for the schemas required to interact with the given resources, but this behavior can
+be overridden with -n/--named-schemas-to-generate which can be used to specify some extra schemas
+that should also have bindings. If named schemas are specified, it's not necessary to specify rest
+specs.`)
+		cmd.Flags().StringVarP(&params.ResolverPath, "resolver-path", "r", "",
+			"The directory that contains all the .pdsc/.pdl files that may be needed")
+		cmd.Flags().StringArrayVarP(&params.NamedDataSchemasToGenerate, "named-schemas-to-generate", "n", nil,
+			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
+
+		cmd.Args = func(_ *cobra.Command, args []string) error {
+			params.RestSpecPaths = args
+			if len(params.RestSpecPaths) == 0 && len(params.NamedDataSchemasToGenerate) == 0 {
+				return errors.New("go-restli: Must specify at least one restspec file or named data schema")
+			}
+
+			if params.ResolverPath == "" {
+				return errors.New("go-restli: Must specify a schema dir")
+			} else if _, err := os.Stat(params.ResolverPath); err != nil {
+				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
 			}
 
 			return nil
-		},
-		PreRunE: func(_ *cobra.Command, args []string) (err error) {
-			if len(Jar) > 0 {
-				specBytes, err = ExecuteJar(schemaDir, args)
-			} else {
-				specBytes, err = ReadSpec(args)
-			}
-			return err
-		},
-		RunE: func(*cobra.Command, []string) error {
-			return codegen.GenerateCode(specBytes, outputDir)
-		},
-	}
+		}
 
-	if len(Jar) > 0 {
-		cmd.Use += " REST_SPEC [REST_SPEC...]"
-		cmd.Flags().StringVarP(&schemaDir, "schema-dir", "s", "", "The directory that contains all the .pdsc/.pdl "+
-			"files that may be needed")
+		cmd.PreRunE = func(_ *cobra.Command, args []string) (err error) {
+			specBytes, err = ExecuteJar(params)
+			return err
+		}
 	} else {
 		cmd.Use += " [SPEC_FILE]"
+		cmd.Short = "Generate rest.li bindings for the given parsed specs"
+
+		cmd.Args = func(_ *cobra.Command, args []string) error {
+			switch len(args) {
+			case 0:
+				stat, err := os.Stdin.Stat()
+				if err != nil {
+					return errors.Wrap(err, "go-restli: Could not stat stdin")
+				}
+				if (stat.Mode() & os.ModeCharDevice) != 0 {
+					return errors.New("go-restli: No stdin and no spec file given")
+				}
+				return nil
+			case 1:
+				if _, err := os.Stat(args[0]); err != nil {
+					return errors.Wrap(err, "go-restli: Must specify a valid spec file")
+				}
+				return nil
+			default:
+				return errors.New("go-restli: Too many arguments")
+			}
+		}
+
+		cmd.PreRunE = func(_ *cobra.Command, args []string) (err error) {
+			specBytes, err = ReadSpec(args)
+			return err
+		}
 	}
 
-	cmd.Flags().StringVarP(&codegen.PackagePrefix, "package-prefix", "p", "", "The namespace to prefix all generated "+
-		"packages with (e.g. github.com/PapaCharlie/go-restli/generated)")
-	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", "", "The directory in which to output the generated files")
+	cmd.RunE = func(*cobra.Command, []string) error {
+		return codegen.GenerateCode(specBytes, outputDir)
+	}
 
 	return cmd
 }
 
-func ExecuteJar(schemaDir string, restSpecs []string) ([]byte, error) {
+func ExecuteJar(params JarStdinParameters) ([]byte, error) {
 	if len(Jar) == 0 {
 		log.Panicln("No jar!")
+	}
+	paramsBytes, err := json.Marshal(params)
+	if err != nil {
+		return nil, errors.Wrapf(err, "go-restli: Failed to serialize %+v", params)
 	}
 
 	r, err := gzip.NewReader(bytes.NewBuffer(Jar))
@@ -110,7 +140,8 @@ func ExecuteJar(schemaDir string, restSpecs []string) ([]byte, error) {
 		return nil, err
 	}
 
-	c := exec.Command("java", append([]string{"-jar", f.Name(), schemaDir}, restSpecs...)...)
+	c := exec.Command("java", "-jar", f.Name())
+	c.Stdin = bytes.NewReader(paramsBytes)
 	c.Stderr = os.Stderr
 	stdout, err := c.Output()
 	if err != nil {

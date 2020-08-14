@@ -15,13 +15,19 @@ type RestLiCodec struct {
 	decoder func(string) (string, error)
 }
 
-var RestLiUrlEncoder = &RestLiCodec{
+var RestLiUrlPathEncoder = &RestLiCodec{
+	encoder: url.PathEscape,
+	decoder: url.PathUnescape,
+}
+
+var RestLiQueryEncoder = &RestLiCodec{
 	encoder: url.QueryEscape,
 	decoder: url.QueryUnescape,
 }
 
 var RestLiReducedEncoder = &RestLiCodec{
 	encoder: strings.NewReplacer(
+		"%", url.QueryEscape("%"),
 		",", url.QueryEscape(","),
 		"(", url.QueryEscape("("),
 		")", url.QueryEscape(")"),

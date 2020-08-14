@@ -16,7 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 
 
 public class Utils {
-  private static final Gson GSON = new GsonBuilder()
+  public static final Gson GSON = new GsonBuilder()
       .setFieldNamingStrategy(f -> StringUtils.removeStart(f.getName(), "_"))
       .setPrettyPrinting()
       .registerTypeAdapter(GoPrimitive.class,
@@ -76,7 +76,7 @@ public class Utils {
 
     for (int i = 0; i < identifier.length(); i++) {
       int c = identifier.codePointAt(i);
-      if (Character.isAlphabetic(c)) {
+      if (Character.isAlphabetic(c) || Character.isDigit(c)) {
         buf.appendCodePoint(c);
       } else {
         buf.append('_');

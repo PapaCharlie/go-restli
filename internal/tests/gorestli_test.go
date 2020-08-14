@@ -3,8 +3,6 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,6 +12,9 @@ import (
 	"runtime/debug"
 	"sync"
 	"testing"
+
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
+	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
 
 	actionset "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/actionSet"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection"
@@ -142,21 +143,24 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		}
 	}()
 
-	if req.Method != s.o.Request.Method {
-		writeErrorResponse(res, `Methods did not match! Expected "%s", got "%s".`,
-			s.o.Request.Method, req.Method)
+	if expected, got := s.o.Request.Method, req.Method; expected != got {
+		writeErrorResponse(res, "Methods did not match! Expected %q, got %q.", expected, got)
 		return
 	}
 
-	if req.RequestURI != s.o.Request.RequestURI {
-		writeErrorResponse(res, `RequestURIs did not match! Expected "%s", got "%s".`,
-			s.o.Request.RequestURI, req.RequestURI)
+	if expected, got := s.o.Request.URL.Path, req.URL.Path; expected != got {
+		writeErrorResponse(res, "Request paths did not match! Expected %q, got %q.", expected, got)
+		return
+	}
+
+	if err := queriesEqual(s.o.Request.URL.Query(), req.URL.Query()); err != nil {
+		writeErrorResponse(res, err.Error())
 		return
 	}
 
 	for h := range s.o.Request.Header {
 		if req.Header.Get(h) != s.o.Request.Header.Get(h) {
-			writeErrorResponse(res, `%s did not match! Expected "%+v", got "%+v".`,
+			writeErrorResponse(res, "%s did not match! Expected %q, got %q.",
 				h, s.o.Request.Header.Get(h), req.Header.Get(h))
 			return
 		}
@@ -165,7 +169,7 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if len(s.o.RequestBytes) > 0 {
 		reqBytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			writeErrorResponse(res, "Failed to read request: %+v", err)
+			writeErrorResponse(res, "Failed to read request: %q", err)
 			return
 		}
 
@@ -201,4 +205,20 @@ func writeErrorResponse(res http.ResponseWriter, format string, args ...interfac
 	response, _ := json.Marshal(err)
 	res.Header().Add(protocol.RestLiHeader_ErrorResponse, fmt.Sprint(true))
 	http.Error(res, string(response), err.Status)
+}
+
+func queriesEqual(expected url.Values, actual url.Values) error {
+	for k := range expected {
+		if expected.Get(k) != actual.Get(k) {
+			return fmt.Errorf("query values differ for %q. Expected: %q, Actual: %q", k, expected.Get(k), actual.Get(k))
+		} else {
+			actual.Del(k)
+		}
+	}
+
+	if len(actual) > 0 {
+		return fmt.Errorf("unexpected extra parameters: %q", actual.Encode())
+	}
+
+	return nil
 }

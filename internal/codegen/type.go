@@ -78,15 +78,6 @@ func (t *RestliType) GoType() *Statement {
 	}
 }
 
-func (t *RestliType) Record() *Record {
-	if t.Reference == nil {
-		return nil
-	}
-
-	record, _ := t.Reference.Resolve().(*Record)
-	return record
-}
-
 func (t *RestliType) UnderlyingPrimitive() *PrimitiveType {
 	switch {
 	case t.Primitive != nil:
@@ -99,6 +90,14 @@ func (t *RestliType) UnderlyingPrimitive() *PrimitiveType {
 	return nil
 }
 
+func (t *RestliType) UnderlyingPrimitiveZeroValueLit() *Statement {
+	if t.Primitive != nil {
+		return t.Primitive.zeroValueLit()
+	} else {
+		return Add(t.GoType()).Call(t.UnderlyingPrimitive().zeroValueLit())
+	}
+}
+
 func (t *RestliType) ShouldReference() bool {
 	switch {
 	case t.UnderlyingPrimitive() != nil:
@@ -106,6 +105,8 @@ func (t *RestliType) ShouldReference() bool {
 		return false
 	case t.IsMapOrArray():
 		// Maps and arrays are already reference types, no need to take the pointer
+		return false
+	case t.Enum() != nil:
 		return false
 	}
 	return true
@@ -131,13 +132,26 @@ func (t *RestliType) IsMapOrArray() bool {
 	return t.Array != nil || t.Map != nil || (t.UnderlyingPrimitive() != nil && t.UnderlyingPrimitive().IsBytes())
 }
 
-func (t *RestliType) PointerType() *Statement {
-	if t.IsMapOrArray() {
-		// Never use pointers to maps or arrays since they are already reference types. We can just use them as-is
-		return t.GoType()
-	} else {
-		return Op("*").Add(t.GoType())
+func (t *RestliType) Enum() *Enum {
+	if t.Reference == nil {
+		return nil
 	}
+
+	enum, _ := t.Reference.Resolve().(*Enum)
+	return enum
+}
+
+func (t *RestliType) Record() *Record {
+	if t.Reference == nil {
+		return nil
+	}
+
+	record, _ := t.Reference.Resolve().(*Record)
+	return record
+}
+
+func (t *RestliType) PointerType() *Statement {
+	return Op("*").Add(t.GoType())
 }
 
 func (t *RestliType) WriteToBuf(def *Group, accessor *Statement, encoderAccessor *Statement, returnOnError ...Code) {

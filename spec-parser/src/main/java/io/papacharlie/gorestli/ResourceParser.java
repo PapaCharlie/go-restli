@@ -5,6 +5,7 @@ import com.linkedin.restli.restspec.ActionSchemaArray;
 import com.linkedin.restli.restspec.CollectionSchema;
 import com.linkedin.restli.restspec.FinderSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
+import com.linkedin.restli.restspec.RestMethodSchema;
 import com.linkedin.restli.restspec.SimpleSchema;
 import io.papacharlie.gorestli.json.Method.PathKey;
 import io.papacharlie.gorestli.json.Resource;
@@ -77,7 +78,7 @@ public class ResourceParser {
     if (_schema.getSimple() != null) {
       SimpleSchema simple = _schema.getSimple();
       addActions(resource, simple.getActions(), false);
-      addRestMethods(resource, simple.getSupports());
+      addRestMethods(resource, simple.getMethods());
 
       for (ResourceSchema subResource : Utils.emptyIfNull(simple.getEntity().getSubresources())) {
         resourcesAndSubResources.addAll(new ResourceParser(this, subResource).parse());
@@ -88,7 +89,7 @@ public class ResourceParser {
       CollectionSchema collection = _schema.getCollection();
       addActions(resource, collection.getActions(), false);
       addActions(resource, collection.getEntity().getActions(), true);
-      addRestMethods(resource, collection.getSupports());
+      addRestMethods(resource, collection.getMethods());
 
       for (FinderSchema finder : Utils.emptyIfNull(collection.getFinders())) {
         resource.addMethod(_methodParser.newFinderMethod(finder));
@@ -118,8 +119,8 @@ public class ResourceParser {
     return String.join(".", _namespaceChain);
   }
 
-  private void addRestMethods(Resource resource, List<String> restMethods) {
-    for (String restMethod : Utils.emptyIfNull(restMethods)) {
+  private void addRestMethods(Resource resource, List<RestMethodSchema> restMethods) {
+    for (RestMethodSchema restMethod : Utils.emptyIfNull(restMethods)) {
       resource.addMethod(_methodParser.newRestMethod(restMethod));
     }
   }

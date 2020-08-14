@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"html/template"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ const (
 	RestLiEncode         = "RestLiEncode"
 	RestLiDecode         = "RestLiDecode"
 	RestLiCodec          = "RestLiCodec"
-	RestLiUrlEncoder     = "RestLiUrlEncoder"
+	RestLiUrlEncoder     = "RestLiQueryEncoder"
 	RestLiReducedEncoder = "RestLiReducedEncoder"
 
 	PopulateDefaultValues = "populateDefaultValues"
@@ -68,11 +69,11 @@ func (r *Resource) NewCodeFile(filename string) *CodeFile {
 	}
 }
 
-func (f *CodeFile) Write(outputDir string) (filename string, err error) {
+func (f *CodeFile) Write(outputDir string) (err error) {
 	defer func() {
 		e := recover()
 		if e != nil {
-			err = errors.Errorf("Could not generate model: %+v", e)
+			err = errors.Errorf("go-restli: Could not generate model: %+v", e)
 		}
 	}()
 	file := NewFilePath(f.PackagePath)
@@ -80,14 +81,24 @@ func (f *CodeFile) Write(outputDir string) (filename string, err error) {
 	header := bytes.NewBuffer(nil)
 	err = HeaderTemplate.Execute(header, f)
 	if err != nil {
-		return "", err
+		return err
 	}
-	file.HeaderComment(header.String())
 
+	file.HeaderComment(header.String())
 	file.Add(f.Code)
-	filename = filepath.Join(outputDir, f.PackagePath, f.Filename+".go")
+
+	relpath, err := filepath.Rel(PackagePrefix, f.PackagePath)
+	if err != nil {
+		return err
+	}
+
+	filename := filepath.Join(outputDir, relpath, f.Filename+".go")
 	err = WriteJenFile(filename, file)
-	return filename, err
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Failed to write code file to %q", filename)
+	}
+
+	return nil
 }
 
 func (f *CodeFile) Identifier() string {
@@ -105,16 +116,6 @@ func WriteJenFile(filename string, file *File) error {
 	}
 
 	_ = os.Remove(filename)
-
-	if _, err := os.Stat(filename); err == nil {
-		if removeErr := os.Remove(filename); removeErr != nil {
-			return errors.WithMessagef(removeErr, "Could not delete %s", filename)
-		}
-	} else {
-		if !os.IsNotExist(err) {
-			return errors.WithStack(err)
-		}
-	}
 
 	if err := ioutil.WriteFile(filename, b.Bytes(), ReadOnlyPermissions); err != nil {
 		return errors.WithStack(err)
@@ -153,15 +154,42 @@ func AddWordWrappedComment(code *Statement, comment string) *Statement {
 }
 
 func ExportedIdentifier(identifier string) string {
-	return strings.ToUpper(identifier[:1]) + identifier[1:]
-}
-
-func PrivateIdentifier(identifier string) string {
-	return strings.ToLower(identifier[:1]) + identifier[1:]
+	buf := new(strings.Builder)
+	for i, c := range identifier {
+		switch {
+		case unicode.IsLetter(c):
+			if i == 0 {
+				buf.WriteRune(unicode.ToUpper(c))
+			} else {
+				buf.WriteRune(c)
+			}
+		case unicode.IsNumber(c):
+			if i == 0 {
+				buf.WriteString("Exported_")
+			}
+			buf.WriteRune(c)
+		case c == '_':
+			if i == 0 {
+				buf.WriteString("Exported")
+			}
+			buf.WriteRune(c)
+		// Because $ is a valid identifier character in Java, it technically does not cause compile error and is
+		// therefore occasionally used. To support this usecase, explicitly handle $ by replacing it with DOLLAR. All
+		// other non-alphanumeric (plus _) characters are considered illegal
+		case c == '$':
+			if i != 0 {
+				buf.WriteRune('_')
+			}
+			buf.WriteString("DOLLAR_")
+		default:
+			log.Panicf("Illegal identifier character %q in %q", c, identifier)
+		}
+	}
+	return buf.String()
 }
 
 func ReceiverName(typeName string) string {
-	return PrivateIdentifier(typeName[:1])
+	return strings.ToLower(typeName[:1])
 }
 
 func AddFuncOnReceiver(def *Statement, receiver, typeName, funcName string) *Statement {

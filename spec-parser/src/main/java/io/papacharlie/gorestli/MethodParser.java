@@ -9,6 +9,7 @@ import com.linkedin.restli.restspec.FinderSchema;
 import com.linkedin.restli.restspec.ParameterSchema;
 import com.linkedin.restli.restspec.ParameterSchemaArray;
 import com.linkedin.restli.restspec.ResourceSchema;
+import com.linkedin.restli.restspec.RestMethodSchema;
 import io.papacharlie.gorestli.json.Method;
 import io.papacharlie.gorestli.json.Method.MethodType;
 import io.papacharlie.gorestli.json.Method.PathKey;
@@ -75,16 +76,17 @@ public class MethodParser {
     return method;
   }
 
-  public Method newRestMethod(String restMethod) {
+  public Method newRestMethod(RestMethodSchema restMethod) {
     boolean onEntity;
     if (_resource.getSimple() != null) {
       // simple resources don't have entities
       onEntity = false;
     } else {
-      onEntity = !NO_KEY_METHODS.contains(ResourceMethod.fromString(restMethod));
+      onEntity = !NO_KEY_METHODS.contains(ResourceMethod.fromString(restMethod.getMethod()));
     }
 
-    Method method = newMethod(restMethod, REST_METHOD, onEntity);
+    Method method = newMethod(restMethod.getMethod(), REST_METHOD, onEntity);
+    method._params = toFieldList(restMethod.getParameters());
     method._return = _resourceSchema;
     return method;
   }

@@ -74,7 +74,7 @@ func (u *UnionType) encode(def *Group, receiver string, typeName string, encoder
 	u.validateAllMembers(def, receiver, typeName, func(def *Group, m UnionMember) {
 		writeStringToBuf(def, Lit("("+m.Alias+":"))
 		fieldAccessor := Id(receiver).Dot(m.name())
-		if !(m.Type.Reference != nil || m.Type.IsMapOrArray()) {
+		if m.Type.Reference == nil {
 			fieldAccessor = Op("*").Add(fieldAccessor)
 		}
 		m.Type.WriteToBuf(def, fieldAccessor, encoderAccessor)

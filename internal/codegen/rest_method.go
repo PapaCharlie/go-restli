@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"fmt"
+
 	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
@@ -8,13 +10,14 @@ import (
 const (
 	CreateParam = "create"
 	UpdateParam = "update"
+	QueryParams = "queryParams"
 )
 
 // createdEntityIdType returns true if the Create method is supposed to parse the created record's ID from the
 // Location header in the response
 func (m *Method) createdEntityIdType() *Statement {
 	if up := m.EntityPathKey.Type.UnderlyingPrimitive(); up != nil {
-		return up.GoType()
+		return m.EntityPathKey.Type.GoType()
 	} else {
 		return RawComplexKey()
 	}
@@ -42,21 +45,22 @@ func (m *Method) restMethodFuncName() string {
 	return restMethodFuncNames[m.RestLiMethod()]
 }
 
+func (m *Method) restMethodQueryParamsStructName() string {
+	return restMethodFuncNames[m.RestLiMethod()] + "Params"
+}
+
 func (r *Resource) restMethodFuncParams(m *Method, def *Group) {
+	m.addEntityTypes(def)
 	switch m.RestLiMethod() {
-	case protocol.Method_get:
-		m.addEntityTypes(def)
 	case protocol.Method_create:
-		m.addEntityTypes(def)
 		def.Id(CreateParam).Add(r.ResourceSchema.ReferencedType())
 	case protocol.Method_update:
-		m.addEntityTypes(def)
 		def.Id(UpdateParam).Add(r.ResourceSchema.ReferencedType())
 	case protocol.Method_partial_update:
-		m.addEntityTypes(def)
-		def.Id(UpdateParam).Add(Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct()))
-	case protocol.Method_delete:
-		m.addEntityTypes(def)
+		def.Id(UpdateParam).Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct())
+	}
+	if len(m.Params) > 0 {
+		def.Id(QueryParams).Op("*").Qual(r.PackagePath(), m.restMethodQueryParamsStructName())
 	}
 }
 
@@ -64,17 +68,10 @@ func (m *Method) restMethodFuncReturnParams(def *Group) {
 	switch m.RestLiMethod() {
 	case protocol.Method_get:
 		def.Add(m.Return.ReferencedType())
-		def.Error()
 	case protocol.Method_create:
 		def.Add(m.createdEntityIdType())
-		def.Error()
-	case protocol.Method_update:
-		def.Error()
-	case protocol.Method_partial_update:
-		def.Error()
-	case protocol.Method_delete:
-		def.Error()
 	}
+	def.Error()
 }
 
 func (m *Method) restMethodCallParams() (params []Code) {
@@ -85,6 +82,9 @@ func (m *Method) restMethodCallParams() (params []Code) {
 		params = append(params, Id(UpdateParam))
 	case protocol.Method_partial_update:
 		params = append(params, Id(UpdateParam))
+	}
+	if len(m.Params) > 0 {
+		params = append(params, Id(QueryParams))
 	}
 
 	return params
@@ -105,7 +105,24 @@ func isMethodSupported(m protocol.RestLiMethod) bool {
 
 // https://linkedin.github.io/rest.li/user_guide/restli_server#resource-methods
 func (r *Resource) GenerateRestMethodCode(m *Method) *Statement {
-	return r.addClientFuncDeclarations(Empty(), ClientType, m, func(def *Group) {
+	def := Empty()
+
+	if len(m.Params) > 0 {
+		p := &Record{
+			NamedType: NamedType{
+				Identifier: Identifier{
+					Name:      m.restMethodQueryParamsStructName(),
+					Namespace: r.Namespace,
+				},
+				Doc: fmt.Sprintf("This struct provides the parameters to the %s method", m.Name),
+			},
+			Fields: m.Params,
+		}
+		def.Add(p.generateStruct()).Line().Line()
+		def.Add(p.generateQueryParamEncoder(nil)).Line().Line()
+	}
+
+	return r.addClientFuncDeclarations(def, ClientType, m, func(def *Group) {
 		generators[m.RestLiMethod()](r, m, def)
 	})
 }
@@ -124,10 +141,7 @@ func generateGet(r *Resource, m *Method, def *Group) {
 		Err(),
 	}
 
-	m.callResourcePath(def)
-	IfErrReturn(def, returns...).Line()
-	r.callFormatQueryUrl(def)
-	IfErrReturn(def, returns...).Line()
+	formatQueryUrl(r, m, def, returns...)
 
 	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_get))
 	IfErrReturn(def, returns...).Line()
@@ -143,20 +157,17 @@ func generateGet(r *Resource, m *Method, def *Group) {
 }
 
 func generateCreate(r *Resource, m *Method, def *Group) {
-	primitiveReturnType := m.EntityPathKey.Type.UnderlyingPrimitive()
+	primitiveReturnType := m.EntityPathKey.Type.UnderlyingPrimitive() != nil
 	// TODO: Support @ReturnEntity annotation
 	var returns []Code
-	if primitiveReturnType != nil {
-		returns = append(returns, primitiveReturnType.zeroValueLit())
+	if primitiveReturnType {
+		returns = append(returns, m.EntityPathKey.Type.UnderlyingPrimitiveZeroValueLit())
 	} else {
 		returns = append(returns, Lit(""))
 	}
 	returns = append(returns, Err())
 
-	m.callResourcePath(def)
-	IfErrReturn(def, returns...).Line()
-	r.callFormatQueryUrl(def)
-	IfErrReturn(def, returns...).Line()
+	formatQueryUrl(r, m, def, returns...)
 
 	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_create), Id(CreateParam))
 	IfErrReturn(def, returns...).Line()
@@ -169,9 +180,9 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 		def.Return(returns...)
 	}).Line()
 
-	if primitiveReturnType != nil {
+	if primitiveReturnType {
 		accessor := Id(m.EntityPathKey.Name)
-		def.Var().Add(accessor).Add(primitiveReturnType.GoType())
+		def.Var().Add(accessor).Add(m.EntityPathKey.Type.GoType())
 
 		def.Err().Op("=").Add(m.EntityPathKey.Type.RestLiReducedDecodeModel(
 			Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID)),
@@ -187,10 +198,7 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 }
 
 func generateUpdate(r *Resource, m *Method, def *Group) {
-	m.callResourcePath(def)
-	IfErrReturn(def, Err()).Line()
-	r.callFormatQueryUrl(def)
-	IfErrReturn(def, Err()).Line()
+	formatQueryUrl(r, m, def, Err())
 
 	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_update), Id(UpdateParam))
 	IfErrReturn(def, Err()).Line()
@@ -205,10 +213,7 @@ func generateUpdate(r *Resource, m *Method, def *Group) {
 }
 
 func generatePartialUpdate(r *Resource, m *Method, def *Group) {
-	m.callResourcePath(def)
-	IfErrReturn(def, Err()).Line()
-	r.callFormatQueryUrl(def)
-	IfErrReturn(def, Err()).Line()
+	formatQueryUrl(r, m, def, Err())
 
 	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(
 		Id(ContextVar),
@@ -230,10 +235,7 @@ func generatePartialUpdate(r *Resource, m *Method, def *Group) {
 }
 
 func generateDelete(r *Resource, m *Method, def *Group) {
-	m.callResourcePath(def)
-	IfErrReturn(def, Err()).Line()
-	r.callFormatQueryUrl(def)
-	IfErrReturn(def, Err()).Line()
+	formatQueryUrl(r, m, def, Err())
 
 	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("DeleteRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_update))
 	IfErrReturn(def, Err()).Line()
@@ -245,4 +247,20 @@ func generateDelete(r *Resource, m *Method, def *Group) {
 		def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode")))
 	})
 	def.Return(Nil())
+}
+
+func formatQueryUrl(r *Resource, m *Method, def *Group, returns ...Code) {
+	m.callResourcePath(def)
+	IfErrReturn(def, returns...).Line()
+
+	if len(m.Params) > 0 {
+		def.BlockFunc(func(def *Group) {
+			def.List(Id("query"), Err()).Op(":=").Id(QueryParams).Dot(EncodeQueryParams).Call()
+			IfErrReturn(def, returns...)
+			def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query")
+		})
+	}
+
+	r.callFormatQueryUrl(def)
+	IfErrReturn(def, returns...).Line()
 }

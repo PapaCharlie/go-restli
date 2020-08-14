@@ -28,7 +28,7 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 	}
 
 	return AddRestLiEncode(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.generateEncoder(def, nil, &ck.Params)
+		record.generateEncoder(def, false, nil, &ck.Params)
 		def.Return(Nil())
 	})
 }

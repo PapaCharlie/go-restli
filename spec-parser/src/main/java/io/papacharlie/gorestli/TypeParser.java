@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.linkedin.data.schema.ArrayDataSchema;
 import com.linkedin.data.schema.DataSchema;
 import com.linkedin.data.schema.DataSchemaLocation;
-import com.linkedin.data.schema.DataSchemaResolver;
 import com.linkedin.data.schema.EnumDataSchema;
 import com.linkedin.data.schema.FixedDataSchema;
 import com.linkedin.data.schema.MapDataSchema;
@@ -12,6 +11,7 @@ import com.linkedin.data.schema.NamedDataSchema;
 import com.linkedin.data.schema.RecordDataSchema;
 import com.linkedin.data.schema.TyperefDataSchema;
 import com.linkedin.data.schema.UnionDataSchema;
+import com.linkedin.pegasus.generator.DataSchemaParser;
 import com.linkedin.restli.restspec.CollectionSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestSpecCodec;
@@ -43,35 +43,38 @@ import static io.papacharlie.gorestli.json.RestliType.*;
 
 
 public class TypeParser {
+  private final DataSchemaParser _parser;
   private final Map<Identifier, DataType> _dataTypes = new HashMap<>();
 
-  private final DataSchemaResolver _dataSchemaResolver;
-
-  public TypeParser(DataSchemaResolver dataSchemaResolver) {
-    _dataSchemaResolver = dataSchemaResolver;
+  public TypeParser(DataSchemaParser parser) {
+    _parser = parser;
   }
 
   public void extractDataTypes(ResourceSchema resourceSchema) {
-    SnapshotGenerator generator = new SnapshotGenerator(resourceSchema, _dataSchemaResolver);
+    SnapshotGenerator generator = new SnapshotGenerator(resourceSchema, _parser.getSchemaResolver());
     for (NamedDataSchema schema : generator.generateModelList()) {
-      File sourceFile = resolveSourceFile(schema);
-      switch (schema.getType()) {
-        case RECORD:
-          parseDataType((RecordDataSchema) schema, sourceFile);
-          break;
-        case TYPEREF:
-          fromDataSchema(schema, null, null, null);
-          break;
-        case ENUM:
-          parseDataType((EnumDataSchema) schema, sourceFile);
-          break;
-        case FIXED:
-          parseDataType((FixedDataSchema) schema, sourceFile);
-          break;
-        default:
-          System.err.printf("Don't know what to do with %s%n", schema);
-          break;
-      }
+      addNamedDataSchema(schema);
+    }
+  }
+
+  public void addNamedDataSchema(NamedDataSchema schema) {
+    File sourceFile = resolveSourceFile(schema);
+    switch (schema.getType()) {
+      case RECORD:
+        parseDataType((RecordDataSchema) schema, sourceFile);
+        break;
+      case TYPEREF:
+        fromDataSchema(schema, null, null, null);
+        break;
+      case ENUM:
+        parseDataType((EnumDataSchema) schema, sourceFile);
+        break;
+      case FIXED:
+        parseDataType((FixedDataSchema) schema, sourceFile);
+        break;
+      default:
+        System.err.printf("Don't know what to do with %s%n", schema);
+        break;
     }
   }
 
@@ -80,7 +83,7 @@ public class TypeParser {
   }
 
   public RestliType parseFromRestSpec(String schema) {
-    return fromDataSchema(RestSpecCodec.textToSchema(schema, _dataSchemaResolver), null, null, null);
+    return fromDataSchema(RestSpecCodec.textToSchema(schema, _parser.getSchemaResolver()), null, null, null);
   }
 
   public PathKey collectionPathKey(String resourceName, String resourceNamespace, CollectionSchema collection,
@@ -133,17 +136,17 @@ public class TypeParser {
 
   private RestliType fromDataSchema(DataSchema schema, @Nullable String namespace, @Nullable File sourceFile,
       @Nullable List<String> hierarchy) {
-    if (JAVA_TO_GO_PRIMTIIVE_TYPE.containsKey(schema.getType())) {
-      return new RestliType(JAVA_TO_GO_PRIMTIIVE_TYPE.get(schema.getType()));
+    if (schema.isPrimitive()) {
+      return new RestliType(primitiveType(schema));
     }
 
     switch (schema.getType()) {
       case TYPEREF:
         TyperefDataSchema typerefSchema = (TyperefDataSchema) schema;
 
-        GoPrimitive primitive = JAVA_TO_GO_PRIMTIIVE_TYPE.get(typerefSchema.getRef().getType());
-        if (primitive != null) {
-          Typeref typeref = new Typeref(typerefSchema, resolveSourceFile(typerefSchema), primitive);
+        DataSchema ref = typerefSchema.getRef();
+        if (ref.isPrimitive()) {
+          Typeref typeref = new Typeref(typerefSchema, resolveSourceFile(typerefSchema), primitiveType(ref));
           registerDataType(new DataType(typeref));
           return new RestliType(typeref.getIdentifier());
         } else if (typerefSchema.getRef().getType() == TYPEREF) {
@@ -203,12 +206,19 @@ public class TypeParser {
     }
   }
 
+  private GoPrimitive primitiveType(DataSchema schema) {
+    GoPrimitive primitive = JAVA_TO_GO_PRIMTIIVE_TYPE.get(schema.getType());
+    Preconditions.checkArgument(schema.isPrimitive() && primitive != null, "Unknown primitive type %s", schema);
+    return primitive;
+  }
+
   private void registerDataType(DataType type) {
     _dataTypes.putIfAbsent(type.getIdentifier(), type);
   }
 
   private File resolveSourceFile(NamedDataSchema namedSchema) {
-    DataSchemaLocation location = _dataSchemaResolver.nameToDataSchemaLocations().get(namedSchema.getFullName());
+    DataSchemaLocation location =
+        _parser.getSchemaResolver().nameToDataSchemaLocations().get(namedSchema.getFullName());
     Preconditions.checkNotNull(location, "Could not resolve original location for %s", namedSchema.getFullName());
     return location.getSourceFile();
   }

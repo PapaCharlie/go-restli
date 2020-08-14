@@ -14,7 +14,8 @@ JARGO := internal/codegen/cmd/classpath_jar.go
 FAT_JAR := spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar
 GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 
-PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/generated
+TEST_SUITE := internal/tests/rest.li-test-suite/client-testsuite
+PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/generated
 PACKAGES := ./internal/codegen ./d2 ./protocol
 
 build: generate test integration-test
@@ -36,12 +37,22 @@ imports:
 	goimports -w main.go $(PACKAGES)
 
 integration-test: clean $(JARGO)
-	cd internal/tests && go run -tags=jar ./test_generator
+	rm -rf internal/tests/generated
+	go run -tags=jar . \
+		--output-dir internal/tests/generated \
+		--resolver-path $(TEST_SUITE)/schemas \
+		--package-prefix $(PACKAGE_PREFIX) \
+		--named-schemas-to-generate testsuite.Primitives \
+		--named-schemas-to-generate testsuite.ComplexTypes \
+		--named-schemas-to-generate testsuite.Include \
+		$(TEST_SUITE)/restspecs/* internal/tests/extra-test-suite/restspecs/*
 	go test -tags=jar -count=1 ./internal/tests/...
+
+generate-tests:
+	cd internal/tests && go run ./test_generator
 
 clean:
 	git -C internal/tests/rest.li-test-suite reset --hard origin/master
-	rm -rf internal/tests/generated
 
 fat-jar: $(FAT_JAR)
 $(FAT_JAR): $(shell git ls-files spec-parser)

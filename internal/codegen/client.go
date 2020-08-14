@@ -104,7 +104,6 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 }
 
 func (r *Resource) generateTestCode() *CodeFile {
-
 	const (
 		mock       = "Mock"
 		structName = mock + ClientInterfaceType

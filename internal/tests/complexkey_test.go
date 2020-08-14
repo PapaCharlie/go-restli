@@ -89,3 +89,20 @@ func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
 	err := c.PartialUpdate(id, &conflictresolution.LargeRecord_PartialUpdate{Key: keyPatch})
 	require.NoError(t, err)
 }
+
+func (s *TestServer) ComplexkeyGetWithSpecialChars(t *testing.T, c Client) {
+	specialChars := "!*'();:@&=+$,/?#[]" + ".~"
+	five := int64(5)
+	_, err := c.Get(&Complexkey_ComplexKey{
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "key" + specialChars,
+			Part2: 2,
+			Part3: conflictresolution.Fruits_APPLE,
+		},
+		Params: &KeyParams{
+			Param1: "param" + specialChars,
+			Param2: &five,
+		},
+	})
+	require.NoError(t, err)
+}
