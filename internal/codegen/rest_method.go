@@ -10,14 +10,14 @@ const (
 	UpdateParam = "update"
 )
 
-// isCreatedEntityIdInHeaders returns true if the Create method is supposed to parse the created record's ID from the
+// createdEntityIdType returns true if the Create method is supposed to parse the created record's ID from the
 // Location header in the response
-func (m *Method) isCreatedEntityIdInHeaders() bool {
-	if m.EntityPathKey == nil {
-		return false
+func (m *Method) createdEntityIdType() *Statement {
+	if up := m.EntityPathKey.Type.UnderlyingPrimitive(); up != nil {
+		return up.GoType()
+	} else {
+		return RawComplexKey()
 	}
-
-	return m.EntityPathKey.Type.UnderlyingPrimitive() != nil
 }
 
 func (m *Method) RestLiMethod() protocol.RestLiMethod {
@@ -66,9 +66,7 @@ func (m *Method) restMethodFuncReturnParams(def *Group) {
 		def.Add(m.Return.ReferencedType())
 		def.Error()
 	case protocol.Method_create:
-		if m.isCreatedEntityIdInHeaders() {
-			def.Add(m.EntityPathKey.Type.GoType())
-		}
+		def.Add(m.createdEntityIdType())
 		def.Error()
 	case protocol.Method_update:
 		def.Error()
@@ -145,10 +143,13 @@ func generateGet(r *Resource, m *Method, def *Group) {
 }
 
 func generateCreate(r *Resource, m *Method, def *Group) {
+	primitiveReturnType := m.EntityPathKey.Type.UnderlyingPrimitive()
 	// TODO: Support @ReturnEntity annotation
 	var returns []Code
-	if m.isCreatedEntityIdInHeaders() {
-		returns = append(returns, m.EntityPathKey.Type.ZeroValueReference())
+	if primitiveReturnType != nil {
+		returns = append(returns, primitiveReturnType.zeroValueLit())
+	} else {
+		returns = append(returns, Lit(""))
 	}
 	returns = append(returns, Err())
 
@@ -168,9 +169,9 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 		def.Return(returns...)
 	}).Line()
 
-	if m.isCreatedEntityIdInHeaders() {
+	if primitiveReturnType != nil {
 		accessor := Id(m.EntityPathKey.Name)
-		def.Var().Add(accessor).Add(m.EntityPathKey.Type.GoType())
+		def.Var().Add(accessor).Add(primitiveReturnType.GoType())
 
 		def.Err().Op("=").Add(m.EntityPathKey.Type.RestLiReducedDecodeModel(
 			Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID)),
@@ -179,13 +180,9 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 
 		IfErrReturn(def, returns...)
 
-		if m.EntityPathKey.Type.ShouldReference() {
-			accessor = Op("&").Add(accessor)
-		}
-
 		def.Return(accessor, Nil())
 	} else {
-		def.Return(Nil())
+		def.Return(RawComplexKey().Call(Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID))), Nil())
 	}
 }
 

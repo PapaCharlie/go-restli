@@ -214,6 +214,10 @@ func Bytes() *Statement {
 	return Qual(ProtocolPackage, "Bytes")
 }
 
+func RawComplexKey() *Statement {
+	return Qual(ProtocolPackage, "RawComplexKey")
+}
+
 func JsonFieldTag(name string, optional bool) map[string]string {
 	tags := map[string]string{"json": name}
 	if optional {

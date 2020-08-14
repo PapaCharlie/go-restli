@@ -60,7 +60,7 @@ func (s *TestServer) ComplexkeyDelete(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ComplexkeyCreate(t *testing.T, c Client) {
-	err := c.Create(&conflictresolution.LargeRecord{
+	_, err := c.Create(&conflictresolution.LargeRecord{
 		Key: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
