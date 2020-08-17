@@ -45,6 +45,7 @@ integration-test: clean $(JARGO)
 		--named-schemas-to-generate testsuite.Primitives \
 		--named-schemas-to-generate testsuite.ComplexTypes \
 		--named-schemas-to-generate testsuite.Include \
+		--named-schemas-to-generate testsuite.Defaults \
 		$(TEST_SUITE)/restspecs/* internal/tests/extra-test-suite/restspecs/*
 	go test -tags=jar -count=1 ./internal/tests/...
 

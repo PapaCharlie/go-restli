@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 
+	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -56,4 +57,21 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	}).Line().Line()
 
 	return def
+}
+
+func (f *Fixed) getLit(rawJson string) *Statement {
+	var v protocol.Bytes
+	if err := (&v).UnmarshalJSON([]byte(rawJson)); err != nil {
+		Logger.Panicf("(%+v) Illegal primitive literal: \"%s\" (%s)", f, rawJson, err)
+	}
+
+	if f.Size != len(v) {
+		Logger.Panicf("(%+v) Default value %q does not have %d bytes (got %d bytes)", f, rawJson, f.Size, len(v))
+	}
+
+	return f.Qual().ValuesFunc(func(def *Group) {
+		for _, b := range v {
+			def.LitByte(b)
+		}
+	})
 }

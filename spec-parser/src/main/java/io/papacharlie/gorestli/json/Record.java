@@ -1,8 +1,10 @@
 package io.papacharlie.gorestli.json;
 
+import com.linkedin.data.ByteString;
 import com.linkedin.data.schema.NamedDataSchema;
 import io.papacharlie.gorestli.Utils;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 
@@ -26,11 +28,23 @@ public class Record extends NamedType {
       _doc = doc;
       _type = type;
       _isOptional = (isOptional == null) ? false : isOptional;
-      _defaultValue = (defaultValue == null) ? null : Utils.toJson(defaultValue);
+      _defaultValue = serializeDefaultValue(defaultValue);
     }
 
     public Field(String name, String doc, RestliType type, Boolean isOptional) {
       this(name, doc, type, isOptional, null);
+    }
+
+    private static String serializeDefaultValue(Object value) {
+      if (value == null) {
+        return null;
+      }
+
+      if (value instanceof ByteString) {
+        return Utils.toJson(((ByteString) value).asString(StandardCharsets.UTF_8));
+      } else {
+        return Utils.toJson(value);
+      }
     }
   }
 }

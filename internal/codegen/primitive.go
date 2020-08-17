@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
@@ -20,7 +21,7 @@ var (
 	Float64Primitive = PrimitiveType{Type: "float64", newInstance: func() interface{} { return new(float64) }}
 	BoolPrimitive    = PrimitiveType{Type: "bool", newInstance: func() interface{} { return new(bool) }}
 	StringPrimitive  = PrimitiveType{Type: "string", newInstance: func() interface{} { return new(string) }}
-	BytePrimitive    = PrimitiveType{Type: "bytes", newInstance: func() interface{} { return new([]byte) }}
+	BytePrimitive    = PrimitiveType{Type: "bytes", newInstance: func() interface{} { return new(protocol.Bytes) }}
 )
 
 var PrimitiveTypes = []PrimitiveType{
@@ -56,7 +57,7 @@ func (p *PrimitiveType) IsBytes() bool {
 func (p *PrimitiveType) Cast(accessor *Statement) *Statement {
 	var cast *Statement
 	if p.IsBytes() {
-		cast = Index().Byte()
+		cast = Bytes()
 	} else {
 		cast = Id(p.Type)
 	}
@@ -72,13 +73,21 @@ func (p *PrimitiveType) GoType() *Statement {
 }
 
 func (p *PrimitiveType) getLit(rawJson string) interface{} {
-	v := p.newInstance()
+	if p.IsBytes() {
+		var v protocol.Bytes
+		if err := (&v).UnmarshalJSON([]byte(rawJson)); err != nil {
+			Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
+		}
+		return string(v)
+	} else {
+		v := p.newInstance()
 
-	err := json.Unmarshal([]byte(rawJson), v)
-	if err != nil {
-		Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
+		err := json.Unmarshal([]byte(rawJson), v)
+		if err != nil {
+			Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
+		}
+		return reflect.ValueOf(v).Elem().Interface()
 	}
-	return reflect.ValueOf(v).Elem().Interface()
 }
 
 func (p *PrimitiveType) zeroValueLit() *Statement {

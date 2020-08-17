@@ -274,6 +274,12 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 				def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
 				return
 			}
+
+			if fixed, ok := t.Reference.Resolve().(*Fixed); ok {
+				def.Id("val").Op(":=").Add(fixed.getLit(rawJson))
+				def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
+				return
+			}
 		}
 
 		field := Op("&").Id(r.Receiver()).Dot(name)
