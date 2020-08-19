@@ -260,7 +260,7 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 			return
 		// For convenience, we create empty maps of the right type if the default value is the empty map
 		case t.Map != nil && emptyMapRegex.MatchString(rawJson):
-			def.Id(r.Receiver()).Dot(name).Op("=").Make(t.GoType(), Lit(0))
+			def.Id(r.Receiver()).Dot(name).Op("= &").Add(t.GoType()).Values()
 			return
 		// Enum values can also be added as literals
 		case t.Reference != nil:
