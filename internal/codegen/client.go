@@ -91,7 +91,7 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 			writeStringToBuf(def, Lit(path[:idx]))
 			path = path[idx+len(pattern):]
 
-			pk.Type.WriteToBuf(def, Id(pk.Name), Qual(ProtocolPackage, RestLiUrlEncoder), Lit(""))
+			pk.Type.WriteToBuf(def, Id(pk.Name), Qual(ProtocolPackage, RestLiUrlPathEncoder), Lit(""))
 		}
 		def.Line()
 

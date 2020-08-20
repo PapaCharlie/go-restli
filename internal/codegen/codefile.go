@@ -28,6 +28,7 @@ const (
 	RestLiDecode         = "RestLiDecode"
 	RestLiCodec          = "RestLiCodec"
 	RestLiUrlEncoder     = "RestLiQueryEncoder"
+	RestLiUrlPathEncoder = "RestLiUrlPathEncoder"
 	RestLiReducedEncoder = "RestLiReducedEncoder"
 
 	PopulateDefaultValues = "populateDefaultValues"
@@ -39,7 +40,7 @@ const (
 
 	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"
 
-	ReadOnlyPermissions = os.FileMode(0555)
+	ReadOnlyPermissions = os.FileMode(0444)
 )
 
 var (
