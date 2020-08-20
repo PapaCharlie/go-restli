@@ -13,16 +13,6 @@ const (
 	QueryParams = "queryParams"
 )
 
-// createdEntityIdType returns true if the Create method is supposed to parse the created record's ID from the
-// Location header in the response
-func (m *Method) createdEntityIdType() *Statement {
-	if up := m.EntityPathKey.Type.UnderlyingPrimitive(); up != nil {
-		return m.EntityPathKey.Type.GoType()
-	} else {
-		return RawComplexKey()
-	}
-}
-
 func (m *Method) RestLiMethod() protocol.RestLiMethod {
 	return protocol.RestLiMethodNameMapping[m.Name]
 }
@@ -69,7 +59,10 @@ func (m *Method) restMethodFuncReturnParams(def *Group) {
 	case protocol.Method_get:
 		def.Add(m.Return.ReferencedType())
 	case protocol.Method_create:
-		def.Add(m.createdEntityIdType())
+		def.Add(m.EntityPathKey.Type.ReferencedType())
+		if m.ReturnEntity {
+			def.Add(m.Return.ReferencedType())
+		}
 	}
 	def.Error()
 }
@@ -104,8 +97,8 @@ func isMethodSupported(m protocol.RestLiMethod) bool {
 }
 
 // https://linkedin.github.io/rest.li/user_guide/restli_server#resource-methods
-func (r *Resource) GenerateRestMethodCode(m *Method) *Statement {
-	def := Empty()
+func (r *Resource) GenerateRestMethodCode(m *Method) *CodeFile {
+	c := r.NewCodeFile(m.Name)
 
 	if len(m.Params) > 0 {
 		p := &Record{
@@ -118,13 +111,15 @@ func (r *Resource) GenerateRestMethodCode(m *Method) *Statement {
 			},
 			Fields: m.Params,
 		}
-		def.Add(p.generateStruct()).Line().Line()
-		def.Add(p.generateQueryParamEncoder(nil)).Line().Line()
+		c.Code.Add(p.generateStruct()).Line().Line()
+		c.Code.Add(p.generateQueryParamMarshaler(nil)).Line().Line()
 	}
 
-	return r.addClientFuncDeclarations(def, ClientType, m, func(def *Group) {
+	r.addClientFuncDeclarations(c.Code, ClientType, m, func(def *Group) {
 		generators[m.RestLiMethod()](r, m, def)
 	})
+
+	return c
 }
 
 func (m *Method) callResourcePath(def *Group) {
@@ -143,12 +138,11 @@ func generateGet(r *Resource, m *Method, def *Group) {
 
 	formatQueryUrl(r, m, def, returns...)
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_get))
-	IfErrReturn(def, returns...).Line()
-
 	result := Id("getResult")
 	def.Var().Add(result).Add(m.Return.GoType())
-	callDoAndDecode(def, Op("&").Add(result), m.Return.ZeroValueReference())
+
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoGetRequest").Call(Id(ContextVar), Id(UrlVar), Op("&").Add(result))
+	def.Add(IfErrReturn(returns...)).Line()
 
 	if m.Return.ShouldReference() {
 		result = Op("&").Add(result)
@@ -157,110 +151,87 @@ func generateGet(r *Resource, m *Method, def *Group) {
 }
 
 func generateCreate(r *Resource, m *Method, def *Group) {
-	primitiveReturnType := m.EntityPathKey.Type.UnderlyingPrimitive() != nil
-	// TODO: Support @ReturnEntity annotation
-	var returns []Code
-	if primitiveReturnType {
-		returns = append(returns, m.EntityPathKey.Type.UnderlyingPrimitiveZeroValueLit())
-	} else {
-		returns = append(returns, Lit(""))
+	returns := []Code{m.EntityPathKey.Type.ZeroValueReference()}
+	if m.ReturnEntity {
+		returns = append(returns, m.Return.ZeroValueReference())
 	}
 	returns = append(returns, Err())
 
 	formatQueryUrl(r, m, def, returns...)
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_create), Id(CreateParam))
-	IfErrReturn(def, returns...).Line()
+	id := Id(m.EntityPathKey.Name)
+	def.Var().Add(id).Add(m.EntityPathKey.Type.GoType())
 
-	def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(ReqVar))
-	IfErrReturn(def, returns...).Line()
-
-	def.If(Id(ResVar).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
-		def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode"))
-		def.Return(returns...)
-	}).Line()
-
-	if primitiveReturnType {
-		accessor := Id(m.EntityPathKey.Name)
-		def.Var().Add(accessor).Add(m.EntityPathKey.Type.GoType())
-
-		def.Err().Op("=").Add(m.EntityPathKey.Type.RestLiReducedDecodeModel(
-			Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID)),
-			accessor,
-		))
-
-		IfErrReturn(def, returns...)
-
-		def.Return(accessor, Nil())
+	var idUnmarshaler Code
+	if p := m.EntityPathKey.Type.Primitive; p != nil {
+		idUnmarshaler = p.NewPrimitiveUnmarshaler(id)
 	} else {
-		def.Return(RawComplexKey().Call(Id(ResVar).Dot("Header").Dot("Get").Call(Qual(ProtocolPackage, RestLiHeaderID))), Nil())
+		idUnmarshaler = Op("&").Add(id)
+	}
+
+	returnEntity := Id("returnEntity")
+	var returnEntityUnmarshaler Code
+	if m.ReturnEntity {
+		def.Var().Add(returnEntity).Add(m.Return.GoType())
+		returnEntityUnmarshaler = Op("&").Add(returnEntity)
+	} else {
+		returnEntityUnmarshaler = Nil()
+	}
+
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoCreateRequest").Call(Id(ContextVar), Id(UrlVar), Id(CreateParam), idUnmarshaler, returnEntityUnmarshaler)
+	def.Add(IfErrReturn(returns...)).Line()
+
+	if m.EntityPathKey.Type.ShouldReference() {
+		id = Op("&").Add(id)
+	}
+	if m.Return.ShouldReference() {
+		returnEntity = Op("&").Add(returnEntity)
+	}
+
+	if m.ReturnEntity {
+		def.Return(id, returnEntity, Nil())
+	} else {
+		def.Return(id, Nil())
 	}
 }
 
 func generateUpdate(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPutRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_update), Id(UpdateParam))
-	IfErrReturn(def, Err()).Line()
-
-	def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(ReqVar))
-	IfErrReturn(def, Err()).Line()
-
-	def.If(Id(ResVar).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
-		def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode")))
-	})
-	def.Return(Nil())
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoUpdateRequest").Call(Id(ContextVar), Id(UrlVar), Id(UpdateParam))
+	def.Return(Err())
 }
 
 func generatePartialUpdate(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(
-		Id(ContextVar),
-		Id(UrlVar),
-		RestLiMethod(protocol.Method_partial_update),
-		Op("&").Struct(
-			Id("Patch").Add(Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct())).Tag(JsonFieldTag("patch", false)),
-		).Values(Dict{Id("Patch"): Id(UpdateParam)}),
-	)
-	IfErrReturn(def, Err()).Line()
-
-	def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(ReqVar))
-	IfErrReturn(def, Err()).Line()
-
-	def.If(Id(ResVar).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
-		def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode")))
-	})
-	def.Return(Nil())
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoPartialUpdateRequest").Call(Id(ContextVar), Id(UrlVar), Id(UpdateParam))
+	def.Return(Err())
 }
 
 func generateDelete(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("DeleteRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_update))
-	IfErrReturn(def, Err()).Line()
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoDeleteRequest").Call(Id(ContextVar), Id(UrlVar))
+	def.Add(IfErrReturn(Err())).Line()
 
-	def.List(Id(ResVar), Err()).Op(":=").Id(ClientReceiver).Dot(DoAndIgnore).Call(Id(ReqVar))
-	IfErrReturn(def, Err()).Line()
-
-	def.If(Id(ResVar).Dot("StatusCode").Op("/").Lit(100).Op("!=").Lit(2)).BlockFunc(func(def *Group) {
-		def.Return(Qual("fmt", "Errorf").Call(Lit("Invalid response code from %s: %d"), Id(UrlVar), Id(ResVar).Dot("StatusCode")))
-	})
 	def.Return(Nil())
 }
 
 func formatQueryUrl(r *Resource, m *Method, def *Group, returns ...Code) {
 	m.callResourcePath(def)
-	IfErrReturn(def, returns...).Line()
+	def.Add(IfErrReturn(returns...)).Line()
 
-	if len(m.Params) > 0 {
-		def.BlockFunc(func(def *Group) {
-			def.List(Id("query"), Err()).Op(":=").Id(QueryParams).Dot(EncodeQueryParams).Call()
-			IfErrReturn(def, returns...)
-			def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query")
-		})
+	if m.MethodType != ACTION && len(m.Params) > 0 {
+		rawQuery := Id("rawQuery")
+		def.Var().Add(rawQuery).String()
+		def.List(rawQuery, Err()).Op("=").Id(QueryParams).Dot(EncodeQueryParams).Call()
+		def.Add(IfErrReturn(returns...))
+		def.Id(PathVar).Op("+=").Lit("?").Op("+").Add(rawQuery)
+		def.Line()
 	}
 
 	r.callFormatQueryUrl(def)
-	IfErrReturn(def, returns...).Line()
+	def.Add(IfErrReturn(returns...)).Line()
+
 }

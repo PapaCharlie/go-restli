@@ -10,7 +10,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
@@ -24,22 +23,26 @@ const (
 
 	Codec                = "codec"
 	RestLiHeaderID       = "RestLiHeader_ID"
-	RestLiEncode         = "RestLiEncode"
+	MarshalRestLi        = "MarshalRestLi"
+	UnmarshalRestLi      = "UnmarshalRestLi"
 	RestLiDecode         = "RestLiDecode"
 	RestLiCodec          = "RestLiCodec"
 	RestLiUrlEncoder     = "RestLiQueryEncoder"
+	RestLiUrlPathEncoder = "RestLiUrlPathEncoder"
 	RestLiReducedEncoder = "RestLiReducedEncoder"
 
-	PopulateDefaultValues = "populateDefaultValues"
-	ValidateUnionFields   = "ValidateUnionFields"
+	PopulateLocalDefaultValues = "populateLocalDefaultValues"
+	ValidateUnionFields        = "ValidateUnionFields"
+	ComplexKeyParams           = "Params"
 
 	PartialUpdate = "_PartialUpdate"
 
 	NetHttp = "net/http"
 
-	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"
+	ProtocolPackage    = "github.com/PapaCharlie/go-restli/protocol"
+	RestLiCodecPackage = ProtocolPackage + "/restlicodec"
 
-	ReadOnlyPermissions = os.FileMode(0555)
+	ReadOnlyPermissions = os.FileMode(0444)
 )
 
 var (
@@ -198,32 +201,43 @@ func AddFuncOnReceiver(def *Statement, receiver, typeName, funcName string) *Sta
 		Id(funcName)
 }
 
-func AddMarshalJSON(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, MarshalJSON).
+func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	AddFuncOnReceiver(def, receiver, typeName, MarshalRestLi).
+		Params(Add(Writer).Add(WriterQual)).
+		Params(Err().Error()).
+		BlockFunc(f).
+		Line().Line()
+
+	AddFuncOnReceiver(def, receiver, typeName, MarshalJSON).
 		Params().
 		Params(Id("data").Index().Byte(), Err().Error()).
-		BlockFunc(f)
-}
+		BlockFunc(func(def *Group) {
+			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewCompactJsonWriter").Call()
+			def.Err().Op("=").Id(receiver).Dot(MarshalRestLi).Call(Writer)
+			def.Add(IfErrReturn(Nil(), Err()))
+			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
+		}).Line().Line()
 
-func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, UnmarshalJSON).
-		Params(Id("data").Index().Byte()).
-		Params(Err().Error()).
-		BlockFunc(f)
-}
-
-func AddRestLiEncode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, RestLiEncode).
-		Params(Id(Codec).Op("*").Qual(ProtocolPackage, RestLiCodec), Id("buf").Op("*").Qual("strings", "Builder")).
-		Params(Err().Error()).
-		BlockFunc(f)
+	return def
 }
 
 func AddRestLiDecode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, RestLiDecode).
-		Params(Id(Codec).Op("*").Qual(ProtocolPackage, RestLiCodec), Id("data").String()).
+	AddFuncOnReceiver(def, receiver, typeName, UnmarshalRestLi).
+		Params(Add(Reader).Add(ReaderQual)).
 		Params(Err().Error()).
-		BlockFunc(f)
+		BlockFunc(f).
+		Line().Line()
+
+	data := Id("data")
+	AddFuncOnReceiver(def, receiver, typeName, UnmarshalJSON).
+		Params(Add(data).Index().Byte()).
+		Params(Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Reader).Op(":=").Qual(RestLiCodecPackage, "NewJsonReader").Call(data)
+			def.Return(Id(receiver).Dot(UnmarshalRestLi).Call(Reader))
+		})
+
+	return def
 }
 
 func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
@@ -233,17 +247,8 @@ func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) 
 		BlockFunc(f)
 }
 
-func IfErrReturn(def *Group, results ...Code) *Group {
-	def.If(Err().Op("!=").Nil()).Block(Return(results...))
-	return def
-}
-
-func Bytes() *Statement {
-	return Qual(ProtocolPackage, "Bytes")
-}
-
-func RawComplexKey() *Statement {
-	return Qual(ProtocolPackage, "RawComplexKey")
+func IfErrReturn(results ...Code) *Statement {
+	return If(Err().Op("!=").Nil()).Block(Return(results...))
 }
 
 func JsonFieldTag(name string, optional bool) map[string]string {
@@ -252,8 +257,4 @@ func JsonFieldTag(name string, optional bool) map[string]string {
 		tags["json"] += ",omitempty"
 	}
 	return tags
-}
-
-func RestLiMethod(method protocol.RestLiMethod) *Statement {
-	return Qual(ProtocolPackage, "Method_"+method.String())
 }

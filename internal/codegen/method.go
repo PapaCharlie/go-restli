@@ -22,6 +22,7 @@ type Method struct {
 	PathKeys      []PathKey
 	Params        []Field
 	Return        *RestliType
+	ReturnEntity  bool
 }
 
 type PathKey struct {

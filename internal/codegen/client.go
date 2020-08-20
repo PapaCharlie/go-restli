@@ -14,6 +14,7 @@ type Resource struct {
 	RootResourceName string
 	ResourceSchema   *RestliType
 	Methods          []*Method
+	ReturnEntity     bool
 }
 
 func (r *Resource) PackagePath() string {
@@ -60,7 +61,7 @@ func (r *Resource) GenerateCode() []*CodeFile {
 		switch m.MethodType {
 		case REST_METHOD:
 			if isMethodSupported(m.RestLiMethod()) {
-				client.Code.Add(r.GenerateRestMethodCode(m)).Line().Line()
+				codeFiles = append(codeFiles, r.GenerateRestMethodCode(m))
 			}
 		case ACTION:
 			codeFiles = append(codeFiles, r.GenerateActionCode(m))
@@ -77,30 +78,30 @@ func (r *Resource) GenerateCode() []*CodeFile {
 func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Method) {
 	def.Func().Id(funcName).
 		ParamsFunc(func(def *Group) { m.addEntityTypes(def) }).
-		Params(Id("path").String(), Err().Error()).BlockFunc(func(def *Group) {
+		Params(Id("path").String(), Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewRor2PathWriter").Call()
 
-		def.Id("buf").Op(":=").New(Qual("strings", "Builder")).Line()
+			path := m.Path
+			for _, pk := range m.PathKeys {
+				pattern := fmt.Sprintf("{%s}", pk.Name)
+				idx := strings.Index(path, pattern)
+				if idx < 0 {
+					Logger.Panicf("%s does not appear in %s", pattern, path)
+				}
+				def.Add(Writer).Dot("RawPathSegment").Call(Lit(path[:idx]))
+				path = path[idx+len(pattern):]
 
-		path := m.Path
-		for _, pk := range m.PathKeys {
-			pattern := fmt.Sprintf("{%s}", pk.Name)
-			idx := strings.Index(path, pattern)
-			if idx < 0 {
-				Logger.Panicf("%s does not appear in %s", pattern, path)
+				def.Add(Writer.Write(pk.Type, Writer, Id(pk.Name), Lit(""), Err()))
 			}
-			writeStringToBuf(def, Lit(path[:idx]))
-			path = path[idx+len(pattern):]
+			def.Line()
 
-			pk.Type.WriteToBuf(def, Id(pk.Name), Qual(ProtocolPackage, RestLiUrlEncoder), Lit(""))
-		}
-		def.Line()
+			if path != "" {
+				def.Add(Writer).Dot("RawPathSegment").Call(Lit(path))
+			}
 
-		if path != "" {
-			writeStringToBuf(def, Lit(path))
-		}
-
-		def.Return(Id("buf").Dot("String").Call(), Nil())
-	}).Line().Line()
+			def.Return(Writer.Finalize(), Nil())
+		}).Line().Line()
 }
 
 func (r *Resource) generateTestCode() *CodeFile {

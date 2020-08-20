@@ -16,7 +16,7 @@ func mustParse(u string) *url.URL {
 }
 
 func TestRestLiClient_FormatQuery(t *testing.T) {
-	supplier := &SimpleHostnameSupplier{}
+	supplier := &SimpleHostnameResolver{}
 	c := &RestLiClient{
 		Client:           nil,
 		HostnameResolver: supplier,

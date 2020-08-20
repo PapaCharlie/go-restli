@@ -50,7 +50,7 @@ func GenerateCode(specBytes []byte, outputDir string) error {
 		return errors.Wrapf(err, "go-restli: Failed to write parsed specs to %q", parsedSpecs)
 	}
 
-	// Use a Decoder regardless since it'll handle leading/trailing whitespace and other niceties
+	// Use a Reader regardless since it'll handle leading/trailing whitespace and other niceties
 	err = json.NewDecoder(bytes.NewBuffer(specBytes)).Decode(&schemas)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Could not deserialize GoRestliSpec")
@@ -120,36 +120,6 @@ func GenerateAllImportsTest(outputDir string, codeFiles []*CodeFile) error {
 		return errors.Wrapf(err, "Could not write all imports file: %+v", err)
 	}
 	return nil
-}
-
-func writeStringToBuf(def *Group, s *Statement) *Statement {
-	return def.Id("buf").Dot("WriteString").Call(s)
-}
-
-func writeArrayToBuf(def *Group, accessor *Statement, items *RestliType, encoderAccessor *Statement, returnOnError ...Code) {
-	writeStringToBuf(def, Lit("List("))
-
-	def.For(List(Id("idx"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
-		def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
-		items.WriteToBuf(def, Id("val"), encoderAccessor, returnOnError...)
-	})
-
-	def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
-}
-
-func writeMapToBuf(def *Group, accessor *Statement, values *RestliType, encoderAccessor *Statement, returnOnError ...Code) {
-	def.Id("buf").Dot("WriteByte").Call(LitRune('('))
-
-	def.Id("idx").Op(":=").Lit(0)
-	def.For(List(Id("key"), Id("val")).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
-		def.If(Id("idx").Op("!=").Lit(0)).Block(Id("buf").Dot("WriteByte").Call(LitRune(','))).Line()
-		def.Id("idx").Op("++")
-		writeStringToBuf(def, Id(Codec).Dot("EncodeString").Call(Id("key")))
-		def.Id("buf").Dot("WriteByte").Call(LitRune(':'))
-		values.WriteToBuf(def, Id("val"), encoderAccessor, returnOnError...)
-	})
-
-	def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
 }
 
 func canonicalizeAccessor(accessor *Statement) string {
@@ -253,9 +223,4 @@ func (r *Resource) addClientFuncDeclarations(def *Statement, clientType string, 
 		BlockFunc(block)
 
 	return def
-}
-
-func callDoAndDecode(def *Group, accessor *Statement, zeroValueInCaseOfError *Statement) {
-	def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot(DoAndDecode).Call(Id(ReqVar), accessor)
-	IfErrReturn(def, zeroValueInCaseOfError, Err()).Line()
 }

@@ -20,6 +20,7 @@ public class Method {
   public List<PathKey> _pathKeys;
   public List<Field> _params;
   public RestliType _return;
+  public boolean _returnEntity;
 
   public static class PathKey {
     public final String _name;

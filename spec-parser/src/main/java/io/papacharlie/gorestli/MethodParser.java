@@ -88,6 +88,7 @@ public class MethodParser {
     Method method = newMethod(restMethod.getMethod(), REST_METHOD, onEntity);
     method._params = toFieldList(restMethod.getParameters());
     method._return = _resourceSchema;
+    method._returnEntity = Utils.supportsReturnEntity(restMethod);
     return method;
   }
 

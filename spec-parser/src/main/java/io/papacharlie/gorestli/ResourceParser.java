@@ -107,12 +107,16 @@ public class ResourceParser {
     RestliType resourceType = _schema.hasSchema()
         ? _typeParser.parseFromRestSpec(_schema.getSchema())
         : null;
+    Set<String> createOnlyFields = Utils.extractAnnotationValues(_schema, "createOnly");
+    Set<String> readOnlyFields = Utils.extractAnnotationValues(_schema, "readOnly");
     return new Resource(
         namespace(),
         _schema.getDoc(),
         _resourceFile.getAbsolutePath(),
         _rootResourceName,
-        resourceType);
+        resourceType,
+        readOnlyFields,
+        createOnlyFields);
   }
 
   private String namespace() {

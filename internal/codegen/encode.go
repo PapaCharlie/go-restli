@@ -20,7 +20,7 @@ func (t *RestliType) RestLiEncodeModel(encoder string, accessor *Statement) (*St
 	}
 
 	if t.Reference != nil {
-		return Add(accessor).Dot(RestLiEncode).Call(encoderRef), true
+		return Add(accessor).Dot(MarshalRestLi).Call(encoderRef), true
 	}
 
 	Logger.Panicf("%+v cannot be url encoded", t)

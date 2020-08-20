@@ -19,7 +19,7 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		Type().Id(ck.Name).
 		StructFunc(func(def *Group) {
 			def.Add(ck.Key.Qual())
-			def.Id("Params").Op("*").Add(ck.Params.Qual()).Tag(JsonFieldTag("$params", false))
+			def.Id(ComplexKeyParams).Op("*").Add(ck.Params.Qual()).Tag(JsonFieldTag("$params", false))
 		}).Line().Line()
 
 	record := &Record{
@@ -27,8 +27,13 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		Fields:    TypeRegistry.Resolve(ck.Key).(*Record).Fields,
 	}
 
-	return AddRestLiEncode(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.generateEncoder(def, false, nil, &ck.Params)
-		def.Return(Nil())
+	AddMarshalRestLi(def, record.Receiver(), ck.Name, func(def *Group) {
+		record.generateMarshaler(def, Id(record.Receiver()).Dot(ck.Key.Name))
 	})
+
+	AddRestLiDecode(def, record.Receiver(), ck.Name, func(def *Group) {
+		record.generateUnmarshaler(def, Id(record.Receiver()).Dot(ck.Key.Name), &ck.Params)
+	})
+
+	return def
 }

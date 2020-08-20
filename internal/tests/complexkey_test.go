@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
@@ -60,17 +61,22 @@ func (s *TestServer) ComplexkeyDelete(t *testing.T, c Client) {
 }
 
 func (s *TestServer) ComplexkeyCreate(t *testing.T, c Client) {
-	_, err := c.Create(&conflictresolution.LargeRecord{
-		Key: conflictresolution.ComplexKey{
-			Part1: "one",
-			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
-		},
+	expectedKey := conflictresolution.ComplexKey{
+		Part1: "one",
+		Part2: 2,
+		Part3: conflictresolution.Fruits_APPLE,
+	}
+	actualKey, err := c.Create(&conflictresolution.LargeRecord{
+		Key: expectedKey,
 		Message: conflictresolution.Message{
 			Message: "test message",
 		},
 	})
-	require.NoError(t, err)
+	require.IsType(t, new(protocol.CreateResponseHasNoEntityHeaderError), err)
+	// TODO: Merge https://github.com/linkedin/rest.li-test-suite/pull/6 and actually test the contents of the key
+	if actualKey != nil {
+		require.Equal(t, expectedKey, actualKey.ComplexKey)
+	}
 }
 
 func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {

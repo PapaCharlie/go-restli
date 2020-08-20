@@ -1,0 +1,43 @@
+{
+  "annotations": {
+    "createOnly": {
+      "value": [
+        "message"
+      ]
+    },
+    "readOnly": {
+      "value": [
+        "id",
+        "message"
+      ]
+    }
+  },
+  "name": "collectionWithAnnotations",
+  "namespace": "extras",
+  "path": "/collectionWithAnnotations",
+  "schema": "testsuite.Message",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "testsuite.Time"
+    },
+    "methods": [
+      {
+        "method": "create"
+      },
+      {
+        "method": "get"
+      },
+      {
+        "method": "update"
+      },
+      {
+        "method": "partial_update"
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithAnnotations/{key}"
+    }
+  }
+}

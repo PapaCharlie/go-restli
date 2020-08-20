@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -11,6 +10,8 @@ type Fixed struct {
 	NamedType
 	Size int
 }
+
+var FixedUnderlyingType = RestliType{Primitive: &BytesPrimitive}
 
 func (f *Fixed) InnerTypes() IdentifierSet {
 	return nil
@@ -24,54 +25,27 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	receiver := ReceiverName(f.Name)
 	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.Name, f.Size)
 
-	AddMarshalJSON(def, receiver, f.Name, func(def *Group) {
-		def.Id("bytes").Op(":=").Add(Bytes()).Call(Id(receiver).Index(Op(":")))
-		def.Return(Id("bytes").Dot(MarshalJSON).Call())
-	}).Line().Line()
-	AddUnmarshalJSON(def, receiver, f.Name, func(def *Group) {
-		def.Id("bytes").Op(":=").Make(Bytes(), Lit(f.Size))
-		def.Err().Op("=").Id("bytes").Dot(UnmarshalJSON).Call(Id("data"))
-		IfErrReturn(def)
-		def.If(Len(Id("bytes")).Op("!=").Lit(f.Size)).BlockFunc(func(def *Group) {
-			def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMsg), Len(Id("bytes")))
-			def.Return()
-		})
-		def.Copy(Id(receiver).Index(Op(":")), Id("bytes").Index(Op(":").Lit(f.Size)))
-		def.Return()
-	}).Line().Line()
-
-	AddRestLiEncode(def, receiver, f.Name, func(def *Group) {
-		def.Id("buf").Dot("WriteString").Call(Id(Codec).Dot("EncodeBytes").Call(Id(receiver).Index(Op(":"))))
+	AddMarshalRestLi(def, receiver, f.Name, func(def *Group) {
+		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Index(Op(":"))))
 		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, receiver, f.Name, func(def *Group) {
-		def.Id("bytes").Op(":=").Make(Bytes(), Lit(f.Size))
-		def.Err().Op("=").Id(Codec).Dot("DecodeBytes").Call(Id("data"), Op("&").Id("bytes"))
-		IfErrReturn(def)
+		bytes := Id("bytes")
+		def.Var().Add(bytes).Index().Byte()
+		def.Add(Reader.Read(FixedUnderlyingType, bytes))
+		def.Add(IfErrReturn(Err())).Line()
+
 		def.If(Len(Id("bytes")).Op("!=").Lit(f.Size)).BlockFunc(func(def *Group) {
-			def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(errorMsg), Len(Id("bytes")))
-			def.Return()
-		})
+			def.Return(Qual("fmt", "Errorf").Call(Lit(errorMsg), Len(Id("bytes"))))
+		}).Line()
+
 		def.Copy(Id(receiver).Index(Op(":")), Id("bytes").Index(Op(":").Lit(f.Size)))
-		def.Return()
+		def.Return(Nil())
 	}).Line().Line()
 
 	return def
 }
 
 func (f *Fixed) getLit(rawJson string) *Statement {
-	var v protocol.Bytes
-	if err := (&v).UnmarshalJSON([]byte(rawJson)); err != nil {
-		Logger.Panicf("(%+v) Illegal primitive literal: \"%s\" (%s)", f, rawJson, err)
-	}
-
-	if f.Size != len(v) {
-		Logger.Panicf("(%+v) Default value %q does not have %d bytes (got %d bytes)", f, rawJson, f.Size, len(v))
-	}
-
-	return f.Qual().ValuesFunc(func(def *Group) {
-		for _, b := range v {
-			def.LitByte(b)
-		}
-	})
+	return f.Qual().Add(getLitBytesValues(rawJson))
 }

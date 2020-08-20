@@ -21,8 +21,10 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	AddWordWrappedComment(def, e.Doc).Line()
 	def.Type().Id(e.Name).Int().Line()
 
+	unknownEnum := Id("_" + e.SymbolIdentifier("unknown"))
+
 	def.Const().DefsFunc(func(def *Group) {
-		def.Id("_" + e.SymbolIdentifier("unknown")).Op("=").Id(e.Name).Call(Iota())
+		def.Add(unknownEnum).Op("=").Id(e.Name).Call(Iota())
 		for _, symbol := range e.Symbols {
 			def.Add(AddWordWrappedComment(Empty(), e.SymbolToDoc[symbol]))
 			def.Id(e.SymbolIdentifier(symbol))
@@ -45,6 +47,12 @@ func (e *Enum) GenerateCode() (def *Statement) {
 
 	receiver := ReceiverName(e.Name)
 	getter := "Get" + e.Name + "FromString"
+	accessor := Op("*").Id(receiver)
+	getEnumString := func(def *Group) (*Statement, *Statement) {
+		val, ok := Id("val"), Id("ok")
+		def.List(val, ok).Op(":=").Id(strings).Index(accessor)
+		return val, ok
+	}
 
 	def.Func().Id("All" + e.Name + "Values").Params().Index().Id(e.Name).BlockFunc(func(def *Group) {
 		def.Return(Index().Id(e.Name).ValuesFunc(func(def *Group) {
@@ -54,48 +62,47 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		}))
 	}).Line().Line()
 
-	def.Func().Id(getter).Params(Id("val").String()).Params(Id(receiver).Id(e.Name), Err().Error())
-	def.BlockFunc(func(def *Group) {
-		def.List(Id(receiver), Id("ok")).Op(":=").Id(values).Index(Id("val"))
-		def.If(Op("!").Id("ok")).BlockFunc(func(def *Group) {
-			def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("unknown %s: %%s", e.Name)), Id("val"))
-		})
-		def.Return()
-	}).Line().Line()
+	def.Func().Id(getter).Params(Id("val").String()).Params(Id(receiver).Id(e.Name), Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.List(Id(receiver), Id("ok")).Op(":=").Id(values).Index(Id("val"))
+			def.If(Op("!").Id("ok")).BlockFunc(func(def *Group) {
+				def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("unknown %q: %%s", e.Identifier)), Id("val"))
+			})
+			def.Return()
+		}).Line().Line()
 
 	AddStringer(def, receiver, e.Name, func(def *Group) {
-		def.Return(Id(strings).Index(Op("*").Id(receiver)))
+		val, ok := getEnumString(def)
+		def.If(Op("!").Add(ok)).Block(
+			Return(Lit("$UNKNOWN$")),
+		)
+		def.Return(val)
 	}).Line().Line()
 
-	AddMarshalJSON(def, receiver, e.Name, func(def *Group) {
-		def.Id("val").Op(":=").Id(receiver).Dot("String").Call()
-		def.If(Id("val").Op("==").Lit("")).BlockFunc(func(def *Group) {
-			def.Return(Nil(), Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("illegal %s: %%s", e.Name)), Id(receiver)))
-		})
-		def.Return(Index().Byte().Call(Lit(`"`).Op("+").Id("val").Op("+").Lit(`"`)), Nil())
-	}).Line().Line()
+	def.Func().
+		Params(Id(receiver).Id(e.Name)).
+		Id("Pointer").Params().
+		Op("*").Id(e.Name).
+		BlockFunc(func(def *Group) {
+			def.Return(Op("&").Id(receiver))
+		}).Line().Line()
 
-	AddUnmarshalJSON(def, receiver, e.Name, func(def *Group) {
-		def.Var().Id("str").String()
-		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Op("&").Id("str"))
-		IfErrReturn(def)
-		def.Line()
-
-		def.List(Id("val"), Err()).Op(":=").Id(getter).Call(Id("str"))
-		IfErrReturn(def)
-		def.Op("*").Id(receiver).Op("=").Id("val")
-		def.Return()
-	}).Line().Line()
-
-	AddRestLiEncode(def, receiver, e.Name, func(def *Group) {
-		def.Id("buf").Dot("WriteString").Call(Id(Codec).Dot("EncodeString").Call(Id(receiver).Dot("String").Call()))
+	AddMarshalRestLi(def, receiver, e.Name, func(def *Group) {
+		val, ok := getEnumString(def)
+		def.If(Op("!").Add(ok)).Block(
+			Return(Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("illegal %q: %%d", e.Identifier)), Int().Call(accessor))),
+		)
+		def.List(Writer).Dot("WriteString").Call(val)
 		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, receiver, e.Name, func(def *Group) {
-		def.Var().Id("value").String()
-		def.Err().Op("=").Id(Codec).Dot("DecodeString").Call(Id("data"), Op("&").Id("value"))
-		IfErrReturn(def, Err())
-		def.List(Op("*").Id(receiver)).Op("=").Id(values).Index(Id("value"))
+		value := Id("value")
+		def.Var().Add(value).String()
+		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, value))
+		def.Add(IfErrReturn(Err()))
+		def.Line()
+
+		def.Op("*").Id(receiver).Op("=").Id(values).Index(Id("value"))
 		def.Return(Nil())
 	}).Line().Line()
 
@@ -104,4 +111,8 @@ func (e *Enum) GenerateCode() (def *Statement) {
 
 func (e *Enum) SymbolIdentifier(symbol string) string {
 	return ExportedIdentifier(e.Name + "_" + symbol)
+}
+
+func (e *Enum) zeroValueLit() *Statement {
+	return e.Qual().Call(Lit(0))
 }

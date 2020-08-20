@@ -33,8 +33,21 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 			u.Union.validateUnionFields(def, unionReceiver, u.Name)
 		}).Line().Line()
 
-	AddRestLiEncode(def, unionReceiver, u.Name, func(def *Group) {
-		u.Union.encode(def, unionReceiver, u.Name, Id(Codec))
+	AddMarshalRestLi(def, unionReceiver, u.Name, func(def *Group) {
+		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+			u.Union.validateAllMembers(def, unionReceiver, u.Name, func(def *Group, m UnionMember) {
+				fieldAccessor := Id(unionReceiver).Dot(m.name())
+				if m.Type.Reference == nil {
+					fieldAccessor = Op("*").Add(fieldAccessor)
+				}
+				def.Add(Writer.Write(m.Type, Add(keyWriter).Call(Lit(m.Alias)), fieldAccessor, Err()))
+			})
+			def.Return(Nil())
+		}))
+	}).Line().Line()
+
+	AddRestLiDecode(def, unionReceiver, u.Name, func(def *Group) {
+		u.Union.decode(def, unionReceiver, u.Name)
 	}).Line().Line()
 
 	return def
@@ -68,30 +81,63 @@ func (u *UnionType) validateUnionFields(def *Group, receiver string, typeName st
 	u.validateAllMembers(def, receiver, typeName, func(*Group, UnionMember) {
 		// nothing to do when simply validating
 	})
+	def.Return(Nil())
 }
 
-func (u *UnionType) encode(def *Group, receiver string, typeName string, encoderAccessor *Statement) {
-	u.validateAllMembers(def, receiver, typeName, func(def *Group, m UnionMember) {
-		writeStringToBuf(def, Lit("("+m.Alias+":"))
-		fieldAccessor := Id(receiver).Dot(m.name())
-		if m.Type.Reference == nil {
-			fieldAccessor = Op("*").Add(fieldAccessor)
-		}
-		m.Type.WriteToBuf(def, fieldAccessor, encoderAccessor)
-		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+func (u *UnionType) decode(def *Group, receiver string, typeName string) {
+	wasSet := Id("wasSet")
+	def.Add(wasSet).Op(":=").False()
+
+	errorMessage := u.errorMessage(typeName)
+
+	decode := Reader.ReadMap(func(key Code, def *Group) {
+		def.If(wasSet).Block(
+			Return(errorMessage),
+		).Else().Block(
+			Add(wasSet).Op("=").True(),
+		)
+		def.Switch(key).BlockFunc(func(def *Group) {
+			for _, m := range u.Members {
+				fieldAccessor := Id(receiver).Dot(m.name())
+				def.Case(Lit(m.Alias)).BlockFunc(func(def *Group) {
+					def.Add(fieldAccessor).Op("=").New(m.Type.GoType())
+
+					if m.Type.Reference == nil {
+						fieldAccessor = Op("*").Add(fieldAccessor)
+					}
+
+					def.Add(Reader.Read(m.Type, fieldAccessor))
+				})
+			}
+		})
+		def.Return(Err())
 	})
+
+	if u.HasNull {
+		def.Return(decode)
+	} else {
+		def.Err().Op("=").Add(decode)
+		def.Add(IfErrReturn(Err()))
+		def.If(Op("!").Add(wasSet)).Block(
+			Return(errorMessage),
+		)
+		def.Return(Nil())
+	}
+}
+
+func (u *UnionType) errorMessage(typeName string) *Statement {
+	if u.HasNull {
+		return Qual("errors", "New").Call(Lit(fmt.Sprintf("must specify at most one union member of %s", typeName)))
+	} else {
+		return Qual("errors", "New").Call(Lit(fmt.Sprintf("must specify exactly one union member of %s", typeName)))
+	}
 }
 
 func (u *UnionType) validateAllMembers(def *Group, receiver string, typeName string, f func(def *Group, m UnionMember)) {
 	isSet := "isSet"
 	def.Id(isSet).Op(":=").False().Line()
 
-	var errorMessage string
-	if u.HasNull {
-		errorMessage = fmt.Sprintf("must specify at most one union member of %s", typeName)
-	} else {
-		errorMessage = fmt.Sprintf("must specify exactly one union member of %s", typeName)
-	}
+	errorMessage := u.errorMessage(typeName)
 
 	for i, m := range u.Members {
 		def.If(Id(receiver).Dot(m.name()).Op("!=").Nil()).BlockFunc(func(def *Group) {
@@ -101,7 +147,7 @@ func (u *UnionType) validateAllMembers(def *Group, receiver string, typeName str
 				def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
 					def.Id(isSet).Op("=").True()
 				}).Else().BlockFunc(func(def *Group) {
-					def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
+					def.Return(errorMessage)
 				})
 			}
 			f(def, m)
@@ -110,11 +156,9 @@ func (u *UnionType) validateAllMembers(def *Group, receiver string, typeName str
 
 	if !u.HasNull {
 		def.If(Op("!").Id(isSet)).BlockFunc(func(def *Group) {
-			def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
+			def.Return(errorMessage)
 		})
 	}
-
-	def.Return(Nil())
 }
 
 type UnionMember struct {

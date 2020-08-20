@@ -1,17 +1,15 @@
 package protocol
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
-	// "github.com/pkg/errors"
+
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 
 const (
@@ -54,83 +52,6 @@ var RestLiMethodNameMapping = func() map[string]RestLiMethod {
 	}
 	return mapping
 }()
-
-var emptyBuffer = &bytes.Buffer{}
-
-type RestLiError struct {
-	Message        string
-	ExceptionClass string
-	StackTrace     string
-
-	Status               int         `json:"-"`
-	FullResponse         []byte      `json:"-"`
-	ResponseHeaders      http.Header `json:"-"`
-	DeserializationError error       `json:"-"`
-}
-
-func (r *RestLiError) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		io.WriteString(s, r.Error()+"\n")
-		io.WriteString(s, r.StackTrace)
-	case 's':
-		io.WriteString(s, r.Error()+"\n")
-	}
-}
-
-func (r *RestLiError) Error() string {
-	return fmt.Sprintf("RestLiError(status: %d, exceptionClass: %s, message: %s)", r.Status, r.ExceptionClass, r.Message)
-}
-
-func IsErrorResponse(res *http.Response) error {
-	var err error
-	var body []byte
-
-	if strings.ToLower(res.Header.Get(RestLiHeader_ErrorResponse)) == "true" {
-		defer res.Body.Close()
-		body, err = ioutil.ReadAll(res.Body)
-		if err != nil {
-			return err
-		}
-		restLiError := &RestLiError{
-			Status:          res.StatusCode,
-			FullResponse:    body,
-			ResponseHeaders: res.Header,
-		}
-		if deserializationError := json.Unmarshal(body, restLiError); deserializationError != nil {
-			restLiError.DeserializationError = deserializationError
-		}
-		return restLiError
-	}
-
-	if res.StatusCode >= 500 {
-		defer res.Body.Close()
-		body, err = ioutil.ReadAll(res.Body)
-		if err != nil {
-			return err
-		}
-		return errors.New(string(body))
-	}
-
-	return nil
-}
-
-type SimpleHostnameSupplier struct {
-	Hostname *url.URL
-}
-
-func (s *SimpleHostnameSupplier) ResolveHostnameAndContextForQuery(string, *url.URL) (*url.URL, error) {
-	return s.Hostname, nil
-}
-
-type HostnameResolver interface {
-	// ResolveHostnameAndContextForQuery takes in the name of the service for which to resolve the hostname, along with
-	// the URL for the query that is about to be sent. The service name is often the top-level parent resource's name,
-	// but can be any unique identifier for a D2 endpoint. Some HostnameResolver implementations will choose to ignore
-	// this parameter and resolve hostnames using a different strategy. By default, the generated code will always pass
-	// in the top-level parent resource's name.
-	ResolveHostnameAndContextForQuery(serviceName string, query *url.URL) (*url.URL, error)
-}
 
 type RestLiClient struct {
 	*http.Client
@@ -175,8 +96,9 @@ func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
 	req.Header.Set(RestLiHeader_Method, method.String())
 }
 
-func (c *RestLiClient) GetRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), emptyBuffer)
+// GetRequest creates a GET http.Request and sets the expected rest.li headers
+func GetRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +109,9 @@ func (c *RestLiClient) GetRequest(ctx context.Context, url *url.URL, method Rest
 	return req, nil
 }
 
-func (c *RestLiClient) DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url.String(), emptyBuffer)
+// DeleteRequest creates a DELETE http.Request and sets the expected rest.li headers
+func DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url.String(), http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -199,21 +122,22 @@ func (c *RestLiClient) DeleteRequest(ctx context.Context, url *url.URL, method R
 	return req, nil
 }
 
-func (c *RestLiClient) JsonPutRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
-	return jsonRequest(ctx, url, http.MethodPut, restLiMethod, contents)
-}
-
-func (c *RestLiClient) JsonPostRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
-	return jsonRequest(ctx, url, http.MethodPost, restLiMethod, contents)
-}
-
-func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
-	buf, err := json.Marshal(contents)
+// JsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
+// request with the given restlicodec.Marshaler contents (see RawJsonRequest)
+func JsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents restlicodec.Marshaler) (*http.Request, error) {
+	writer := restlicodec.NewCompactJsonWriter()
+	err := contents.MarshalRestLi(writer)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), bytes.NewBuffer(buf))
+	return RawJsonRequest(ctx, url, httpMethod, restLiMethod, writer.ReadCloser())
+}
+
+// JsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
+// request with the given reader
+func RawJsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), contents)
 	if err != nil {
 		return nil, err
 	}
@@ -221,17 +145,6 @@ func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMet
 	SetRestLiHeaders(req, restLiMethod)
 	SetJsonAcceptHeader(req)
 	SetJsonContentTypeHeader(req)
-
-	return req, nil
-}
-
-func (c *RestLiClient) RawPostRequest(url *url.URL, method RestLiMethod, contents []byte) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(contents))
-	if err != nil {
-		return nil, err
-	}
-
-	SetRestLiHeaders(req, method)
 
 	return req, nil
 }
@@ -245,7 +158,7 @@ func (c *RestLiClient) Do(req *http.Request) (*http.Response, error) {
 		return res, err
 	}
 
-	err = IsErrorResponse(res)
+	err = IsErrorResponse(req, res)
 	if err != nil {
 		return nil, err
 	}
@@ -255,15 +168,15 @@ func (c *RestLiClient) Do(req *http.Request) (*http.Response, error) {
 
 // DoAndDecode calls Do and attempts to unmarshal the response into the given value. The response body will always be
 // read to EOF and closed, to ensure the connection can be reused.
-func (c *RestLiClient) DoAndDecode(req *http.Request, v interface{}) (res *http.Response, err error) {
+func (c *RestLiClient) DoAndDecode(req *http.Request, v restlicodec.Unmarshaler) (*http.Response, error) {
 	return c.doAndConsumeBody(req, func(body []byte) error {
-		return json.Unmarshal(body, v)
+		return v.UnmarshalRestLi(restlicodec.NewJsonReader(body))
 	})
 }
 
 // DoAndDecode calls Do and drops the response's body. The response body will always be read to EOF and closed, to
 // ensure the connection can be reused.
-func (c *RestLiClient) DoAndIgnore(req *http.Request) (res *http.Response, err error) {
+func (c *RestLiClient) DoAndIgnore(req *http.Request) (*http.Response, error) {
 	return c.doAndConsumeBody(req, func([]byte) error {
 		return nil
 	})

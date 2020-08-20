@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -15,6 +14,10 @@ func (m *Method) finderFuncName() string {
 
 func (m *Method) finderStructType() string {
 	return FindBy + ExportedIdentifier(m.Name) + "Params"
+}
+
+func (m *Method) finderResultsStructType() string {
+	return FindBy + ExportedIdentifier(m.Name) + "Results"
 }
 
 func (r *Resource) finderFuncParams(m *Method, def *Group) {
@@ -54,17 +57,33 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		Fields: f.Params,
 	}
 	c.Code.Add(params.generateStruct()).Line().Line()
-	c.Code.Add(params.generateQueryParamEncoder(&f.Name))
+	c.Code.Add(params.generateQueryParamMarshaler(&f.Name)).Line().Line()
+
+	results := &Record{
+		NamedType: NamedType{
+			Identifier: Identifier{
+				Name:      f.finderResultsStructType(),
+				Namespace: r.Namespace,
+			},
+			Doc: fmt.Sprintf("This struct deserializes the response from the %s finder", f.Name),
+		},
+		Fields: []Field{{
+			Type: RestliType{Array: f.Return},
+			Name: "elements",
+		}},
+	}
+	c.Code.Add(results.generateStruct()).Line().Line()
+	c.Code.Add(results.generateUnmarshalRestLi()).Line().Line()
 
 	r.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
 		formatQueryUrl(r, f, def, Nil(), Err())
 
-		def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("GetRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_finder))
-		IfErrReturn(def, Nil(), Err()).Line()
-
 		accessor := Id("elements")
-		def.Var().Add(accessor).Struct(Id("Elements").Add(f.finderReturnType()))
-		callDoAndDecode(def, Op("&").Add(accessor), Nil())
+		def.Var().Add(accessor).Id(f.finderResultsStructType())
+
+		def.Err().Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(Id(ContextVar), Id(UrlVar), Op("&").Add(accessor))
+		def.Add(IfErrReturn(Nil(), Err())).Line()
+
 		def.Return(Add(accessor).Dot("Elements"), Nil())
 	})
 

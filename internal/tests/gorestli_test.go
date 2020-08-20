@@ -77,7 +77,7 @@ func TestGoRestli(rootT *testing.T) {
 	serverUrl, _ := url.Parse(s.server.URL)
 	s.client = &protocol.RestLiClient{
 		Client:           &http.Client{},
-		HostnameResolver: &protocol.SimpleHostnameSupplier{Hostname: serverUrl},
+		HostnameResolver: &protocol.SimpleHostnameResolver{Hostname: serverUrl},
 	}
 
 	operations := make(map[string]Operation)
@@ -198,13 +198,12 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 func writeErrorResponse(res http.ResponseWriter, format string, args ...interface{}) {
 	err := &protocol.RestLiError{
-		Status:     UnexpectedRequestStatus,
 		StackTrace: string(debug.Stack()),
 		Message:    fmt.Sprintf(format, args...),
 	}
 	response, _ := json.Marshal(err)
 	res.Header().Add(protocol.RestLiHeader_ErrorResponse, fmt.Sprint(true))
-	http.Error(res, string(response), err.Status)
+	http.Error(res, string(response), UnexpectedRequestStatus)
 }
 
 func queriesEqual(expected url.Values, actual url.Values) error {
