@@ -11,7 +11,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
 	// "github.com/pkg/errors"
+
+	"github.com/PapaCharlie/go-restli/protocol/restliencoding"
 )
 
 const (
@@ -198,21 +201,32 @@ func (c *RestLiClient) DeleteRequest(ctx context.Context, url *url.URL, method R
 	return req, nil
 }
 
-func (c *RestLiClient) JsonPutRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+func (c *RestLiClient) ActionRequest(ctx context.Context, url *url.URL, params restliencoding.Encodable) (*http.Request, error) {
+	return c.JsonPostRequest(ctx, url, Method_action, params)
+}
+
+func (c *RestLiClient) PartialUpdateRequest(ctx context.Context, url *url.URL, patch restliencoding.Encodable) (*http.Request, error) {
+	return c.JsonPostRequest(ctx, url, Method_partial_update, &PartialUpdate{Patch: patch})
+}
+
+func (c *RestLiClient) JsonPutRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents restliencoding.Encodable) (*http.Request, error) {
 	return jsonRequest(ctx, url, http.MethodPut, restLiMethod, contents)
 }
 
-func (c *RestLiClient) JsonPostRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
+func (c *RestLiClient) JsonPostRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents restliencoding.Encodable) (*http.Request, error) {
 	return jsonRequest(ctx, url, http.MethodPost, restLiMethod, contents)
 }
 
-func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents interface{}) (*http.Request, error) {
-	buf, err := json.Marshal(contents)
+func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents restliencoding.Encodable) (*http.Request, error) {
+	encoder := restliencoding.NewCompactJsonEncoder()
+	err := contents.RestLiEncode(encoder)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), bytes.NewBuffer(buf))
+	data := encoder.Finalize()
+
+	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), strings.NewReader(data))
 	if err != nil {
 		return nil, err
 	}

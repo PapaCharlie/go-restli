@@ -1,4 +1,4 @@
-package restlicodec
+package restliencoding
 
 import (
 	"fmt"
@@ -11,8 +11,7 @@ func TestEncoder(t *testing.T) {
 		NewPrettyJsonEncoder(),
 		NewHeaderEncoder(),
 		NewPathEncoder(),
-		NewQueryEncoder(),
-		NewFinderEncoder(),
+		NewQueryParamsEncoder(),
 	}
 
 	for _, e := range encoders {

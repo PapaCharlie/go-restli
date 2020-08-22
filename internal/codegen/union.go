@@ -68,18 +68,20 @@ func (u *UnionType) validateUnionFields(def *Group, receiver string, typeName st
 	u.validateAllMembers(def, receiver, typeName, func(*Group, UnionMember) {
 		// nothing to do when simply validating
 	})
+	def.Return(Nil())
 }
 
 func (u *UnionType) encode(def *Group, receiver string, typeName string, encoderAccessor *Statement) {
+	def.Add(Encoder.WriteObjectStart())
 	u.validateAllMembers(def, receiver, typeName, func(def *Group, m UnionMember) {
-		writeStringToBuf(def, Lit("("+m.Alias+":"))
 		fieldAccessor := Id(receiver).Dot(m.name())
 		if m.Type.Reference == nil {
 			fieldAccessor = Op("*").Add(fieldAccessor)
 		}
-		m.Type.WriteToBuf(def, fieldAccessor, encoderAccessor)
-		def.Id("buf").Dot("WriteByte").Call(LitRune(')'))
+		Encoder.WriteField(def, m.Alias, m.Type, fieldAccessor)
 	})
+	def.Add(Encoder.WriteObjectEnd())
+	def.Return(Nil())
 }
 
 func (u *UnionType) validateAllMembers(def *Group, receiver string, typeName string, f func(def *Group, m UnionMember)) {
@@ -113,8 +115,6 @@ func (u *UnionType) validateAllMembers(def *Group, receiver string, typeName str
 			def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage)))
 		})
 	}
-
-	def.Return(Nil())
 }
 
 type UnionMember struct {

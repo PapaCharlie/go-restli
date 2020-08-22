@@ -20,7 +20,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	def.Type().Id(r.Name).Add(r.Type.GoType()).Line().Line()
 
 	AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
-		writeStringToBuf(def, r.Type.encode(Id(Codec), r.Type.Cast(Op("*").Id(r.Receiver()))))
+		Encoder.Write(def, RestliType{Primitive: r.Type}, r.Type.Cast(Op("*").Id(r.Receiver())))
 		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, r.Receiver(), r.Name, func(def *Group) {

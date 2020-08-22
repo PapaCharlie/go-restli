@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
+import com.linkedin.restli.restspec.CustomAnnotationContentSchema;
+import com.linkedin.restli.restspec.CustomAnnotationContentSchemaMap;
 import io.papacharlie.gorestli.json.RestliType.GoPrimitive;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -11,7 +13,9 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 
 
@@ -84,5 +88,19 @@ public class Utils {
     }
 
     return buf.toString();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Set<String> extractAnnotationValue(CustomAnnotationContentSchemaMap annotations, String key) {
+    if (annotations == null) {
+      return null;
+    }
+
+    CustomAnnotationContentSchema customAnnotations = annotations.get(key);
+    if (customAnnotations == null) {
+      return null;
+    }
+
+    return new HashSet<>((List<String>) customAnnotations.data().get("value"));
   }
 }

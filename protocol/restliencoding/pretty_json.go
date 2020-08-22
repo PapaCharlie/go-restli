@@ -1,4 +1,4 @@
-package restlicodec
+package restliencoding
 
 type prettyJsonEncoder struct {
 	compactJsonEncoder

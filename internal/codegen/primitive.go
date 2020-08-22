@@ -105,3 +105,7 @@ func (p *PrimitiveType) encode(encoderAccessor *Statement, accessor *Statement) 
 func (p *PrimitiveType) decode(encoderAccessor *Statement, accessor *Statement) *Statement {
 	return Add(encoderAccessor).Dot("Decode"+ExportedIdentifier(p.Type)).Call(Id("data"), Call(Op("*").Add(p.GoType())).Call(accessor))
 }
+
+func (p *PrimitiveType) EncoderName() string {
+	return ExportedIdentifier(p.Type)
+}

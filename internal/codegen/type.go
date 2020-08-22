@@ -112,6 +112,10 @@ func (t *RestliType) ShouldReference() bool {
 	return true
 }
 
+func (t *RestliType) IsReferenceEncodable() bool {
+	return t.Reference != nil && !t.ShouldReference()
+}
+
 func (t *RestliType) ReferencedType() *Statement {
 	if t.ShouldReference() {
 		return t.PointerType()

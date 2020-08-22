@@ -19,7 +19,7 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		Type().Id(ck.Name).
 		StructFunc(func(def *Group) {
 			def.Add(ck.Key.Qual())
-			def.Id("Params").Op("*").Add(ck.Params.Qual()).Tag(JsonFieldTag("$params", false))
+			def.Id(ComplexKeyParams).Op("*").Add(ck.Params.Qual()).Tag(JsonFieldTag("$params", false))
 		}).Line().Line()
 
 	record := &Record{
@@ -28,7 +28,7 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 	}
 
 	return AddRestLiEncode(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.generateEncoder(def, false, nil, &ck.Params)
+		record.generateEncoder(def, false, nil, Id(record.Receiver()).Dot(ck.Key.Name))
 		def.Return(Nil())
 	})
 }

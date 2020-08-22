@@ -1,4 +1,4 @@
-package restlicodec
+package restliencoding
 
 import (
 	"io"

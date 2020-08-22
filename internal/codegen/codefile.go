@@ -33,12 +33,15 @@ const (
 
 	PopulateDefaultValues = "populateDefaultValues"
 	ValidateUnionFields   = "ValidateUnionFields"
+	ComplexKeyParams      = "Params"
 
 	PartialUpdate = "_PartialUpdate"
 
 	NetHttp = "net/http"
 
-	ProtocolPackage = "github.com/PapaCharlie/go-restli/protocol"
+	ProtocolPackage       = "github.com/PapaCharlie/go-restli/protocol"
+	RestLiEncodingPackage = ProtocolPackage + "/restliencoding"
+	RestLiDecodingPackage = ProtocolPackage + "/restlidecoding"
 
 	ReadOnlyPermissions = os.FileMode(0444)
 )
@@ -199,13 +202,6 @@ func AddFuncOnReceiver(def *Statement, receiver, typeName, funcName string) *Sta
 		Id(funcName)
 }
 
-func AddMarshalJSON(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, MarshalJSON).
-		Params().
-		Params(Id("data").Index().Byte(), Err().Error()).
-		BlockFunc(f)
-}
-
 func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
 	return AddFuncOnReceiver(def, receiver, typeName, UnmarshalJSON).
 		Params(Id("data").Index().Byte()).
@@ -214,17 +210,42 @@ func AddUnmarshalJSON(def *Statement, receiver, typeName string, f func(def *Gro
 }
 
 func AddRestLiEncode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, RestLiEncode).
-		Params(Id(Codec).Op("*").Qual(ProtocolPackage, RestLiCodec), Id("buf").Op("*").Qual("strings", "Builder")).
+	AddFuncOnReceiver(def, receiver, typeName, RestLiEncode).
+		Params(Add(Encoder).Op("*").Qual(RestLiEncodingPackage, "Encoder")).
 		Params(Err().Error()).
-		BlockFunc(f)
+		BlockFunc(f).
+		Line().Line()
+
+	AddFuncOnReceiver(def, receiver, typeName, MarshalJSON).
+		Params().
+		Params(Id("data").Index().Byte(), Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Encoder).Op(":=").Qual(RestLiEncodingPackage, "NewCompactJsonEncoder").Call()
+			def.Err().Op("=").Id(receiver).Dot(RestLiEncode).Call(Encoder)
+			IfErrReturn(def, Nil(), Err())
+			def.Return(Index().Byte().Call(Add(Encoder.Finalize())), Nil())
+		}).Line().Line()
+
+	return def
 }
 
 func AddRestLiDecode(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, RestLiDecode).
-		Params(Id(Codec).Op("*").Qual(ProtocolPackage, RestLiCodec), Id("data").String()).
+	AddFuncOnReceiver(def, receiver, typeName, RestLiDecode).
+		Params(Id(Codec).Op("*").Qual(RestLiDecodingPackage, "Decoder"), Id("data").String()).
 		Params(Err().Error()).
-		BlockFunc(f)
+		BlockFunc(f).
+		Line().Line()
+
+	data := Id("data")
+	AddFuncOnReceiver(def, receiver, typeName, UnmarshalJSON).
+		Params(Add(data).Index().Byte()).
+		Params(Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Decoder).Op(":=").Qual(RestLiDecodingPackage, "NewJsonDecoder").Call(data)
+			def.Return(Id(receiver).Dot(RestLiDecode).Call(Decoder))
+		})
+
+	return def
 }
 
 func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {

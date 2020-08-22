@@ -24,10 +24,6 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	receiver := ReceiverName(f.Name)
 	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.Name, f.Size)
 
-	AddMarshalJSON(def, receiver, f.Name, func(def *Group) {
-		def.Id("bytes").Op(":=").Add(Bytes()).Call(Id(receiver).Index(Op(":")))
-		def.Return(Id("bytes").Dot(MarshalJSON).Call())
-	}).Line().Line()
 	AddUnmarshalJSON(def, receiver, f.Name, func(def *Group) {
 		def.Id("bytes").Op(":=").Make(Bytes(), Lit(f.Size))
 		def.Err().Op("=").Id("bytes").Dot(UnmarshalJSON).Call(Id("data"))
@@ -41,7 +37,7 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	}).Line().Line()
 
 	AddRestLiEncode(def, receiver, f.Name, func(def *Group) {
-		def.Id("buf").Dot("WriteString").Call(Id(Codec).Dot("EncodeBytes").Call(Id(receiver).Index(Op(":"))))
+		def.Add(Encoder).Dot("Bytes").Call(Id(receiver).Index(Op(":")))
 		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, receiver, f.Name, func(def *Group) {

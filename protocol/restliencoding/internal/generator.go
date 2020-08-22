@@ -19,7 +19,7 @@ var types = []struct {
 }
 
 func main() {
-	def := NewFile("restlicodec")
+	def := NewFile("restliencoding")
 
 	e := Id("e")
 	encoder := Add(e).Dot("encoder")
@@ -44,7 +44,7 @@ func main() {
 		// 	e.Bool(fieldValue)
 		// }
 		funcDef("Field", t.Type, func(def *Group) {
-			def.Add(encoder).Dot(t.Name).Call(fieldValue)
+			def.Add(e).Dot(t.Name).Call(fieldValue)
 		})
 
 		// func (e *Encoder) BoolMapField(fieldName string, fieldValue map[string]bool) {
@@ -76,7 +76,7 @@ func main() {
 					Block(Add(encoder).Dot("WriteMapEntryDelimiter").Call())
 				def.Add(encoder).Dot("WriteMapKey").Call(k)
 				def.Add(encoder).Dot("WriteMapKeyDelimiter").Call()
-				def.Add(encoder).Dot(t.Name).Call(v)
+				def.Add(e).Dot(t.Name).Call(v)
 			})
 			def.Add(encoder).Dot("WriteMapEnd").Call()
 		})
@@ -93,13 +93,14 @@ func main() {
 		// 	e.encoder.WriteArrayEnd()
 		// }
 		funcDef("ArrayField", Index().Add(t.Type), func(def *Group) {
+
 			def.Add(encoder).Dot("WriteArrayStart").Call()
 			index, item := Id("index"), Id("item")
 			def.For(List(index, item).Op(":=").Range().Add(fieldValue)).BlockFunc(func(def *Group) {
 				def.If(Add(index).Op(">").Lit(0)).Block(
 					Add(encoder).Dot("WriteArrayItemDelimiter").Call(),
 				)
-				def.Add(encoder).Dot(t.Name).Call(item)
+				def.Add(e).Dot(t.Name).Call(item)
 			})
 			def.Add(encoder).Dot("WriteArrayEnd").Call()
 		})

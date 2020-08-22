@@ -1,15 +1,12 @@
-package restlicodec
+package restliencoding
 
-import "io"
+import (
+	"io"
+)
 
 type Encodable interface {
 	RestLiEncode(*Encoder) error
 }
-
-type (
-	MapEncoder   func(key string, value Encodable) error
-	ArrayEncoder func(index int, item Encodable) error
-)
 
 //go:generate go run ./internal
 type Encoder struct {
@@ -28,25 +25,16 @@ func (e *Encoder) WriteObjectEnd() {
 	e.encoder.WriteObjectEnd()
 }
 
-func (e *Encoder) writeField(name string) {
+func (e *Encoder) WriteFieldNameAndDelimiter(name string) {
 	e.encoder.WriteFieldName(name)
 	e.encoder.WriteFieldNameDelimiter()
 }
 
-func (e *Encoder) encode(v Encodable) error {
-	return v.RestLiEncode(&Encoder{encoder: e.encoder.SubEncoder()})
-}
-
-func (e *Encoder) Field(fieldName string, fieldValue Encodable) error {
-	e.writeField(fieldName)
-	return e.encode(fieldValue)
-}
-
-func (e *Encoder) MapField(fieldName string, encoderFunc func(MapEncoder) error) error {
-	e.writeField(fieldName)
+func (e *Encoder) Map(mapEncoder func(keyWriter func(key string)) error) (err error) {
 	e.encoder.WriteMapStart()
+
 	first := true
-	err := encoderFunc(func(key string, value Encodable) error {
+	err = mapEncoder(func(key string) {
 		if first {
 			first = false
 		} else {
@@ -54,29 +42,38 @@ func (e *Encoder) MapField(fieldName string, encoderFunc func(MapEncoder) error)
 		}
 		e.encoder.WriteMapKey(key)
 		e.encoder.WriteMapKeyDelimiter()
-		return e.encode(value)
 	})
 	if err != nil {
 		return err
 	}
-	e.encoder.WriteMapEntryDelimiter()
+
+	e.encoder.WriteMapEnd()
 	return nil
 }
 
-func (e *Encoder) ArrayField(fieldName string, encoderFunc func(ArrayEncoder) error) error {
-	e.writeField(fieldName)
+func (e *Encoder) Array(arrayEncoder func(indexWriter func(index int)) error) (err error) {
 	e.encoder.WriteArrayStart()
-	err := encoderFunc(func(i int, v Encodable) error {
-		if i > 0 {
+	err = arrayEncoder(func(index int) {
+		if index > 0 {
 			e.encoder.WriteArrayItemDelimiter()
 		}
-		return e.encode(v)
 	})
 	if err != nil {
 		return err
 	}
 	e.encoder.WriteArrayEnd()
 	return nil
+}
+
+func (e *Encoder) Int32(v int32)     { e.encoder.Int32(v) }
+func (e *Encoder) Int64(v int64)     { e.encoder.Int64(v) }
+func (e *Encoder) Float32(v float32) { e.encoder.Float32(v) }
+func (e *Encoder) Float64(v float64) { e.encoder.Float64(v) }
+func (e *Encoder) Bool(v bool)       { e.encoder.Bool(v) }
+func (e *Encoder) String(v string)   { e.encoder.String(v) }
+func (e *Encoder) Bytes(v []byte)    { e.encoder.Bytes(v) }
+func (e *Encoder) Encodable(v Encodable) error {
+	return v.RestLiEncode(&Encoder{encoder: e.encoder.SubEncoder()})
 }
 
 func (e *Encoder) Finalize() string {

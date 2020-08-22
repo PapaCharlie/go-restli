@@ -1,4 +1,4 @@
-package restlicodec
+package restliencoding
 
 import (
 	"io"
@@ -13,18 +13,6 @@ const emptyString = `''`
 type urlEncoder struct {
 	jwriter.Writer
 	stringEscaper func(string) string
-}
-
-func NewPathEncoder() *Encoder {
-	return &Encoder{encoder: &urlEncoder{
-		stringEscaper: url.PathEscape,
-	}}
-}
-
-func NewQueryEncoder() *Encoder {
-	return &Encoder{encoder: &urlEncoder{
-		stringEscaper: url.QueryEscape,
-	}}
 }
 
 var headerEncodingEscaper = strings.NewReplacer(

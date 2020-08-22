@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -56,6 +55,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 			Fields: a.Params,
 		}
 		c.Code.Add(record.generateStruct()).Line()
+		c.Code.Add(record.generateRestliEncoder()).Line()
 	}
 
 	r.addClientFuncDeclarations(c.Code, ClientType, a, func(def *Group) {
@@ -76,19 +76,19 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 
 		def.List(Id(PathVar), Err()).Op(":=").Id(pathFunc).Call(a.entityParams()...)
 		IfErrReturn(def, errReturnParams...).Line()
-		def.Id(PathVar).Op("+=").Lit("?action=").Op("+").Id(actionNameConst)
 
 		r.callFormatQueryUrl(def)
 		IfErrReturn(def, errReturnParams...).Line()
+		def.Id(UrlVar).Dot("RawQuery").Op("=").Lit("action=" + a.Name)
 
 		req := def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver)
 		var params *Statement
 		if hasParams {
 			params = Id("params")
 		} else {
-			params = Struct().Block()
+			params = Op("&").Qual(ProtocolPackage, "EmptyRecord").Block()
 		}
-		req.Dot("JsonPostRequest").Call(Id(ContextVar), Id(UrlVar), RestLiMethod(protocol.Method_action), params)
+		req.Dot("ActionRequest").Call(Id(ContextVar), Id(UrlVar), params)
 		IfErrReturn(def, errReturnParams...).Line()
 
 		if returns {

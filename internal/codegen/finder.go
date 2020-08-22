@@ -54,7 +54,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		Fields: f.Params,
 	}
 	c.Code.Add(params.generateStruct()).Line().Line()
-	c.Code.Add(params.generateQueryParamEncoder(&f.Name))
+	c.Code.Add(params.generateQueryParamEncoder(&f.Name)).Line().Line()
 
 	r.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
 		formatQueryUrl(r, f, def, Nil(), Err())

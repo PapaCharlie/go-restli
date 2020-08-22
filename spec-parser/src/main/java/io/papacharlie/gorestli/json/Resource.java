@@ -1,8 +1,9 @@
 package io.papacharlie.gorestli.json;
 
-import io.papacharlie.gorestli.Utils;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 
 public class Resource {
@@ -11,18 +12,23 @@ public class Resource {
   public final String _sourceFile;
   public final String _rootResourceName;
   public final RestliType _resourceSchema;
-  public List<Method> _methods;
+  public final Set<String> _readOnlyFields;
+  public final Set<String> _createOnlyFields;
+  public final List<Method> _methods = new ArrayList<>();
 
-  public Resource(String namespace, String doc, String sourceFile, String rootResourceName, RestliType resourceSchema) {
+  public Resource(String namespace, String doc, String sourceFile, String rootResourceName, RestliType resourceSchema,
+      Set<String> readOnlyFields, Set<String> createOnlyFields) {
     _namespace = namespace;
     _doc = doc;
     _sourceFile = sourceFile;
     _rootResourceName = rootResourceName;
     _resourceSchema = resourceSchema;
+    _readOnlyFields = readOnlyFields;
+    _createOnlyFields = createOnlyFields;
   }
 
   public Resource addMethod(Method m) {
-    _methods = Utils.append(_methods, m);
+    _methods.add(m);
     return this;
   }
 

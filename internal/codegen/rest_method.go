@@ -104,8 +104,8 @@ func isMethodSupported(m protocol.RestLiMethod) bool {
 }
 
 // https://linkedin.github.io/rest.li/user_guide/restli_server#resource-methods
-func (r *Resource) GenerateRestMethodCode(m *Method) *Statement {
-	def := Empty()
+func (r *Resource) GenerateRestMethodCode(m *Method) *CodeFile {
+	c := r.NewCodeFile(m.Name)
 
 	if len(m.Params) > 0 {
 		p := &Record{
@@ -118,13 +118,15 @@ func (r *Resource) GenerateRestMethodCode(m *Method) *Statement {
 			},
 			Fields: m.Params,
 		}
-		def.Add(p.generateStruct()).Line().Line()
-		def.Add(p.generateQueryParamEncoder(nil)).Line().Line()
+		c.Code.Add(p.generateStruct()).Line().Line()
+		c.Code.Add(p.generateQueryParamEncoder(nil)).Line().Line()
 	}
 
-	return r.addClientFuncDeclarations(def, ClientType, m, func(def *Group) {
+	r.addClientFuncDeclarations(c.Code, ClientType, m, func(def *Group) {
 		generators[m.RestLiMethod()](r, m, def)
 	})
+
+	return c
 }
 
 func (m *Method) callResourcePath(def *Group) {
@@ -215,13 +217,10 @@ func generateUpdate(r *Resource, m *Method, def *Group) {
 func generatePartialUpdate(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("JsonPostRequest").Call(
+	def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver).Dot("PartialUpdateRequest").Call(
 		Id(ContextVar),
 		Id(UrlVar),
-		RestLiMethod(protocol.Method_partial_update),
-		Op("&").Struct(
-			Id("Patch").Add(Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct())).Tag(JsonFieldTag("patch", false)),
-		).Values(Dict{Id("Patch"): Id(UpdateParam)}),
+		Id(UpdateParam),
 	)
 	IfErrReturn(def, Err()).Line()
 
@@ -253,14 +252,11 @@ func formatQueryUrl(r *Resource, m *Method, def *Group, returns ...Code) {
 	m.callResourcePath(def)
 	IfErrReturn(def, returns...).Line()
 
-	if len(m.Params) > 0 {
-		def.BlockFunc(func(def *Group) {
-			def.List(Id("query"), Err()).Op(":=").Id(QueryParams).Dot(EncodeQueryParams).Call()
-			IfErrReturn(def, returns...)
-			def.Id(PathVar).Op("+=").Lit("?").Op("+").Id("query")
-		})
-	}
-
 	r.callFormatQueryUrl(def)
 	IfErrReturn(def, returns...).Line()
+
+	if len(m.Params) > 0 {
+		def.List(Id(UrlVar).Dot("RawQuery"), Err()).Op("=").Id(QueryParams).Dot(EncodeQueryParams).Call()
+		IfErrReturn(def, returns...)
+	}
 }
