@@ -58,11 +58,11 @@ var RestLiMethodNameMapping = func() map[string]RestLiMethod {
 var emptyBuffer = &bytes.Buffer{}
 
 type RestLiError struct {
-	Status         int
 	Message        string
 	ExceptionClass string
 	StackTrace     string
 
+	Status               int         `json:"-"`
 	FullResponse         []byte      `json:"-"`
 	ResponseHeaders      http.Header `json:"-"`
 	DeserializationError error       `json:"-"`
@@ -93,6 +93,7 @@ func IsErrorResponse(res *http.Response) error {
 			return err
 		}
 		restLiError := &RestLiError{
+			Status:          res.StatusCode,
 			FullResponse:    body,
 			ResponseHeaders: res.Header,
 		}
