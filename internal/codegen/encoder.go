@@ -3,90 +3,68 @@ package codegen
 import (
 	"log"
 
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	. "github.com/dave/jennifer/jen"
 )
 
-type encoder struct {
-	*Statement
+type writer struct {
+	Code
 }
 
-var Encoder = &encoder{Id("encoder")}
+var Writer = &writer{Id("writer")}
+var pubWriter restlicodec.Writer
+var WriterQual Code = Qual(RestLiCodecPackage, "Writer")
 
-func (e *encoder) WriteObjectStart() *Statement {
-	return Add(e).Dot("WriteObjectStart").Call()
+func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
+	keyWriter := Id("keyWriter")
+	keyWriterFunc := Add(keyWriter).Func().Params(String()).Add(WriterQual)
+	return Add(writerAccessor).Dot("WriteMap").Call(Func().Params(keyWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
+		writer(keyWriter, def)
+	}))
 }
 
-func (e *encoder) WriteObjectEnd() *Statement {
-	return Add(e).Dot("WriteObjectEnd").Call()
+func (e *writer) WriteArray(writerAccessor Code, writer func(itemWriter Code, def *Group)) Code {
+	itemWriter := Id("itemWriter")
+	itemWriterFunc := Add(itemWriter).Func().Params().Add(WriterQual)
+	return Add(writerAccessor).Dot("WriteArray").Call(Func().Params(itemWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
+		writer(itemWriter, def)
+	}))
 }
 
-func (e *encoder) WriteFieldDelimiter() *Statement {
-	return Add(e).Dot("WriteFieldDelimiter").Call()
-}
-
-func (e *encoder) WriteFieldNameAndDelimiter(fieldName string) *Statement {
-	return Add(e).Dot("WriteFieldNameAndDelimiter").Call(Lit(fieldName))
-}
-
-func (e *encoder) WriteField(def *Group, fieldName string, t RestliType, fieldAccessor *Statement, returnOnError ...Code) {
-	def.Add(e.WriteFieldNameAndDelimiter(fieldName))
-	e.Write(def, t, fieldAccessor, returnOnError...)
-}
-
-func (e *encoder) Write(def *Group, t RestliType, accessor *Statement, returnOnError ...Code) {
+func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, returnOnError ...Code) Code {
 	switch {
 	case t.Primitive != nil:
-		def.Add(e).Dot(t.Primitive.EncoderName()).Call(accessor)
-		return
+		return Add(writerAccessor).Dot(t.Primitive.WriterName()).Call(sourceAccessor)
 	case t.Reference != nil:
-		def.Err().Op("=").Add(e).Dot("Encodable").Call(accessor)
-		IfErrReturn(def, append(append([]Code(nil), returnOnError...), Err())...)
+		def := Err().Op("=").Add(sourceAccessor).Dot(MarshalRestLi).Call(writerAccessor).Line()
+		def.Add(IfErrReturn(returnOnError...))
+		return def
 	case t.Array != nil:
-		e.ArrayEncoder(def, func(def *Group, indexWriter *Statement) {
-			index, item := Id("index"), Id("item")
-			def.For(List(index, item).Op(":=").Range().Add(accessor)).BlockFunc(func(def *Group) {
-				def.Add(indexWriter).Call(index)
-				if t.Array.IsReferenceEncodable() {
-					item = Op("&").Add(item)
-				}
-				e.Write(def, *t.Array, item)
+		def := Err().Op("=").Add(e.WriteArray(writerAccessor, func(itemWriter Code, def *Group) {
+			item := Id("item")
+			def.For(List(Id("_"), item).Op(":=").Range().Add(sourceAccessor)).BlockFunc(func(def *Group) {
+				def.Add(e.Write(*t.Array, Add(itemWriter).Call(), item, Err()))
 			})
 			def.Return(Nil())
-		})
-		IfErrReturn(def, append(append([]Code(nil), returnOnError...), Err())...)
+		})).Line()
+		def.Add(IfErrReturn(returnOnError...))
+		return def
 	case t.Map != nil:
-		e.MapEncoder(def, func(def *Group, keyWriter *Statement) {
+		def := Err().Op("=").Add(e.WriteMap(writerAccessor, func(keyWriter Code, def *Group) {
 			key, value := Id("key"), Id("value")
-			def.For(List(key, value).Op(":=").Range().Parens(accessor)).BlockFunc(func(def *Group) {
-				def.Add(keyWriter).Call(key)
-				if t.Map.IsReferenceEncodable() {
-					value = Op("&").Add(value)
-				}
-				e.Write(def, *t.Map, value)
+			def.For(List(key, value).Op(":=").Range().Parens(sourceAccessor)).BlockFunc(func(def *Group) {
+				def.Add(e.Write(*t.Map, Add(keyWriter).Call(key), value, Err()))
 			})
 			def.Return(Nil())
-		})
-		IfErrReturn(def, append(append([]Code(nil), returnOnError...), Err())...)
+		})).Line()
+		def.Add(IfErrReturn(returnOnError...))
+		return def
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
+		return nil
 	}
 }
 
-func (e *encoder) ArrayEncoder(def *Group, block func(def *Group, indexWriter *Statement)) {
-	indexWriter := Id("indexWriter")
-	def.Err().Op("=").Add(e).Dot("Array").Call(Func().Params(Add(indexWriter).Func().Params(Id("index").Int())).Params(Err().Error()).BlockFunc(func(def *Group) {
-		block(def, indexWriter)
-	}))
-}
-
-func (e *encoder) MapEncoder(def *Group, block func(def *Group, keyWriter *Statement)) {
-	keyWriter := Id("keyWriter")
-	def.Err().Op("=").Add(e).Dot("Map").Call(Func().Params(Add(keyWriter).Func().Params(Id("key").String())).Params(Err().Error()).BlockFunc(func(def *Group) {
-		block(def, keyWriter)
-	}))
-
-}
-
-func (e *encoder) Finalize() *Statement {
+func (e *writer) Finalize() Code {
 	return Add(e).Dot("Finalize").Call()
 }

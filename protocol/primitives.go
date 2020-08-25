@@ -3,7 +3,6 @@ package protocol
 import (
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 const emptyString = `''`
@@ -36,21 +35,8 @@ func (r *RestLiCodec) EncodeString(v string) string {
 	}
 }
 
-func (r *RestLiCodec) EncodeBytes(v Bytes) string {
-	if len(v) == 0 {
-		return emptyString
-	} else {
-		return r.EncodeString(string(v))
-	}
-}
-
-func (r *RestLiCodec) Encode(e RestLiEncodable) (string, error) {
-	buf := new(strings.Builder)
-	err := e.RestLiEncode(r, buf)
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+func (r *RestLiCodec) EncodeBytes(v []byte) string {
+	return r.EncodeString(string(v))
 }
 
 func (r *RestLiCodec) DecodeInt32(data string, v *int32) error {
@@ -112,7 +98,7 @@ func (r *RestLiCodec) DecodeString(data string, v *string) error {
 	}
 }
 
-func (r *RestLiCodec) DecodeBytes(data string, v *Bytes) error {
+func (r *RestLiCodec) DecodeBytes(data string, v *[]byte) error {
 	if data == emptyString {
 		*v = nil
 		return nil
@@ -122,7 +108,7 @@ func (r *RestLiCodec) DecodeBytes(data string, v *Bytes) error {
 		if err != nil {
 			return err
 		}
-		*v = Bytes(s)
+		*v = []byte(s)
 		return nil
 	}
 }

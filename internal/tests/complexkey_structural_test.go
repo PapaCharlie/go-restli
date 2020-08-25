@@ -5,7 +5,6 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.typerefs.collectionTyperef
@@ -13,11 +12,11 @@ var _ = complexkey.Client(new(complexKeyClient))
 
 type complexKeyClient int
 
-func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (protocol.RawComplexKey, error) {
+func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (*complexkey.Complexkey_ComplexKey, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) CreateWithContext(context.Context, *conflictresolution.LargeRecord) (protocol.RawComplexKey, error) {
+func (c *complexKeyClient) CreateWithContext(context.Context, *conflictresolution.LargeRecord) (*complexkey.Complexkey_ComplexKey, error) {
 	panic(nil)
 }
 

@@ -79,7 +79,7 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 		ParamsFunc(func(def *Group) { m.addEntityTypes(def) }).
 		Params(Id("path").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Encoder).Op(":=").Qual(RestLiEncodingPackage, "NewPathEncoder").Call()
+			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewPathWriter").Call()
 
 			path := m.Path
 			for _, pk := range m.PathKeys {
@@ -88,22 +88,18 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 				if idx < 0 {
 					Logger.Panicf("%s does not appear in %s", pattern, path)
 				}
-				def.Add(Encoder).Dot("RawPathSegment").Call(Lit(path[:idx]))
+				def.Add(Writer).Dot("RawPathSegment").Call(Lit(path[:idx]))
 				path = path[idx+len(pattern):]
 
-				accessor := Id(pk.Name)
-				if pk.Type.Reference != nil && !pk.Type.ShouldReference() {
-					accessor = Op("&").Add(accessor)
-				}
-				Encoder.Write(def, pk.Type, accessor, Lit(""))
+				def.Add(Writer.Write(pk.Type, Writer, Id(pk.Name), Lit(""), Err()))
 			}
 			def.Line()
 
 			if path != "" {
-				def.Add(Encoder).Dot("RawPathSegment").Call(Lit(path))
+				def.Add(Writer).Dot("RawPathSegment").Call(Lit(path))
 			}
 
-			def.Return(Encoder.Finalize(), Nil())
+			def.Return(Writer.Finalize(), Nil())
 		}).Line().Line()
 }
 

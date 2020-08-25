@@ -79,36 +79,27 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		def.Return(val)
 	}).Line().Line()
 
-	AddFuncOnReceiver(def, receiver, e.Name, "Pointer").
-		Params().
+	def.Func().
+		Params(Id(receiver).Id(e.Name)).
+		Id("Pointer").Params().
 		Op("*").Id(e.Name).
 		BlockFunc(func(def *Group) {
-			def.Return(Id(receiver))
+			def.Return(Op("&").Id(receiver))
 		}).Line().Line()
 
-	AddUnmarshalJSON(def, receiver, e.Name, func(def *Group) {
-		value := Id("value")
-		def.Var().Add(value).String()
-		def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Op("&").Add(value))
-		IfErrReturn(def)
-		def.Line()
-
-		def.Op("*").Id(receiver).Op("=").Id(values).Index(value)
-		def.Return()
-	}).Line().Line()
-
-	AddRestLiEncode(def, receiver, e.Name, func(def *Group) {
+	AddMarshalRestLi(def, receiver, e.Name, func(def *Group) {
 		val, ok := getEnumString(def)
 		def.If(Op("!").Add(ok)).Block(
 			Return(Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("illegal %q: %%d", e.Identifier)), Int().Call(accessor))),
 		)
-		def.List(Encoder).Dot("String").Call(val)
+		def.List(Writer).Dot("WriteString").Call(val)
 		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, receiver, e.Name, func(def *Group) {
-		def.Var().Id("value").String()
-		def.Err().Op("=").Id(Codec).Dot("DecodeString").Call(Id("data"), Op("&").Id("value"))
-		IfErrReturn(def, Err())
+		value := Id("value")
+		def.Var().Add(value).String()
+		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, value))
+		def.Add(IfErrReturn(Err()))
 		def.Line()
 
 		def.Op("*").Id(receiver).Op("=").Id(values).Index(Id("value"))
@@ -120,4 +111,8 @@ func (e *Enum) GenerateCode() (def *Statement) {
 
 func (e *Enum) SymbolIdentifier(symbol string) string {
 	return ExportedIdentifier(e.Name + "_" + symbol)
+}
+
+func (e *Enum) zeroValueLit() *Statement {
+	return e.Qual().Call(Lit(0))
 }

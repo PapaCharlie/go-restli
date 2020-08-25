@@ -12,9 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	// "github.com/pkg/errors"
-
-	"github.com/PapaCharlie/go-restli/protocol/restliencoding"
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 
 const (
@@ -177,19 +175,7 @@ func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
 	req.Header.Set(RestLiHeader_Method, method.String())
 }
 
-func (c *RestLiClient) GetRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), emptyBuffer)
-	if err != nil {
-		return nil, err
-	}
-
-	SetRestLiHeaders(req, method)
-	SetJsonAcceptHeader(req)
-
-	return req, nil
-}
-
-func (c *RestLiClient) DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
+func DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
@@ -201,32 +187,30 @@ func (c *RestLiClient) DeleteRequest(ctx context.Context, url *url.URL, method R
 	return req, nil
 }
 
-func (c *RestLiClient) ActionRequest(ctx context.Context, url *url.URL, params restliencoding.Encodable) (*http.Request, error) {
-	return c.JsonPostRequest(ctx, url, Method_action, params)
-}
-
-func (c *RestLiClient) PartialUpdateRequest(ctx context.Context, url *url.URL, patch restliencoding.Encodable) (*http.Request, error) {
-	return c.JsonPostRequest(ctx, url, Method_partial_update, &PartialUpdate{Patch: patch})
-}
-
-func (c *RestLiClient) JsonPutRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents restliencoding.Encodable) (*http.Request, error) {
-	return jsonRequest(ctx, url, http.MethodPut, restLiMethod, contents)
-}
-
-func (c *RestLiClient) JsonPostRequest(ctx context.Context, url *url.URL, restLiMethod RestLiMethod, contents restliencoding.Encodable) (*http.Request, error) {
-	return jsonRequest(ctx, url, http.MethodPost, restLiMethod, contents)
-}
-
-func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents restliencoding.Encodable) (*http.Request, error) {
-	encoder := restliencoding.NewCompactJsonEncoder()
-	err := contents.RestLiEncode(encoder)
+func GetRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), emptyBuffer)
 	if err != nil {
 		return nil, err
 	}
 
-	data := encoder.Finalize()
+	SetRestLiHeaders(req, method)
+	SetJsonAcceptHeader(req)
 
-	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), strings.NewReader(data))
+	return req, nil
+}
+
+func JsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents restlicodec.Marshaler) (*http.Request, error) {
+	writer := restlicodec.NewCompactJsonWriter()
+	err := contents.MarshalRestLi(writer)
+	if err != nil {
+		return nil, err
+	}
+
+	return RawJsonRequest(ctx, url, httpMethod, restLiMethod, writer.ReadCloser())
+}
+
+func RawJsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents io.Reader) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), contents)
 	if err != nil {
 		return nil, err
 	}
@@ -234,17 +218,6 @@ func jsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMet
 	SetRestLiHeaders(req, restLiMethod)
 	SetJsonAcceptHeader(req)
 	SetJsonContentTypeHeader(req)
-
-	return req, nil
-}
-
-func (c *RestLiClient) RawPostRequest(url *url.URL, method RestLiMethod, contents []byte) (*http.Request, error) {
-	req, err := http.NewRequest(http.MethodPost, url.String(), bytes.NewBuffer(contents))
-	if err != nil {
-		return nil, err
-	}
-
-	SetRestLiHeaders(req, method)
 
 	return req, nil
 }
@@ -268,9 +241,9 @@ func (c *RestLiClient) Do(req *http.Request) (*http.Response, error) {
 
 // DoAndDecode calls Do and attempts to unmarshal the response into the given value. The response body will always be
 // read to EOF and closed, to ensure the connection can be reused.
-func (c *RestLiClient) DoAndDecode(req *http.Request, v interface{}) (res *http.Response, err error) {
+func (c *RestLiClient) DoAndDecode(req *http.Request, v restlicodec.Unmarshaler) (res *http.Response, err error) {
 	return c.doAndConsumeBody(req, func(body []byte) error {
-		return json.Unmarshal(body, v)
+		return v.UnmarshalRestLi(restlicodec.NewJsonReader(body))
 	})
 }
 

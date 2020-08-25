@@ -16,15 +16,23 @@ func (r *Typeref) InnerTypes() IdentifierSet {
 func (r *Typeref) GenerateCode() (def *Statement) {
 	def = Empty()
 
+	underlyingType := RestliType{Primitive: r.Type}
+
 	AddWordWrappedComment(def, r.Doc).Line()
 	def.Type().Id(r.Name).Add(r.Type.GoType()).Line().Line()
 
-	AddRestLiEncode(def, r.Receiver(), r.Name, func(def *Group) {
-		Encoder.Write(def, RestliType{Primitive: r.Type}, r.Type.Cast(Op("*").Id(r.Receiver())))
+	AddMarshalRestLi(def, r.Receiver(), r.Name, func(def *Group) {
+		def.Add(Writer.Write(underlyingType, Writer, r.Type.Cast(Op("*").Id(r.Receiver()))))
 		def.Return(Nil())
 	}).Line().Line()
 	AddRestLiDecode(def, r.Receiver(), r.Name, func(def *Group) {
-		def.Return(r.Type.decode(Id(Codec), Id(r.Receiver())))
+		tmp := Id("tmp")
+		def.Var().Add(tmp).Add(r.Type.GoType())
+		def.Add(Reader.Read(underlyingType, tmp))
+		def.Add(IfErrReturn(Err())).Line()
+
+		def.Op("*").Id(r.Receiver()).Op("=").Id(r.Name).Call(tmp)
+		def.Return(Nil())
 	}).Line().Line()
 
 	return def

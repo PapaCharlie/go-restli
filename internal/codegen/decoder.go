@@ -1,32 +1,73 @@
 package codegen
 
 import (
+	"log"
+
 	. "github.com/dave/jennifer/jen"
 )
 
-type decoder struct {
-	*Statement
+type reader struct {
+	Code
 }
 
-var Decoder = &decoder{Id("decoder")}
+var Reader = &reader{Id("reader")}
+var ReaderQual = Qual(RestLiCodecPackage, "Reader")
 
-func (d *decoder) ReadObject(reader func(field *Statement, def *Group)) *Statement {
-	field := Id("field")
-	return Add(d).Dot("ReadObject").Call(Func().Params(Add(field).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		reader(field, def)
-	}))
-}
-
-func (d *decoder) ReadMap(reader func(key *Statement, def *Group)) *Statement {
+func (d *reader) ReadMap(reader func(key Code, def *Group)) Code {
 	key := Id("key")
 	return Add(d).Dot("ReadMap").Call(Func().Params(Add(key).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
 		reader(key, def)
 	}))
 }
 
-func (d *decoder) ReadArray(creator func(index *Statement, def *Group)) *Statement {
-	index := Id("index")
-	return Add(d).Dot("ReadObject").Call(Func().Params(Add(index).Int()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		creator(index, def)
+func (d *reader) ReadArray(creator func(def *Group)) Code {
+	return Add(d).Dot("ReadArray").Call(Func().Params().Params(Err().Error()).BlockFunc(func(def *Group) {
+		creator(def)
 	}))
+}
+
+func (d *reader) Skip() *Statement {
+	return Add(d).Dot("Skip").Call()
+}
+
+func (d *reader) Read(t RestliType, accessor Code) Code {
+	switch {
+	case t.Primitive != nil:
+		return List(accessor, Err()).Op("=").Add(Reader).Dot(t.Primitive.ReaderName()).Call()
+	case t.Reference != nil:
+		return Err().Op("=").Add(accessor).Dot(UnmarshalRestLi).Call(d)
+	case t.Array != nil:
+		return Err().Op("=").Add(d.ReadArray(func(def *Group) {
+			item := Id("item")
+			def.Var().Add(item).Add(t.Array.GoType())
+			def.Add(d.Read(*t.Array, item))
+			def.Add(IfErrReturn(Err()))
+			if t.Array.ShouldReference() {
+				item = Op("&").Add(item)
+			}
+			def.Add(accessor).Op("=").Append(accessor, item)
+			def.Return(Nil())
+		}))
+	case t.Map != nil:
+		return Add(accessor).Op("=").Make(t.GoType()).Line().
+			Err().Op("=").
+			Add(d.ReadMap(func(key Code, def *Group) {
+				value := Id("value")
+				def.Var().Add(value).Add(t.Map.GoType())
+				// valueAccessor := value
+				// if t.Map.IsReferenceEncodable() {
+				// 	valueAccessor = Op("&").Add(value)
+				// }
+				def.Add(d.Read(*t.Map, value))
+				def.Add(IfErrReturn(Err()))
+				if t.Map.ShouldReference() {
+					value = Op("&").Add(value)
+				}
+				def.Parens(accessor).Index(key).Op("=").Add(value)
+				def.Return(Nil())
+			}))
+	default:
+		log.Panicf("Illegal restli type: %+v", t)
+		return nil
+	}
 }

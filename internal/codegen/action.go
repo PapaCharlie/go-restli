@@ -28,6 +28,10 @@ func (m *Method) actionStructType() string {
 	return m.actionFuncName() + "Params"
 }
 
+func (m *Method) actionResultsStructType() string {
+	return m.actionFuncName() + "Results"
+}
+
 func (m *Method) actionFuncReturnParams(def *Group) {
 	if m.Return != nil {
 		def.Add(m.Return.ReferencedType())
@@ -55,17 +59,28 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 			Fields: a.Params,
 		}
 		c.Code.Add(record.generateStruct()).Line()
-		c.Code.Add(record.generateRestliEncoder()).Line()
+		c.Code.Add(record.generateMarshalRestLi()).Line()
+	}
+
+	if a.Return != nil {
+		results := &Record{
+			NamedType: NamedType{
+				Identifier: Identifier{
+					Name:      a.actionResultsStructType(),
+					Namespace: r.Namespace,
+				},
+				Doc: fmt.Sprintf("This struct deserializes the response from the %s action", a.Name),
+			},
+			Fields: []Field{{
+				Type: *a.Return,
+				Name: "value",
+			}},
+		}
+		c.Code.Add(results.generateStruct()).Line().Line()
+		c.Code.Add(results.generateUnmarshalRestLi()).Line().Line()
 	}
 
 	r.addClientFuncDeclarations(c.Code, ClientType, a, func(def *Group) {
-		var pathFunc string
-		if a.OnEntity {
-			pathFunc = ResourceEntityPath
-		} else {
-			pathFunc = ResourcePath
-		}
-
 		returns := a.Return != nil
 		var errReturnParams []Code
 		if returns {
@@ -74,34 +89,42 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 			errReturnParams = []Code{Err()}
 		}
 
-		def.List(Id(PathVar), Err()).Op(":=").Id(pathFunc).Call(a.entityParams()...)
-		IfErrReturn(def, errReturnParams...).Line()
-
-		r.callFormatQueryUrl(def)
-		IfErrReturn(def, errReturnParams...).Line()
+		formatQueryUrl(r, a, def, errReturnParams...)
 		def.Id(UrlVar).Dot("RawQuery").Op("=").Lit("action=" + a.Name)
 
-		req := def.List(Id(ReqVar), Err()).Op(":=").Id(ClientReceiver)
 		var params *Statement
 		if hasParams {
 			params = Id("params")
 		} else {
 			params = Op("&").Qual(ProtocolPackage, "EmptyRecord").Block()
 		}
-		req.Dot("ActionRequest").Call(Id(ContextVar), Id(UrlVar), params)
-		IfErrReturn(def, errReturnParams...).Line()
+
+		callParams := []Code{
+			Id(ContextVar),
+			Id(UrlVar),
+			params,
+		}
+
+		result := Id("actionResult")
+		var resultsAccessor Code
+		if returns {
+			def.Var().Add(result).Id(a.actionResultsStructType())
+			callParams = append(callParams, result)
+			resultsAccessor = Op("&").Add(result)
+		} else {
+			resultsAccessor = Nil()
+		}
+
+		def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoActionRequest").Call(Id(ContextVar), Id(UrlVar), params, resultsAccessor)
 
 		if returns {
-			result := Id("actionResult")
-			def.Var().Add(result).Struct(Id("Value").Add(a.Return.GoType()))
-			callDoAndDecode(def, Op("&").Add(result), a.Return.ZeroValueReference())
+			def.Add(IfErrReturn(errReturnParams...)).Line()
 			returnValue := Add(result).Dot("Value")
 			if a.Return.ShouldReference() {
 				returnValue = Op("&").Add(returnValue)
 			}
 			def.Return(returnValue, Nil())
 		} else {
-			def.List(Id("_"), Err()).Op("=").Id(ClientReceiver).Dot("DoAndIgnore").Call(Id(ReqVar))
 			def.Return(Err())
 		}
 	})

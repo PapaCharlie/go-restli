@@ -35,11 +35,3 @@ var RestLiReducedEncoder = &RestLiCodec{
 		":", url.QueryEscape(":")).Replace,
 	decoder: url.QueryUnescape,
 }
-
-type RestLiEncodable interface {
-	RestLiEncode(*RestLiCodec, *strings.Builder) error
-}
-
-type RestLiDecodable interface {
-	RestLiDecode(*RestLiCodec, string) error
-}

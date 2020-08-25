@@ -5,7 +5,6 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
-	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,7 +13,7 @@ func TestInclude(t *testing.T) {
 		Integer: int32(1),
 		F1:      4.27,
 	}
-	testJsonEncoding(t, expected, `{ "integer": 1, "f1": 4.27 }`)
+	testJsonEncoding(t, expected, new(testsuite.Include), `{ "integer": 1, "f1": 4.27 }`)
 }
 
 // TestDefaults tests that default values are loaded correctly (see
@@ -26,7 +25,7 @@ func TestDefaults(t *testing.T) {
 	require.Equal(t, int64(23), *d.DefaultLong)
 	require.Equal(t, float32(52.5), *d.DefaultFloat)
 	require.Equal(t, float64(66.5), *d.DefaultDouble)
-	require.Equal(t, protocol.Bytes("@ABC"), *d.DefaultBytes)
+	require.Equal(t, []byte("@ABC"), *d.DefaultBytes)
 	require.Equal(t, string("default string"), *d.DefaultString)
 	require.Equal(t, conflictresolution.Fruits_APPLE, *d.DefaultEnum)
 	require.Equal(t, testsuite.Fixed5{1, 2, 3, 4, 5}, *d.DefaultFixed)

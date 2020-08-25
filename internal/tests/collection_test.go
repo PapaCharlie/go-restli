@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"log"
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
@@ -75,7 +74,6 @@ func (s *TestServer) CollectionPartialUpdate(t *testing.T, c Client) {
 	patch := new(conflictresolution.Message_PartialUpdate)
 	message := "partial updated message"
 	patch.Update.Message = &message
-	log.Println(patch)
 	err := c.PartialUpdate(id, patch)
 	require.NoError(t, err)
 }

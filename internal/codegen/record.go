@@ -3,7 +3,6 @@ package codegen
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"regexp"
 	"sort"
 
@@ -18,8 +17,6 @@ var (
 type Record struct {
 	NamedType
 	Fields []Field
-
-	populateDefaultValues *Statement
 }
 
 func (r *Record) InnerTypes() IdentifierSet {
@@ -47,7 +44,7 @@ type Field struct {
 	DefaultValue *string
 }
 
-func (r *Record) field(f Field) *Statement {
+func (r *Record) field(f Field) Code {
 	return Id(r.Receiver()).Dot(f.FieldName())
 }
 
@@ -68,8 +65,9 @@ func (r *Record) SortedFields() (fields []Field) {
 func (r *Record) GenerateCode() *Statement {
 	return Empty().
 		Add(r.generateStruct()).Line().Line().
-		Add(r.generateMarshalingCode()).Line().Line().
-		Add(r.generateRestliEncoder()).Line().Line().
+		Add(r.generateDefaultValuesCode()).Line().Line().
+		Add(r.generateMarshalRestLi()).Line().Line().
+		Add(r.generateUnmarshalRestLi()).Line().Line().
 		Add(r.generatePartialUpdateStruct()).Line()
 }
 
@@ -93,16 +91,17 @@ func (r *Record) generateStruct() *Statement {
 		})
 }
 
-func (r *Record) generateMarshalingCode() *Statement {
+func (r *Record) generateDefaultValuesCode() Code {
+	if !r.hasDefaultValue() {
+		return Empty()
+	}
+
 	def := Empty()
 
-	hasDefaultValue := r.generatePopulateDefaultValues(def)
-
-	if hasDefaultValue {
-		def.Func().
-			Id(r.defaultValuesConstructor()).Params().
-			Params(Id(r.Receiver()).Op("*").Id(r.Name))
-		def.BlockFunc(func(def *Group) {
+	def.Func().
+		Id(r.defaultValuesConstructor()).Params().
+		Params(Id(r.Receiver()).Op("*").Id(r.Name)).
+		BlockFunc(func(def *Group) {
 			def.Id(r.Receiver()).Op("=").New(Id(r.Name))
 			for _, f := range r.Fields {
 				if f.Type.Reference == nil {
@@ -112,102 +111,109 @@ func (r *Record) generateMarshalingCode() *Statement {
 					def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
 				}
 			}
-			def.Add(r.populateDefaultValues)
+			def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
 			def.Return()
 		}).Line().Line()
 
-		AddUnmarshalJSON(def, r.Receiver(), r.Name, func(def *Group) {
-			def.Type().Id("_t").Id(r.Name)
-			def.Err().Op("=").Qual(EncodingJson, Unmarshal).Call(Id("data"), Call(Op("*").Id("_t")).Call(Id(r.Receiver())))
-			IfErrReturn(def).Line()
-			def.Add(r.populateDefaultValues)
-			def.Return()
-		}).Line().Line()
-	}
+	AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
+		for _, f := range r.Fields {
+			if f.DefaultValue != nil {
+				r.setDefaultValue(def, f.FieldName(), *f.DefaultValue, &f.Type)
+				def.Line()
+			}
+		}
+	}).Line().Line()
 
 	return def
 }
 
-func (r *Record) generateRestliEncoder() *Statement {
-	return AddRestLiEncode(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateEncoder(def, false, nil, nil)
-		def.Return(Nil())
+func (r *Record) generateMarshalRestLi() *Statement {
+	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, func(def *Group) {
+		r.generateMarshaler(def, nil)
 	})
 }
 
-func (r *Record) generateQueryParamEncoder(finderName *string) *Statement {
+func (r *Record) generateUnmarshalRestLi() *Statement {
+	return AddRestLiDecode(Empty(), r.Receiver(), r.Name, func(def *Group) {
+		r.generateUnmarshaler(def, nil, nil)
+	})
+}
+
+const finderNameParam = "q"
+
+func (r *Record) generateQueryParamMarshaler(finderName *string) *Statement {
 	receiver := r.Receiver()
 	return AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
 		Params().
 		Params(Id("data").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Encoder).Op(":=").Qual(RestLiEncodingPackage, "NewQueryParamsEncoder").Call()
+			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewQueryParamsWriter").Call()
 
-			r.generateEncoder(def, true, finderName, nil)
+			fields := r.SortedFields()
 
-			def.Return(Encoder.Finalize(), Nil())
+			qIndex := -1
+			if finderName != nil {
+				qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
+				fields = append(fields[:qIndex], append([]Field{{
+					Type:       RestliType{Primitive: &StringPrimitive},
+					Name:       finderNameParam,
+					IsOptional: false,
+				}}, fields[qIndex:]...)...)
+			}
+
+			paramNameWriter := Id("paramNameWriter")
+			paramNameWriterFunc := Add(paramNameWriter).Func().Params(String()).Add(WriterQual)
+			def.Err().Op("=").Add(Writer).Dot("WriteParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
+				writeAllFields(def, fields, func(i int, f Field) Code {
+					if i == qIndex {
+						return Lit(*finderName)
+					} else {
+						return r.field(f)
+					}
+				}, paramNameWriter)
+			}))
+
+			def.Add(IfErrReturn(Lit(""), Err()))
+			def.Return(Writer.Finalize(), Nil())
 		})
 }
 
-const finderNameParam = "q"
+const ComplexKeyParamsField = "Params"
 
-func (r *Record) generateEncoder(def *Group, forQueryParams bool, finderName *string, complexKeyKeyAccessor *Statement) {
-	if finderName != nil && complexKeyKeyAccessor != nil {
-		log.Panicln("Cannot provide both a finderName and a complexKeyKeyAccessor")
-	}
+func (r *Record) generateMarshaler(def *Group, complexKeyKeyAccessor *Statement) {
+	fields := r.SortedFields()
 
-	var fieldAccessor func(f Field) *Statement
-	if complexKeyKeyAccessor != nil {
-		fieldAccessor = func(f Field) *Statement {
-			return Add(complexKeyKeyAccessor).Dot(f.FieldName())
-		}
-	} else {
-		fieldAccessor = r.field
-	}
-
-	fields := append([]Field(nil), r.Fields...)
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
-
-	qIndex := -1
-	if finderName != nil {
-		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
-		fields = append(fields[:qIndex], append([]Field{{}}, fields[qIndex:]...)...)
-	}
 	complexKeyParamsIndex := -1
-	const ComplexKeyParams = "Params"
 	if complexKeyKeyAccessor != nil {
 		fields = append([]Field{{
-			Name:       ComplexKeyParams,
+			Name:       "$params",
 			IsOptional: true,
+			Type:       RestliType{Reference: new(Identifier)},
 		}}, fields...)
 		complexKeyParamsIndex = 0
 	}
 
-	def.Add(Encoder.WriteObjectStart())
-
-	if len(fields) == 0 {
-		def.Add(Encoder.WriteObjectEnd())
-		return
-	}
-
-	const needsDelimiterVar = "needsDelimiter"
-	needsDelimiterCheckNeeded := len(fields) > 1 && fields[0].IsOptionalOrDefault()
-	if needsDelimiterCheckNeeded {
-		def.Id(needsDelimiterVar).Op(":=").False()
-	}
-
-	var returnOnError []Code
-	if forQueryParams {
-		returnOnError = append(returnOnError, Lit(""))
-	}
-
-	for i, f := range fields {
-		var accessor *Statement
-		if i == complexKeyParamsIndex {
-			accessor = Id(r.Receiver()).Dot(ComplexKeyParams)
-		} else {
-			accessor = fieldAccessor(f)
+	var fieldAccessor func(i int, f Field) Code
+	if complexKeyKeyAccessor != nil {
+		fieldAccessor = func(i int, f Field) Code {
+			if i == complexKeyParamsIndex {
+				return Id(r.Receiver()).Dot(ComplexKeyParamsField)
+			} else {
+				return Add(complexKeyKeyAccessor).Dot(f.FieldName())
+			}
 		}
+	} else {
+		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
+	}
+
+	def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+		writeAllFields(def, fields, fieldAccessor, keyWriter)
+	}))
+}
+
+func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
+	for i, f := range fields {
+		accessor := fieldAccessor(i, f)
 
 		serialize := def.Empty()
 		if f.IsOptionalOrDefault() {
@@ -215,93 +221,46 @@ func (r *Record) generateEncoder(def *Group, forQueryParams bool, finderName *st
 		}
 
 		serialize.BlockFunc(func(def *Group) {
-			if i > 0 {
-				if needsDelimiterCheckNeeded {
-					def.If(Id(needsDelimiterVar)).Block(Encoder.WriteFieldDelimiter())
-				} else {
-					def.Add(Encoder.WriteFieldDelimiter())
-				}
+			if f.IsOptionalOrDefault() && f.Type.Reference == nil {
+				accessor = Op("*").Add(accessor)
 			}
-
-			if i == qIndex {
-				def.Add(Encoder.WriteFieldNameAndDelimiter(finderNameParam))
-				def.Add(Encoder).Dot("String").Call(Lit(*finderName))
-			} else if i == complexKeyParamsIndex {
-				def.Add(Encoder.WriteFieldNameAndDelimiter("$params"))
-				def.Err().Op("=").Add(Encoder).Dot("Encodable").Call(accessor)
-				IfErrReturn(def, Err())
-			} else {
-				switch {
-				case f.Type.Reference == nil && f.IsOptionalOrDefault():
-					accessor = Op("*").Add(accessor)
-				case f.Type.Reference != nil && !f.IsOptionalOrDefault():
-					accessor = Op("&").Add(accessor)
-				}
-				Encoder.WriteField(def, f.Name, f.Type, accessor, returnOnError...)
-			}
-
-			if !f.IsOptionalOrDefault() {
-				needsDelimiterCheckNeeded = false
-			}
-
-			if needsDelimiterCheckNeeded && i < len(fields)-1 {
-				def.Id(needsDelimiterVar).Op("=").True()
-			}
-		})
-		serialize.Line()
+			def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
+		}).Line()
 	}
-
-	def.Add(Encoder.WriteObjectEnd())
+	def.Return(Nil())
 }
 
-func (r *Record) generateRestliDecoder() *Statement {
-	return AddRestLiDecode(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateEncoder(def, false, nil, nil)
-		def.Return(Nil())
-	})
-}
+func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statement, complexKeyParamsType *Identifier) {
+	fields := r.SortedFields()
 
-func (r *Record) generateDecoder(def *Group, forQueryParams bool, finderName *string, complexKeyKeyAccessor *Statement) {
-	if finderName != nil && complexKeyKeyAccessor != nil {
-		log.Panicln("Cannot provide both a finderName and a complexKeyKeyAccessor")
-	}
-
-	var fieldAccessor func(f Field) *Statement
-	if complexKeyKeyAccessor != nil {
-		fieldAccessor = func(f Field) *Statement {
-			return Add(complexKeyKeyAccessor).Dot(f.FieldName())
-		}
-	} else {
-		fieldAccessor = r.field
-	}
-
-	fields := append([]Field(nil), r.Fields...)
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
-
-	const finderNameParam = "q"
-	qIndex := -1
-	if finderName != nil {
-		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
-		fields = append(fields[:qIndex], append([]Field{{
-			Name: "q",
-			IsOptional:
-		}}, fields[qIndex:]...)...)
-	}
 	complexKeyParamsIndex := -1
-	const ComplexKeyParams = "Params"
 	if complexKeyKeyAccessor != nil {
 		fields = append([]Field{{
-			Name:       ComplexKeyParams,
+			Name:       "$params",
 			IsOptional: true,
+			Type:       RestliType{Reference: complexKeyParamsType},
 		}}, fields...)
 		complexKeyParamsIndex = 0
 	}
 
 	if len(fields) == 0 {
-		def.Return(Decoder.ReadObject(func(field *Statement, def *Group) {
-			def.Return(Nil())
+		def.Return(Reader.ReadMap(func(field Code, def *Group) {
+			def.Return(Reader.Skip())
 		}))
 		return
+	}
+
+	var fieldAccessor func(i int, f Field) Code
+	if complexKeyKeyAccessor != nil {
+		fieldAccessor = func(i int, f Field) Code {
+			if i == complexKeyParamsIndex {
+				return Id(r.Receiver()).Dot(ComplexKeyParamsField)
+			} else {
+				return Add(complexKeyKeyAccessor).Dot(f.FieldName())
+			}
+		}
+	} else {
+		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
 	}
 
 	requiredFieldsRemaining := Id("requiredFieldsRemaining")
@@ -311,45 +270,64 @@ func (r *Record) generateDecoder(def *Group, forQueryParams bool, finderName *st
 				dict[Lit(f.Name)] = True()
 			}
 		}
-	}))
+	})).Line()
 
-	var returnOnError []Code
-	if finderName != nil {
-		returnOnError = append(returnOnError, Lit(""))
-	}
-
-	def.Add(Decoder.ReadObject(func(field *Statement, def *Group) {
+	def.Err().Op("=").Add(Reader.ReadMap(func(field Code, def *Group) {
 		def.Switch(field).BlockFunc(func(def *Group) {
 			for i, f := range fields {
-				var accessor *Statement
-				if i == complexKeyParamsIndex {
-					accessor = Id(r.Receiver()).Dot(ComplexKeyParams)
-				} else {
-					accessor = fieldAccessor(f)
-				}
+				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
+					accessor := fieldAccessor(i, f)
 
-				if i == qIndex {
-					def.Add(Encoder.WriteFieldNameAndDelimiter(finderNameParam))
-					def.Add(Encoder).Dot("String").Call(Lit(*finderName))
-				} else if i == complexKeyParamsIndex {
-					def.Add(Encoder.WriteFieldNameAndDelimiter("$params"))
-					def.Err().Op("=").Add(Encoder).Dot("Encodable").Call(accessor)
-					IfErrReturn(def, Err())
-				} else {
-					switch {
-					case f.Type.Reference == nil && f.IsOptionalOrDefault():
-						accessor = Op("*").Add(accessor)
-					case f.Type.Reference != nil && !f.IsOptionalOrDefault():
-						accessor = Op("&").Add(accessor)
+					if f.IsOptionalOrDefault() {
+						def.Add(accessor).Op("=").New(f.Type.GoType())
+						if f.Type.Reference == nil {
+							accessor = Op("*").Add(accessor)
+						}
 					}
-					Encoder.WriteField(def, f.Name, f.Type, accessor, returnOnError...)
-				}
 
+					def.Add(Reader.Read(f.Type, accessor))
+				})
 			}
+			def.Default().BlockFunc(func(def *Group) {
+				def.Err().Op("=").Add(Reader.Skip())
+			})
 		})
-	}))
+		def.Add(IfErrReturn(Err()))
+		def.Delete(requiredFieldsRemaining, field)
+		def.Return(Nil())
+	})).Line()
 
-	def.Add(Encoder.WriteObjectEnd())
+	def.Add(IfErrReturn(Err())).Line()
+
+	def.If(Len(requiredFieldsRemaining).Op("!=").Lit(0)).BlockFunc(func(def *Group) {
+		def.Return(Qual("fmt", "Errorf").Call(Lit("required fields not all present: %+v"), requiredFieldsRemaining))
+	}).Line()
+
+	if r.hasDefaultValue() {
+		def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
+	}
+
+	def.Return(Nil())
+}
+
+func (r *Record) generateQueryParamsUnmarhsaler(def *Group, finderName *string) {
+	fields := r.SortedFields()
+	qIndex := -1
+	if finderName != nil {
+		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
+		fields = append(fields[:qIndex], append([]Field{{
+			Name:       finderNameParam,
+			IsOptional: false,
+			Type:       RestliType{Primitive: &StringPrimitive},
+		}}, fields[qIndex:]...)...)
+	}
+
+	finderNameVar := Id("finderName")
+	if finderName != nil {
+		def.Var().Add(finderNameVar).String()
+		def.Line()
+	}
+
 }
 
 func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType) {
@@ -358,7 +336,7 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
 		case t.UnderlyingPrimitive() != nil:
 			pt := t.UnderlyingPrimitive()
-			def.Id("val").Op(":=").Add(pt.Cast(Lit(pt.getLit(rawJson))))
+			def.Id("val").Op(":=").Add(pt.Cast(pt.getLit(rawJson)))
 			def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
 			return
 		// If the default value for an array is the empty array, we can leave it as nil since that will behave
@@ -405,26 +383,6 @@ func (r *Record) hasDefaultValue() bool {
 	return false
 }
 
-func (r *Record) generatePopulateDefaultValues(def *Statement) bool {
-	r.populateDefaultValues = Empty()
-
-	if !r.hasDefaultValue() {
-		return false
-	}
-
-	AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateDefaultValues).Params().BlockFunc(func(def *Group) {
-		for _, f := range r.Fields {
-			if f.DefaultValue != nil {
-				r.setDefaultValue(def, f.FieldName(), *f.DefaultValue, &f.Type)
-				def.Line()
-			}
-		}
-	}).Line().Line()
-
-	r.populateDefaultValues.Id(r.Receiver()).Dot(PopulateDefaultValues).Call().Line()
-	return true
-}
-
 func (r *Record) defaultValuesConstructor() string {
 	return "New" + r.Name + "WithDefaultValues"
 }
@@ -465,7 +423,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		}
 	}).Line().Line()
 
-	AddRestLiEncode(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
+	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
 		fields := r.SortedFields()
 		innerRecords := 0
 		for _, f := range fields {
@@ -480,110 +438,75 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 			return fmt.Sprintf("cannot both delete and update %q of %q", f.Name, r.Name)
 		}
 
-		def.Add(Encoder.WriteObjectStart())
-
 		if len(fields) == 0 {
-			def.Add(Encoder.WriteObjectEnd())
-			def.Return(Nil())
+			def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+				def.Return(Nil())
+			}))
 			return
 		}
 
-		needsDelimiter := Id("needsDelimiter")
-		def.Add(needsDelimiter).Op(":=").False()
-		def.Line()
+		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+			hasDeletes := deleteAccessor(fields[0])
+			for i := 1; i < len(fields); i++ {
+				hasDeletes.Op("||").Add(deleteAccessor(fields[i]))
+			}
 
-		hasDeletes := deleteAccessor(fields[0])
-		for i := 1; i < len(fields); i++ {
-			hasDeletes.Op("||").Add(deleteAccessor(fields[i]))
-		}
-
-		def.If(hasDeletes).BlockFunc(func(def *Group) {
-			def.Add(Encoder.WriteFieldNameAndDelimiter("$delete"))
-			Encoder.ArrayEncoder(def, func(def *Group, indexWriter *Statement) {
-				index := Id("index")
-				def.Add(index).Op(":=").Lit(0)
-				for _, f := range fields {
-					accessor := deleteAccessor(f)
-					def.If(accessor).BlockFunc(func(def *Group) {
-						def.Add(indexWriter).Call(Add(index))
-						def.Add(index).Op("++")
-						if f.Type.IsReferenceEncodable() {
-							accessor = Op("&").Add(accessor)
-						}
-						def.Add(Encoder).Dot("String").Call(Lit(f.Name))
-					}).Line()
-				}
-				def.Return(Nil())
+			def.If(hasDeletes).BlockFunc(func(def *Group) {
+				deleteType := RestliType{Primitive: &StringPrimitive}
+				def.Err().Op("=").Add(Writer.WriteArray(Add(keyWriter).Call(Lit("$delete")), func(itemWriter Code, def *Group) {
+					for _, f := range fields {
+						accessor := deleteAccessor(f)
+						def.If(accessor).BlockFunc(func(def *Group) {
+							def.Add(Writer.Write(deleteType, Add(itemWriter).Call(), Lit(f.Name)))
+						}).Line()
+					}
+					def.Add(Return(Nil()))
+				}))
+				def.Add(IfErrReturn(Err()))
 			})
-			IfErrReturn(def, Err()).Line()
-			def.Add(needsDelimiter).Op("=").True()
-		})
-		def.Line()
+			def.Line()
 
-		hasSets := updateAccessor(fields[0]).Op("!=").Nil()
-		for i := 1; i < len(fields); i++ {
-			hasSets.Op("||").Add(updateAccessor(fields[i])).Op("!=").Nil()
-		}
+			hasSets := updateAccessor(fields[0]).Op("!=").Nil()
+			for i := 1; i < len(fields); i++ {
+				hasSets.Op("||").Add(updateAccessor(fields[i])).Op("!=").Nil()
+			}
 
-		def.If(hasSets).BlockFunc(func(def *Group) {
-			def.If(needsDelimiter).Block(Encoder.WriteFieldDelimiter()).Line()
+			def.If(hasSets).BlockFunc(func(def *Group) {
+				def.Err().Op("=").Add(Writer.WriteMap(Add(keyWriter).Call(Lit("$set")), func(keyWriter Code, def *Group) {
+					for _, f := range fields {
+						accessor := updateAccessor(f)
+						def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
+							def.If(deleteAccessor(f)).BlockFunc(func(def *Group) {
+								def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage(f))))
+							})
+							if f.Type.Reference == nil {
+								accessor = Op("*").Add(accessor)
+							}
+							def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
+						})
+						def.Line()
+					}
+					def.Return(Nil())
+				}))
+				def.Add(IfErrReturn(Err()))
+			})
 
-			def.Add(Encoder.WriteFieldNameAndDelimiter("$set"))
-			def.Add(Encoder.WriteObjectStart())
-			needsFirst := len(fields) > 1
-			first := Id("first")
-			if needsFirst {
-				def.Add(first).Op(":=").True()
+			for _, f := range fields {
+				if f.Type.Record() != nil {
+					def.Line()
+					accessor := Id(r.Receiver()).Dot(f.FieldName())
+					def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
+						def.If(Add(deleteAccessor(f)).Op("||").Add(updateAccessor(f).Op("!=").Nil())).BlockFunc(func(def *Group) {
+							def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage(f))))
+						})
+						def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
+					})
+				}
 			}
 			def.Line()
-			for i, f := range fields {
-				accessor := updateAccessor(f)
-				def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-					def.If(deleteAccessor(f)).BlockFunc(func(def *Group) {
-						def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage(f))))
-					})
-					if needsFirst {
-						if i == 0 {
-							def.Add(first).Op("=").False()
-						} else {
-							def.If(first).Block(Add(first).Op("=").False()).Else().Block(Encoder.WriteFieldDelimiter())
-						}
-					}
-					if f.Type.Reference == nil {
-						accessor = Op("*").Add(accessor)
-					}
-					Encoder.WriteField(def, f.Name, f.Type, accessor)
-				})
-				def.Line()
-			}
-			def.Add(Encoder.WriteObjectEnd())
-			if innerRecords > 0 {
-				def.Add(needsDelimiter).Op("=").True()
-			}
-		})
 
-		for i, f := range fields {
-			isRecord := f.Type.Record() != nil
-			if isRecord {
-				def.Line()
-				accessor := Id(r.Receiver()).Dot(f.FieldName())
-				def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-					def.If(needsDelimiter).Block(Encoder.WriteFieldDelimiter())
-					def.If(Add(deleteAccessor(f)).Op("||").Add(updateAccessor(f).Op("!=").Nil())).BlockFunc(func(def *Group) {
-						def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage(f))))
-					})
-					Encoder.WriteField(def, f.Name, f.Type, accessor)
-					if i < innerRecords-1 {
-						def.Add(needsDelimiter).Op("=").True()
-					}
-				})
-			}
-		}
-		def.Line()
-
-		def.Add(Encoder.WriteObjectEnd())
-
-		def.Return(Nil())
+			def.Return(Nil())
+		}))
 	})
 
 	return def

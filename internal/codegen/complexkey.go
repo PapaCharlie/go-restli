@@ -27,8 +27,13 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		Fields:    TypeRegistry.Resolve(ck.Key).(*Record).Fields,
 	}
 
-	return AddRestLiEncode(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.generateEncoder(def, false, nil, Id(record.Receiver()).Dot(ck.Key.Name))
-		def.Return(Nil())
+	AddMarshalRestLi(def, record.Receiver(), ck.Name, func(def *Group) {
+		record.generateMarshaler(def, Id(record.Receiver()).Dot(ck.Key.Name))
 	})
+
+	AddRestLiDecode(def, record.Receiver(), ck.Name, func(def *Group) {
+		record.generateUnmarshaler(def, Id(record.Receiver()).Dot(ck.Key.Name), &ck.Params)
+	})
+
+	return def
 }

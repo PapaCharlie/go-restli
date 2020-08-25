@@ -116,7 +116,7 @@ func (t *RestliType) IsReferenceEncodable() bool {
 	return t.Reference != nil && !t.ShouldReference()
 }
 
-func (t *RestliType) ReferencedType() *Statement {
+func (t *RestliType) ReferencedType() Code {
 	if t.ShouldReference() {
 		return t.PointerType()
 	} else {
@@ -124,9 +124,13 @@ func (t *RestliType) ReferencedType() *Statement {
 	}
 }
 
-func (t *RestliType) ZeroValueReference() *Statement {
-	if p := t.UnderlyingPrimitive(); p != nil {
+func (t *RestliType) ZeroValueReference() Code {
+	if tr := t.Typeref(); tr != nil {
+		return t.GoType().Call(t.UnderlyingPrimitive().zeroValueLit())
+	} else if p := t.UnderlyingPrimitive(); p != nil {
 		return p.zeroValueLit()
+	} else if e := t.Enum(); e != nil {
+		return e.zeroValueLit()
 	} else {
 		return Nil()
 	}
@@ -134,6 +138,15 @@ func (t *RestliType) ZeroValueReference() *Statement {
 
 func (t *RestliType) IsMapOrArray() bool {
 	return t.Array != nil || t.Map != nil || (t.UnderlyingPrimitive() != nil && t.UnderlyingPrimitive().IsBytes())
+}
+
+func (t *RestliType) Typeref() *Typeref {
+	if t.Reference == nil {
+		return nil
+	}
+
+	typeref, _ := t.Reference.Resolve().(*Typeref)
+	return typeref
 }
 
 func (t *RestliType) Enum() *Enum {
@@ -156,22 +169,6 @@ func (t *RestliType) Record() *Record {
 
 func (t *RestliType) PointerType() *Statement {
 	return Op("*").Add(t.GoType())
-}
-
-func (t *RestliType) WriteToBuf(def *Group, accessor *Statement, encoderAccessor *Statement, returnOnError ...Code) {
-	switch {
-	case t.Primitive != nil:
-		writeStringToBuf(def, t.Primitive.encode(encoderAccessor, accessor))
-	case t.Reference != nil:
-		def.Err().Op("=").Add(accessor).Dot(RestLiEncode).Call(encoderAccessor, Id("buf"))
-		IfErrReturn(def, append(append([]Code(nil), returnOnError...), Err())...)
-	case t.Array != nil:
-		writeArrayToBuf(def, accessor, t.Array, encoderAccessor, returnOnError...)
-	case t.Map != nil:
-		writeMapToBuf(def, accessor, t.Map, encoderAccessor, returnOnError...)
-	default:
-		log.Panicf("Illegal restli type: %+v", t)
-	}
 }
 
 type GoRestliSpec struct {

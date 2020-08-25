@@ -1,34 +1,23 @@
 package protocol
 
-import (
-	"github.com/PapaCharlie/go-restli/protocol/restliencoding"
-)
+import "github.com/PapaCharlie/go-restli/protocol/restlicodec"
 
 type PartialUpdate struct {
-	Patch restliencoding.Encodable
+	Patch restlicodec.Marshaler
 }
 
-func (p *PartialUpdate) RestLiEncode(encoder *restliencoding.Encoder) error {
-	encoder.WriteObjectStart()
-	encoder.WriteFieldNameAndDelimiter("patch")
-	err := encoder.Encodable(p.Patch)
-	if err != nil {
-		return err
-	}
-	encoder.WriteObjectEnd()
-	return nil
-}
-
-func (p *PartialUpdate) String() string {
-	encoder := restliencoding.NewCompactJsonEncoder()
-	_ = p.RestLiEncode(encoder)
-	return encoder.Finalize()
+func (p *PartialUpdate) MarshalRestLi(writer restlicodec.Writer) error {
+	return writer.WriteMap(func(fieldNameWriter func(fieldName string) restlicodec.Writer) error {
+		return p.Patch.MarshalRestLi(fieldNameWriter("patch"))
+	})
 }
 
 type EmptyRecord struct{}
 
-func (e *EmptyRecord) RestLiEncode(encoder *restliencoding.Encoder) error {
-	encoder.WriteObjectStart()
-	encoder.WriteObjectEnd()
-	return nil
+func (e *EmptyRecord) UnmarshalRestLi(reader restlicodec.Reader) error {
+	return reader.ReadMap(func(string) error { return reader.Skip() })
+}
+
+func (e *EmptyRecord) MarshalRestLi(writer restlicodec.Writer) error {
+	return writer.WriteMap(func(func(string) restlicodec.Writer) error { return nil })
 }
