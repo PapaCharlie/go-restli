@@ -48,14 +48,14 @@ func (m *Method) entityParams() (params []Code) {
 }
 
 func (r *Resource) callFormatQueryUrl(def *Group) {
-	def.List(Id(UrlVar), Err()).
+	def.List(UrlVar, Err()).
 		Op(":=").
-		Id(ClientReceiver).Dot(FormatQueryUrl).
-		Call(Lit(r.RootResourceName), Id(PathVar))
+		Id(ClientReceiver).Dot("FormatQueryUrl").
+		Call(Lit(r.RootResourceName), PathVar)
 }
 
 func (r *Resource) callEncodeQueryParams(def *Group) {
-	def.List(Id(UrlVar), Err()).
+	def.List(UrlVar, Err()).
 		Op("=").
-		Id(QueryParams).Dot(EncodeQueryParams).Call()
+		Add(QueryParams).Dot(EncodeQueryParams).Call()
 }

@@ -14,27 +14,22 @@ import (
 )
 
 const (
-	RestLiClient = "RestLiClient"
-
-	FormatQueryUrl     = "FormatQueryUrl"
 	ResourcePath       = "ResourcePath"
 	ResourceEntityPath = "ResourceEntityPath"
-	DoAndIgnore        = "DoAndIgnore"
-	DoAndDecode        = "DoAndDecode"
-	DoAndDecodeResult  = "doAndDecodeResult"
 
 	WithContext = "WithContext"
 	FindBy      = "FindBy"
 
-	ReqVar     = "req"
-	ResVar     = "res"
-	UrlVar     = "url"
-	PathVar    = "path"
-	ContextVar = "ctx"
-
 	ClientReceiver      = "c"
 	ClientType          = "client"
 	ClientInterfaceType = "Client"
+)
+
+var (
+	RestLiClient = Code(Qual(ProtocolPackage, "RestLiClient"))
+	UrlVar       = Code(Id("url"))
+	PathVar      = Code(Id("path"))
+	ContextVar   = Code(Id("ctx"))
 )
 
 var Logger = log.New(os.Stderr, "[go-restli] ", log.LstdFlags|log.Lshortfile)

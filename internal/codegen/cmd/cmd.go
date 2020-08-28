@@ -19,7 +19,7 @@ import (
 var Version string
 
 type JarStdinParameters struct {
-	ResolverPath               string   `json:"resolverPath"`
+	ResolverPaths              []string `json:"resolverPaths"`
 	RestSpecPaths              []string `json:"restSpecPaths"`
 	NamedDataSchemasToGenerate []string `json:"namedDataSchemasToGenerate"`
 }
@@ -49,8 +49,8 @@ generated only for the schemas required to interact with the given resources, bu
 be overridden with -n/--named-schemas-to-generate which can be used to specify some extra schemas
 that should also have bindings. If named schemas are specified, it's not necessary to specify rest
 specs.`)
-		cmd.Flags().StringVarP(&params.ResolverPath, "resolver-path", "r", "",
-			"The directory that contains all the .pdsc/.pdl files that may be needed")
+		cmd.Flags().StringArrayVarP(&params.ResolverPaths, "resolver-paths", "r", nil,
+			"The directories or files that contains all the .pdsc/.pdl files that may be needed")
 		cmd.Flags().StringArrayVarP(&params.NamedDataSchemasToGenerate, "named-schemas-to-generate", "n", nil,
 			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
 
@@ -60,10 +60,14 @@ specs.`)
 				return errors.New("go-restli: Must specify at least one restspec file or named data schema")
 			}
 
-			if params.ResolverPath == "" {
-				return errors.New("go-restli: Must specify a schema dir")
-			} else if _, err := os.Stat(params.ResolverPath); err != nil {
-				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
+			if len(params.ResolverPaths) == 0 {
+				return errors.New("go-restli: Must specify at least one schema dir")
+			} else {
+				for _, s := range params.ResolverPaths {
+					if _, err := os.Stat(s); err != nil {
+						return errors.Wrap(err, "go-restli: All resolver paths must be valid: %w")
+					}
+				}
 			}
 
 			return nil

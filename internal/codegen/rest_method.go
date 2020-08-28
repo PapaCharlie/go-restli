@@ -7,10 +7,10 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-const (
-	CreateParam = "create"
-	UpdateParam = "update"
-	QueryParams = "queryParams"
+var (
+	CreateParam = Code(Id("create"))
+	UpdateParam = Code(Id("update"))
+	QueryParams = Code(Id("queryParams"))
 )
 
 func (m *Method) RestLiMethod() protocol.RestLiMethod {
@@ -43,14 +43,14 @@ func (r *Resource) restMethodFuncParams(m *Method, def *Group) {
 	m.addEntityTypes(def)
 	switch m.RestLiMethod() {
 	case protocol.Method_create:
-		def.Id(CreateParam).Add(r.ResourceSchema.ReferencedType())
+		def.Add(CreateParam).Add(r.ResourceSchema.ReferencedType())
 	case protocol.Method_update:
-		def.Id(UpdateParam).Add(r.ResourceSchema.ReferencedType())
+		def.Add(UpdateParam).Add(r.ResourceSchema.ReferencedType())
 	case protocol.Method_partial_update:
-		def.Id(UpdateParam).Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct())
+		def.Add(UpdateParam).Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct())
 	}
 	if len(m.Params) > 0 {
-		def.Id(QueryParams).Op("*").Qual(r.PackagePath(), m.restMethodQueryParamsStructName())
+		def.Add(QueryParams).Op("*").Qual(r.PackagePath(), m.restMethodQueryParamsStructName())
 	}
 }
 
@@ -70,14 +70,14 @@ func (m *Method) restMethodFuncReturnParams(def *Group) {
 func (m *Method) restMethodCallParams() (params []Code) {
 	switch m.RestLiMethod() {
 	case protocol.Method_create:
-		params = append(params, Id(CreateParam))
+		params = append(params, CreateParam)
 	case protocol.Method_update:
-		params = append(params, Id(UpdateParam))
+		params = append(params, UpdateParam)
 	case protocol.Method_partial_update:
-		params = append(params, Id(UpdateParam))
+		params = append(params, UpdateParam)
 	}
 	if len(m.Params) > 0 {
-		params = append(params, Id(QueryParams))
+		params = append(params, QueryParams)
 	}
 
 	return params
@@ -124,9 +124,9 @@ func (r *Resource) GenerateRestMethodCode(m *Method) *CodeFile {
 
 func (m *Method) callResourcePath(def *Group) {
 	if m.OnEntity {
-		def.List(Id(PathVar), Err()).Op(":=").Id(ResourceEntityPath).Call(m.entityParams()...)
+		def.List(PathVar, Err()).Op(":=").Id(ResourceEntityPath).Call(m.entityParams()...)
 	} else {
-		def.List(Id(PathVar), Err()).Op(":=").Id(ResourcePath).Call(m.entityParams()...)
+		def.List(PathVar, Err()).Op(":=").Id(ResourcePath).Call(m.entityParams()...)
 	}
 }
 
@@ -141,7 +141,7 @@ func generateGet(r *Resource, m *Method, def *Group) {
 	result := Id("getResult")
 	def.Var().Add(result).Add(m.Return.GoType())
 
-	def.Err().Op("=").Id(ClientReceiver).Dot("DoGetRequest").Call(Id(ContextVar), Id(UrlVar), Op("&").Add(result))
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoGetRequest").Call(ContextVar, UrlVar, Op("&").Add(result))
 	def.Add(IfErrReturn(returns...)).Line()
 
 	if m.Return.ShouldReference() {
@@ -178,7 +178,7 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 		returnEntityUnmarshaler = Nil()
 	}
 
-	def.Err().Op("=").Id(ClientReceiver).Dot("DoCreateRequest").Call(Id(ContextVar), Id(UrlVar), Id(CreateParam), idUnmarshaler, returnEntityUnmarshaler)
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoCreateRequest").Call(ContextVar, UrlVar, CreateParam, idUnmarshaler, returnEntityUnmarshaler)
 	def.Add(IfErrReturn(returns...)).Line()
 
 	if m.EntityPathKey.Type.ShouldReference() {
@@ -198,21 +198,21 @@ func generateCreate(r *Resource, m *Method, def *Group) {
 func generateUpdate(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.Err().Op("=").Id(ClientReceiver).Dot("DoUpdateRequest").Call(Id(ContextVar), Id(UrlVar), Id(UpdateParam))
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoUpdateRequest").Call(ContextVar, UrlVar, UpdateParam)
 	def.Return(Err())
 }
 
 func generatePartialUpdate(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.Err().Op("=").Id(ClientReceiver).Dot("DoPartialUpdateRequest").Call(Id(ContextVar), Id(UrlVar), Id(UpdateParam))
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoPartialUpdateRequest").Call(ContextVar, UrlVar, UpdateParam)
 	def.Return(Err())
 }
 
 func generateDelete(r *Resource, m *Method, def *Group) {
 	formatQueryUrl(r, m, def, Err())
 
-	def.Err().Op("=").Id(ClientReceiver).Dot("DoDeleteRequest").Call(Id(ContextVar), Id(UrlVar))
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoDeleteRequest").Call(ContextVar, UrlVar)
 	def.Add(IfErrReturn(Err())).Line()
 
 	def.Return(Nil())
@@ -225,13 +225,12 @@ func formatQueryUrl(r *Resource, m *Method, def *Group, returns ...Code) {
 	if m.MethodType != ACTION && len(m.Params) > 0 {
 		rawQuery := Id("rawQuery")
 		def.Var().Add(rawQuery).String()
-		def.List(rawQuery, Err()).Op("=").Id(QueryParams).Dot(EncodeQueryParams).Call()
+		def.List(rawQuery, Err()).Op("=").Add(QueryParams).Dot(EncodeQueryParams).Call()
 		def.Add(IfErrReturn(returns...))
-		def.Id(PathVar).Op("+=").Lit("?").Op("+").Add(rawQuery)
+		def.Add(PathVar).Op("+=").Lit("?").Op("+").Add(rawQuery)
 		def.Line()
 	}
 
 	r.callFormatQueryUrl(def)
 	def.Add(IfErrReturn(returns...)).Line()
-
 }

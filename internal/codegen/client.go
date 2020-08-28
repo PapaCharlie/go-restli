@@ -36,8 +36,8 @@ func (r *Resource) GenerateCode() []*CodeFile {
 			def.Add(r.clientFuncDeclaration(m, true))
 		}
 	}).Line().Line()
-	client.Code.Type().Id(ClientType).Struct(Op("*").Qual(ProtocolPackage, RestLiClient)).Line().Line()
-	client.Code.Func().Id("NewClient").Params(Id("c").Op("*").Qual(ProtocolPackage, RestLiClient)).Id("Client").
+	client.Code.Type().Id(ClientType).Struct(Op("*").Add(RestLiClient)).Line().Line()
+	client.Code.Func().Id("NewClient").Params(Id("c").Op("*").Add(RestLiClient)).Id("Client").
 		Block(Return(Op("&").Id(ClientType).Values(Id("c")))).
 		Line().Line()
 
@@ -126,7 +126,7 @@ func (r *Resource) generateTestCode() *CodeFile {
 		)
 		r.addClientFuncDeclarations(funcs, structName, m, func(def *Group) {
 			def.Return(Id(ClientReceiver).Dot(mock + r.methodFuncName(m, false)).CallFunc(func(def *Group) {
-				def.Id(ContextVar)
+				def.Add(ContextVar)
 				for _, p := range append(m.entityParams(), m.methodCallParams()...) {
 					def.Add(p)
 				}

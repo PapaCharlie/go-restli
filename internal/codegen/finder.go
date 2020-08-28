@@ -22,12 +22,12 @@ func (m *Method) finderResultsStructType() string {
 
 func (r *Resource) finderFuncParams(m *Method, def *Group) {
 	m.addEntityTypes(def)
-	def.Id(QueryParams).Op("*").Qual(r.PackagePath(), m.finderStructType())
+	def.Add(QueryParams).Op("*").Qual(r.PackagePath(), m.finderStructType())
 }
 
 func (m *Method) finderMethodCallParams() (params []Code) {
 	if len(m.Params) > 0 {
-		params = append(params, Id(QueryParams))
+		params = append(params, Add(QueryParams))
 	}
 	return params
 }
@@ -81,7 +81,7 @@ func (r *Resource) GenerateFinderCode(f *Method) *CodeFile {
 		accessor := Id("elements")
 		def.Var().Add(accessor).Id(f.finderResultsStructType())
 
-		def.Err().Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(Id(ContextVar), Id(UrlVar), Op("&").Add(accessor))
+		def.Err().Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(ContextVar, UrlVar, Op("&").Add(accessor))
 		def.Add(IfErrReturn(Nil(), Err())).Line()
 
 		def.Return(Add(accessor).Dot("Elements"), Nil())

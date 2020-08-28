@@ -3,7 +3,6 @@ package codegen
 import (
 	"log"
 
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -11,9 +10,10 @@ type writer struct {
 	Code
 }
 
-var Writer = &writer{Id("writer")}
-var pubWriter restlicodec.Writer
-var WriterQual Code = Qual(RestLiCodecPackage, "Writer")
+var (
+	Writer          = &writer{Id("writer")}
+	WriterQual Code = Qual(RestLiCodecPackage, "Writer")
+)
 
 func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
 	keyWriter := Id("keyWriter")

@@ -1,0 +1,8 @@
+namespace extras
+
+record NestedArraysAndMaps {
+  mapOfMaps: map[string, map[string, string]]
+  arrayOfArrays: array[array[string]]
+  mapOfArraysOfMaps: map[string, array[map[string, string]]]
+  arraysOfMapsOfArrays: array[map[string, array[string]]]
+}

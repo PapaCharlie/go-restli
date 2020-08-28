@@ -90,7 +90,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		}
 
 		formatQueryUrl(r, a, def, errReturnParams...)
-		def.Id(UrlVar).Dot("RawQuery").Op("=").Lit("action=" + a.Name)
+		def.Add(UrlVar).Dot("RawQuery").Op("=").Lit("action=" + a.Name)
 
 		var params *Statement
 		if hasParams {
@@ -100,8 +100,8 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 		}
 
 		callParams := []Code{
-			Id(ContextVar),
-			Id(UrlVar),
+			ContextVar,
+			UrlVar,
 			params,
 		}
 
@@ -115,7 +115,7 @@ func (r *Resource) GenerateActionCode(a *Method) *CodeFile {
 			resultsAccessor = Nil()
 		}
 
-		def.Err().Op("=").Id(ClientReceiver).Dot("DoActionRequest").Call(Id(ContextVar), Id(UrlVar), params, resultsAccessor)
+		def.Err().Op("=").Id(ClientReceiver).Dot("DoActionRequest").Call(ContextVar, UrlVar, params, resultsAccessor)
 
 		if returns {
 			def.Add(IfErrReturn(errReturnParams...)).Line()

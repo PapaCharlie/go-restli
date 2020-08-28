@@ -26,20 +26,20 @@ public class GoRestliRestSpecParser {
 
   /**
    * Extract a {@link GoRestliSpec} from the given rest specs and PDSC/PDL files
-   * @param resolverPath The root directory that contains all the PDSC/PDL schema definitions
+   * @param resolverPaths The directories that contains all the PDSC/PDL schema definitions
    * @param restSpecPaths The set of rest specs to generate bindings for. Cannot be empty unless
    *                      {@code namedDataSchemasToGenerate} is not empty.
    * @param namedDataSchemasToGenerate A set of named types to generate bindings for.
    */
-  public static GoRestliSpec parse(String resolverPath, Set<String> restSpecPaths,
+  public static GoRestliSpec parse(Set<String> resolverPaths, Set<String> restSpecPaths,
       Set<String> namedDataSchemasToGenerate) {
     if (restSpecPaths.isEmpty() && namedDataSchemasToGenerate.isEmpty()) {
       throw new IllegalArgumentException("Must specify at least one rest spec or a named data schema to generate!");
     }
 
     GoRestliSpec parsedSpec = new GoRestliSpec();
-    DataSchemaParser dataSchemaParser = new DataSchemaParser(resolverPath);
-    Map<String, NamedDataSchema> schemas = loadAllSchemas(dataSchemaParser);
+    DataSchemaParser dataSchemaParser = new DataSchemaParser(resolverPaths.iterator().next());
+    Map<String, NamedDataSchema> schemas = loadAllSchemas(dataSchemaParser, resolverPaths);
     TypeParser typeParser = new TypeParser(dataSchemaParser);
 
     RestSpecParser.ParseResult restSpecParseResult =
@@ -53,7 +53,7 @@ public class GoRestliRestSpecParser {
     Set<NamedDataSchema> extraSchemas = new HashSet<>();
     for (String schemaName : namedDataSchemasToGenerate) {
       NamedDataSchema schema = schemas.get(schemaName);
-      Preconditions.checkState(schema != null, "%s was not found in %s", schemaName, resolverPath);
+      Preconditions.checkState(schema != null, "%s was not found in %s", schemaName, resolverPaths);
       extraSchemas.addAll(expandSchema(dataSchemaParser, schema));
     }
 
@@ -81,10 +81,10 @@ public class GoRestliRestSpecParser {
   /**
    * Read all the schemas provided in the {@link DataSchemaParser#getResolverPath()}
    */
-  private static Map<String, NamedDataSchema> loadAllSchemas(DataSchemaParser parser) {
+  private static Map<String, NamedDataSchema> loadAllSchemas(DataSchemaParser parser, Set<String> paths) {
     DataSchemaParser.ParseResult res;
     try {
-      res = parser.parseSources(new String[]{parser.getResolverPath()});
+      res = parser.parseSources(paths.toArray(new String[0]));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -95,7 +95,7 @@ public class GoRestliRestSpecParser {
   }
 
   private static class StdinParameters {
-    String _resolverPath;
+    Set<String> _resolverPaths;
     Set<String> _restSpecPaths;
     Set<String> _namedDataSchemasToGenerate;
   }
@@ -117,7 +117,7 @@ public class GoRestliRestSpecParser {
         : parameters._namedDataSchemasToGenerate;
 
     GoRestliSpec spec = parse(
-        parameters._resolverPath,
+        parameters._resolverPaths,
         parameters._restSpecPaths,
         parameters._namedDataSchemasToGenerate);
     System.out.println(Utils.toJson(spec));

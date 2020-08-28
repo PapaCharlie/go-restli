@@ -137,7 +137,7 @@ func (t *RestliType) ZeroValueReference() Code {
 }
 
 func (t *RestliType) IsMapOrArray() bool {
-	return t.Array != nil || t.Map != nil || (t.UnderlyingPrimitive() != nil && t.UnderlyingPrimitive().IsBytes())
+	return t.Array != nil || t.Map != nil
 }
 
 func (t *RestliType) Typeref() *Typeref {
