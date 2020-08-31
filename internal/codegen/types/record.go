@@ -1,4 +1,4 @@
-package codegen
+package types
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -19,8 +20,8 @@ type Record struct {
 	Fields []Field
 }
 
-func (r *Record) InnerTypes() IdentifierSet {
-	innerTypes := make(IdentifierSet)
+func (r *Record) InnerTypes() utils.IdentifierSet {
+	innerTypes := make(utils.IdentifierSet)
 	for _, f := range r.Fields {
 		innerTypes.AddAll(f.Type.InnerTypes())
 	}
@@ -53,7 +54,7 @@ func (f *Field) IsOptionalOrDefault() bool {
 }
 
 func (f *Field) FieldName() string {
-	return ExportedIdentifier(f.Name)
+	return utils.ExportedIdentifier(f.Name)
 }
 
 func (r *Record) SortedFields() (fields []Field) {
@@ -64,20 +65,20 @@ func (r *Record) SortedFields() (fields []Field) {
 
 func (r *Record) GenerateCode() *Statement {
 	return Empty().
-		Add(r.generateStruct()).Line().Line().
+		Add(r.GenerateStruct()).Line().Line().
 		Add(r.generateDefaultValuesCode()).Line().Line().
-		Add(r.generateMarshalRestLi()).Line().Line().
-		Add(r.generateUnmarshalRestLi()).Line().Line().
+		Add(r.GenerateMarshalRestLi()).Line().Line().
+		Add(r.GenerateUnmarshalRestLi()).Line().Line().
 		Add(r.generatePartialUpdateStruct()).Line()
 }
 
-func (r *Record) generateStruct() *Statement {
-	return AddWordWrappedComment(Empty(), r.Doc).Line().
+func (r *Record) GenerateStruct() *Statement {
+	return utils.AddWordWrappedComment(Empty(), r.Doc).Line().
 		Type().Id(r.Name).
 		StructFunc(func(def *Group) {
 			for _, f := range r.Fields {
 				field := def.Empty()
-				AddWordWrappedComment(field, f.Doc).Line()
+				utils.AddWordWrappedComment(field, f.Doc).Line()
 				field.Id(f.FieldName())
 
 				if f.IsOptionalOrDefault() {
@@ -86,7 +87,7 @@ func (r *Record) generateStruct() *Statement {
 					field.Add(f.Type.GoType())
 				}
 
-				field.Tag(JsonFieldTag(f.Name, f.IsOptionalOrDefault()))
+				field.Tag(utils.JsonFieldTag(f.Name, f.IsOptionalOrDefault()))
 			}
 		})
 }
@@ -115,7 +116,7 @@ func (r *Record) generateDefaultValuesCode() Code {
 			def.Return()
 		}).Line().Line()
 
-	AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
 		for _, f := range r.Fields {
 			if f.DefaultValue != nil {
 				r.setDefaultValue(def, f.FieldName(), *f.DefaultValue, &f.Type)
@@ -127,23 +128,23 @@ func (r *Record) generateDefaultValuesCode() Code {
 	return def
 }
 
-func (r *Record) generateMarshalRestLi() *Statement {
+func (r *Record) GenerateMarshalRestLi() *Statement {
 	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, func(def *Group) {
 		r.generateMarshaler(def, nil)
 	})
 }
 
-func (r *Record) generateUnmarshalRestLi() *Statement {
-	return AddRestLiDecode(Empty(), r.Receiver(), r.Name, func(def *Group) {
+func (r *Record) GenerateUnmarshalRestLi() *Statement {
+	return AddUnmarshalRestli(Empty(), r.Receiver(), r.Name, func(def *Group) {
 		r.generateUnmarshaler(def, nil, nil)
 	})
 }
 
 const finderNameParam = "q"
 
-func (r *Record) generateQueryParamMarshaler(finderName *string) *Statement {
+func (r *Record) GenerateQueryParamMarshaler(finderName *string) *Statement {
 	receiver := r.Receiver()
-	return AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
+	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
 		Params().
 		Params(Id("data").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
@@ -173,7 +174,7 @@ func (r *Record) generateQueryParamMarshaler(finderName *string) *Statement {
 				}, paramNameWriter)
 			}))
 
-			def.Add(IfErrReturn(Lit(""), Err()))
+			def.Add(utils.IfErrReturn(Lit(""), Err()))
 			def.Return(Writer.Finalize(), Nil())
 		})
 }
@@ -188,7 +189,7 @@ func (r *Record) generateMarshaler(def *Group, complexKeyKeyAccessor *Statement)
 		fields = append([]Field{{
 			Name:       "$params",
 			IsOptional: true,
-			Type:       RestliType{Reference: new(Identifier)},
+			Type:       RestliType{Reference: new(utils.Identifier)},
 		}}, fields...)
 		complexKeyParamsIndex = 0
 	}
@@ -230,7 +231,7 @@ func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Fiel
 	def.Return(Nil())
 }
 
-func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statement, complexKeyParamsType *Identifier) {
+func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statement, complexKeyParamsType *utils.Identifier) {
 	fields := r.SortedFields()
 
 	complexKeyParamsIndex := -1
@@ -292,12 +293,12 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 				def.Err().Op("=").Add(Reader.Skip())
 			})
 		})
-		def.Add(IfErrReturn(Err()))
+		def.Add(utils.IfErrReturn(Err()))
 		def.Delete(requiredFieldsRemaining, field)
 		def.Return(Nil())
 	})).Line()
 
-	def.Add(IfErrReturn(Err())).Line()
+	def.Add(utils.IfErrReturn(Err())).Line()
 
 	def.If(Len(requiredFieldsRemaining).Op("!=").Lit(0)).BlockFunc(func(def *Group) {
 		def.Return(Qual("fmt", "Errorf").Call(Lit("required fields not all present: %+v"), requiredFieldsRemaining))
@@ -353,7 +354,7 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 				var v string
 				err := json.Unmarshal([]byte(rawJson), &v)
 				if err != nil {
-					Logger.Panicln("illegal enum", err)
+					utils.Logger.Panicln("illegal enum", err)
 				}
 				def.Id("val").Op(":=").Qual(enum.PackagePath(), enum.SymbolIdentifier(v))
 				def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
@@ -396,7 +397,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	)
 
 	// Generate the struct
-	AddWordWrappedComment(def, fmt.Sprintf(
+	utils.AddWordWrappedComment(def, fmt.Sprintf(
 		"%s is used to represent a partial update on %s. Toggling the value of a field\n"+
 			"in Delete represents selecting it for deletion in a partial update, while\n"+
 			"setting the value of a field in Update represents setting that field in the\n"+
@@ -462,7 +463,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 					}
 					def.Add(Return(Nil()))
 				}))
-				def.Add(IfErrReturn(Err()))
+				def.Add(utils.IfErrReturn(Err()))
 			})
 			def.Line()
 
@@ -488,7 +489,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 					}
 					def.Return(Nil())
 				}))
-				def.Add(IfErrReturn(Err()))
+				def.Add(utils.IfErrReturn(Err()))
 			})
 
 			for _, f := range fields {

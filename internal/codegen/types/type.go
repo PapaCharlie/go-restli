@@ -1,57 +1,22 @@
-package codegen
+package types
 
 import (
-	"encoding/json"
 	"log"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
-	"github.com/pkg/errors"
 )
-
-type NamedType struct {
-	Identifier
-	SourceFile string
-	Doc        string
-}
 
 func (t *NamedType) GetSourceFile() string {
 	return t.SourceFile
 }
 
-type RestliType struct {
-	Primitive *PrimitiveType
-	Reference *Identifier
-	Array     *RestliType
-	Map       *RestliType
-}
-
-func (t *RestliType) UnmarshalJSON(data []byte) error {
-	type _t RestliType
-	err := json.Unmarshal(data, (*_t)(t))
-	if err != nil {
-		return err
-	}
-
+func (t *RestliType) InnerTypes() utils.IdentifierSet {
 	switch {
 	case t.Primitive != nil:
 		return nil
 	case t.Reference != nil:
-		return nil
-	case t.Array != nil:
-		return nil
-	case t.Map != nil:
-		return nil
-	default:
-		return errors.Errorf("go-restli: RestliType declares no underlying type! (%s)", string(data))
-	}
-}
-
-func (t *RestliType) InnerTypes() IdentifierSet {
-	switch {
-	case t.Primitive != nil:
-		return nil
-	case t.Reference != nil:
-		return NewIdentifierSet(*t.Reference)
+		return utils.NewIdentifierSet(*t.Reference)
 	case t.Array != nil:
 		return t.Array.InnerTypes()
 	case t.Map != nil:
@@ -169,55 +134,4 @@ func (t *RestliType) Record() *Record {
 
 func (t *RestliType) PointerType() *Statement {
 	return Op("*").Add(t.GoType())
-}
-
-type GoRestliSpec struct {
-	DataTypes []struct {
-		Enum            *Enum            `json:"enum"`
-		Fixed           *Fixed           `json:"fixed"`
-		Record          *Record          `json:"record"`
-		ComplexKey      *ComplexKey      `json:"complexKey"`
-		StandaloneUnion *StandaloneUnion `json:"standaloneUnion"`
-		Typeref         *Typeref         `json:"typeref"`
-	} `json:"dataTypes"`
-	Resources []Resource
-}
-
-func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
-	type t GoRestliSpec
-	err := json.Unmarshal(data, (*t)(s))
-	if err != nil {
-		return err
-	}
-
-	for _, t := range s.DataTypes {
-		var complexType ComplexType
-		switch {
-		case t.Enum != nil:
-			complexType = t.Enum
-		case t.Fixed != nil:
-			complexType = t.Fixed
-		case t.Record != nil:
-			complexType = t.Record
-		case t.ComplexKey != nil:
-			complexType = t.ComplexKey
-		case t.StandaloneUnion != nil:
-			complexType = t.StandaloneUnion
-		case t.Typeref != nil:
-			complexType = t.Typeref
-		default:
-			return errors.New("go-restli: Must declare at least one underlying type")
-		}
-		TypeRegistry.Register(complexType)
-	}
-
-	TypeRegistry.FlagCyclicDependencies()
-	return nil
-}
-
-func (s *GoRestliSpec) GenerateClientCode() (codeFiles []*CodeFile) {
-	for _, r := range s.Resources {
-		codeFiles = append(codeFiles, r.GenerateCode()...)
-	}
-	return codeFiles
 }

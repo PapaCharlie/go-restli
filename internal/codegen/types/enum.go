@@ -1,8 +1,9 @@
-package codegen
+package types
 
 import (
 	"fmt"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -12,13 +13,13 @@ type Enum struct {
 	SymbolToDoc map[string]string
 }
 
-func (e *Enum) InnerTypes() IdentifierSet {
+func (e *Enum) InnerTypes() utils.IdentifierSet {
 	return nil
 }
 
 func (e *Enum) GenerateCode() (def *Statement) {
 	def = Empty()
-	AddWordWrappedComment(def, e.Doc).Line()
+	utils.AddWordWrappedComment(def, e.Doc).Line()
 	def.Type().Id(e.Name).Int().Line()
 
 	unknownEnum := Id("_" + e.SymbolIdentifier("unknown"))
@@ -26,7 +27,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	def.Const().DefsFunc(func(def *Group) {
 		def.Add(unknownEnum).Op("=").Id(e.Name).Call(Iota())
 		for _, symbol := range e.Symbols {
-			def.Add(AddWordWrappedComment(Empty(), e.SymbolToDoc[symbol]))
+			def.Add(utils.AddWordWrappedComment(Empty(), e.SymbolToDoc[symbol]))
 			def.Id(e.SymbolIdentifier(symbol))
 		}
 	}).Line()
@@ -45,7 +46,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		}
 	})).Line().Line()
 
-	receiver := ReceiverName(e.Name)
+	receiver := utils.ReceiverName(e.Name)
 	getter := "Get" + e.Name + "FromString"
 	accessor := Op("*").Id(receiver)
 	getEnumString := func(def *Group) (*Statement, *Statement) {
@@ -71,7 +72,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 			def.Return()
 		}).Line().Line()
 
-	AddStringer(def, receiver, e.Name, func(def *Group) {
+	utils.AddStringer(def, receiver, e.Name, func(def *Group) {
 		val, ok := getEnumString(def)
 		def.If(Op("!").Add(ok)).Block(
 			Return(Lit("$UNKNOWN$")),
@@ -95,11 +96,11 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		def.List(Writer).Dot("WriteString").Call(val)
 		def.Return(Nil())
 	}).Line().Line()
-	AddRestLiDecode(def, receiver, e.Name, func(def *Group) {
+	AddUnmarshalRestli(def, receiver, e.Name, func(def *Group) {
 		value := Id("value")
 		def.Var().Add(value).String()
 		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, value))
-		def.Add(IfErrReturn(Err()))
+		def.Add(utils.IfErrReturn(Err()))
 		def.Line()
 
 		def.Op("*").Id(receiver).Op("=").Id(values).Index(Id("value"))
@@ -110,7 +111,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 }
 
 func (e *Enum) SymbolIdentifier(symbol string) string {
-	return ExportedIdentifier(e.Name + "_" + symbol)
+	return utils.ExportedIdentifier(e.Name + "_" + symbol)
 }
 
 func (e *Enum) zeroValueLit() *Statement {

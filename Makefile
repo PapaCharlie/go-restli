@@ -17,7 +17,7 @@ GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 TEST_SUITE := internal/tests/rest.li-test-suite/client-testsuite
 EXTRA_TEST_SUITE := internal/tests/extra-test-suite
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/generated
-PACKAGES := ./internal/codegen ./d2 ./protocol
+PACKAGES := ./internal/codegen/* ./d2 ./protocol
 
 build: generate test integration-test
 	rm -rf bin
@@ -38,17 +38,20 @@ imports:
 	goimports -w main.go $(PACKAGES)
 
 integration-test: clean $(JARGO)
-	rm -rf internal/tests/generated
+	rm -rf internal/tests/generated internal/tests/generated_extras
+	go run -tags=jar . \
+		--output-dir internal/tests/generated_extras \
+		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
+		--package-prefix $(PACKAGE_PREFIX)_extras \
+		--named-schemas-to-generate extras.NestedArraysAndMaps
 	go run -tags=jar . \
 		--output-dir internal/tests/generated \
-		--resolver-paths $(TEST_SUITE)/schemas \
-		--resolver-paths $(EXTRA_TEST_SUITE)/schemas \
+		--resolver-path $(TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX) \
 		--named-schemas-to-generate testsuite.Primitives \
 		--named-schemas-to-generate testsuite.ComplexTypes \
 		--named-schemas-to-generate testsuite.Include \
 		--named-schemas-to-generate testsuite.Defaults \
-		--named-schemas-to-generate extras.NestedArraysAndMaps \
 		$(TEST_SUITE)/restspecs/* $(EXTRA_TEST_SUITE)/restspecs/*
 	go test -tags=jar -count=1 ./internal/tests/...
 

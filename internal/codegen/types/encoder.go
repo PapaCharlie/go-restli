@@ -1,8 +1,9 @@
-package codegen
+package types
 
 import (
 	"log"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -37,7 +38,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 		return Add(writerAccessor).Dot(t.Primitive.WriterName()).Call(sourceAccessor)
 	case t.Reference != nil:
 		def := Err().Op("=").Add(sourceAccessor).Dot(MarshalRestLi).Call(writerAccessor).Line()
-		def.Add(IfErrReturn(returnOnError...))
+		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
 	case t.Array != nil:
 		def := Err().Op("=").Add(e.WriteArray(writerAccessor, func(itemWriter Code, def *Group) {
@@ -47,7 +48,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 			})
 			def.Return(Nil())
 		})).Line()
-		def.Add(IfErrReturn(returnOnError...))
+		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
 	case t.Map != nil:
 		def := Err().Op("=").Add(e.WriteMap(writerAccessor, func(keyWriter Code, def *Group) {
@@ -57,7 +58,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 			})
 			def.Return(Nil())
 		})).Line()
-		def.Add(IfErrReturn(returnOnError...))
+		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
 	default:
 		log.Panicf("Illegal restli type: %+v", t)

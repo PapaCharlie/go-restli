@@ -1,6 +1,7 @@
 .idea/
 vendor/
 internal/tests/generated
+internal/tests/generated_extras
 /options/
 go-restli
 *.swp

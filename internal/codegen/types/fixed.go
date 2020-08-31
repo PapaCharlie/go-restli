@@ -1,8 +1,9 @@
-package codegen
+package types
 
 import (
 	"fmt"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -13,27 +14,27 @@ type Fixed struct {
 
 var FixedUnderlyingType = RestliType{Primitive: &BytesPrimitive}
 
-func (f *Fixed) InnerTypes() IdentifierSet {
+func (f *Fixed) InnerTypes() utils.IdentifierSet {
 	return nil
 }
 
 func (f *Fixed) GenerateCode() (def *Statement) {
 	def = Empty()
-	AddWordWrappedComment(def, f.Doc).Line()
+	utils.AddWordWrappedComment(def, f.Doc).Line()
 	def.Type().Id(f.Name).Index(Lit(f.Size)).Byte().Line().Line()
 
-	receiver := ReceiverName(f.Name)
+	receiver := utils.ReceiverName(f.Name)
 	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.Name, f.Size)
 
 	AddMarshalRestLi(def, receiver, f.Name, func(def *Group) {
 		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Index(Op(":"))))
 		def.Return(Nil())
 	}).Line().Line()
-	AddRestLiDecode(def, receiver, f.Name, func(def *Group) {
+	AddUnmarshalRestli(def, receiver, f.Name, func(def *Group) {
 		bytes := Id("bytes")
 		def.Var().Add(bytes).Index().Byte()
 		def.Add(Reader.Read(FixedUnderlyingType, bytes))
-		def.Add(IfErrReturn(Err())).Line()
+		def.Add(utils.IfErrReturn(Err())).Line()
 
 		def.If(Len(Id("bytes")).Op("!=").Lit(f.Size)).BlockFunc(func(def *Group) {
 			def.Return(Qual("fmt", "Errorf").Call(Lit(errorMsg), Len(Id("bytes"))))

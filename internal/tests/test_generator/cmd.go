@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/internal/codegen"
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	"github.com/PapaCharlie/go-restli/internal/tests"
 	"github.com/pkg/errors"
 )
 
 func init() {
-	codegen.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/generated"
+	utils.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/generated"
 }
 
 func main() {
@@ -36,7 +36,7 @@ import (
 
 	. "%s"
 )
-`, filepath.Join(codegen.PackagePrefix, wd.PackagePath))
+`, filepath.Join(utils.PackagePrefix, wd.PackagePath))
 			panicIfErr(err)
 			panicIfErr(f.Close())
 		} else {

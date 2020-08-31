@@ -1,9 +1,10 @@
-package codegen
+package types
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -14,19 +15,19 @@ type StandaloneUnion struct {
 	Union UnionType `json:"Union"`
 }
 
-func (u *StandaloneUnion) InnerTypes() IdentifierSet {
+func (u *StandaloneUnion) InnerTypes() utils.IdentifierSet {
 	return u.Union.InnerModels()
 }
 
 func (u *StandaloneUnion) GenerateCode() *Statement {
 	def := Empty()
 
-	AddWordWrappedComment(def, u.Doc).Line().
+	utils.AddWordWrappedComment(def, u.Doc).Line().
 		Type().Id(u.Name).
 		Add(u.Union.GoType()).
 		Line().Line()
 
-	AddFuncOnReceiver(def, unionReceiver, u.Name, ValidateUnionFields).
+	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, ValidateUnionFields).
 		Params().
 		Params(Error()).
 		BlockFunc(func(def *Group) {
@@ -46,7 +47,7 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		}))
 	}).Line().Line()
 
-	AddRestLiDecode(def, unionReceiver, u.Name, func(def *Group) {
+	AddUnmarshalRestli(def, unionReceiver, u.Name, func(def *Group) {
 		u.Union.decode(def, unionReceiver, u.Name)
 	}).Line().Line()
 
@@ -58,8 +59,8 @@ type UnionType struct {
 	Members []UnionMember
 }
 
-func (u *UnionType) InnerModels() IdentifierSet {
-	innerTypes := make(IdentifierSet)
+func (u *UnionType) InnerModels() utils.IdentifierSet {
+	innerTypes := make(utils.IdentifierSet)
 	for _, m := range u.Members {
 		innerTypes.AddAll(m.Type.InnerTypes())
 	}
@@ -72,7 +73,7 @@ func (u *UnionType) GoType() *Statement {
 			field := def.Empty()
 			field.Id(m.name())
 			field.Add(m.Type.PointerType())
-			field.Tag(JsonFieldTag(m.Alias, true))
+			field.Tag(utils.JsonFieldTag(m.Alias, true))
 		}
 	})
 }
@@ -117,7 +118,7 @@ func (u *UnionType) decode(def *Group, receiver string, typeName string) {
 		def.Return(decode)
 	} else {
 		def.Err().Op("=").Add(decode)
-		def.Add(IfErrReturn(Err()))
+		def.Add(utils.IfErrReturn(Err()))
 		def.If(Op("!").Add(wasSet)).Block(
 			Return(errorMessage),
 		)
@@ -167,5 +168,5 @@ type UnionMember struct {
 }
 
 func (m *UnionMember) name() string {
-	return ExportedIdentifier(m.Alias[strings.LastIndex(m.Alias, ".")+1:])
+	return utils.ExportedIdentifier(m.Alias[strings.LastIndex(m.Alias, ".")+1:])
 }

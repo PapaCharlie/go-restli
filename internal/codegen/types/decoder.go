@@ -1,8 +1,9 @@
-package codegen
+package types
 
 import (
 	"log"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -43,7 +44,7 @@ func (d *reader) Read(t RestliType, accessor Code) Code {
 			item := Id(tempReaderVariableName(t))
 			def.Var().Add(item).Add(t.Array.GoType())
 			def.Add(d.Read(*t.Array, item))
-			def.Add(IfErrReturn(Err()))
+			def.Add(utils.IfErrReturn(Err()))
 			if t.Array.ShouldReference() {
 				item = Op("&").Add(item)
 			}
@@ -57,7 +58,7 @@ func (d *reader) Read(t RestliType, accessor Code) Code {
 				value := Id(tempReaderVariableName(t))
 				def.Var().Add(value).Add(t.Map.GoType())
 				def.Add(d.Read(*t.Map, value))
-				def.Add(IfErrReturn(Err()))
+				def.Add(utils.IfErrReturn(Err()))
 				if t.Map.ShouldReference() {
 					value = Op("&").Add(value)
 				}
@@ -73,13 +74,13 @@ func (d *reader) Read(t RestliType, accessor Code) Code {
 func tempReaderVariableName(t RestliType) string {
 	if t.Array != nil {
 		if t.Array.IsMapOrArray() {
-			return "array" + ExportedIdentifier(tempReaderVariableName(*t.Array))
+			return "array" + utils.ExportedIdentifier(tempReaderVariableName(*t.Array))
 		} else {
 			return "item"
 		}
 	} else {
 		if t.Map.IsMapOrArray() {
-			return "map" + ExportedIdentifier(tempReaderVariableName(*t.Map))
+			return "map" + utils.ExportedIdentifier(tempReaderVariableName(*t.Map))
 		} else {
 			return "value"
 		}

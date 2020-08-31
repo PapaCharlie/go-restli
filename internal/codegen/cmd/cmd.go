@@ -9,9 +9,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/internal/codegen"
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
+	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -19,7 +21,7 @@ import (
 var Version string
 
 type JarStdinParameters struct {
-	ResolverPaths              []string `json:"resolverPaths"`
+	ResolverPath               string   `json:"resolverPath"`
 	RestSpecPaths              []string `json:"restSpecPaths"`
 	NamedDataSchemasToGenerate []string `json:"namedDataSchemasToGenerate"`
 }
@@ -34,7 +36,7 @@ func CodeGenerator() *cobra.Command {
 	var specBytes []byte
 	var outputDir string
 
-	cmd.Flags().StringVarP(&codegen.PackagePrefix, "package-prefix", "p", "",
+	cmd.Flags().StringVarP(&utils.PackagePrefix, "package-prefix", "p", "",
 		"All files will be generated as sub-packages of this package.")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", ".", "The directory in which to output the generated files")
 
@@ -49,8 +51,8 @@ generated only for the schemas required to interact with the given resources, bu
 be overridden with -n/--named-schemas-to-generate which can be used to specify some extra schemas
 that should also have bindings. If named schemas are specified, it's not necessary to specify rest
 specs.`)
-		cmd.Flags().StringArrayVarP(&params.ResolverPaths, "resolver-paths", "r", nil,
-			"The directories or files that contains all the .pdsc/.pdl files that may be needed")
+		cmd.Flags().StringVarP(&params.ResolverPath, "resolver-path", "r", "",
+			"The directory that contains all the .pdsc/.pdl files that may be needed")
 		cmd.Flags().StringArrayVarP(&params.NamedDataSchemasToGenerate, "named-schemas-to-generate", "n", nil,
 			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
 
@@ -60,14 +62,10 @@ specs.`)
 				return errors.New("go-restli: Must specify at least one restspec file or named data schema")
 			}
 
-			if len(params.ResolverPaths) == 0 {
-				return errors.New("go-restli: Must specify at least one schema dir")
-			} else {
-				for _, s := range params.ResolverPaths {
-					if _, err := os.Stat(s); err != nil {
-						return errors.Wrap(err, "go-restli: All resolver paths must be valid: %w")
-					}
-				}
+			if params.ResolverPath == "" {
+				return errors.New("go-restli: Must specify a schema dir")
+			} else if _, err := os.Stat(params.ResolverPath); err != nil {
+				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
 			}
 
 			return nil
@@ -109,7 +107,7 @@ specs.`)
 	}
 
 	cmd.RunE = func(*cobra.Command, []string) error {
-		return codegen.GenerateCode(specBytes, outputDir)
+		return GenerateCode(specBytes, outputDir)
 	}
 
 	return cmd
@@ -174,4 +172,87 @@ func ReadSpec(args []string) ([]byte, error) {
 		}
 		return specByes, nil
 	}
+}
+
+func GenerateCode(specBytes []byte, outputDir string) error {
+	var schemas GoRestliSpec
+
+	_ = os.MkdirAll(outputDir, os.ModePerm)
+	parsedSpecs := filepath.Join(outputDir, "parsed-specs.json")
+	_ = os.Remove(parsedSpecs)
+	err := ioutil.WriteFile(parsedSpecs, specBytes, utils.ReadOnlyPermissions)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Failed to write parsed specs to %q", parsedSpecs)
+	}
+
+	// Use a Reader regardless since it'll handle leading/trailing whitespace and other niceties
+	err = json.NewDecoder(bytes.NewBuffer(specBytes)).Decode(&schemas)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not deserialize GoRestliSpec")
+	}
+
+	tmpOutputDir, err := ioutil.TempDir("", "go-restli_*")
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Failed to create temporary directory")
+	}
+	defer os.RemoveAll(tmpOutputDir)
+
+	codeFiles := append(utils.TypeRegistry.GenerateTypeCode(), schemas.GenerateClientCode()...)
+
+	for _, code := range codeFiles {
+		err = code.Write(tmpOutputDir)
+		if err != nil {
+			return errors.Wrapf(err, "go-restli: Could not generate code for %+v:\n%s", code, code.Code.GoString())
+		}
+	}
+
+	err = GenerateAllImportsTest(tmpOutputDir, codeFiles)
+	if err != nil {
+		return err
+	}
+
+	children, err := ioutil.ReadDir(tmpOutputDir)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not list %q", tmpOutputDir)
+	}
+
+	for _, c := range children {
+		source := filepath.Join(tmpOutputDir, c.Name())
+		destination := filepath.Join(outputDir, c.Name())
+
+		err = os.RemoveAll(destination)
+		if err != nil {
+			return errors.Wrapf(err, "go-restli: Failed to delete %q", destination)
+		}
+
+		err = os.Rename(source, destination)
+		if err != nil {
+			return errors.Wrapf(err, "go-restli: Failed to move %q to %q", source, destination)
+		}
+	}
+
+	return nil
+}
+
+func GenerateAllImportsTest(outputDir string, codeFiles []*utils.CodeFile) error {
+	imports := make(map[string]bool)
+	for _, code := range codeFiles {
+		if code == nil {
+			continue
+		}
+		imports[code.PackagePath] = true
+	}
+	f := jen.NewFile("main")
+	for p := range imports {
+		f.Anon(p)
+	}
+	f.Func().Id("TestAllImports").Params(jen.Op("*").Qual("testing", "T")).Block()
+
+	out := filepath.Join(outputDir, "all_imports_test.go")
+	_ = os.Remove(out)
+	err := utils.WriteJenFile(out, f)
+	if err != nil {
+		return errors.Wrapf(err, "Could not write all imports file: %+v", err)
+	}
+	return nil
 }

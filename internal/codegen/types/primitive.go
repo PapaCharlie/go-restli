@@ -1,9 +1,10 @@
-package codegen
+package types
 
 import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )
@@ -74,7 +75,7 @@ func (p *PrimitiveType) GoType() *Statement {
 func getLitBytesValues(rawJson string) *Statement {
 	var v string
 	if err := json.Unmarshal([]byte(rawJson), &v); err != nil {
-		Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", BytesPrimitive, rawJson, err)
+		utils.Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", BytesPrimitive, rawJson, err)
 	}
 	return ValuesFunc(func(def *Group) {
 		for _, c := range v {
@@ -91,7 +92,7 @@ func (p *PrimitiveType) getLit(rawJson string) *Statement {
 
 		err := json.Unmarshal([]byte(rawJson), v)
 		if err != nil {
-			Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
+			utils.Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
 		}
 		return Lit(reflect.ValueOf(v).Elem().Interface())
 	}
@@ -106,7 +107,7 @@ func (p *PrimitiveType) zeroValueLit() *Statement {
 }
 
 func (p *PrimitiveType) exportedName() string {
-	return ExportedIdentifier(p.Type)
+	return utils.ExportedIdentifier(p.Type)
 }
 
 func (p *PrimitiveType) WriterName() string {
