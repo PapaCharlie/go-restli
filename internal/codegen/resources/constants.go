@@ -18,14 +18,15 @@ const (
 )
 
 var (
-	RestLiClient   = Code(Qual(types.ProtocolPackage, "RestLiClient"))
+	RestLiClient = Code(Qual(types.ProtocolPackage, "RestLiClient"))
+	Context      = Code(Qual("context", "Context"))
+
 	Url            = Code(Id("url"))
 	Path           = Code(Id("path"))
 	Ctx            = Code(Id("ctx"))
 	Entity         = Code(Id("entity"))
 	EntityKey      = Code(Id("entityKey"))
 	ReturnedEntity = Code(Id("returnedEntity"))
-	ContextQual    = Qual("context", "Context")
 	CreateParam    = Code(Id("create"))
 	UpdateParam    = Code(Id("update"))
 	QueryParams    = Code(Id("queryParams"))

@@ -22,10 +22,13 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	utils.AddWordWrappedComment(def, r.Doc).Line()
 	def.Type().Id(r.Name).Add(r.Type.GoType()).Line().Line()
 
+	AddEquals(def, r.Receiver(), r.Name, func(other Code, def *Group) {
+		def.Return(Op("*").Id(r.Receiver()).Op("== *").Add(other))
+	})
 	AddMarshalRestLi(def, r.Receiver(), r.Name, func(def *Group) {
 		def.Add(Writer.Write(underlyingType, Writer, r.Type.Cast(Op("*").Id(r.Receiver()))))
 		def.Return(Nil())
-	}).Line().Line()
+	})
 	AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
 		tmp := Id("tmp")
 		def.Var().Add(tmp).Add(r.Type.GoType())
@@ -34,7 +37,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 
 		def.Op("*").Id(r.Receiver()).Op("=").Id(r.Name).Call(tmp)
 		def.Return(Nil())
-	}).Line().Line()
+	})
 
 	return def
 }

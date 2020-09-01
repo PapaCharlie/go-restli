@@ -1,0 +1,5 @@
+namespace extras
+
+record DefaultTyperef {
+  foo: Temperature = 42
+}

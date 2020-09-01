@@ -2,10 +2,11 @@ package io.papacharlie.gorestli.json;
 
 import com.linkedin.data.ByteString;
 import com.linkedin.data.schema.NamedDataSchema;
-import io.papacharlie.gorestli.Utils;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+
+import static io.papacharlie.gorestli.Utils.*;
 
 
 public class Record extends NamedType {
@@ -41,9 +42,9 @@ public class Record extends NamedType {
       }
 
       if (value instanceof ByteString) {
-        return Utils.toJson(((ByteString) value).asString(StandardCharsets.UTF_8));
+        return UGLY_GSON.toJson(((ByteString) value).asString(StandardCharsets.UTF_8));
       } else {
-        return Utils.toJson(value);
+        return UGLY_GSON.toJson(value);
       }
     }
   }

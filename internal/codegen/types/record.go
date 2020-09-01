@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"sort"
 
@@ -67,6 +66,7 @@ func (r *Record) GenerateCode() *Statement {
 	return Empty().
 		Add(r.GenerateStruct()).Line().Line().
 		Add(r.generateDefaultValuesCode()).Line().Line().
+		Add(r.GenerateEquals()).Line().Line().
 		Add(r.GenerateMarshalRestLi()).Line().Line().
 		Add(r.GenerateUnmarshalRestLi()).Line().Line().
 		Add(r.generatePartialUpdateStruct()).Line()
@@ -99,6 +99,9 @@ func (r *Record) generateDefaultValuesCode() Code {
 
 	def := Empty()
 
+	def.Commentf("Sanity check %s has no illegal default values", r.defaultValuesConstructor()).Line()
+	def.Var().Id("_").Op("=").Id(r.defaultValuesConstructor()).Call().Line().Line()
+
 	def.Func().
 		Id(r.defaultValuesConstructor()).Params().
 		Params(Id(r.Receiver()).Op("*").Id(r.Name)).
@@ -108,7 +111,7 @@ func (r *Record) generateDefaultValuesCode() Code {
 				if f.Type.Reference == nil {
 					continue
 				}
-				if record, ok := f.Type.Reference.Resolve().(*Record); ok && !f.IsOptionalOrDefault() && record.hasDefaultValue() {
+				if record := f.Type.Record(); record != nil && !f.IsOptionalOrDefault() && record.hasDefaultValue() {
 					def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
 				}
 			}
@@ -128,250 +131,69 @@ func (r *Record) generateDefaultValuesCode() Code {
 	return def
 }
 
-func (r *Record) GenerateMarshalRestLi() *Statement {
-	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateMarshaler(def, nil)
-	})
-}
-
-func (r *Record) GenerateUnmarshalRestLi() *Statement {
-	return AddUnmarshalRestli(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateUnmarshaler(def, nil, nil)
-	})
-}
-
-const finderNameParam = "q"
-
-func (r *Record) GenerateQueryParamMarshaler(finderName *string) *Statement {
-	receiver := r.Receiver()
-	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
-		Params().
-		Params(Id("data").String(), Err().Error()).
-		BlockFunc(func(def *Group) {
-			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewRestLiQueryParamsWriter").Call()
-
-			fields := r.SortedFields()
-
-			qIndex := -1
-			if finderName != nil {
-				qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
-				fields = append(fields[:qIndex], append([]Field{{
-					Type:       RestliType{Primitive: &StringPrimitive},
-					Name:       finderNameParam,
-					IsOptional: false,
-				}}, fields[qIndex:]...)...)
-			}
-
-			paramNameWriter := Id("paramNameWriter")
-			paramNameWriterFunc := Add(paramNameWriter).Func().Params(String()).Add(WriterQual)
-			def.Err().Op("=").Add(Writer).Dot("WriteParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
-				writeAllFields(def, fields, func(i int, f Field) Code {
-					if i == qIndex {
-						return Lit(*finderName)
-					} else {
-						return r.field(f)
-					}
-				}, paramNameWriter)
-			}))
-
-			def.Add(utils.IfErrReturn(Lit(""), Err()))
-			def.Return(Writer.Finalize(), Nil())
-		})
-}
-
-const ComplexKeyParamsField = "Params"
-
-func (r *Record) generateMarshaler(def *Group, complexKeyKeyAccessor *Statement) {
-	fields := r.SortedFields()
-
-	complexKeyParamsIndex := -1
-	if complexKeyKeyAccessor != nil {
-		fields = append([]Field{{
-			Name:       "$params",
-			IsOptional: true,
-			Type:       RestliType{Reference: new(utils.Identifier)},
-		}}, fields...)
-		complexKeyParamsIndex = 0
-	}
-
-	var fieldAccessor func(i int, f Field) Code
-	if complexKeyKeyAccessor != nil {
-		fieldAccessor = func(i int, f Field) Code {
-			if i == complexKeyParamsIndex {
-				return Id(r.Receiver()).Dot(ComplexKeyParamsField)
-			} else {
-				return Add(complexKeyKeyAccessor).Dot(f.FieldName())
-			}
-		}
-	} else {
-		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
-	}
-
-	def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-		writeAllFields(def, fields, fieldAccessor, keyWriter)
-	}))
-}
-
-func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
-	for i, f := range fields {
-		accessor := fieldAccessor(i, f)
-
-		serialize := def.Empty()
-		if f.IsOptionalOrDefault() {
-			serialize.If(Add(accessor).Op("!=").Nil())
-		}
-
-		serialize.BlockFunc(func(def *Group) {
-			if f.IsOptionalOrDefault() && f.Type.Reference == nil {
-				accessor = Op("*").Add(accessor)
-			}
-			def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-		}).Line()
-	}
-	def.Return(Nil())
-}
-
-func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statement, complexKeyParamsType *utils.Identifier) {
-	fields := r.SortedFields()
-
-	complexKeyParamsIndex := -1
-	if complexKeyKeyAccessor != nil {
-		fields = append([]Field{{
-			Name:       "$params",
-			IsOptional: true,
-			Type:       RestliType{Reference: complexKeyParamsType},
-		}}, fields...)
-		complexKeyParamsIndex = 0
-	}
-
-	if len(fields) == 0 {
-		def.Return(Reader.ReadMap(func(field Code, def *Group) {
-			def.Return(Reader.Skip())
-		}))
-		return
-	}
-
-	var fieldAccessor func(i int, f Field) Code
-	if complexKeyKeyAccessor != nil {
-		fieldAccessor = func(i int, f Field) Code {
-			if i == complexKeyParamsIndex {
-				return Id(r.Receiver()).Dot(ComplexKeyParamsField)
-			} else {
-				return Add(complexKeyKeyAccessor).Dot(f.FieldName())
-			}
-		}
-	} else {
-		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
-	}
-
-	requiredFieldsRemaining := Id("requiredFieldsRemaining")
-	def.Add(requiredFieldsRemaining).Op(":=").Map(String()).Bool().Values(DictFunc(func(dict Dict) {
-		for _, f := range fields {
-			if !f.IsOptionalOrDefault() {
-				dict[Lit(f.Name)] = True()
-			}
-		}
-	})).Line()
-
-	def.Err().Op("=").Add(Reader.ReadMap(func(field Code, def *Group) {
-		def.Switch(field).BlockFunc(func(def *Group) {
-			for i, f := range fields {
-				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
-					accessor := fieldAccessor(i, f)
-
-					if f.IsOptionalOrDefault() {
-						def.Add(accessor).Op("=").New(f.Type.GoType())
-						if f.Type.Reference == nil {
-							accessor = Op("*").Add(accessor)
-						}
-					}
-
-					def.Add(Reader.Read(f.Type, accessor))
-				})
-			}
-			def.Default().BlockFunc(func(def *Group) {
-				def.Err().Op("=").Add(Reader.Skip())
-			})
-		})
-		def.Add(utils.IfErrReturn(Err()))
-		def.Delete(requiredFieldsRemaining, field)
-		def.Return(Nil())
-	})).Line()
-
-	def.Add(utils.IfErrReturn(Err())).Line()
-
-	def.If(Len(requiredFieldsRemaining).Op("!=").Lit(0)).BlockFunc(func(def *Group) {
-		def.Return(Qual("fmt", "Errorf").Call(Lit("required fields not all present: %+v"), requiredFieldsRemaining))
-	}).Line()
-
-	if r.hasDefaultValue() {
-		def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
-	}
-
-	def.Return(Nil())
-}
-
-func (r *Record) generateQueryParamsUnmarhsaler(def *Group, finderName *string) {
-	fields := r.SortedFields()
-	qIndex := -1
-	if finderName != nil {
-		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= finderNameParam })
-		fields = append(fields[:qIndex], append([]Field{{
-			Name:       finderNameParam,
-			IsOptional: false,
-			Type:       RestliType{Primitive: &StringPrimitive},
-		}}, fields[qIndex:]...)...)
-	}
-
-	finderNameVar := Id("finderName")
-	if finderName != nil {
-		def.Var().Add(finderNameVar).String()
-		def.Line()
-	}
-
-}
-
 func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType) {
 	def.If(Id(r.Receiver()).Dot(name).Op("==").Nil()).BlockFunc(func(def *Group) {
+		accessor := Code(Id(r.Receiver()).Dot(name))
+		declareReader := func() {
+			def.Var().Err().Error()
+			def.Add(Reader).Op(":=").Add(NewJsonReader).Call(Index().Byte().Call(Lit(rawJson)))
+		}
+		addPanic := func() {
+			def.If(Err().Op("!=").Nil()).Block(Qual("log", "Panicln").Call(Lit("Illegal default value"), Err()))
+		}
 		switch {
 		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
-		case t.UnderlyingPrimitive() != nil:
-			pt := t.UnderlyingPrimitive()
-			def.Id("val").Op(":=").Add(pt.Cast(pt.getLit(rawJson)))
-			def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
+		case t.Primitive != nil:
+			def.Id("val").Op(":=").Add(t.Primitive.getLit(rawJson))
+			def.Add(accessor).Op("= &").Id("val")
 			return
-		// If the default value for an array is the empty array, we can leave it as nil since that will behave
-		// identically to an empty slice
-		case t.Array != nil && emptyArrayRegex.MatchString(rawJson):
-			return
-		// For convenience, we create empty maps of the right type if the default value is the empty map
-		case t.Map != nil && emptyMapRegex.MatchString(rawJson):
-			def.Id(r.Receiver()).Dot(name).Op("= &").Add(t.GoType()).Values()
-			return
-		// Enum values can also be added as literals
 		case t.Reference != nil:
-			if enum, ok := t.Reference.Resolve().(*Enum); ok {
+			if enum := t.Enum(); enum != nil {
 				var v string
 				err := json.Unmarshal([]byte(rawJson), &v)
 				if err != nil {
 					utils.Logger.Panicln("illegal enum", err)
 				}
+				if !enum.isValidSymbol(v) {
+					utils.Logger.Panicf("illegal enum value %q for %q (not in %q)", v, enum.Identifier, enum.Symbols)
+				}
 				def.Id("val").Op(":=").Qual(enum.PackagePath(), enum.SymbolIdentifier(v))
-				def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
-				return
-			}
-
-			if fixed, ok := t.Reference.Resolve().(*Fixed); ok {
+				def.Add(accessor).Op("= &").Id("val")
+			} else if fixed, ok := t.Reference.Resolve().(*Fixed); ok {
 				def.Id("val").Op(":=").Add(fixed.getLit(rawJson))
-				def.Id(r.Receiver()).Dot(name).Op("= &").Id("val")
+				def.Add(accessor).Op("= &").Id("val")
+			} else if typeref := t.Typeref(); typeref != nil {
+				def.Id("val").Op(":=").Add(t.GoType()).Call(typeref.Type.getLit(rawJson))
+				def.Add(accessor).Op("= &").Id("val")
+			} else if t.Record() != nil || t.StandaloneUnion() != nil {
+				def.Id(r.Receiver()).Dot(name).Op("=").New(t.GoType())
+				declareReader()
+				def.Add(Reader.Read(*t, accessor))
+				addPanic()
+			} else {
+				utils.Logger.Panic("Unknown reference type for default value", t.Reference.Resolve())
+			}
+		case t.Array != nil:
+			// If the default value for an array is the empty array, we can leave it as nil since that will behave
+			// identically to an empty slice
+			if emptyArrayRegex.MatchString(rawJson) {
 				return
 			}
+			def.Add(accessor).Op("=").New(t.GoType())
+			declareReader()
+			def.Add(Reader.Read(*t, Op("*").Add(accessor)))
+			addPanic()
+			return
+		case t.Map != nil:
+			def.Add(accessor).Op("= &").Add(t.GoType()).Values()
+			if emptyMapRegex.MatchString(rawJson) {
+				return
+			}
+			declareReader()
+			def.Add(Reader.Read(*t, Op("*").Add(accessor)))
+			addPanic()
+			return
 		}
-
-		field := Op("&").Id(r.Receiver()).Dot(name)
-
-		def.Err().Op(":=").Qual(EncodingJson, Unmarshal).Call(Index().Byte().Call(Lit(rawJson)), field)
-		def.If(Err().Op("!=").Nil()).Block(Qual("log", "Panicln").Call(Lit("Illegal default value"), Err()))
 	})
 }
 
@@ -386,129 +208,4 @@ func (r *Record) hasDefaultValue() bool {
 
 func (r *Record) defaultValuesConstructor() string {
 	return "New" + r.Name + "WithDefaultValues"
-}
-
-func (r *Record) generatePartialUpdateStruct() *Statement {
-	def := Empty()
-
-	const (
-		DeleteField = "Delete"
-		UpdateField = "Update"
-	)
-
-	// Generate the struct
-	utils.AddWordWrappedComment(def, fmt.Sprintf(
-		"%s is used to represent a partial update on %s. Toggling the value of a field\n"+
-			"in Delete represents selecting it for deletion in a partial update, while\n"+
-			"setting the value of a field in Update represents setting that field in the\n"+
-			"current struct. Other fields in this struct represent record fields that can\n"+
-			"themselves be partially updated.",
-		r.PartialUpdateStructName(), r.Name,
-	)).Line()
-
-	def.Type().Id(r.PartialUpdateStructName()).StructFunc(func(def *Group) {
-		def.Id(DeleteField).StructFunc(func(def *Group) {
-			for _, f := range r.Fields {
-				def.Id(f.FieldName()).Bool()
-			}
-		})
-		def.Id(UpdateField).StructFunc(func(def *Group) {
-			for _, f := range r.Fields {
-				def.Id(f.FieldName()).Add(Op("*").Add(f.Type.GoType()))
-			}
-		})
-		for _, f := range r.Fields {
-			if record := f.Type.Record(); record != nil {
-				def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct())
-			}
-		}
-	}).Line().Line()
-
-	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
-		fields := r.SortedFields()
-		innerRecords := 0
-		for _, f := range fields {
-			if f.Type.Record() != nil {
-				innerRecords++
-			}
-		}
-
-		deleteAccessor := func(f Field) *Statement { return Id(r.Receiver()).Dot(DeleteField).Dot(f.FieldName()) }
-		updateAccessor := func(f Field) *Statement { return Id(r.Receiver()).Dot(UpdateField).Dot(f.FieldName()) }
-		errorMessage := func(f Field) string {
-			return fmt.Sprintf("cannot both delete and update %q of %q", f.Name, r.Name)
-		}
-
-		if len(fields) == 0 {
-			def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-				def.Return(Nil())
-			}))
-			return
-		}
-
-		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-			hasDeletes := deleteAccessor(fields[0])
-			for i := 1; i < len(fields); i++ {
-				hasDeletes.Op("||").Add(deleteAccessor(fields[i]))
-			}
-
-			def.If(hasDeletes).BlockFunc(func(def *Group) {
-				deleteType := RestliType{Primitive: &StringPrimitive}
-				def.Err().Op("=").Add(Writer.WriteArray(Add(keyWriter).Call(Lit("$delete")), func(itemWriter Code, def *Group) {
-					for _, f := range fields {
-						accessor := deleteAccessor(f)
-						def.If(accessor).BlockFunc(func(def *Group) {
-							def.Add(Writer.Write(deleteType, Add(itemWriter).Call(), Lit(f.Name)))
-						}).Line()
-					}
-					def.Add(Return(Nil()))
-				}))
-				def.Add(utils.IfErrReturn(Err()))
-			})
-			def.Line()
-
-			hasSets := updateAccessor(fields[0]).Op("!=").Nil()
-			for i := 1; i < len(fields); i++ {
-				hasSets.Op("||").Add(updateAccessor(fields[i])).Op("!=").Nil()
-			}
-
-			def.If(hasSets).BlockFunc(func(def *Group) {
-				def.Err().Op("=").Add(Writer.WriteMap(Add(keyWriter).Call(Lit("$set")), func(keyWriter Code, def *Group) {
-					for _, f := range fields {
-						accessor := updateAccessor(f)
-						def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-							def.If(deleteAccessor(f)).BlockFunc(func(def *Group) {
-								def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage(f))))
-							})
-							if f.Type.Reference == nil {
-								accessor = Op("*").Add(accessor)
-							}
-							def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-						})
-						def.Line()
-					}
-					def.Return(Nil())
-				}))
-				def.Add(utils.IfErrReturn(Err()))
-			})
-
-			for _, f := range fields {
-				if f.Type.Record() != nil {
-					def.Line()
-					accessor := Id(r.Receiver()).Dot(f.FieldName())
-					def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-						def.If(Add(deleteAccessor(f)).Op("||").Add(updateAccessor(f).Op("!=").Nil())).BlockFunc(func(def *Group) {
-							def.Return(Qual("fmt", "Errorf").Call(Lit(errorMessage(f))))
-						})
-						def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-					})
-				}
-			}
-			def.Line()
-
-			def.Return(Nil())
-		}))
-	})
-
-	return def
 }

@@ -116,7 +116,7 @@ func (r *Resource) generateTestCode() *utils.CodeFile {
 		}
 		structFields = append(structFields,
 			Id(mock+methodFuncName(m, false)).Func().ParamsFunc(func(def *Group) {
-				def.Add(Ctx).Add(ContextQual)
+				def.Add(Ctx).Add(Context)
 				addParams(def, methodParamNames(m), methodParamTypes(m))
 			}).Params(methodReturnParams(m)...),
 		)
@@ -142,7 +142,7 @@ func (r *Resource) generateTestCode() *utils.CodeFile {
 func (r *Resource) clientFuncDeclaration(m MethodImplementation, withContext bool) *Statement {
 	params := func(def *Group) {
 		if withContext {
-			def.Add(Ctx).Add(ContextQual)
+			def.Add(Ctx).Add(Context)
 		}
 		addParams(def, methodParamNames(m), methodParamTypes(m))
 	}

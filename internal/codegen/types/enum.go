@@ -55,6 +55,10 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		return val, ok
 	}
 
+	AddEquals(def, receiver, e.Name, func(other Code, def *Group) {
+		def.Return(Op("*").Id(receiver).Op("== *").Add(other))
+	})
+
 	def.Func().Id("All" + e.Name + "Values").Params().Index().Id(e.Name).BlockFunc(func(def *Group) {
 		def.Return(Index().Id(e.Name).ValuesFunc(func(def *Group) {
 			for _, s := range e.Symbols {
@@ -95,7 +99,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		)
 		def.List(Writer).Dot("WriteString").Call(val)
 		def.Return(Nil())
-	}).Line().Line()
+	})
 	AddUnmarshalRestli(def, receiver, e.Name, func(def *Group) {
 		value := Id("value")
 		def.Var().Add(value).String()
@@ -105,7 +109,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 
 		def.Op("*").Id(receiver).Op("=").Id(values).Index(Id("value"))
 		def.Return(Nil())
-	}).Line().Line()
+	})
 
 	return def
 }
@@ -116,4 +120,13 @@ func (e *Enum) SymbolIdentifier(symbol string) string {
 
 func (e *Enum) zeroValueLit() *Statement {
 	return e.Qual().Call(Lit(0))
+}
+
+func (e *Enum) isValidSymbol(v string) bool {
+	for _, symbol := range e.Symbols {
+		if symbol == v {
+			return true
+		}
+	}
+	return false
 }

@@ -27,6 +27,13 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		Add(u.Union.GoType()).
 		Line().Line()
 
+	AddEquals(def, unionReceiver, u.Name, func(other Code, def *Group) {
+		for _, m := range u.Union.Members {
+			def.Add(equals(m.Type, true, Id(unionReceiver).Dot(m.name()), Add(other).Dot(m.name()))).Line()
+		}
+		def.Return(True())
+	})
+
 	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, ValidateUnionFields).
 		Params().
 		Params(Error()).
@@ -45,11 +52,11 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 			})
 			def.Return(Nil())
 		}))
-	}).Line().Line()
+	})
 
 	AddUnmarshalRestli(def, unionReceiver, u.Name, func(def *Group) {
 		u.Union.decode(def, unionReceiver, u.Name)
-	}).Line().Line()
+	})
 
 	return def
 }

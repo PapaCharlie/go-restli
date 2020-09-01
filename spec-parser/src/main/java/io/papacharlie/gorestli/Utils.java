@@ -21,12 +21,12 @@ import org.apache.commons.lang3.StringUtils;
 
 
 public class Utils {
-  public static final Gson GSON = new GsonBuilder()
+  public static final Gson UGLY_GSON = new GsonBuilder()
       .setFieldNamingStrategy(f -> StringUtils.removeStart(f.getName(), "_"))
-      .setPrettyPrinting()
       .registerTypeAdapter(GoPrimitive.class,
           (JsonSerializer<GoPrimitive>) (src, typeOfSrc, context) -> new JsonPrimitive(src.name().toLowerCase()))
       .create();
+  public static final Gson GSON = UGLY_GSON.newBuilder().setPrettyPrinting().create();
   private static final DateTimeFormatter LOG_TIME_FORMAT = new DateTimeFormatterBuilder()
       .appendValue(ChronoField.YEAR, 4)
       .appendLiteral('/')

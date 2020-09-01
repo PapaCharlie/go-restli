@@ -20,13 +20,23 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		Type().Id(ck.Name).
 		StructFunc(func(def *Group) {
 			def.Add(ck.Key.Qual())
-			def.Id(ComplexKeyParams).Op("*").Add(ck.Params.Qual()).Tag(utils.JsonFieldTag("$params", false))
+			def.Id(ComplexKeyParamsField).Op("*").Add(ck.Params.Qual()).Tag(utils.JsonFieldTag("$params", false))
 		}).Line().Line()
 
 	record := &Record{
 		NamedType: ck.NamedType,
 		Fields:    utils.TypeRegistry.Resolve(ck.Key).(*Record).Fields,
 	}
+
+	AddEquals(def, record.Receiver(), ck.Name, func(other Code, def *Group) {
+		def.Add(equals(RestliType{Reference: &ck.Key}, false,
+			Id(record.Receiver()).Dot(ck.Key.Name),
+			Add(other).Dot(ck.Key.Name))).Line()
+		def.Add(equals(RestliType{Reference: &ck.Params}, true,
+			Id(record.Receiver()).Dot(ComplexKeyParamsField),
+			Add(other).Dot(ComplexKeyParamsField))).Line()
+		def.Return(True())
+	})
 
 	AddMarshalRestLi(def, record.Receiver(), ck.Name, func(def *Group) {
 		record.generateMarshaler(def, Id(record.Receiver()).Dot(ck.Key.Name))

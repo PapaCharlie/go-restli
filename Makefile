@@ -43,7 +43,8 @@ integration-test: clean $(JARGO)
 		--output-dir internal/tests/generated_extras \
 		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX)_extras \
-		--named-schemas-to-generate extras.NestedArraysAndMaps
+		--named-schemas-to-generate extras.NestedArraysAndMaps \
+		--named-schemas-to-generate extras.DefaultTyperef
 	go run -tags=jar . \
 		--output-dir internal/tests/generated \
 		--resolver-path $(TEST_SUITE)/schemas \

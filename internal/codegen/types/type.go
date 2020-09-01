@@ -132,6 +132,15 @@ func (t *RestliType) Record() *Record {
 	return record
 }
 
+func (t *RestliType) StandaloneUnion() *StandaloneUnion {
+	if t.Reference == nil {
+		return nil
+	}
+
+	union, _ := t.Reference.Resolve().(*StandaloneUnion)
+	return union
+}
+
 func (t *RestliType) PointerType() *Statement {
 	return Op("*").Add(t.GoType())
 }
