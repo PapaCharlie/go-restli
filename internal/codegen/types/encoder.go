@@ -12,23 +12,23 @@ type writer struct {
 }
 
 var (
+	KeyWriter       = Code(Id("keyWriter"))
+	ItemWriter      = Code(Id("itemWriter"))
 	Writer          = &writer{Id("writer")}
 	WriterQual Code = Qual(RestLiCodecPackage, "Writer")
 )
 
 func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
-	keyWriter := Id("keyWriter")
-	keyWriterFunc := Add(keyWriter).Func().Params(String()).Add(WriterQual)
+	keyWriterFunc := Add(KeyWriter).Func().Params(String()).Add(WriterQual)
 	return Add(writerAccessor).Dot("WriteMap").Call(Func().Params(keyWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
-		writer(keyWriter, def)
+		writer(KeyWriter, def)
 	}))
 }
 
 func (e *writer) WriteArray(writerAccessor Code, writer func(itemWriter Code, def *Group)) Code {
-	itemWriter := Id("itemWriter")
-	itemWriterFunc := Add(itemWriter).Func().Params().Add(WriterQual)
+	itemWriterFunc := Add(ItemWriter).Func().Params().Add(WriterQual)
 	return Add(writerAccessor).Dot("WriteArray").Call(Func().Params(itemWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
-		writer(itemWriter, def)
+		writer(ItemWriter, def)
 	}))
 }
 

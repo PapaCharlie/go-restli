@@ -64,36 +64,56 @@ func (r *Record) generateMarshaler(def *Group, complexKeyKeyAccessor *Statement)
 	}))
 }
 
-func (r *Record) GenerateQueryParamMarshaler(finderName *string) *Statement {
+func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest bool) *Statement {
 	receiver := r.Receiver()
+	var params []Code
+	entityIDsWriter := Code(Id("entityIDsWriter"))
+	if isBatchRequest {
+		params = []Code{Add(entityIDsWriter).Qual(RestLiCodecPackage, "ArrayWriter")}
+	}
+
 	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
-		Params().
-		Params(Id("data").String(), Err().Error()).
+		Params(params...).
+		Params(Id("rawQuery").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
 			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewRestLiQueryParamsWriter").Call()
 
 			fields := r.SortedFields()
 
+			insertFieldAt := func(index int, field Field) {
+				fields = append(fields[:index], append([]Field{field}, fields[index:]...)...)
+			}
 			qIndex := -1
 			if finderName != nil {
 				qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= FinderNameParam })
-				fields = append(fields[:qIndex], append([]Field{{
+				insertFieldAt(qIndex, Field{
 					Type:       RestliType{Primitive: &StringPrimitive},
 					Name:       FinderNameParam,
 					IsOptional: false,
-				}}, fields[qIndex:]...)...)
+				})
+			}
+			idsIndex := -1
+			if isBatchRequest {
+				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= EntityIDsParam })
 			}
 
 			paramNameWriter := Id("paramNameWriter")
 			paramNameWriterFunc := Add(paramNameWriter).Func().Params(String()).Add(WriterQual)
 			def.Err().Op("=").Add(Writer).Dot("WriteParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
-				writeAllFields(def, fields, func(i int, f Field) Code {
-					if i == qIndex {
-						return Lit(*finderName)
+				for i, f := range fields {
+					if i == idsIndex {
+						def.Err().Op("=").Add(paramNameWriter).Call(Lit(EntityIDsParam)).Dot("WriteArray").Call(entityIDsWriter)
 					} else {
-						return r.field(f)
+						writeField(def, i, f, func(i int, f Field) Code {
+							if i == qIndex {
+								return Lit(*finderName)
+							} else {
+								return r.field(f)
+							}
+						}, paramNameWriter)
 					}
-				}, paramNameWriter)
+				}
+				def.Return(Nil())
 			}))
 
 			def.Add(utils.IfErrReturn(Lit(""), Err()))
@@ -103,19 +123,23 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string) *Statement {
 
 func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
 	for i, f := range fields {
-		accessor := fieldAccessor(i, f)
-
-		serialize := def.Empty()
-		if f.IsOptionalOrDefault() {
-			serialize.If(Add(accessor).Op("!=").Nil())
-		}
-
-		serialize.BlockFunc(func(def *Group) {
-			if f.IsOptionalOrDefault() && f.Type.Reference == nil {
-				accessor = Op("*").Add(accessor)
-			}
-			def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-		}).Line()
+		writeField(def, i, f, fieldAccessor, keyWriter)
 	}
 	def.Return(Nil())
+}
+
+func writeField(def *Group, i int, f Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
+	accessor := fieldAccessor(i, f)
+
+	serialize := def.Empty()
+	if f.IsOptionalOrDefault() {
+		serialize.If(Add(accessor).Op("!=").Nil())
+	}
+
+	serialize.BlockFunc(func(def *Group) {
+		if f.IsOptionalOrDefault() && f.Type.Reference == nil {
+			accessor = Op("*").Add(accessor)
+		}
+		def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
+	}).Line()
 }

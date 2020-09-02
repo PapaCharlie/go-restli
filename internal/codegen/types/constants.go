@@ -11,6 +11,7 @@ const (
 	ValidateUnionFields        = "ValidateUnionFields"
 	ComplexKeyParamsField      = "Params"
 	FinderNameParam            = "q"
+	EntityIDsParam             = "ids"
 	PartialUpdate              = "_PartialUpdate"
 
 	ProtocolPackage    = "github.com/PapaCharlie/go-restli/protocol"
@@ -19,6 +20,7 @@ const (
 
 var (
 	NewJsonReader = Code(Qual(RestLiCodecPackage, "NewJsonReader"))
+	NewRor2Reader = Code(Qual(RestLiCodecPackage, "NewRor2Reader"))
 
 	Other = Code(Id("other"))
 )

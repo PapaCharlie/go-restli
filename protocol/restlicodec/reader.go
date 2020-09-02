@@ -19,13 +19,24 @@ type PrimitiveReader interface {
 	ReadBytes() ([]byte, error)
 }
 
+type (
+	MapReader   func(reader Reader, field string) (err error)
+	ArrayReader func(reader Reader) (err error)
+)
+
 type Reader interface {
 	PrimitiveReader
 	// ReadMap tells the Reader that it should expect a map/object as its next input. If it is not (e.g. it is an array
-	// or a primitive) it will return an error
-	ReadMap(mapReader func(field string) error) error
-	// ReadArray tells the reader that it should expect an array as its next input. If it is not, it will return an error
-	ReadArray(arrayReader func() error) error
+	// or a primitive) it will return an error.
+	// Note that not using the inner Reader passed to the MapReader may result in undefined behavior.
+	ReadMap(mapReader MapReader) error
+	// ReadArray tells the reader that it should expect an array as its next input. If it is not, it will return an
+	// error>
+	// Note that not using the inner Reader passed to the ArrayReader may result in undefined behavior.
+	ReadArray(arrayReader ArrayReader) error
 
+	// Skip skips the next primitive/array/map completely.
 	Skip() error
+	// Raw returns the next primitive/array/map as a raw, unvalidated byte slice.
+	Raw() ([]byte, error)
 }

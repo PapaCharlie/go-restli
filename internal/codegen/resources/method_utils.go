@@ -30,7 +30,7 @@ func (m *methodImplementation) GetResource() *Resource {
 	return m.Resource
 }
 
-func formatQueryUrl(m MethodImplementation, def *Group, returns ...Code) {
+func formatQueryUrl(m MethodImplementation, def *Group, keyWriter func(itemWriter Code, def *Group), returns ...Code) {
 	if m.GetMethod().OnEntity {
 		def.List(Path, Err()).Op(":=").Id(ResourceEntityPath).Call(m.GetMethod().entityParamNames()...)
 	} else {
@@ -39,16 +39,36 @@ func formatQueryUrl(m MethodImplementation, def *Group, returns ...Code) {
 
 	def.Add(utils.IfErrReturn(returns...)).Line()
 
-	if m.GetMethod().MethodType == ACTION {
+	encodeQueryParams := Code(Add(QueryParams).Dot(types.EncodeQueryParams))
+	callEncodeQueryParams := func(encoder Code) {
+		rawQuery := Id("rawQuery")
+		def.Var().Add(rawQuery).String()
+		def.List(rawQuery, Err()).Op("=").Add(encoder)
+		def.Add(utils.IfErrReturn(returns...))
+		def.Add(Path).Op("+=").Lit("?").Op("+").Add(rawQuery)
+		def.Line()
+	}
+
+	switch m.(type) {
+	case *Action:
 		def.Add(Path).Op("+=").Lit("?action=" + m.GetMethod().Name)
-	} else {
-		if len(m.GetMethod().Params) > 0 {
-			rawQuery := Id("rawQuery")
-			def.Var().Add(rawQuery).String()
-			def.List(rawQuery, Err()).Op("=").Add(QueryParams).Dot(types.EncodeQueryParams).Call()
-			def.Add(utils.IfErrReturn(returns...))
-			def.Add(Path).Op("+=").Lit("?").Op("+").Add(rawQuery)
-			def.Line()
+	case *Finder:
+		callEncodeQueryParams(Add(encodeQueryParams).Call())
+	case *RestMethod:
+		r := m.(*RestMethod)
+		hasParams := len(m.GetMethod().Params) > 0
+		if r.isBatch() {
+			encoder := Func().Params(Add(types.ItemWriter).Func().Params().Add(types.WriterQual)).Params(Err().Error()).
+				BlockFunc(func(def *Group) { keyWriter(types.ItemWriter, def) })
+			if hasParams {
+				callEncodeQueryParams(Add(encodeQueryParams).Call(encoder))
+			} else {
+				callEncodeQueryParams(Qual(types.ProtocolPackage, "GenerateBatchKeysParam").Call(encoder))
+			}
+		} else {
+			if hasParams {
+				callEncodeQueryParams(Add(encodeQueryParams).Call())
+			}
 		}
 	}
 

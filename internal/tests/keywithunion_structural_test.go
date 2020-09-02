@@ -10,7 +10,7 @@ import (
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.keywithunion.keywithunion
 var _ = keywithunion.Client(new(keyWithUnionClient))
 
-type keyWithUnionClient int
+type keyWithUnionClient struct{}
 
 func (k *keyWithUnionClient) Get(*keywithunion.Keywithunion_ComplexKey) (*conflictresolution.LargeRecord, error) {
 	panic(nil)

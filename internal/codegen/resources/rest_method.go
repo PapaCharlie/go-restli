@@ -23,6 +23,14 @@ var restMethodFuncNames = map[protocol.RestLiMethod]string{
 	protocol.Method_batch_partial_update: "BatchPartialUpdate",
 }
 
+var batchMethods = map[protocol.RestLiMethod]bool{
+	protocol.Method_batch_get:            true,
+	protocol.Method_batch_create:         true,
+	protocol.Method_batch_delete:         true,
+	protocol.Method_batch_update:         true,
+	protocol.Method_batch_partial_update: true,
+}
+
 type RestMethod struct{ methodImplementation }
 
 func (r *RestMethod) IsSupported() bool {
@@ -39,6 +47,8 @@ func (r *RestMethod) FuncParamNames() (params []Code) {
 		params = append(params, CreateParam)
 	case protocol.Method_update, protocol.Method_partial_update:
 		params = append(params, UpdateParam)
+	case protocol.Method_batch_get:
+		params = append(params, KeysParams)
 	}
 	if len(r.Params) > 0 {
 		params = append(params, QueryParams)
@@ -52,6 +62,8 @@ func (r *RestMethod) FuncParamTypes() (params []Code) {
 		params = append(params, r.Resource.ResourceSchema.ReferencedType())
 	case protocol.Method_partial_update:
 		params = append(params, Op("*").Add(r.Resource.ResourceSchema.Record().PartialUpdateStruct()))
+	case protocol.Method_batch_get:
+		params = append(params, Index().Add(r.EntityPathKey.Type.ReferencedType()))
 	}
 	if len(r.Params) > 0 {
 		params = append(params, Op("*").Qual(r.Resource.PackagePath(), r.queryParamsStructName()))
@@ -69,9 +81,15 @@ func (r *RestMethod) NonErrorFuncReturnParams() []Code {
 			returns = append(returns, Add(ReturnedEntity).Add(r.Return.ReferencedType()))
 		}
 		return returns
+	case protocol.Method_batch_get:
+		return []Code{Add(Entities).Add(r.batchGetReturnType())}
 	default:
 		return nil
 	}
+}
+
+func (r *RestMethod) batchGetReturnType() Code {
+	return Map(r.EntityPathKey.Type.ReferencedType()).Add(r.Return.ReferencedType())
 }
 
 func (r *RestMethod) restLiMethod() protocol.RestLiMethod {
@@ -80,6 +98,10 @@ func (r *RestMethod) restLiMethod() protocol.RestLiMethod {
 		utils.Logger.Panicf("Unknown restli method: %s", r.Name)
 	}
 	return method
+}
+
+func (r *RestMethod) isBatch() bool {
+	return batchMethods[r.restLiMethod()]
 }
 
 func (r *RestMethod) queryParamsStructName() string {
@@ -98,6 +120,35 @@ func (r *RestMethod) generator() func(*Group) {
 		return r.genericMethodImplementation("DoPartialUpdateRequest", UpdateParam)
 	case protocol.Method_delete:
 		return r.genericMethodImplementation("DoDeleteRequest")
+	case protocol.Method_batch_get:
+		// TODO: ComplexKeys are sometimes returned without the $params object. Ideally, the batch get would look like
+		//  this:
+		//    BatchGet(keys []*CK) (map[*CK]Entity, error)
+		//  But the map would be such that each *CK key is actually the original pointer given in the keys slice. This
+		//  would make it far easier and more consistent to use. A batch get that doesn't behave like this would be
+		//  impossible to use because the caller would have to manually cross-reference the map's keys with their own
+		//  keys using the generated Equals method. This problem can be solved a few different ways:
+		//    1. Generate a "Less" method and make all objects of the same type co-sortable. It's generally convenient
+		//       to have this capability and it allows the batch get implementation to binary search for the
+		//       original *CK pointer after sorting the given keys slice. The problem is that maps can't be sorted so
+		//       this wouldn't work for any complex keys with maps in them (unless an arbitrary map sorting mechanism is
+		//       implemented, e.g. based on the number of elements in the map and then which keys appear in the map,
+		//       etc...)
+		//    2. Generate a "Hash" method and implement a generic hash table that would provide quick lookups for the
+		//       original pointer. Definitely feasible but generating this hash function would be non-trivial, though
+		//       fascinating! Interestingly a "Hasher" interface would actually look very similar to the existing
+		//       Reader/Writer interfaces from the restlicodec package. The other difficulty would be to implement an
+		//       actual hashtable from scratch. Nothing new or fancy, just tricky to get perfectly right.
+		//    3. A naive approach that simply uses the generated Equals method and does linear lookups on the given keys
+		//       slice. This can serve as an initial implementation as it would respect the API's declared behavior, it
+		//       just wouldn't be very fast for large batches.
+		if r.EntityPathKey.Type.UnderlyingPrimitive() == nil {
+			return nil
+		} else {
+			// TODO (cont.): raw primitives or typerefs to primitives don't get referenced so they work as-is with Go's
+			//  built-in map type, and no special effort needs to be made there
+			return r.generateBatchGet
+		}
 	default:
 		return nil
 	}
@@ -119,7 +170,7 @@ func (r *RestMethod) GenerateCode() *utils.CodeFile {
 			Fields: r.Params,
 		}
 		c.Code.Add(p.GenerateStruct()).Line().Line()
-		c.Code.Add(p.GenerateQueryParamMarshaler(nil)).Line().Line()
+		c.Code.Add(p.GenerateQueryParamMarshaler(nil, r.isBatch())).Line().Line()
 	}
 
 	r.Resource.addClientFuncDeclarations(c.Code, ClientType, r, func(def *Group) {
@@ -135,7 +186,7 @@ func (r *RestMethod) generateGet(def *Group) {
 		Err(),
 	}
 
-	formatQueryUrl(r, def, returns...)
+	formatQueryUrl(r, def, nil, returns...)
 
 	var result Code
 	if r.Return.ShouldReference() {
@@ -158,7 +209,7 @@ func (r *RestMethod) generateCreate(def *Group) {
 	}
 	returns = append(returns, Err())
 
-	formatQueryUrl(r, def, returns...)
+	formatQueryUrl(r, def, nil, returns...)
 
 	id := Id(r.EntityPathKey.Name)
 	def.Var().Add(id).Add(r.EntityPathKey.Type.GoType())
@@ -196,9 +247,45 @@ func (r *RestMethod) generateCreate(def *Group) {
 	}
 }
 
+func (r *RestMethod) generateBatchGet(def *Group) {
+	returns := []Code{Nil(), Err()}
+
+	formatQueryUrl(r, def, func(itemWriter Code, def *Group) {
+		item := Id("item")
+		def.For(List(Id("_"), item).Op(":=").Range().Add(KeysParams)).BlockFunc(func(def *Group) {
+			def.Add(types.Writer.Write(r.EntityPathKey.Type, Add(itemWriter).Call(), item, Err()))
+		})
+		def.Return(Nil())
+	}, returns...)
+
+	def.Add(Entities).Op("=").Make(r.batchGetReturnType())
+	rawKey := Id("rawKey")
+	resultsReader := Func().Params(Add(types.Reader).Add(types.ReaderQual), Add(rawKey).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
+		v := Id("v")
+		def.Var().Add(v).Add(r.EntityPathKey.Type.GoType())
+		keyReader := Id("keyReader")
+		def.List(keyReader, Err()).Op(":=").Add(types.NewRor2Reader).Call(rawKey)
+		def.Add(utils.IfErrReturn(Err()))
+		def.Add(types.Reader.Read(r.EntityPathKey.Type, keyReader, v))
+		def.Add(utils.IfErrReturn(Err())).Line()
+
+		accessor := Add(Entities).Index(v)
+		if r.Return.ShouldReference() {
+			def.Add(accessor).Op("=").New(r.Return.GoType())
+		}
+		def.Add(types.Reader.Read(*r.Return, types.Reader, accessor))
+		def.Add(Return(Err()))
+	})
+	def.Err().Op("=").Id(ClientReceiver).Dot("DoBatchGetRequest").Call(Ctx, Url, resultsReader)
+
+	def.Add(utils.IfErrReturn(returns...)).Line()
+
+	def.Return()
+}
+
 func (r *RestMethod) genericMethodImplementation(doFuncName string, args ...Code) func(*Group) {
 	return func(def *Group) {
-		formatQueryUrl(r, def, Err())
+		formatQueryUrl(r, def, nil, Err())
 
 		def.Return(Id(ClientReceiver).Dot(doFuncName).Call(append([]Code{Ctx, Url}, args...)...))
 	}

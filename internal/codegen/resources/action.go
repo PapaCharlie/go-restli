@@ -107,7 +107,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 			errReturnParams = []Code{Err()}
 		}
 
-		formatQueryUrl(a, def, errReturnParams...)
+		formatQueryUrl(a, def, nil, errReturnParams...)
 
 		var params Code
 		if hasParams {

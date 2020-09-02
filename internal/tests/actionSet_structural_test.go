@@ -11,7 +11,7 @@ import (
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.actionSet
 var _ = actionset.Client(new(actionSetClient))
 
-type actionSetClient int
+type actionSetClient struct{}
 
 func (a *actionSetClient) EchoAction(*actionset.EchoActionParams) (string, error) {
 	panic(nil)

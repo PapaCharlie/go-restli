@@ -32,7 +32,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
 		tmp := Id("tmp")
 		def.Var().Add(tmp).Add(r.Type.GoType())
-		def.Add(Reader.Read(underlyingType, tmp))
+		def.Add(Reader.Read(underlyingType, Reader, tmp))
 		def.Add(utils.IfErrReturn(Err())).Line()
 
 		def.Op("*").Id(r.Receiver()).Op("=").Id(r.Name).Call(tmp)

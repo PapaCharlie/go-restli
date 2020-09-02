@@ -10,7 +10,7 @@ import (
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.simple
 var _ = simple.Client(new(simpleClient))
 
-type simpleClient int
+type simpleClient struct{}
 
 func (s *simpleClient) Get() (*conflictresolution.Message, error) {
 	panic(nil)

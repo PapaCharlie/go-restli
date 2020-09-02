@@ -39,7 +39,7 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	AddUnmarshalRestli(def, receiver, f.Name, func(def *Group) {
 		data := Id("data")
 		def.Var().Add(data).Index().Byte()
-		def.Add(Reader.Read(FixedUnderlyingType, data))
+		def.Add(Reader.Read(FixedUnderlyingType, Reader, data))
 		def.Add(utils.IfErrReturn(Err())).Line()
 
 		def.If(Len(data).Op("!=").Lit(f.Size)).BlockFunc(func(def *Group) {

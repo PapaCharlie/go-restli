@@ -97,3 +97,20 @@ func newMessage(id int64, message string) *conflictresolution.Message {
 		Message: message,
 	}
 }
+
+func (s *TestServer) CollectionBatchGet(t *testing.T, c Client) {
+	keys := []int64{1, 3}
+	two := int64(2)
+	res, err := c.BatchGet(keys)
+	require.NoError(t, err)
+	require.Equal(t, map[int64]*conflictresolution.Message{
+		keys[0]: {
+			Id:      &keys[0],
+			Message: "test message",
+		},
+		keys[1]: {
+			Id:      &two,
+			Message: "another message",
+		},
+	}, res)
+}

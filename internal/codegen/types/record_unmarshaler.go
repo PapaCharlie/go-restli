@@ -44,8 +44,8 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 	}
 
 	if len(fields) == 0 {
-		def.Return(Reader.ReadMap(func(field Code, def *Group) {
-			def.Return(Reader.Skip())
+		def.Return(Reader.ReadMap(Reader, func(reader Code, field Code, def *Group) {
+			def.Return(Reader.Skip(reader))
 		}))
 		return
 	}
@@ -72,7 +72,7 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 		}
 	})).Line()
 
-	def.Err().Op("=").Add(Reader.ReadMap(func(field Code, def *Group) {
+	def.Err().Op("=").Add(Reader.ReadMap(Reader, func(reader, field Code, def *Group) {
 		def.Switch(field).BlockFunc(func(def *Group) {
 			for i, f := range fields {
 				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
@@ -85,11 +85,11 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 						}
 					}
 
-					def.Add(Reader.Read(f.Type, accessor))
+					def.Add(Reader.Read(f.Type, reader, accessor))
 				})
 			}
 			def.Default().BlockFunc(func(def *Group) {
-				def.Err().Op("=").Add(Reader.Skip())
+				def.Err().Op("=").Add(Reader.Skip(reader))
 			})
 		})
 		def.Add(utils.IfErrReturn(Err()))

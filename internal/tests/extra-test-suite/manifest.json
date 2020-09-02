@@ -1,0 +1,16 @@
+{
+  "wireProtocolTestData": [
+    {
+      "name": "collectionWithTyperefKey",
+      "restspec": "restspecs/extras.collectionWithTyperefKey.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithTyperefKey-batch-get-with-params"
+        },
+        {
+          "name": "collectionWithTyperefKey-get"
+        }
+      ]
+    }
+  ]
+}

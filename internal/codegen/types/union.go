@@ -98,7 +98,7 @@ func (u *UnionType) decode(def *Group, receiver string, typeName string) {
 
 	errorMessage := u.errorMessage(typeName)
 
-	decode := Reader.ReadMap(func(key Code, def *Group) {
+	decode := Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
 		def.If(wasSet).Block(
 			Return(errorMessage),
 		).Else().Block(
@@ -114,7 +114,7 @@ func (u *UnionType) decode(def *Group, receiver string, typeName string) {
 						fieldAccessor = Op("*").Add(fieldAccessor)
 					}
 
-					def.Add(Reader.Read(m.Type, fieldAccessor))
+					def.Add(Reader.Read(m.Type, reader, fieldAccessor))
 				})
 			}
 		})

@@ -10,7 +10,7 @@ import (
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.params
 var _ = params.Client(new(paramsClient))
 
-type paramsClient int
+type paramsClient struct{}
 
 func (p *paramsClient) Get(int64, *params.GetParams) (*conflictresolution.Message, error) {
 	panic(nil)

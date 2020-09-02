@@ -24,8 +24,19 @@ import static io.papacharlie.gorestli.json.Method.MethodType.*;
 
 
 public class MethodParser {
-  private static final Set<ResourceMethod> NO_KEY_METHODS =
-      ImmutableSet.of(ResourceMethod.CREATE, ResourceMethod.GET_ALL);
+  // The following specify the keys as an "ids" query parameter
+  private static final Set<ResourceMethod> BATCH_METHODS_WITH_IDS_PARAM = ImmutableSet.<ResourceMethod>builder()
+      .add(ResourceMethod.BATCH_GET)
+      .add(ResourceMethod.BATCH_DELETE)
+      .add(ResourceMethod.BATCH_UPDATE)
+      .add(ResourceMethod.BATCH_PARTIAL_UPDATE)
+      .build();
+  private static final Set<ResourceMethod> NO_KEY_METHODS = ImmutableSet.<ResourceMethod>builder()
+      .add(ResourceMethod.CREATE)
+      .add(ResourceMethod.BATCH_CREATE)
+      .add(ResourceMethod.GET_ALL)
+      .addAll(BATCH_METHODS_WITH_IDS_PARAM)
+      .build();
 
   private final TypeParser _typeParser;
   private final ResourceSchema _resource;

@@ -86,7 +86,7 @@ func (c *RestLiClient) DoUpdateRequest(ctx context.Context, url *url.URL, create
 // DoPartialUpdateRequest executes a rest.li Partial Update request and places the given patch objects wrapped in a
 // PartialUpdate in the request's body.
 func (c *RestLiClient) DoPartialUpdateRequest(ctx context.Context, url *url.URL, patch restlicodec.Marshaler) error {
-	req, err := JsonRequest(ctx, url, http.MethodPost, Method_partial_update, &PartialUpdate{Patch: patch})
+	req, err := JsonRequest(ctx, url, http.MethodPost, Method_partial_update, &partialUpdateRequest{Patch: patch})
 	if err != nil {
 		return err
 	}
@@ -132,5 +132,28 @@ func (c *RestLiClient) DoActionRequest(ctx context.Context, url *url.URL, params
 	} else {
 		_, err = c.DoAndIgnore(req)
 	}
+	return err
+}
+
+// GenerateBatchKeysParam is intended for use by generated code when batch methods have no extra query parameters. Batch
+// methods with query parameters will have a standalone object that includes the "ids" parameter
+func GenerateBatchKeysParam(keyWriter restlicodec.ArrayWriter) (string, error) {
+	writer := restlicodec.NewRestLiQueryParamsWriter()
+	err := writer.WriteParams(func(paramNameWriter func(paramName string) restlicodec.Writer) error {
+		return paramNameWriter("ids").WriteArray(keyWriter)
+	})
+	if err != nil {
+		return "", err
+	}
+	return writer.Finalize(), nil
+}
+
+func (c *RestLiClient) DoBatchGetRequest(ctx context.Context, url *url.URL, resultsReader restlicodec.MapReader) (err error) {
+	req, err := GetRequest(ctx, url, Method_batch_get)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.DoAndDecode(req, &batchGetRequestResponse{Results: resultsReader})
 	return err
 }

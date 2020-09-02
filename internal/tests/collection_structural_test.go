@@ -54,6 +54,14 @@ func (c *collectionClient) DeleteWithContext(context.Context, int64) error {
 	panic(nil)
 }
 
+func (c *collectionClient) BatchGet([]int64) (map[int64]*conflictresolution.Message, error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchGetWithContext(context.Context, []int64) (map[int64]*conflictresolution.Message, error) {
+	panic(nil)
+}
+
 func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) ([]*conflictresolution.Message, error) {
 	panic(nil)
 }

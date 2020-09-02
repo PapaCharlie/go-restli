@@ -11,7 +11,7 @@ import (
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.typerefs.collectionTyperef
 var _ = collectiontyperef.Client(new(collectionTyperefClient))
 
-type collectionTyperefClient int
+type collectionTyperefClient struct{}
 
 func (c *collectionTyperefClient) Get(testsuite.Url) (*conflictresolution.Message, error) {
 	panic(nil)

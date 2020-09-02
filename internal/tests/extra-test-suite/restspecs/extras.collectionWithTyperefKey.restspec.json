@@ -1,20 +1,38 @@
 {
-  "name" : "collectionWithTyperefKey",
-  "namespace" : "extras",
-  "path" : "/collectionWithTyperefKey",
-  "schema" : "testsuite.Message",
-  "doc" : "",
-  "collection" : {
-    "identifier" : {
-      "name" : "key",
-      "type" : "testsuite.Time"
+  "name": "collectionWithTyperefKey",
+  "namespace": "extras",
+  "path": "/collectionWithTyperefKey",
+  "schema": "testsuite.PrimitiveField",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "testsuite.Time"
     },
-    "supports" : [ "create" ],
-    "methods" : [ {
-      "method" : "create"
-    } ],
-    "entity" : {
-      "path" : "/collectionWithTyperefKey/{key}"
+    "supports": [
+      "batch_get",
+      "create",
+      "get"
+    ],
+    "methods": [
+      {
+        "method": "batch_get",
+        "parameters": [
+          {
+            "name": "test",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "method": "create"
+      },
+      {
+        "method": "get"
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithTyperefKey/{key}"
     }
   }
 }

@@ -8,14 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 )
 
-const (
-	restLiClientTestSuite = "rest.li-test-suite/client-testsuite"
-)
+var testSuite = "rest.li-test-suite/client-testsuite"
 
 type Manifest struct {
 	JsonTestData []struct {
@@ -36,20 +33,16 @@ type WireProtocolTestData struct {
 
 type Operation struct {
 	Name          string
-	RestLiMethod  protocol.RestLiMethod
-	Finder        *string
-	Action        *string
 	Request       *http.Request
 	RequestBytes  []byte
 	Response      *http.Response
 	ResponseBytes []byte
-	Status        int
 }
 
 func (d *WireProtocolTestData) UnmarshalJSON(data []byte) error {
 	testData := &struct {
 		Name       string      `json:"name"`
-		Snapshot   string      `json:"snapshot"`
+		Restspec   string      `json:"restspec"`
 		Operations []Operation `json:"operations"`
 	}{}
 	err := json.Unmarshal(data, testData)
@@ -58,56 +51,30 @@ func (d *WireProtocolTestData) UnmarshalJSON(data []byte) error {
 	}
 
 	d.Name = testData.Name
-	d.PackagePath = strings.Replace(strings.TrimSuffix(strings.TrimPrefix(testData.Snapshot, "snapshots/"), ".snapshot.json"), ".", "/", -1)
+	d.PackagePath = strings.Replace(strings.TrimSuffix(strings.TrimPrefix(testData.Restspec, "restspecs/"), ".restspec.json"), ".", "/", -1)
 	d.Operations = testData.Operations
 
 	return nil
 }
 
 func (o *Operation) UnmarshalJSON(data []byte) error {
-	operation := &struct {
-		Name     string `json:"name"`
-		Method   string `json:"method"`
-		Request  string `json:"request"`
-		Response string `json:"response"`
-		Status   int    `json:"status"`
-	}{}
+	var operation struct {
+		Name string `json:"name"`
+	}
 
-	err := json.Unmarshal(data, operation)
+	err := json.Unmarshal(data, &operation)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
 	o.Name = operation.Name
 
-	const (
-		actionMethodPrefix = "action:"
-		finderMethodPrefix = "finder:"
-	)
-
-	switch {
-	case strings.HasPrefix(operation.Method, actionMethodPrefix):
-		action := strings.TrimPrefix(operation.Method, actionMethodPrefix)
-		o.Action = &action
-	case strings.HasPrefix(operation.Method, finderMethodPrefix):
-		finder := strings.TrimPrefix(operation.Method, finderMethodPrefix)
-		o.Finder = &finder
-	default:
-		if m, ok := protocol.RestLiMethodNameMapping[operation.Method]; ok {
-			o.RestLiMethod = m
-		} else {
-			return errors.Errorf("No such method: %s", operation.Method)
-		}
-	}
-
-	o.Status = operation.Status
-
-	o.Request, o.RequestBytes, err = ReadRequestFromFile(changeToV2Path(operation.Request))
+	o.Request, o.RequestBytes, err = ReadRequestFromFile(filepath.Join(testSuite, "requests-v2", o.Name + ".req"))
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	o.Response, o.ResponseBytes, err = ReadResponseFromFile(changeToV2Path(operation.Response), o.Request)
+	o.Response, o.ResponseBytes, err = ReadResponseFromFile(filepath.Join(testSuite, "responses-v2", o.Name + ".res"), o.Request)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -120,20 +87,21 @@ func (o *Operation) TestMethodName() string {
 }
 
 func ReadManifest() *Manifest {
-	f, err := os.Open(filepath.Join(restLiClientTestSuite, "manifest.json"))
-	if err != nil {
-		log.Panicln(err)
-	}
+	var aggregateManifest Manifest
+	for _, testSuite = range []string{"rest.li-test-suite/client-testsuite", "extra-test-suite"} {
+		f, err := os.Open(filepath.Join(testSuite, "manifest.json"))
+		if err != nil {
+			log.Panicln(err)
+		}
 
-	m := new(Manifest)
-	err = json.NewDecoder(f).Decode(m)
-	if err != nil {
-		log.Panicln(err)
+		m := new(Manifest)
+		err = json.NewDecoder(f).Decode(m)
+		if err != nil {
+			log.Panicln(err)
+		}
+		aggregateManifest.JsonTestData = append(aggregateManifest.JsonTestData, m.JsonTestData...)
+		aggregateManifest.SchemaTestData = append(aggregateManifest.SchemaTestData, m.SchemaTestData...)
+		aggregateManifest.WireProtocolTestData = append(aggregateManifest.WireProtocolTestData, m.WireProtocolTestData...)
 	}
-	return m
-}
-
-// This client only supports Rest.li 2.0, so we need to look at the -v2 requests/responses
-func changeToV2Path(path string) string {
-	return filepath.Join(restLiClientTestSuite, filepath.Dir(path)+"-v2", filepath.Base(path))
+	return &aggregateManifest
 }

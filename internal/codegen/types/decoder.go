@@ -16,53 +16,53 @@ var (
 	ReaderQual = Qual(RestLiCodecPackage, "Reader")
 )
 
-func (d *reader) ReadMap(reader func(key Code, def *Group)) Code {
+func (d *reader) ReadMap(reader Code, mapReader func(reader, key Code, def *Group)) Code {
 	key := Id("key")
-	return Add(d).Dot("ReadMap").Call(Func().Params(Add(key).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		reader(key, def)
+	return Add(reader).Dot("ReadMap").Call(Func().Params(Add(d).Add(ReaderQual), Add(key).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
+		mapReader(d, key, def)
 	}))
 }
 
-func (d *reader) ReadArray(creator func(def *Group)) Code {
-	return Add(d).Dot("ReadArray").Call(Func().Params().Params(Err().Error()).BlockFunc(func(def *Group) {
-		creator(def)
+func (d *reader) ReadArray(reader Code, arrayReader func(reader Code, def *Group)) Code {
+	return Add(reader).Dot("ReadArray").Call(Func().Params(Add(d).Add(ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
+		arrayReader(d, def)
 	}))
 }
 
-func (d *reader) Skip() *Statement {
-	return Add(d).Dot("Skip").Call()
+func (d *reader) Skip(reader Code) *Statement {
+	return Add(reader).Dot("Skip").Call()
 }
 
-func (d *reader) Read(t RestliType, accessor Code) Code {
+func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 	switch {
 	case t.Primitive != nil:
-		return List(accessor, Err()).Op("=").Add(Reader).Dot(t.Primitive.ReaderName()).Call()
+		return List(targetAccessor, Err()).Op("=").Add(reader).Dot(t.Primitive.ReaderName()).Call()
 	case t.Reference != nil:
-		return Err().Op("=").Add(accessor).Dot(UnmarshalRestLi).Call(d)
+		return Err().Op("=").Add(targetAccessor).Dot(UnmarshalRestLi).Call(reader)
 	case t.Array != nil:
-		return Err().Op("=").Add(d.ReadArray(func(def *Group) {
+		return Err().Op("=").Add(d.ReadArray(reader, func(reader Code, def *Group) {
 			item := Id(tempReaderVariableName(t))
 			def.Var().Add(item).Add(t.Array.GoType())
-			def.Add(d.Read(*t.Array, item))
+			def.Add(d.Read(*t.Array, reader, item))
 			def.Add(utils.IfErrReturn(Err()))
 			if t.Array.ShouldReference() {
 				item = Op("&").Add(item)
 			}
-			def.Add(accessor).Op("=").Append(accessor, item)
+			def.Add(targetAccessor).Op("=").Append(targetAccessor, item)
 			def.Return(Nil())
 		}))
 	case t.Map != nil:
-		return Add(accessor).Op("=").Make(t.GoType()).Line().
+		return Add(targetAccessor).Op("=").Make(t.GoType()).Line().
 			Err().Op("=").
-			Add(d.ReadMap(func(key Code, def *Group) {
+			Add(d.ReadMap(reader, func(reader, key Code, def *Group) {
 				value := Id(tempReaderVariableName(t))
 				def.Var().Add(value).Add(t.Map.GoType())
-				def.Add(d.Read(*t.Map, value))
+				def.Add(d.Read(*t.Map, reader, value))
 				def.Add(utils.IfErrReturn(Err()))
 				if t.Map.ShouldReference() {
 					value = Op("&").Add(value)
 				}
-				def.Parens(accessor).Index(key).Op("=").Add(value)
+				def.Parens(targetAccessor).Index(key).Op("=").Add(value)
 				def.Return(Nil())
 			}))
 	default:

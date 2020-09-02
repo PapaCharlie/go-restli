@@ -10,7 +10,7 @@ import (
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.typerefs.collectionTyperef
 var _ = complexkey.Client(new(complexKeyClient))
 
-type complexKeyClient int
+type complexKeyClient struct{}
 
 func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (*complexkey.Complexkey_ComplexKey, error) {
 	panic(nil)

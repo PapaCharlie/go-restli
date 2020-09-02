@@ -348,6 +348,62 @@ func TestEmptyStringAndBytes(t *testing.T) {
 	testRestliEncoding(t, expected, new(Optionals), `(optionalBytes:'',optionalString:'')`)
 }
 
+func TestRaw(t *testing.T) {
+	t.Run("json", func(t *testing.T) {
+		reader := restlicodec.NewJsonReader([]byte(`{
+		  "map": { "foo": 1, "bar": 42 },
+		  "array": [1,2],
+		  "primitive": "test"
+		}`))
+
+		require.NoError(t, reader.ReadMap(func(reader restlicodec.Reader, field string) error {
+			switch field {
+			case "map":
+				raw, err := reader.Raw()
+				require.NoError(t, err)
+				var actual map[string]int
+				require.NoError(t, json.Unmarshal(raw, &actual))
+				require.Equal(t, map[string]int{"foo": 1, "bar": 42}, actual)
+			case "array":
+				raw, err := reader.Raw()
+				require.NoError(t, err)
+				var actual []int
+				require.NoError(t, json.Unmarshal(raw, &actual))
+				require.Equal(t, []int{1, 2}, actual)
+			case "primitive":
+				raw, err := reader.Raw()
+				require.NoError(t, err)
+				var actual string
+				require.NoError(t, json.Unmarshal(raw, &actual))
+				require.Equal(t, "test", actual)
+			}
+			return nil
+		}))
+	})
+	t.Run("ror2", func(t *testing.T) {
+		reader, err := restlicodec.NewRor2Reader(`(map:(foo:1,bar:42),array:List(1,2),primitive:test)`)
+		require.NoError(t, err)
+
+		require.NoError(t, reader.ReadMap(func(reader restlicodec.Reader, field string) error {
+			switch field {
+			case "map":
+				raw, err := reader.Raw()
+				require.NoError(t, err)
+				require.Equal(t, "(foo:1,bar:42)", string(raw))
+			case "array":
+				raw, err := reader.Raw()
+				require.NoError(t, err)
+				require.Equal(t, "List(1,2)", string(raw))
+			case "primitive":
+				raw, err := reader.Raw()
+				require.NoError(t, err)
+				require.Equal(t, "test", string(raw))
+			}
+			return nil
+		}))
+	})
+}
+
 type restliObject interface {
 	restlicodec.Marshaler
 	restlicodec.Unmarshaler

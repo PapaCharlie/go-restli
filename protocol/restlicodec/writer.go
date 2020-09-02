@@ -37,6 +37,11 @@ type WriteCloser interface {
 	Closer
 }
 
+type (
+	ArrayWriter func(itemWriter func() Writer) error
+	MapWriter   func(keyWriter func(key string) Writer) error
+)
+
 // Writer is the interface implemented by all serialization mechanisms supported by rest.li. See the New*Writer
 // functions provided in package for all the supported serialization mechanisms.
 type Writer interface {
@@ -55,7 +60,7 @@ type Writer interface {
 	//			return nil
 	//		}
 	// Note that not using the inner Writer returned by the keyWriter may result in undefined behavior.
-	WriteMap(mapWriter func(keyWriter func(key string) Writer) error) error
+	WriteMap(mapWriter MapWriter) error
 	// WriteArray writes the array items written by the given lambda between array delimiters. The lambda
 	// takes a function that is used to signal that a new item is starting and returns a nested Writer. This
 	// Writer should be used to write inner fields. Take the following JSON object:
@@ -70,7 +75,7 @@ type Writer interface {
 	//			return nil
 	//		}
 	// Note that not using the inner Writer returned by the itemWriter may result in undefined behavior.
-	WriteArray(arrayWriter func(itemWriter func() Writer) error) error
+	WriteArray(arrayWriter ArrayWriter) error
 }
 
 type rawWriter interface {
@@ -101,11 +106,11 @@ func newGenericWriter(raw rawWriter) *genericWriter {
 	return &genericWriter{rawWriter: raw}
 }
 
-func (e *genericWriter) WriteMap(mapEncoder func(keyWriter func(key string) Writer) error) (err error) {
+func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
 	e.rawWriter.writeMapStart()
 
 	first := true
-	err = mapEncoder(func(key string) Writer {
+	err = mapWriter(func(key string) Writer {
 		if first {
 			first = false
 		} else {
@@ -123,7 +128,7 @@ func (e *genericWriter) WriteMap(mapEncoder func(keyWriter func(key string) Writ
 	return nil
 }
 
-func (e *genericWriter) WriteArray(arrayWriter func(itemWriter func() Writer) error) (err error) {
+func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
 	e.rawWriter.writeArrayStart()
 
 	first := true

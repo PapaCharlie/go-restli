@@ -12,7 +12,7 @@ func NewJsonReader(data []byte) Reader {
 	return &jsonReader{lexer: jlexer.Lexer{Data: data}}
 }
 
-func (j *jsonReader) ReadMap(mapReader func(field string) error) (err error) {
+func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 	isTopLevel := j.lexer.IsStart()
 	if j.lexer.IsNull() {
 		if isTopLevel {
@@ -32,7 +32,7 @@ func (j *jsonReader) ReadMap(mapReader func(field string) error) (err error) {
 			continue
 		}
 
-		err = mapReader(fieldName)
+		err = mapReader(j, fieldName)
 		if err != nil {
 			return err
 		}
@@ -48,13 +48,13 @@ func (j *jsonReader) ReadMap(mapReader func(field string) error) (err error) {
 	return j.lexer.Error()
 }
 
-func (j *jsonReader) ReadArray(arrayReader func() error) (err error) {
+func (j *jsonReader) ReadArray(arrayReader ArrayReader) (err error) {
 	if j.lexer.IsNull() {
 		j.lexer.Skip()
 	} else {
 		j.lexer.Delim('[')
 		for !j.lexer.IsDelim(']') {
-			err = arrayReader()
+			err = arrayReader(j)
 			if err != nil {
 				return err
 			}
@@ -68,6 +68,10 @@ func (j *jsonReader) ReadArray(arrayReader func() error) (err error) {
 func (j *jsonReader) Skip() error {
 	j.lexer.SkipRecursive()
 	return j.lexer.Error()
+}
+
+func (j *jsonReader) Raw() ([]byte, error) {
+	return j.lexer.Raw(), j.lexer.Error()
 }
 
 func (j *jsonReader) ReadInt32() (int32, error) {

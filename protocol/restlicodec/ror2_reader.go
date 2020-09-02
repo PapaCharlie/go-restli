@@ -73,7 +73,7 @@ func (u *ror2Reader) readFieldName() string {
 	return s
 }
 
-func (u *ror2Reader) ReadMap(mapReader func(field string) error) (err error) {
+func (u *ror2Reader) ReadMap(mapReader MapReader) (err error) {
 	u.state = inObject
 	if len(u.data) <= u.pos || u.data[u.pos] != '(' {
 		return fmt.Errorf("invalid ROR2 %s string does not start with '(': %s", u.state.location(), string(u.data))
@@ -91,7 +91,7 @@ loop:
 			// Consider sanity check that u.data[u.pos-1] == '(' ?
 			break loop
 		default:
-			err = mapReader(fieldName)
+			err = mapReader(u, fieldName)
 			if err != nil {
 				return err
 			}
@@ -111,7 +111,7 @@ loop:
 	return nil
 }
 
-func (u *ror2Reader) ReadArray(arrayReader func() error) (err error) {
+func (u *ror2Reader) ReadArray(arrayReader ArrayReader) (err error) {
 	u.state = inArray
 	const list = "List("
 	if len(u.data)-u.pos < len(list) || string(u.data[u.pos:u.pos+len(list)]) != list {
@@ -120,7 +120,7 @@ func (u *ror2Reader) ReadArray(arrayReader func() error) (err error) {
 	u.pos += len(list)
 loop:
 	for {
-		err = arrayReader()
+		err = arrayReader(u)
 		if err != nil {
 			return err
 		}
@@ -157,6 +157,16 @@ func (u *ror2Reader) Skip() error {
 		}
 	}
 	return fmt.Errorf("invalid ROR2 string has incorrect object delimiters: %s", string(u.data))
+}
+
+func (u *ror2Reader) Raw() ([]byte, error) {
+	startPos := u.pos
+	err := u.Skip()
+	if err != nil {
+		return nil, err
+	} else {
+		return u.data[startPos:u.pos], nil
+	}
 }
 
 // unsafeReadPrimitiveFieldValue moves the current position forward until an end-of-field delimiter is reached, i.e.

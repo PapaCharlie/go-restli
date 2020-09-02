@@ -103,7 +103,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	AddUnmarshalRestli(def, receiver, e.Name, func(def *Group) {
 		value := Id("value")
 		def.Var().Add(value).String()
-		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, value))
+		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, Reader, value))
 		def.Add(utils.IfErrReturn(Err()))
 		def.Line()
 

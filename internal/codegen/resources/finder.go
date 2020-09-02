@@ -54,7 +54,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 		Fields: f.Params,
 	}
 	c.Code.Add(params.GenerateStruct()).Line().Line()
-	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name)).Line().Line()
+	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name, false)).Line().Line()
 
 	results := &types.Record{
 		NamedType: types.NamedType{
@@ -73,7 +73,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 	c.Code.Add(results.GenerateUnmarshalRestLi()).Line().Line()
 
 	f.Resource.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
-		formatQueryUrl(f, def, Nil(), Err())
+		formatQueryUrl(f, def, nil, Nil(), Err())
 
 		accessor := Id("elements")
 		def.Var().Add(accessor).Id(f.resultsStructType())
