@@ -1,12 +1,12 @@
-package tests
+package structural
 
 import (
 	"context"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection"
-	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection/subcollection"
-	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection/subsimple"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
+	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
+	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.collection

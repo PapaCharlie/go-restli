@@ -1,10 +1,10 @@
-package tests
+package structural
 
 import (
 	"context"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.typerefs.collectionTyperef
@@ -49,5 +49,13 @@ func (c *complexKeyClient) Delete(*complexkey.Complexkey_ComplexKey) error {
 }
 
 func (c *complexKeyClient) DeleteWithContext(context.Context, *complexkey.Complexkey_ComplexKey) error {
+	panic(nil)
+}
+
+func (c *complexKeyClient) BatchGet([]*complexkey.Complexkey_ComplexKey) (map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord, error) {
+	panic(nil)
+}
+
+func (c *complexKeyClient) BatchGetWithContext(context.Context, []*complexkey.Complexkey_ComplexKey) (map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord, error) {
 	panic(nil)
 }

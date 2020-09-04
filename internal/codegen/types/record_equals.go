@@ -19,7 +19,7 @@ func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def
 func (r *Record) GenerateEquals() Code {
 	return AddEquals(Empty(), r.Receiver(), r.Name, func(other Code, def *Group) {
 		for _, f := range r.SortedFields() {
-			left, right := Id(r.Receiver()).Dot(f.FieldName()), Add(Other).Dot(f.FieldName())
+			left, right := Id(r.Receiver()).Dot(f.FieldName()), Add(other).Dot(f.FieldName())
 			def.Add(equals(f.Type, f.IsOptionalOrDefault(), left, right)).Line()
 		}
 		def.Return(True())

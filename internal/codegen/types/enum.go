@@ -59,6 +59,11 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		def.Return(Op("*").Id(receiver).Op("== *").Add(other))
 	})
 
+	AddComputeHash(def, receiver, e.Name, func(h Code, def *Group) {
+		def.Add(h).Op("=").Add(Hash).Call(Op("*").Id(receiver))
+		def.Return(h)
+	})
+
 	def.Func().Id("All" + e.Name + "Values").Params().Index().Id(e.Name).BlockFunc(func(def *Group) {
 		def.Return(Index().Id(e.Name).ValuesFunc(func(def *Group) {
 			for _, s := range e.Symbols {

@@ -1,11 +1,11 @@
-package tests
+package structural
 
 import (
 	"context"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
-	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/typerefs/collectionTyperef"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
+	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/typerefs/collectionTyperef"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.typerefs.collectionTyperef

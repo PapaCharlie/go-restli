@@ -30,7 +30,7 @@ var (
 	ReturnedEntity = Code(Id("returnedEntity"))
 	CreateParam    = Code(Id("create"))
 	UpdateParam    = Code(Id("update"))
-	KeysParams     = Code(Id("keys"))
+	Keys           = Code(Id("keys"))
 	QueryParams    = Code(Id("queryParams"))
 	ActionParams   = Code(Id("actionParams"))
 )

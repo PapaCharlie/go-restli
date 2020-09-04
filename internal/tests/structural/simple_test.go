@@ -1,10 +1,10 @@
-package tests
+package structural
 
 import (
 	"context"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/simple"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.simple

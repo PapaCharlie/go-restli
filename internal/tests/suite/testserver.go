@@ -1,4 +1,4 @@
-package tests
+package suite
 
 import (
 	"encoding/json"
@@ -11,30 +11,25 @@ import (
 	"reflect"
 	"runtime/debug"
 	"sync"
-	"testing"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
-
-	actionset "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/actionSet"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collection"
-	collectionreturnentity "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/collectionReturnEntity"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/params"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/simple"
-	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/typerefs/collectionTyperef"
+	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/extras/collectionWithTyperefKey"
+	actionset "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
+	collectionreturnentity "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
+	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/typerefs/collectionTyperef"
 	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 
-func init() {
-	log.SetFlags(log.Lshortfile)
-}
-
-func (o *Operation) TestMethod() *reflect.Method {
-	if m, ok := reflect.TypeOf(&TestServer{}).MethodByName(o.TestMethodName()); ok {
-		return &m
-	} else {
-		return nil
-	}
+type TestServer struct {
+	o      Operation
+	oLock  *sync.Mutex
+	server *httptest.Server
+	client *protocol.RestLiClient
 }
 
 func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
@@ -64,70 +59,11 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 	case "keywithunion":
 		*v = reflect.ValueOf(keywithunion.NewClient(s.client))
 		return v
+	case "collectionWithTyperefKey":
+		*v = reflect.ValueOf(collectionwithtyperefkey.NewClient(s.client))
+		return v
 	}
 	return nil
-}
-
-func TestGoRestli(rootT *testing.T) {
-	manifest := ReadManifest()
-
-	s := new(TestServer)
-	s.oLock = new(sync.Mutex)
-	s.server = httptest.NewServer(s)
-	serverUrl, _ := url.Parse(s.server.URL)
-	s.client = &protocol.RestLiClient{
-		Client:           &http.Client{},
-		HostnameResolver: &protocol.SimpleHostnameResolver{Hostname: serverUrl},
-	}
-
-	operations := make(map[string]Operation)
-	for _, testData := range manifest.WireProtocolTestData {
-		if testData.GetClient(s) == nil {
-			rootT.Run(testData.Name, func(t *testing.T) {
-				t.Skipf("Skipping tests for unsupported resource: \"%s\"", testData.Name)
-			})
-			continue
-		}
-		rootT.Run(testData.Name, func(t *testing.T) {
-			skippedTests := false
-			for _, o := range testData.Operations {
-				if dup, ok := operations[o.Name]; ok {
-					rootT.Fatalf("Multiple operations named %s: %v and %v", o.Name, o, dup)
-				} else {
-					operations[o.Name] = o
-				}
-
-				client := testData.GetClient(s)
-				testMethod := o.TestMethod()
-				if testMethod != nil {
-					s.oLock.Lock()
-					s.o = o
-					s.oLock.Unlock()
-					t.Run(o.Name, func(t *testing.T) {
-						testMethod.Func.Call([]reflect.Value{reflect.ValueOf(s), reflect.ValueOf(t), *client})
-						if t.Skipped() {
-							skippedTests = true
-						}
-					})
-				} else {
-					skippedTests = true
-					t.Run(o.Name, func(t *testing.T) {
-						t.Skipf("Skipping undefined test \"%s\"", o.Name)
-					})
-				}
-			}
-			if skippedTests {
-				t.Skip("Some tests were skipped!")
-			}
-		})
-	}
-}
-
-type TestServer struct {
-	o      Operation
-	oLock  *sync.Mutex
-	server *httptest.Server
-	client *protocol.RestLiClient
 }
 
 const UnexpectedRequestStatus = 666
@@ -153,7 +89,7 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := queriesEqual(s.o.Request.URL.Query(), req.URL.Query()); err != nil {
+	if err := queriesEqual(s.o.Request.URL.RawQuery, req.URL.RawQuery); err != nil {
 		writeErrorResponse(res, err.Error())
 		return
 	}
@@ -206,17 +142,60 @@ func writeErrorResponse(res http.ResponseWriter, format string, args ...interfac
 	http.Error(res, string(response), UnexpectedRequestStatus)
 }
 
-func queriesEqual(expected url.Values, actual url.Values) error {
-	for k := range expected {
-		if expected.Get(k) != actual.Get(k) {
-			return fmt.Errorf("query values differ for %q. Expected: %q, Actual: %q", k, expected.Get(k), actual.Get(k))
-		} else {
-			actual.Del(k)
-		}
+func queriesEqual(expected, actual string) error {
+	if expected == actual {
+		return nil
+	}
+	type fieldReader struct {
+		Err   error
+		Name  string
+		Value string
+	}
+	read := func(rawQuery string) chan fieldReader {
+		reader := restlicodec.NewRestLiQueryParamsReader(rawQuery)
+		c := make(chan fieldReader)
+		go func() {
+			err := reader.ReadParams(func(reader restlicodec.Reader, field string) error {
+				f := fieldReader{Name: field}
+				var raw []byte
+				raw, f.Err = reader.Raw()
+				if f.Err == nil {
+					f.Value, f.Err = url.QueryUnescape(string(raw))
+				}
+				c <- f
+				return nil
+			})
+			if err != nil {
+				c <- fieldReader{Err: err}
+			}
+			close(c)
+		}()
+		return c
 	}
 
-	if len(actual) > 0 {
-		return fmt.Errorf("unexpected extra parameters: %q", actual.Encode())
+	expectedChan := read(expected)
+	actualChan := read(actual)
+
+	for {
+		e, expectedOk := <-expectedChan
+		a, actualOk := <-actualChan
+
+		if expectedOk != actualOk {
+			return fmt.Errorf("query parameters differ: expected: %+v actual: %+v", e, a)
+		}
+		if !expectedOk {
+			break
+		}
+
+		if e.Err != nil {
+			return fmt.Errorf("faied to read field from expected query %q: %w", expected, e.Err)
+		}
+		if a.Err != nil {
+			return fmt.Errorf("faied to read field from actual query %q: %w", actual, a.Err)
+		}
+		if e != a {
+			return fmt.Errorf("field mistmatch: expected: %+v actual: %+v", e, a)
+		}
 	}
 
 	return nil

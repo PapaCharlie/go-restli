@@ -118,6 +118,10 @@ func (p *PrimitiveType) ReaderName() string {
 	return "Read" + p.exportedName()
 }
 
+func (p *PrimitiveType) HasherName() string {
+	return "Add" + p.exportedName()
+}
+
 func (p *PrimitiveType) NewPrimitiveUnmarshaler(accessor Code) Code {
 	return Qual(RestLiCodecPackage, "New"+p.exportedName()+"PrimitiveUnmarshaler").Call(Op("&").Add(accessor))
 }

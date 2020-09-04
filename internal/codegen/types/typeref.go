@@ -18,6 +18,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	def = Empty()
 
 	underlyingType := RestliType{Primitive: r.Type}
+	cast := r.Type.Cast(Op("*").Id(r.Receiver()))
 
 	utils.AddWordWrappedComment(def, r.Doc).Line()
 	def.Type().Id(r.Name).Add(r.Type.GoType()).Line().Line()
@@ -25,8 +26,12 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	AddEquals(def, r.Receiver(), r.Name, func(other Code, def *Group) {
 		def.Return(Op("*").Id(r.Receiver()).Op("== *").Add(other))
 	})
+	AddComputeHash(def, r.Receiver(), r.Name, func(h Code, def *Group) {
+		def.Add(h).Dot(r.Type.HasherName()).Call(cast)
+		def.Return(h)
+	})
 	AddMarshalRestLi(def, r.Receiver(), r.Name, func(def *Group) {
-		def.Add(Writer.Write(underlyingType, Writer, r.Type.Cast(Op("*").Id(r.Receiver()))))
+		def.Add(Writer.Write(underlyingType, Writer, cast))
 		def.Return(Nil())
 	})
 	AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {

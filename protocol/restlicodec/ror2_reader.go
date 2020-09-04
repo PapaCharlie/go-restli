@@ -14,6 +14,8 @@ const (
 	inArray
 )
 
+const list = "List("
+
 func (s *ror2ReaderState) location() string {
 	switch *s {
 	case inObject:
@@ -49,12 +51,12 @@ func NewRor2Reader(data string) (Reader, error) {
 		case ')':
 			parens--
 			if parens < 0 {
-				return nil, fmt.Errorf("illegal ROR2 string has unbalanced delimiters at %d: %s", i, data)
+				return nil, fmt.Errorf("illegal ROR2 string has unbalanced delimiters at %d: %q", i, data)
 			}
 		}
 	}
 	return &ror2Reader{
-		decoder: url.QueryUnescape,
+		decoder: url.PathUnescape,
 		data:    []byte(data),
 	}, nil
 }
@@ -76,7 +78,7 @@ func (u *ror2Reader) readFieldName() string {
 func (u *ror2Reader) ReadMap(mapReader MapReader) (err error) {
 	u.state = inObject
 	if len(u.data) <= u.pos || u.data[u.pos] != '(' {
-		return fmt.Errorf("invalid ROR2 %s string does not start with '(': %s", u.state.location(), string(u.data))
+		return fmt.Errorf("invalid ROR2 %s string does not start with '(': %q", u.state.location(), string(u.data))
 	}
 	u.pos++
 
@@ -85,7 +87,7 @@ loop:
 		fieldName := u.readFieldName()
 		switch fieldName {
 		case "":
-			return fmt.Errorf("invalid ROR2 %s string does not end with ')': %s", u.state.location(), string(u.data))
+			return fmt.Errorf("invalid ROR2 %s string does not end with ')': %q", u.state.location(), string(u.data))
 		case ")":
 			// This should only happen if the empty map/object () was read
 			// Consider sanity check that u.data[u.pos-1] == '(' ?
@@ -103,7 +105,7 @@ loop:
 				u.pos++
 				break loop
 			default:
-				return fmt.Errorf("invalid ROR2 string does has incorrect object delimiter at %d: %s", u.pos, string(u.data))
+				return fmt.Errorf("invalid ROR2 string does has incorrect object delimiter at %d: %q", u.pos, string(u.data))
 			}
 		}
 	}
@@ -111,11 +113,14 @@ loop:
 	return nil
 }
 
+func (u *ror2Reader) atMap() bool {
+	return len(u.data) > u.pos && u.data[u.pos] == '('
+}
+
 func (u *ror2Reader) ReadArray(arrayReader ArrayReader) (err error) {
 	u.state = inArray
-	const list = "List("
-	if len(u.data)-u.pos < len(list) || string(u.data[u.pos:u.pos+len(list)]) != list {
-		return fmt.Errorf("invalid ROR2 %s string does not start with "+list+": %s", u.state.location(), string(u.data))
+	if !u.atArray() {
+		return fmt.Errorf("invalid ROR2 %s string does not start with "+list+": %q", u.state.location(), string(u.data))
 	}
 	u.pos += len(list)
 loop:
@@ -132,31 +137,53 @@ loop:
 			u.pos++
 			break loop
 		default:
-			return fmt.Errorf("invalid ROR2 string has incorrect array delimiter at %d: %s", u.pos, string(u.data))
+			return fmt.Errorf("invalid ROR2 string has incorrect array delimiter at %d: %q", u.pos, string(u.data))
 		}
 	}
 
 	return nil
 }
 
+func (u *ror2Reader) atArray() bool {
+	return len(u.data)-u.pos > len(list) && string(u.data[u.pos:u.pos+len(list)]) == list
+}
+
 func (u *ror2Reader) Skip() error {
+	if u.pos == 0 {
+		u.pos = len(u.data)
+		return nil
+	}
+
+	inMapOrArray := u.atArray() || u.atMap()
 	parens := 0
 	for ; u.pos < len(u.data); u.pos++ {
 		switch u.data[u.pos] {
 		case '(':
-			parens++
+			if !inMapOrArray {
+				return fmt.Errorf("unescaped '(' at %d: %q", u.pos, string(u.data))
+			} else {
+				parens++
+			}
 		case ',':
-			if parens == 0 {
+			if !inMapOrArray {
 				return nil
+			} else {
+				if parens == 0 {
+					return nil
+				}
 			}
 		case ')':
-			if parens == 0 {
+			if !inMapOrArray {
 				return nil
+			} else {
+				if parens == 0 {
+					return nil
+				}
+				parens--
 			}
-			parens--
 		}
 	}
-	return fmt.Errorf("invalid ROR2 string has incorrect object delimiters: %s", string(u.data))
+	return fmt.Errorf("invalid ROR2 string has incorrect object delimiters: %q", string(u.data))
 }
 
 func (u *ror2Reader) Raw() ([]byte, error) {
@@ -185,13 +212,13 @@ func (u *ror2Reader) unsafeReadPrimitiveFieldValue() (startPos int, err error) {
 			}
 		}
 		if u.pos == len(u.data) {
-			return 0, fmt.Errorf("invalid ROR2 string has incorrect field delimiters: %s", string(u.data))
+			return 0, fmt.Errorf("invalid ROR2 string has incorrect field delimiters: %q", string(u.data))
 		}
 	}
 	for i := startPos; i < u.pos; i++ {
 		// Check that the field didn't contain any illegal unescaped characters
 		if c := u.data[i]; c == '(' || c == ',' || c == ')' {
-			return 0, fmt.Errorf("illegal unescaped '%s' in primitive field at %d: %s", string(c), i, string(u.data))
+			return 0, fmt.Errorf("illegal unescaped '%s' in primitive field at %d: %q", string(c), i, string(u.data))
 		}
 	}
 	return startPos, nil
@@ -267,7 +294,7 @@ func (u *ror2Reader) ReadBytes() (v []byte, err error) {
 
 	s := string(u.data[startPos:u.pos])
 	if len(s) == 0 {
-		return nil, fmt.Errorf("invalid empty element at %d: %s", startPos, string(u.data))
+		return nil, fmt.Errorf("invalid empty element at %d: %q", startPos, string(u.data))
 	}
 	if s == emptyString {
 		return nil, nil

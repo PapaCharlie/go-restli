@@ -48,7 +48,7 @@ func (r *RestMethod) FuncParamNames() (params []Code) {
 	case protocol.Method_update, protocol.Method_partial_update:
 		params = append(params, UpdateParam)
 	case protocol.Method_batch_get:
-		params = append(params, KeysParams)
+		params = append(params, Keys)
 	}
 	if len(r.Params) > 0 {
 		params = append(params, QueryParams)
@@ -121,34 +121,7 @@ func (r *RestMethod) generator() func(*Group) {
 	case protocol.Method_delete:
 		return r.genericMethodImplementation("DoDeleteRequest")
 	case protocol.Method_batch_get:
-		// TODO: ComplexKeys are sometimes returned without the $params object. Ideally, the batch get would look like
-		//  this:
-		//    BatchGet(keys []*CK) (map[*CK]Entity, error)
-		//  But the map would be such that each *CK key is actually the original pointer given in the keys slice. This
-		//  would make it far easier and more consistent to use. A batch get that doesn't behave like this would be
-		//  impossible to use because the caller would have to manually cross-reference the map's keys with their own
-		//  keys using the generated Equals method. This problem can be solved a few different ways:
-		//    1. Generate a "Less" method and make all objects of the same type co-sortable. It's generally convenient
-		//       to have this capability and it allows the batch get implementation to binary search for the
-		//       original *CK pointer after sorting the given keys slice. The problem is that maps can't be sorted so
-		//       this wouldn't work for any complex keys with maps in them (unless an arbitrary map sorting mechanism is
-		//       implemented, e.g. based on the number of elements in the map and then which keys appear in the map,
-		//       etc...)
-		//    2. Generate a "Hash" method and implement a generic hash table that would provide quick lookups for the
-		//       original pointer. Definitely feasible but generating this hash function would be non-trivial, though
-		//       fascinating! Interestingly a "Hasher" interface would actually look very similar to the existing
-		//       Reader/Writer interfaces from the restlicodec package. The other difficulty would be to implement an
-		//       actual hashtable from scratch. Nothing new or fancy, just tricky to get perfectly right.
-		//    3. A naive approach that simply uses the generated Equals method and does linear lookups on the given keys
-		//       slice. This can serve as an initial implementation as it would respect the API's declared behavior, it
-		//       just wouldn't be very fast for large batches.
-		if r.EntityPathKey.Type.UnderlyingPrimitive() == nil {
-			return nil
-		} else {
-			// TODO (cont.): raw primitives or typerefs to primitives don't get referenced so they work as-is with Go's
-			//  built-in map type, and no special effort needs to be made there
-			return r.generateBatchGet
-		}
+		return r.generateBatchGet
 	default:
 		return nil
 	}
@@ -249,25 +222,57 @@ func (r *RestMethod) generateCreate(def *Group) {
 
 func (r *RestMethod) generateBatchGet(def *Group) {
 	returns := []Code{Nil(), Err()}
+	key := Code(Id("key"))
 
 	formatQueryUrl(r, def, func(itemWriter Code, def *Group) {
-		item := Id("item")
-		def.For(List(Id("_"), item).Op(":=").Range().Add(KeysParams)).BlockFunc(func(def *Group) {
-			def.Add(types.Writer.Write(r.EntityPathKey.Type, Add(itemWriter).Call(), item, Err()))
+		def.For(List(Id("_"), key).Op(":=").Range().Add(Keys)).BlockFunc(func(def *Group) {
+			def.Add(types.Writer.Write(r.EntityPathKey.Type, Add(itemWriter).Call(), key, Err()))
 		})
 		def.Return(Nil())
 	}, returns...)
 
+	ck := r.EntityPathKey.Type.ComplexKey()
+	originalKeys := Id("originalKeys")
+	if ck != nil {
+		def.Add(originalKeys).Op(":=").Make(Map(types.Hash).Index().Add(r.EntityPathKey.Type.ReferencedType()))
+		def.For().List(Id("_"), key).Op(":=").Range().Add(Keys).BlockFunc(func(def *Group) {
+			keyHash := Id("keyHash")
+			def.Add(keyHash).Op(":=").Add(key).Add(ck.KeyAccessor()).Dot(types.ComputeHash).Call()
+			index := Add(originalKeys).Index(keyHash)
+			def.Add(index).Op("=").Append(index, key)
+		}).Line()
+	}
+
 	def.Add(Entities).Op("=").Make(r.batchGetReturnType())
 	rawKey := Id("rawKey")
 	resultsReader := Func().Params(Add(types.Reader).Add(types.ReaderQual), Add(rawKey).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		v := Id("v")
-		def.Var().Add(v).Add(r.EntityPathKey.Type.GoType())
+		v := Code(Id("v"))
+		if ck != nil {
+			def.Add(v).Op(":=").New(r.EntityPathKey.Type.GoType())
+		} else {
+			def.Var().Add(v).Add(r.EntityPathKey.Type.GoType())
+		}
 		keyReader := Id("keyReader")
 		def.List(keyReader, Err()).Op(":=").Add(types.NewRor2Reader).Call(rawKey)
 		def.Add(utils.IfErrReturn(Err()))
 		def.Add(types.Reader.Read(r.EntityPathKey.Type, keyReader, v))
 		def.Add(utils.IfErrReturn(Err())).Line()
+
+		if ck != nil {
+			originalKey := Code(Id("originalKey"))
+			def.Var().Add(originalKey).Add(r.EntityPathKey.Type.ReferencedType())
+			def.For().List(Id("_"), key).Op(":=").Range().Add(originalKeys).Index(Add(v).Add(ck.KeyAccessor()).Dot(types.ComputeHash).Call()).BlockFunc(func(def *Group) {
+				def.If(Add(v).Add(ck.KeyAccessor()).Dot(types.Equals).Call(Op("&").Add(key).Add(ck.KeyAccessor()))).Block(
+					Add(originalKey).Op("=").Add(key),
+					Break(),
+				)
+			})
+			def.If(Add(originalKey).Op("==").Nil()).Block(
+				Return(Qual("fmt", "Errorf").Call(Lit("unknown key returned by batch get: %q"), rawKey)),
+			)
+			def.Line()
+			v = originalKey
+		}
 
 		accessor := Add(Entities).Index(v)
 		if r.Return.ShouldReference() {

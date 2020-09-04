@@ -1,10 +1,10 @@
-package tests
+package suite
 
 import (
 	"testing"
 
-	. "github.com/PapaCharlie/go-restli/internal/tests/generated/extras/collectionWithTyperefKey"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/extras/collectionWithTyperefKey"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/stretchr/testify/require"
 )
 

@@ -14,9 +14,10 @@ JARGO := internal/codegen/cmd/classpath_jar.go
 FAT_JAR := spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar
 GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 
-TEST_SUITE := internal/tests/rest.li-test-suite/client-testsuite
-EXTRA_TEST_SUITE := internal/tests/extra-test-suite
-PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/generated
+TESTDATA := internal/tests/testdata
+TEST_SUITE := $(TESTDATA)/rest.li-test-suite/client-testsuite
+EXTRA_TEST_SUITE := $(TESTDATA)/extra-test-suite
+PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/testdata/generated
 PACKAGES := ./internal/codegen/* ./d2 ./protocol
 
 build: generate test integration-test
@@ -38,15 +39,15 @@ imports:
 	goimports -w main.go $(PACKAGES)
 
 integration-test: clean $(JARGO)
-	rm -rf internal/tests/generated internal/tests/generated_extras
+	rm -rf $(TESTDATA)/generated $(TESTDATA)/generated_extras
 	go run -tags=jar . \
-		--output-dir internal/tests/generated_extras \
+		--output-dir $(TESTDATA)/generated_extras \
 		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX)_extras \
 		--named-schemas-to-generate extras.NestedArraysAndMaps \
 		--named-schemas-to-generate extras.DefaultTyperef
 	go run -tags=jar . \
-		--output-dir internal/tests/generated \
+		--output-dir $(TESTDATA)/generated \
 		--resolver-path $(TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX) \
 		--named-schemas-to-generate testsuite.Primitives \
@@ -54,13 +55,13 @@ integration-test: clean $(JARGO)
 		--named-schemas-to-generate testsuite.Include \
 		--named-schemas-to-generate testsuite.Defaults \
 		$(TEST_SUITE)/restspecs/* $(EXTRA_TEST_SUITE)/restspecs/*
-	go test -tags=jar -count=1 ./internal/tests/...
+	go test -count=1 ./internal/tests/...
 
 generate-tests:
 	cd internal/tests && go run ./test_generator
 
 clean:
-	git -C internal/tests/rest.li-test-suite reset --hard origin/master
+	git -C $(TEST_SUITE) reset --hard origin/master
 
 fat-jar: $(FAT_JAR)
 $(FAT_JAR): $(shell git ls-files spec-parser)

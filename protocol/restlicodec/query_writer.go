@@ -4,7 +4,7 @@ import "net/url"
 
 type RestLiQueryParamsWriter interface {
 	Closer
-	WriteParams(paramsWriter func(paramNameWriter func(paramName string) Writer) error) error
+	WriteParams(paramsWriter MapWriter) error
 }
 
 type queryParamsWriter struct {
@@ -15,7 +15,7 @@ func NewRestLiQueryParamsWriter() RestLiQueryParamsWriter {
 	return &queryParamsWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: url.QueryEscape})}
 }
 
-func (w *queryParamsWriter) WriteParams(paramsWriter func(paramNameWriter func(paramName string) Writer) error) (err error) {
+func (w *queryParamsWriter) WriteParams(paramsWriter MapWriter) (err error) {
 	first := true
 	return paramsWriter(func(paramName string) Writer {
 		if first {

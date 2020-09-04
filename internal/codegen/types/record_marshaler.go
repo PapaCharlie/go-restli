@@ -95,6 +95,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 			idsIndex := -1
 			if isBatchRequest {
 				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= EntityIDsParam })
+				insertFieldAt(idsIndex, Field{})
 			}
 
 			paramNameWriter := Id("paramNameWriter")

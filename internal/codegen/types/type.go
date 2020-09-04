@@ -132,6 +132,15 @@ func (t *RestliType) Record() *Record {
 	return record
 }
 
+func (t *RestliType) ComplexKey() *ComplexKey {
+	if t.Reference == nil {
+		return nil
+	}
+
+	complexKey, _ := t.Reference.Resolve().(*ComplexKey)
+	return complexKey
+}
+
 func (t *RestliType) StandaloneUnion() *StandaloneUnion {
 	if t.Reference == nil {
 		return nil

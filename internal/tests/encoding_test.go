@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
 )
@@ -170,19 +170,49 @@ func TestUnknownFieldReads(t *testing.T) {
 		Actual conflictresolution.Message
 	}{
 		{
-			Name:   "Extra field before",
+			Name:   "Extra primitive field before",
 			Json:   `{"foo":false,"id":1,"message":"test"}`,
 			RestLi: `(foo:false,id:1,message:test)`,
 		},
 		{
-			Name:   "Extra field in the middle",
+			Name:   "Extra primitive field in the middle",
 			Json:   `{"id":1,"foo":false,"message":"test"}`,
 			RestLi: `(id:1,foo:false,message:test)`,
 		},
 		{
-			Name:   "Extra field at the end",
+			Name:   "Extra primitive field at the end",
 			Json:   `{"id":1,"message":"test","foo":false}`,
 			RestLi: `(id:1,message:test,foo:false)`,
+		},
+		{
+			Name:   "Extra object field before",
+			Json:   `{"foo":{"bar": 1},"id":1,"message":"test"}`,
+			RestLi: `(foo:(bar:1),id:1,message:test)`,
+		},
+		{
+			Name:   "Extra object field in the middle",
+			Json:   `{"id":1,"foo":{"bar":1},"message":"test"}`,
+			RestLi: `(id:1,foo:(bar:1),message:test)`,
+		},
+		{
+			Name:   "Extra object field at the end",
+			Json:   `{"id":1,"message":"test","foo":{"bar":1}}`,
+			RestLi: `(id:1,message:test,foo:(bar:1))`,
+		},
+		{
+			Name:   "Extra array field before",
+			Json:   `{"foo":[42],"id":1,"message":"test"}`,
+			RestLi: `(foo:List(42),id:1,message:test)`,
+		},
+		{
+			Name:   "Extra array field in the middle",
+			Json:   `{"id":1,"foo":[42],"message":"test"}`,
+			RestLi: `(id:1,foo:List(42),message:test)`,
+		},
+		{
+			Name:   "Extra array field at the end",
+			Json:   `{"id":1,"message":"test","foo":[42]}`,
+			RestLi: `(id:1,message:test,foo:List(42))`,
 		},
 	}
 

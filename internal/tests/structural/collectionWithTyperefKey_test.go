@@ -1,10 +1,10 @@
-package tests
+package structural
 
 import (
 	"context"
 
-	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/generated/extras/collectionWithTyperefKey"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
+	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/extras/collectionWithTyperefKey"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR extras.collectionWithTyperefKey

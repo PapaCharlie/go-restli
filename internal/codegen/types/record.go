@@ -67,6 +67,7 @@ func (r *Record) GenerateCode() *Statement {
 		Add(r.GenerateStruct()).Line().Line().
 		Add(r.generateDefaultValuesCode()).Line().Line().
 		Add(r.GenerateEquals()).Line().Line().
+		Add(r.GenerateComputeHash()).Line().Line().
 		Add(r.GenerateMarshalRestLi()).Line().Line().
 		Add(r.GenerateUnmarshalRestLi()).Line().Line().
 		Add(r.generatePartialUpdateStruct()).Line()

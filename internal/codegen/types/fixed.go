@@ -25,15 +25,22 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 
 	receiver := f.Receiver()
 	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.Name, f.Size)
+	slice := Index(Op(":"))
 
 	AddEquals(def, receiver, f.Name, func(other Code, def *Group) {
 		def.Return(Qual("bytes", "Equal").Call(
-			Id(receiver).Index(Op(":")),
-			Add(other).Index(Op(":"))))
+			Id(receiver).Add(slice),
+			Add(other).Add(slice)))
+	})
+
+	AddComputeHash(def, receiver, f.Name, func(h Code, def *Group) {
+		def.Add(h).Op("=").Add(NewHash)
+		def.Add(hash(h, FixedUnderlyingType, false, Id(receiver).Add(slice)))
+		def.Return(h)
 	})
 
 	AddMarshalRestLi(def, receiver, f.Name, func(def *Group) {
-		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Index(Op(":"))))
+		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Add(slice)))
 		def.Return(Nil())
 	})
 	AddUnmarshalRestli(def, receiver, f.Name, func(def *Group) {
@@ -46,7 +53,7 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 			def.Return(Qual("fmt", "Errorf").Call(Lit(errorMsg), Len(data)))
 		}).Line()
 
-		def.Copy(Id(receiver).Index(Op(":")), Add(data).Index(Op(":").Lit(f.Size)))
+		def.Copy(Id(receiver).Add(slice), Add(data).Index(Op(":").Lit(f.Size)))
 		def.Return(Nil())
 	})
 

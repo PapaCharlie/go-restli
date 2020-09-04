@@ -1,4 +1,4 @@
-package tests
+package suite
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PapaCharlie/go-restli/internal/tests"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 )
@@ -69,12 +70,12 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 
 	o.Name = operation.Name
 
-	o.Request, o.RequestBytes, err = ReadRequestFromFile(filepath.Join(testSuite, "requests-v2", o.Name + ".req"))
+	o.Request, o.RequestBytes, err = tests.ReadRequestFromFile(filepath.Join(testSuite, "requests-v2", o.Name + ".req"))
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	o.Response, o.ResponseBytes, err = ReadResponseFromFile(filepath.Join(testSuite, "responses-v2", o.Name + ".res"), o.Request)
+	o.Response, o.ResponseBytes, err = tests.ReadResponseFromFile(filepath.Join(testSuite, "responses-v2", o.Name + ".res"), o.Request)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -88,7 +89,7 @@ func (o *Operation) TestMethodName() string {
 
 func ReadManifest() *Manifest {
 	var aggregateManifest Manifest
-	for _, testSuite = range []string{"rest.li-test-suite/client-testsuite", "extra-test-suite"} {
+	for _, testSuite = range []string{"../testdata/rest.li-test-suite/client-testsuite", "../testdata/extra-test-suite"} {
 		f, err := os.Open(filepath.Join(testSuite, "manifest.json"))
 		if err != nil {
 			log.Panicln(err)

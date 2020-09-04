@@ -1,13 +1,13 @@
-package tests
+package suite
 
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 )
 
 func (s *TestServer) ComplexkeyGet(t *testing.T, c Client) {
@@ -96,19 +96,70 @@ func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
 	require.NoError(t, err)
 }
 
-func (s *TestServer) ComplexkeyGetWithSpecialChars(t *testing.T, c Client) {
-	specialChars := "!*'();:@&=+$,/?#[]" + ".~"
-	five := int64(5)
-	_, err := c.Get(&Complexkey_ComplexKey{
+func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
+	k1 := &Complexkey_ComplexKey{
+		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
-			Part1: "key" + specialChars,
+			Part1: "one",
 			Part2: 2,
 			Part3: conflictresolution.Fruits_APPLE,
 		},
-		Params: &KeyParams{
-			Param1: "param" + specialChars,
-			Param2: &five,
+	}
+	k2 := &Complexkey_ComplexKey{
+		Params: newKeyParams("param2", 11),
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "two",
+			Part2: 7,
+			Part3: conflictresolution.Fruits_ORANGE,
 		},
-	})
+	}
+	res, err := c.BatchGet([]*Complexkey_ComplexKey{k1, k2})
 	require.NoError(t, err)
+	require.Equal(t, map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{
+		k1: {
+			Key: k1.ComplexKey,
+			Message: conflictresolution.Message{
+				Message: "test message",
+			},
+		},
+		k2: {
+			Key: k2.ComplexKey,
+			Message: conflictresolution.Message{
+				Message: "test message",
+			},
+		},
+	}, res)
+}
+
+const specialChars = "!*'();:@&=+$,/?#[]" + ".~"
+
+var specialCharsKey = &Complexkey_ComplexKey{
+	Params: newKeyParams("param"+specialChars, 5),
+	ComplexKey: conflictresolution.ComplexKey{
+		Part1: "key" + specialChars,
+		Part2: 2,
+		Part3: conflictresolution.Fruits_APPLE,
+	},
+}
+
+func (s *TestServer) ComplexkeyGetWithSpecialChars(t *testing.T, c Client) {
+	_, err := c.Get(specialCharsKey)
+	require.NoError(t, err)
+}
+
+func (s *TestServer) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) {
+	k := &Complexkey_ComplexKey{
+		Params: newKeyParams("param2", 11),
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "two",
+			Part2: 7,
+			Part3: conflictresolution.Fruits_ORANGE,
+		},
+	}
+	res, err := c.BatchGet([]*Complexkey_ComplexKey{specialCharsKey, k})
+	require.NoError(t, err)
+	_, ok := res[specialCharsKey]
+	require.True(t, ok)
+	_, ok = res[k]
+	require.True(t, ok)
 }

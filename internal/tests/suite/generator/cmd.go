@@ -9,16 +9,21 @@ import (
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
-	"github.com/PapaCharlie/go-restli/internal/tests"
+	"github.com/PapaCharlie/go-restli/internal/tests/suite"
 	"github.com/pkg/errors"
 )
 
 func init() {
-	utils.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/generated"
+	utils.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated"
 }
 
 func main() {
-	for _, wd := range tests.ReadManifest().WireProtocolTestData {
+	server := new(suite.TestServer)
+	for _, wd := range suite.ReadManifest().WireProtocolTestData {
+		if wd.GetClient(server) == nil {
+			// don't generate tests for unsupported resource types
+			continue
+		}
 		var testFileContents string
 
 		testFilename := wd.Name + "_test.go"

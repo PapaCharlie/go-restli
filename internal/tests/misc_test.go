@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated_extras/extras"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	"github.com/stretchr/testify/require"
 )
 

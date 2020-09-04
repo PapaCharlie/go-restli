@@ -1,11 +1,11 @@
-package tests
+package suite
 
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite"
-	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/actionSet"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
 	"github.com/stretchr/testify/require"
 )
 

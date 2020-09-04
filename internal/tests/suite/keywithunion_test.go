@@ -1,13 +1,13 @@
-package tests
+package suite
 
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/complexkey"
+	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/PapaCharlie/go-restli/internal/tests/generated/testsuite/keywithunion/keywithunion"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion"
 )
 
 func (s *TestServer) KeywithunionGet(t *testing.T, c Client) {
