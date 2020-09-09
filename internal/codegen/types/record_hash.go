@@ -6,7 +6,7 @@ import (
 )
 
 func AddComputeHash(def *Statement, receiver, typeName string, f func(h Code, def *Group)) *Statement {
-	h := Id("h")
+	h := Id("hash")
 	return utils.AddFuncOnReceiver(def, receiver, typeName, ComputeHash).
 		Params().Params(Add(h).Add(Hash)).
 		BlockFunc(func(def *Group) {
