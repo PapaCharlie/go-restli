@@ -98,10 +98,22 @@ func IsErrorResponse(req *http.Request, res *http.Response) error {
 	return nil
 }
 
-// BatchRequestError is returned by BATCH_* requests when the "errors" field in the response is present and not null. It
+// BatchMethodError is returned by BATCH_* requests when the "errors" field in the response is present and not null. It
 // contains the raw bytes of said field as its contents are untyped.
-type BatchRequestError []byte
+type BatchMethodError struct {
+	// The contents of the "errors" fields in the batch request's response
+	// TODO: This is a map of the key that caused the error to a message describing the error. Ideally instead of having
+	//  raw bytes, each batch method would generate an error handler that correctly deserializes this response
+	Errors []byte
+	// The contents of the "statuses" fields in the batch request's response
+	// TODO: See above, this should also be deserialized into an actual type
+	Statuses []byte
+	// The request that resulted in this error
+	Request *http.Request
+	// The raw response that this error was parsed from
+	Response *http.Response
+}
 
-func (b BatchRequestError) Error() string {
-	return string(b)
+func (b *BatchMethodError) Error() string {
+	return string(b.Errors)
 }

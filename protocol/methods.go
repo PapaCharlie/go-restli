@@ -166,6 +166,12 @@ func (c *RestLiClient) DoBatchGetRequest(ctx context.Context, url *url.URL, resu
 		return err
 	}
 
-	_, err = c.DoAndDecode(req, &batchGetRequestResponse{Results: resultsReader})
+	res := &batchGetRequestResponse{
+		Results: resultsReader,
+		Errors: &BatchMethodError{
+			Request: req,
+		},
+	}
+	res.Errors.Response, err = c.DoAndDecode(req, res)
 	return err
 }
