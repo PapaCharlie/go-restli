@@ -30,7 +30,7 @@ func (e emptyRecord) MarshalRestLi(writer restlicodec.Writer) error {
 
 type batchGetRequestResponse struct {
 	Results restlicodec.MapReader
-	Errors  []byte
+	Errors  BatchRequestError
 }
 
 func (b *batchGetRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
@@ -57,7 +57,7 @@ func (b *batchGetRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (er
 		return restlicodec.NewJsonReader(b.Errors).ReadMap(func(restlicodec.Reader, string) error {
 			// if the MapReader is getting called then we received a non-empty "errors" map, so immediately return the
 			// raw errors map as the error itself
-			return fmt.Errorf(string(b.Errors))
+			return b.Errors
 		})
 	}
 	return nil

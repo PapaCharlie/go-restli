@@ -97,3 +97,11 @@ func IsErrorResponse(req *http.Request, res *http.Response) error {
 
 	return nil
 }
+
+// BatchRequestError is returned by BATCH_* requests when the "errors" field in the response is present and not null. It
+// contains the raw bytes of said field as its contents are untyped.
+type BatchRequestError []byte
+
+func (b BatchRequestError) Error() string {
+	return string(b)
+}
