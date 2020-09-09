@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/internal/codegen/types"
@@ -56,6 +57,38 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 			r.addResourcePathFunc(client.Code, ResourceEntityPath, m.GetMethod())
 			break
 		}
+	}
+
+	newPathSpec := func(directives []string) Code {
+		return Qual(types.RestLiCodecPackage, "NewPathSpec").CallFunc(func(def *Group) {
+			for _, d := range directives {
+				def.Line().Add(Lit(d))
+			}
+			def.Line()
+		})
+	}
+
+	if len(r.ReadOnlyFields) > 0 || len(r.CreateOnlyFields) > 0 {
+		client.Code.Var().DefsFunc(func(def *Group) {
+			if len(r.ReadOnlyFields) > 0 {
+				def.Add(ReadOnlyFields).Op("=").Add(newPathSpec(r.ReadOnlyFields))
+			}
+			if len(r.CreateOnlyFields) > 0 {
+				def.Add(CreateOnlyFields).Op("=").Add(newPathSpec(r.CreateOnlyFields))
+			}
+
+			var createAndReadOnlyFields []string
+			inserted := make(map[string]bool)
+			for _, d := range append(append([]string(nil), r.ReadOnlyFields...), r.CreateOnlyFields...) {
+				if _, ok := inserted[d]; ok {
+					continue
+				}
+				inserted[d] = true
+				createAndReadOnlyFields = append(createAndReadOnlyFields, d)
+			}
+			sort.Strings(createAndReadOnlyFields)
+			def.Add(CreateAndReadOnlyFields).Op("=").Add(newPathSpec(createAndReadOnlyFields))
+		})
 	}
 
 	codeFiles := []*utils.CodeFile{client}
@@ -170,4 +203,27 @@ func (r *Resource) addClientFuncDeclarations(def *Statement, clientType string, 
 		BlockFunc(block)
 
 	return def
+}
+
+func (r *Resource) readOnlyFields() Code {
+	if len(r.ReadOnlyFields) > 0 {
+		return ReadOnlyFields
+	} else {
+		return NoExcludedFields
+	}
+}
+
+func (r *Resource) createOnlyFields() Code {
+	if len(r.CreateOnlyFields) > 0 {
+		return CreateOnlyFields
+	} else {
+		return NoExcludedFields
+	}
+}
+func (r *Resource) createAndReadOnlyFields() Code {
+	if len(r.ReadOnlyFields) > 0 || len(r.CreateOnlyFields) > 0 {
+		return CreateAndReadOnlyFields
+	} else {
+		return NoExcludedFields
+	}
 }

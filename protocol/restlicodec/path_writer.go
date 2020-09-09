@@ -14,7 +14,7 @@ type ror2PathWriter struct {
 }
 
 func NewRor2PathWriter() Ror2PathWriter {
-	return &ror2PathWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: url.PathEscape})}
+	return &ror2PathWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: url.PathEscape}, nil)}
 }
 
 func (p *ror2PathWriter) RawPathSegment(segment string) {

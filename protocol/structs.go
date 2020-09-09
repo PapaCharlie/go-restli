@@ -12,7 +12,7 @@ type partialUpdateRequest struct {
 
 func (p *partialUpdateRequest) MarshalRestLi(writer restlicodec.Writer) error {
 	return writer.WriteMap(func(fieldNameWriter func(fieldName string) restlicodec.Writer) error {
-		return p.Patch.MarshalRestLi(fieldNameWriter("patch"))
+		return p.Patch.MarshalRestLi(fieldNameWriter("patch").WithoutLastKey())
 	})
 }
 

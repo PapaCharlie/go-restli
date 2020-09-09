@@ -12,7 +12,6 @@ import (
 	"runtime/debug"
 	"sync"
 
-	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/extras/collectionWithTyperefKey"
 	actionset "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
 	collectionreturnentity "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity"
@@ -21,6 +20,8 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
 	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/typerefs/collectionTyperef"
+	collectionwithannotations "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
+	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
@@ -61,6 +62,9 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 		return v
 	case "collectionWithTyperefKey":
 		*v = reflect.ValueOf(collectionwithtyperefkey.NewClient(s.client))
+		return v
+	case "collectionWithAnnotations":
+		*v = reflect.ValueOf(collectionwithannotations.NewClient(s.client))
 		return v
 	}
 	return nil

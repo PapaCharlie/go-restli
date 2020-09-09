@@ -69,3 +69,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 func (e *writer) Finalize() Code {
 	return Add(e).Dot("Finalize").Call()
 }
+
+func (e *writer) IsKeyExcluded(writerAccessor, key Code) Code {
+	return Add(writerAccessor).Dot("IsKeyExcluded").Call(key)
+}

@@ -45,7 +45,9 @@ integration-test: clean $(JARGO)
 		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX)_extras \
 		--named-schemas-to-generate extras.NestedArraysAndMaps \
-		--named-schemas-to-generate extras.DefaultTyperef
+		--named-schemas-to-generate extras.EvenMoreComplexTypes \
+		--named-schemas-to-generate extras.DefaultTyperef \
+		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated \
 		--resolver-path $(TEST_SUITE)/schemas \
@@ -54,11 +56,12 @@ integration-test: clean $(JARGO)
 		--named-schemas-to-generate testsuite.ComplexTypes \
 		--named-schemas-to-generate testsuite.Include \
 		--named-schemas-to-generate testsuite.Defaults \
-		$(TEST_SUITE)/restspecs/* $(EXTRA_TEST_SUITE)/restspecs/*
+		--named-schemas-to-generate testsuite.RecordWithTyperefField \
+		$(TEST_SUITE)/restspecs/*
 	go test -count=1 ./internal/tests/...
 
 generate-tests:
-	cd internal/tests && go run ./test_generator
+	cd internal/tests/suite && go run ./generator
 
 clean:
 	git -C $(TEST_SUITE) reset --hard origin/master

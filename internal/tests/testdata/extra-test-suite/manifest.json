@@ -11,6 +11,21 @@
           "name": "collectionWithTyperefKey-get"
         }
       ]
+    },
+    {
+      "name": "collectionWithAnnotations",
+      "restspec": "restspecs/extras.collectionWithAnnotations.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithAnnotations-partial-update"
+        },
+        {
+          "name": "collectionWithAnnotations-create"
+        },
+        {
+          "name": "collectionWithAnnotations-update"
+        }
+      ]
     }
   ]
 }

@@ -2,12 +2,12 @@
   "name": "collectionWithTyperefKey",
   "namespace": "extras",
   "path": "/collectionWithTyperefKey",
-  "schema": "testsuite.PrimitiveField",
+  "schema": "extras.SinglePrimitiveField",
   "doc": "",
   "collection": {
     "identifier": {
       "name": "key",
-      "type": "testsuite.Time"
+      "type": "extras.Temperature"
     },
     "supports": [
       "batch_get",

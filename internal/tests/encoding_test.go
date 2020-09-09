@@ -31,9 +31,11 @@ func TestEncodePrimitives(t *testing.T) {
 }`)
 	})
 
-	testRestliEncoding(t, expected, new(Primitives),
-		`(primitiveBytes:@ABC🕴,primitiveDouble:66.5,primitiveFloat:52.5,primitiveInteger:1,primitiveLong:23,primitiveString:a string%2C%28%29%27)`,
-	)
+	t.Run("ror2", func(t *testing.T) {
+		testRor2Encoding(t, expected, new(Primitives),
+			`(primitiveBytes:@ABC🕴,primitiveDouble:66.5,primitiveFloat:52.5,primitiveInteger:1,primitiveLong:23,primitiveString:a string%2C%28%29%27)`,
+		)
+	})
 }
 
 func TestEncodeComplexTypes(t *testing.T) {
@@ -145,15 +147,17 @@ func TestEncodeComplexTypes(t *testing.T) {
 }`)
 	})
 
-	testRestliEncoding(t, expected, new(ComplexTypes),
-		`(anotherUnionOfComplexTypes:(complexTypeUnion:(testsuite.Fruits:APPLE)),`+
-			`arrayOfMaps:(arrayOfMaps:List((one:1),(two:2))),`+
-			`mapOfInts:(mapOfInts:(one:1)),`+
-			`recordWithProps:(integer:5),`+
-			`unionOfComplexTypes:(complexTypeUnion:(testsuite.Fruits:ORANGE)),`+
-			`unionOfPrimitives:(primitivesUnion:(int:5)),`+
-			`unionOfSameTypes:(sameTypesUnion:(greeting:Hello),unionWithArrayMembers:(fruitArray:List(ORANGE,APPLE)),unionWithMapMembers:(intMap:(one:1))))`,
-	)
+	t.Run("ror2", func(t *testing.T) {
+		testRor2Encoding(t, expected, new(ComplexTypes),
+			`(anotherUnionOfComplexTypes:(complexTypeUnion:(testsuite.Fruits:APPLE)),`+
+				`arrayOfMaps:(arrayOfMaps:List((one:1),(two:2))),`+
+				`mapOfInts:(mapOfInts:(one:1)),`+
+				`recordWithProps:(integer:5),`+
+				`unionOfComplexTypes:(complexTypeUnion:(testsuite.Fruits:ORANGE)),`+
+				`unionOfPrimitives:(primitivesUnion:(int:5)),`+
+				`unionOfSameTypes:(sameTypesUnion:(greeting:Hello),unionWithArrayMembers:(fruitArray:List(ORANGE,APPLE)),unionWithMapMembers:(intMap:(one:1))))`,
+		)
+	})
 }
 
 func TestUnknownFieldReads(t *testing.T) {
@@ -221,14 +225,14 @@ func TestUnknownFieldReads(t *testing.T) {
 			t.Run("json", func(t *testing.T) {
 				reader := restlicodec.NewJsonReader([]byte(test.Json))
 				require.NoError(t, test.Actual.UnmarshalRestLi(reader))
-				require.Equal(t, expected, test.Actual)
+				requireEqual(t, &expected, &test.Actual)
 			})
 
 			t.Run("url", func(t *testing.T) {
 				reader, err := restlicodec.NewRor2Reader(test.RestLi)
 				require.NoError(t, err)
 				require.NoError(t, test.Actual.UnmarshalRestLi(reader))
-				require.Equal(t, expected, test.Actual)
+				requireEqual(t, &expected, &test.Actual)
 			})
 		})
 	}
@@ -361,7 +365,7 @@ func TestMapEncoding(t *testing.T) {
 func TestArrayEncoding(t *testing.T) {
 	expected := &Optionals{OptionalArray: &[]int32{1, 2}}
 
-	testRestliEncoding(t, expected, new(Optionals), `(optionalArray:List(1,2))`)
+	testRor2Encoding(t, expected, new(Optionals), `(optionalArray:List(1,2))`)
 
 	expected = &Optionals{OptionalArray: &[]int32{}}
 	writer := restlicodec.NewRor2HeaderWriter()
@@ -375,7 +379,7 @@ func TestEmptyStringAndBytes(t *testing.T) {
 		OptionalString: new(string),
 	}
 
-	testRestliEncoding(t, expected, new(Optionals), `(optionalBytes:'',optionalString:'')`)
+	testRor2Encoding(t, expected, new(Optionals), `(optionalBytes:'',optionalString:'')`)
 }
 
 func TestRaw(t *testing.T) {
@@ -437,38 +441,60 @@ func TestRaw(t *testing.T) {
 type restliObject interface {
 	restlicodec.Marshaler
 	restlicodec.Unmarshaler
+	Equals(interface{}) bool
 }
 
 func testJsonEncoding(t *testing.T, expected, actual restliObject, expectedRawJson string) {
 	t.Run("encode", func(t *testing.T) {
-		writer := restlicodec.NewCompactJsonWriter()
-		require.NoError(t, expected.MarshalRestLi(writer))
-
-		var expectedRaw map[string]interface{}
-		require.NoError(t, json.Unmarshal([]byte(expectedRawJson), &expectedRaw))
-		var raw map[string]interface{}
-		require.NoError(t, json.Unmarshal([]byte(writer.Finalize()), &raw))
-		require.Equal(t, expectedRaw, raw)
+		testEncodedJson(t, expected, expectedRawJson, nil)
 	})
 
 	t.Run("decode", func(t *testing.T) {
 		decoder := restlicodec.NewJsonReader([]byte(expectedRawJson))
 		require.NoError(t, actual.UnmarshalRestLi(decoder))
-		require.Equal(t, expected, actual)
+		requireEqual(t, expected, actual)
 	})
 }
 
-func testRestliEncoding(t *testing.T, expected, actual restliObject, expectedRawEncoded string) {
+func testEncodedJson(t *testing.T, obj restliObject, expectedRawJson string, excludedFields restlicodec.PathSpec) {
+	writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
+	require.NoError(t, obj.MarshalRestLi(writer))
+
+	var expectedRaw map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(expectedRawJson), &expectedRaw))
+	var raw map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(writer.Finalize()), &raw))
+	require.Equal(t, expectedRaw, raw)
+}
+
+func testRor2Encoding(t *testing.T, expected, actual restliObject, expectedRawRor2 string) {
 	t.Run("encode", func(t *testing.T) {
-		writer := restlicodec.NewRor2HeaderWriter()
-		require.NoError(t, expected.MarshalRestLi(writer))
-		require.Equal(t, expectedRawEncoded, writer.Finalize())
+		testEncodedRor2(t, expected, []string{expectedRawRor2}, nil)
 	})
 
 	t.Run("decode", func(t *testing.T) {
-		reader, err := restlicodec.NewRor2Reader(expectedRawEncoded)
+		reader, err := restlicodec.NewRor2Reader(expectedRawRor2)
 		require.NoError(t, err)
 		require.NoError(t, actual.UnmarshalRestLi(reader))
-		require.Equal(t, expected, actual)
+		requireEqual(t, expected, actual)
 	})
+}
+
+// testEncodedRor2 marshals the given object and checks the output against different alternative expected outputs which
+// can results from map iteration order being inconsistent.
+func testEncodedRor2(t *testing.T, obj restliObject, expectedRor2Alternatives []string, excludedFields restlicodec.PathSpec) {
+	writer := restlicodec.NewRor2HeaderWriterWithExcludedFields(excludedFields)
+	require.NoError(t, obj.MarshalRestLi(writer))
+	final := writer.Finalize()
+	for _, s := range expectedRor2Alternatives {
+		if s == final {
+			return
+		}
+	}
+	require.Equal(t, expectedRor2Alternatives[0], final)
+}
+
+func requireEqual(t *testing.T, expected, actual restliObject) {
+	require.Equal(t, expected, actual)
+	require.True(t, expected.Equals(actual))
 }

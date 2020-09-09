@@ -7,9 +7,13 @@ import (
 
 func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def *Group)) *Statement {
 	other := Id("other")
+	otherInterface := Id("otherInterface")
 	return utils.AddFuncOnReceiver(def, receiver, typeName, Equals).
-		Params(Add(other).Op("*").Id(typeName)).Bool().
+		Params(Add(otherInterface).Interface()).Bool().
 		BlockFunc(func(def *Group) {
+			ok := Id("ok")
+			def.List(other, ok).Op(":=").Add(otherInterface).Assert(Op("*").Id(typeName))
+			def.If(Op("!").Add(ok)).Block(Return(False())).Line()
 			def.If(Id(receiver).Op("==").Add(other)).Block(Return(True()))
 			def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
 			f(other, def)

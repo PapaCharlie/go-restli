@@ -12,7 +12,7 @@ type queryParamsWriter struct {
 }
 
 func NewRestLiQueryParamsWriter() RestLiQueryParamsWriter {
-	return &queryParamsWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: url.QueryEscape})}
+	return &queryParamsWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: url.QueryEscape}, nil)}
 }
 
 func (w *queryParamsWriter) WriteParams(paramsWriter MapWriter) (err error) {

@@ -114,3 +114,27 @@ func (s *TestServer) CollectionBatchGet(t *testing.T, c Client) {
 		},
 	}, res)
 }
+
+func (s *TestServer) CollectionBatchCreate(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) CollectionBatchPartialUpdate(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) CollectionBatchDelete(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) CollectionGetProjection(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) CollectionBatchUpdateErrors(t *testing.T, c Client) {
+	t.SkipNow()
+}

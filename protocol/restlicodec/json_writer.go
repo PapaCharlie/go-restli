@@ -11,7 +11,13 @@ type compactJsonWriter struct {
 // NewCompactJsonWriter returns a WriteCloser that serializes objects using JSON. This representation has no extraneous
 // whitespace and is intended for wire transport.
 func NewCompactJsonWriter() WriteCloser {
-	return newGenericWriter(new(compactJsonWriter))
+	return newGenericWriter(new(compactJsonWriter), nil)
+}
+
+// NewCompactJsonWriterWithExcludedFields returns a WriteCloser that serializes objects using JSON, excluding any fields
+// matched by the given PathSpec. This representation has no extraneous whitespace and is intended for wire transport.
+func NewCompactJsonWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+	return newGenericWriter(new(compactJsonWriter), excludedFields)
 }
 
 func (c *compactJsonWriter) writeMapStart() {
@@ -85,7 +91,15 @@ type prettyJsonWriter struct {
 // array items using newlines and provides indentation for nested objects. It generates a lot of unnecessary bytes and
 // is intended primarily for debugging or human-readability purposes.
 func NewPrettyJsonWriter() WriteCloser {
-	return newGenericWriter(new(prettyJsonWriter))
+	return newGenericWriter(new(prettyJsonWriter), nil)
+}
+
+// NewPrettyJsonWriterWithExcludedFields returns a WriteCloser that serializes objects using JSON, excluding any fields
+// matched by the given PathSpec. This representation delimits fields and array items using newlines and provides
+// indentation for nested objects. It generates a lot of unnecessary bytes and is intended primarily for debugging or
+// human-readability purposes.
+func NewPrettyJsonWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+	return newGenericWriter(new(prettyJsonWriter), excludedFields)
 }
 
 func (p *prettyJsonWriter) incrementIndent() {

@@ -163,3 +163,19 @@ func (s *TestServer) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) 
 	_, ok = res[k]
 	require.True(t, ok)
 }
+
+func (s *TestServer) ComplexkeyGetProjection(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
+	t.SkipNow()
+}
+
+func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
+	t.SkipNow()
+}

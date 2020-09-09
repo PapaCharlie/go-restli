@@ -15,6 +15,8 @@ type Resource struct {
 	ResourceSchema   *types.RestliType      `json:"resourceSchema"`
 	Methods          []MethodImplementation `json:"-"`
 	ReturnEntity     bool                   `json:"returnEntity"`
+	ReadOnlyFields   []string               `json:"readOnlyFields"`
+	CreateOnlyFields []string               `json:"createOnlyFields"`
 }
 
 func (r *Resource) UnmarshalJSON(data []byte) (err error) {

@@ -2,32 +2,28 @@
   "annotations": {
     "createOnly": {
       "value": [
-        "message"
+        "field2"
       ]
     },
     "readOnly": {
       "value": [
-        "id",
-        "message"
+        "field1"
       ]
     }
   },
   "name": "collectionWithAnnotations",
   "namespace": "extras",
   "path": "/collectionWithAnnotations",
-  "schema": "testsuite.Message",
+  "schema": "extras.MultiplePrimitiveFields",
   "doc": "",
   "collection": {
     "identifier": {
       "name": "key",
-      "type": "testsuite.Time"
+      "type": "extras.Temperature"
     },
     "methods": [
       {
         "method": "create"
-      },
-      {
-        "method": "get"
       },
       {
         "method": "update"

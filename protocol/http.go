@@ -124,8 +124,15 @@ func DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*htt
 
 // JsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
 // request with the given restlicodec.Marshaler contents (see RawJsonRequest)
-func JsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents restlicodec.Marshaler) (*http.Request, error) {
-	writer := restlicodec.NewCompactJsonWriter()
+func JsonRequest(
+	ctx context.Context,
+	url *url.URL,
+	httpMethod string,
+	restLiMethod RestLiMethod,
+	contents restlicodec.Marshaler,
+	excludedFields restlicodec.PathSpec,
+) (*http.Request, error) {
+	writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
 	err := contents.MarshalRestLi(writer)
 	if err != nil {
 		return nil, err

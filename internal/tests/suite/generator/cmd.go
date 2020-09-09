@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	"github.com/PapaCharlie/go-restli/internal/tests/suite"
 	"github.com/pkg/errors"
 )
 
-func init() {
-	utils.PackagePrefix = "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated"
-}
+const (
+	defaultPrefix = "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated"
+	extrasPrefix  = defaultPrefix + "_extras"
+)
 
 func main() {
 	server := new(suite.TestServer)
@@ -34,14 +34,20 @@ func main() {
 			}
 			f, err = os.Create(testFilename)
 			panicIfErrf(err, "Could not create %s", testFilename)
-			_, err = fmt.Fprintf(f, `package tests
+			var importPath string
+			if strings.HasPrefix(wd.PackagePath, "extras") {
+				importPath = filepath.Join(extrasPrefix, wd.PackagePath)
+			} else {
+				importPath = filepath.Join(defaultPrefix, wd.PackagePath)
+			}
+			_, err = fmt.Fprintf(f, `package suite
 
 import (
 	"testing"
 
 	. "%s"
 )
-`, filepath.Join(utils.PackagePrefix, wd.PackagePath))
+`, importPath)
 			panicIfErr(err)
 			panicIfErr(f.Close())
 		} else {

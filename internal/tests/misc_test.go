@@ -37,10 +37,16 @@ func TestDefaults(t *testing.T) {
 }
 
 func TestEquals(t *testing.T) {
-	testEquality := func(tests [][]bool, actual func(i, j int) bool) {
+	testEquality := func(tests [][]bool, supplier func(index int) restliObject) {
 		for i, row := range tests {
 			for j, expected := range row {
-				require.Equal(t, expected, actual(i, j), "Equals(%d, %d)", i, j)
+				a, b := supplier(i), supplier(j)
+				require.Equal(t, expected, a.Equals(b), "Equals(%d, %d)", i, j)
+				if expected {
+					require.Equal(t, a, b)
+				} else {
+					require.NotEqual(t, a, b)
+				}
 			}
 		}
 	}
@@ -55,8 +61,8 @@ func TestEquals(t *testing.T) {
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, func(i, j int) bool {
-			return data[i].Equals(&data[j])
+		}, func(i int) restliObject {
+			return &data[i]
 		})
 	})
 
@@ -70,8 +76,8 @@ func TestEquals(t *testing.T) {
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, func(i, j int) bool {
-			return data[i].Equals(data[j])
+		}, func(i int) restliObject {
+			return data[i]
 		})
 	})
 
@@ -90,8 +96,8 @@ func TestEquals(t *testing.T) {
 			{true, true, true, false, false},
 			{false, false, false, true, false},
 			{false, false, false, false, true},
-		}, func(i, j int) bool {
-			return data[i].Equals(data[j])
+		}, func(i int) restliObject {
+			return data[i]
 		})
 	})
 
@@ -110,8 +116,8 @@ func TestEquals(t *testing.T) {
 			{false, true, true, true, false},
 			{false, true, true, true, false},
 			{false, false, false, false, true},
-		}, func(i, j int) bool {
-			return data[i].Equals(data[j])
+		}, func(i int) restliObject {
+			return data[i]
 		})
 	})
 }

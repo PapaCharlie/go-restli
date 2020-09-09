@@ -33,4 +33,9 @@ var (
 	Keys           = Code(Id("keys"))
 	QueryParams    = Code(Id("queryParams"))
 	ActionParams   = Code(Id("actionParams"))
+
+	NoExcludedFields        = Code(Qual(types.RestLiCodecPackage, "NoExcludedFields"))
+	ReadOnlyFields          = Code(Id("ReadOnlyFields"))
+	CreateOnlyFields        = Code(Id("CreateOnlyFields"))
+	CreateAndReadOnlyFields = Code(Id("CreateAndReadOnlyFields"))
 )

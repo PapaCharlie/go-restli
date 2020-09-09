@@ -36,8 +36,15 @@ func (c CreateResponseHasNoEntityHeaderError) Error() string {
 // the request's body. The X-RestLi-Id header field will be parsed into id (though a
 // CreateResponseHasNoEntityHeaderError will be returned if the header is not set) and if returnEntity is non-nil, it
 // will be used to unmarhsal the body of the response.
-func (c *RestLiClient) DoCreateRequest(ctx context.Context, url *url.URL, create restlicodec.Marshaler, id restlicodec.Unmarshaler, returnEntity restlicodec.Unmarshaler) (err error) {
-	req, err := JsonRequest(ctx, url, http.MethodPost, Method_create, create)
+func (c *RestLiClient) DoCreateRequest(
+	ctx context.Context,
+	url *url.URL,
+	create restlicodec.Marshaler,
+	readOnlyFields restlicodec.PathSpec,
+	id restlicodec.Unmarshaler,
+	returnEntity restlicodec.Unmarshaler,
+) (err error) {
+	req, err := JsonRequest(ctx, url, http.MethodPost, Method_create, create, readOnlyFields)
 	if err != nil {
 		return err
 	}
@@ -73,8 +80,8 @@ func (c *RestLiClient) DoCreateRequest(ctx context.Context, url *url.URL, create
 }
 
 // DoUpdateRequest executes a rest.li Update request and places the given restlicodec.Marshaler in the request's body.
-func (c *RestLiClient) DoUpdateRequest(ctx context.Context, url *url.URL, create restlicodec.Marshaler) error {
-	req, err := JsonRequest(ctx, url, http.MethodPut, Method_update, create)
+func (c *RestLiClient) DoUpdateRequest(ctx context.Context, url *url.URL, update restlicodec.Marshaler) error {
+	req, err := JsonRequest(ctx, url, http.MethodPut, Method_update, update, nil)
 	if err != nil {
 		return err
 	}
@@ -85,8 +92,13 @@ func (c *RestLiClient) DoUpdateRequest(ctx context.Context, url *url.URL, create
 
 // DoPartialUpdateRequest executes a rest.li Partial Update request and places the given patch objects wrapped in a
 // PartialUpdate in the request's body.
-func (c *RestLiClient) DoPartialUpdateRequest(ctx context.Context, url *url.URL, patch restlicodec.Marshaler) error {
-	req, err := JsonRequest(ctx, url, http.MethodPost, Method_partial_update, &partialUpdateRequest{Patch: patch})
+func (c *RestLiClient) DoPartialUpdateRequest(
+	ctx context.Context,
+	url *url.URL,
+	patch restlicodec.Marshaler,
+	createAndReadOnlyFields restlicodec.PathSpec,
+) error {
+	req, err := JsonRequest(ctx, url, http.MethodPost, Method_partial_update, &partialUpdateRequest{Patch: patch}, createAndReadOnlyFields)
 	if err != nil {
 		return err
 	}
@@ -122,7 +134,7 @@ func (c *RestLiClient) DoFinderRequest(ctx context.Context, url *url.URL, result
 // Actions with no params are expected to use the EmptyRecord instead. If the given restlicodec.Unmarshaler for the
 // results is non-nil, it will be used to unmarshal the request's body, otherwise the body will be discarded.
 func (c *RestLiClient) DoActionRequest(ctx context.Context, url *url.URL, params restlicodec.Marshaler, results restlicodec.Unmarshaler) error {
-	req, err := JsonRequest(ctx, url, http.MethodPost, Method_action, params)
+	req, err := JsonRequest(ctx, url, http.MethodPost, Method_action, params, nil)
 	if err != nil {
 		return err
 	}

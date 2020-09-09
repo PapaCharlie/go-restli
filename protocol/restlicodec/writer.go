@@ -76,6 +76,13 @@ type Writer interface {
 	//		}
 	// Note that not using the inner Writer returned by the itemWriter may result in undefined behavior.
 	WriteArray(arrayWriter ArrayWriter) error
+	// IsKeyExcluded checks whether or not the given key or field name at the current scope should be included in
+	// serialization. Exclusion behavior is already built into the writer but this is intended for Marhsalers that use
+	// custom serialization logic on top of the Writer
+	IsKeyExcluded(key string) bool
+	// WithoutLastKey returns a copy of the current writer without the last key in scope. For internal use only by
+	// Marshalers that use custom serialization logic on top of the Writer.
+	WithoutLastKey() Writer
 }
 
 type rawWriter interface {
@@ -99,26 +106,37 @@ type rawWriter interface {
 }
 
 type genericWriter struct {
+	excludedFields PathSpec
+	currentPath    []string
 	rawWriter
 }
 
-func newGenericWriter(raw rawWriter) *genericWriter {
-	return &genericWriter{rawWriter: raw}
+func newGenericWriter(raw rawWriter, excludedFields PathSpec) *genericWriter {
+	return &genericWriter{rawWriter: raw, excludedFields: excludedFields}
 }
 
 func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
 	e.rawWriter.writeMapStart()
 
 	first := true
+	sub := e.subWriter("")
+
 	err = mapWriter(func(key string) Writer {
-		if first {
-			first = false
+		var writer Writer
+		if !e.IsKeyExcluded(key) {
+			if first {
+				first = false
+			} else {
+				e.rawWriter.writeEntryDelimiter()
+			}
+			e.rawWriter.writeKey(key)
+			e.rawWriter.writeKeyDelimiter()
+			writer = sub
+			sub.currentPath[len(sub.currentPath)-1] = key
 		} else {
-			e.rawWriter.writeEntryDelimiter()
+			writer = noopWriter
 		}
-		e.rawWriter.writeKey(key)
-		e.rawWriter.writeKeyDelimiter()
-		return e
+		return writer
 	})
 	if err != nil {
 		return err
@@ -132,13 +150,14 @@ func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
 	e.rawWriter.writeArrayStart()
 
 	first := true
+	sub := e.subWriter(WildCard)
 	err = arrayWriter(func() Writer {
 		if first {
 			first = false
 		} else {
 			e.rawWriter.writeArrayItemDelimiter()
 		}
-		return e
+		return sub
 	})
 	if err != nil {
 		return err
@@ -146,6 +165,17 @@ func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
 
 	e.rawWriter.writeArrayEnd()
 	return nil
+}
+
+func (e *genericWriter) IsKeyExcluded(key string) bool {
+	return e.excludedFields.Matches(copyAndAppend(e.currentPath, key))
+}
+
+func (e *genericWriter) WithoutLastKey() Writer {
+	var out genericWriter
+	out = *e
+	out.currentPath = e.currentPath[:len(e.currentPath)-1]
+	return &out
 }
 
 func (e *genericWriter) Finalize() string {
@@ -156,4 +186,17 @@ func (e *genericWriter) Finalize() string {
 func (e *genericWriter) ReadCloser() io.ReadCloser {
 	rc, _ := e.rawWriter.ReadCloser()
 	return rc
+}
+
+func (e *genericWriter) subWriter(key string) *genericWriter {
+	var out genericWriter
+	out = *e
+	out.currentPath = copyAndAppend(e.currentPath, key)
+	return &out
+}
+
+func copyAndAppend(a []string, v string) (out []string) {
+	out = append(out, a...)
+	out = append(out, v)
+	return out
 }
