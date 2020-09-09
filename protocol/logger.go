@@ -1,10 +1,21 @@
 package protocol
 
 import (
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"time"
 )
+
+// StandardLogger represents the standard Logger from the log package (log.std for those inclined to read the source
+// code)
+var StandardLogger stdLogger
+
+type stdLogger struct{}
+
+func (s stdLogger) Printf(format string, v ...interface{}) {
+	log.Printf(format, v...)
+}
 
 type logger interface {
 	Printf(format string, v ...interface{})
