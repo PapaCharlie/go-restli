@@ -138,7 +138,7 @@ func JsonRequest(
 		return nil, err
 	}
 
-	return RawJsonRequest(ctx, url, httpMethod, restLiMethod, writer.ReadCloser())
+	return RawJsonRequest(ctx, url, httpMethod, restLiMethod, strings.NewReader(writer.Finalize()))
 }
 
 // JsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
