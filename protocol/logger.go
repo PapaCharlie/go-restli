@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -14,7 +15,7 @@ var StandardLogger stdLogger
 type stdLogger struct{}
 
 func (s stdLogger) Printf(format string, v ...interface{}) {
-	log.Printf(format, v...)
+	_ = log.Output(3, fmt.Sprintf(format, v...))
 }
 
 type logger interface {

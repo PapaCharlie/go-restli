@@ -38,7 +38,9 @@ test: generate imports
 imports:
 	goimports -w main.go $(PACKAGES)
 
-integration-test: clean $(JARGO)
+integration-test: generate-restli run-testsuite
+
+generate-restli: clean $(JARGO)
 	rm -rf $(TESTDATA)/generated $(TESTDATA)/generated_extras
 	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated_extras \
@@ -58,7 +60,10 @@ integration-test: clean $(JARGO)
 		--named-schemas-to-generate testsuite.Defaults \
 		--named-schemas-to-generate testsuite.RecordWithTyperefField \
 		$(TEST_SUITE)/restspecs/*
+
+run-testsuite:
 	go test -count=1 ./internal/tests/...
+	go test -json ./internal/tests/suite | go run ./internal/tests/parser
 
 generate-tests:
 	cd internal/tests/suite && go run ./generator

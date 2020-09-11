@@ -17,6 +17,9 @@ type Closer interface {
 	// ReadCloser returns an io.ReadCloser that will read the pooled underlying buffer, releasing each byte back into
 	// the pool as they are read. Close will release any remaining unread bytes to the pool.
 	ReadCloser() io.ReadCloser
+	// Size returns the size of the data that was written out. Note that calling Size after Finalize or ReadCloser will
+	// return 0
+	Size() int
 }
 
 // PrimitiveWriter provides the set of functions needed to write the supported rest.li primitives to the backing buffer,
@@ -103,6 +106,7 @@ type rawWriter interface {
 
 	BuildBytes(reuse ...[]byte) ([]byte, error)
 	ReadCloser() (io.ReadCloser, error)
+	Size() int
 }
 
 type genericWriter struct {
