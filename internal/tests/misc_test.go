@@ -6,6 +6,7 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +38,7 @@ func TestDefaults(t *testing.T) {
 }
 
 func TestEquals(t *testing.T) {
-	testEquality := func(tests [][]bool, supplier func(index int) restliObject) {
+	testEquality := func(t *testing.T, tests [][]bool, supplier func(index int) restliObject) {
 		for i, row := range tests {
 			for j, expected := range row {
 				a, b := supplier(i), supplier(j)
@@ -57,7 +58,7 @@ func TestEquals(t *testing.T) {
 			conflictresolution.Fruits_APPLE,
 			conflictresolution.Fruits_ORANGE,
 		}
-		testEquality([][]bool{
+		testEquality(t, [][]bool{
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
@@ -72,7 +73,7 @@ func TestEquals(t *testing.T) {
 			{0, 1, 2, 3, 4},
 			{1, 2, 3, 4, 5},
 		}
-		testEquality([][]bool{
+		testEquality(t, [][]bool{
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
@@ -90,7 +91,7 @@ func TestEquals(t *testing.T) {
 			{Int: &i3},
 			{Long: &l},
 		}
-		testEquality([][]bool{
+		testEquality(t, [][]bool{
 			{true, true, true, false, false},
 			{true, true, true, false, false},
 			{true, true, true, false, false},
@@ -110,7 +111,7 @@ func TestEquals(t *testing.T) {
 			{Foo: &t2},
 			{Foo: &t3},
 		}
-		testEquality([][]bool{
+		testEquality(t, [][]bool{
 			{true, false, false, false, false},
 			{false, true, true, true, false},
 			{false, true, true, true, false},
@@ -118,6 +119,92 @@ func TestEquals(t *testing.T) {
 			{false, false, false, false, true},
 		}, func(i int) restliObject {
 			return data[i]
+		})
+	})
+}
+
+func TestReadInterface(t *testing.T) {
+	t.Run("ror2", func(t *testing.T) {
+		read := func(t *testing.T, s string) interface{} {
+			reader, err := restlicodec.NewRor2Reader(s)
+			require.NoError(t, err)
+
+			i, err := reader.ReadInterface()
+			require.NoError(t, err)
+
+			return i
+		}
+
+		t.Run("string", func(t *testing.T) {
+			require.Equal(t, "asd", read(t, "asd"))
+			require.Equal(t, "11", read(t, "11"))
+			require.Equal(t, "43.9", read(t, "43.9"))
+			require.Equal(t, "false", read(t, "false"))
+		})
+
+		t.Run("map", func(t *testing.T) {
+			require.Equal(t, map[string]interface{}{
+				"primitive": "1",
+				"map": map[string]interface{}{
+					"one": "1",
+					"two": "2",
+				},
+				"array": []interface{}{
+					map[string]interface{}{"foo": "bar"},
+				},
+			}, read(t, "(primitive:1,map:(one:1,two:2),array:List((foo:bar)))"))
+			require.Equal(t, map[string]interface{}{}, read(t, "()"))
+		})
+
+		t.Run("array", func(t *testing.T) {
+			require.Equal(t, []interface{}{"1", "2", "3"}, read(t, "List(1,2,3)"))
+			require.Equal(t, []interface{}(nil), read(t, "List()"))
+		})
+	})
+
+	t.Run("json", func(t *testing.T) {
+		read := func(t *testing.T, s string) interface{} {
+			reader := restlicodec.NewJsonReader([]byte(s))
+
+			i, err := reader.ReadInterface()
+			require.NoError(t, err)
+
+			return i
+		}
+
+		t.Run("primitives", func(t *testing.T) {
+			require.Equal(t, "asd", read(t, `"asd"`))
+			require.Equal(t, 43.9, read(t, `43.9`))
+			require.Equal(t, false, read(t, `false`))
+		})
+
+		t.Run("map", func(t *testing.T) {
+			require.Equal(t, map[string]interface{}{
+				"primitive": 1.,
+				"map": map[string]interface{}{
+					"one": 1.,
+					"two": 2.,
+				},
+				"array": []interface{}{
+					map[string]interface{}{"foo": "bar"},
+				},
+			}, read(t, `{
+                   "primitive":1,
+                   "map": {
+                     "one": 1,
+                     "two": 2
+                   },
+                   "array": [{
+                     "foo": "bar"
+                   }]
+                 }`),
+			)
+			require.Equal(t, map[string]interface{}{}, read(t, `{}`))
+		})
+
+		t.Run("array", func(t *testing.T) {
+			require.Equal(t, []interface{}{false, true, false}, read(t, "[false,true,false]"))
+			require.Equal(t, []interface{}{}, read(t, "[]"))
 		})
 	})
 }

@@ -1,6 +1,8 @@
 package restlicodec
 
-import "io"
+import (
+	"io"
+)
 
 // Unmarshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
 type Marshaler interface {
@@ -49,6 +51,9 @@ type (
 // functions provided in package for all the supported serialization mechanisms.
 type Writer interface {
 	PrimitiveWriter
+	// WriteRawBytes appends the given bytes to the underlying buffer, without validating the input. Use at your own
+	// risk!
+	WriteRawBytes([]byte)
 	// WriteMap writes the map keys/object fields written by the given lambda between object delimiters. The lambda
 	// takes a function that is used to write the key/field name into the object and returns a nested Writer. This
 	// Writer should be used to write inner fields. Take the following JSON object:
@@ -83,9 +88,10 @@ type Writer interface {
 	// serialization. Exclusion behavior is already built into the writer but this is intended for Marhsalers that use
 	// custom serialization logic on top of the Writer
 	IsKeyExcluded(key string) bool
-	// WithoutLastKey returns a copy of the current writer without the last key in scope. For internal use only by
-	// Marshalers that use custom serialization logic on top of the Writer.
-	WithoutLastKey() Writer
+	// SetScope returns a copy of the current writer with the given scope. For internal use only by Marshalers that use
+	// custom serialization logic on top of the Writer. Designed to work around the backing PathSpec for field
+	// exclusion.
+	SetScope(...string) Writer
 }
 
 type rawWriter interface {
@@ -101,22 +107,27 @@ type rawWriter interface {
 	writeArrayItemDelimiter()
 	writeArrayEnd()
 
+	// The following are exposed directly by jwriter.Writer
 	RawByte(byte)
+	Raw([]byte, error)
 	RawString(string)
-
-	BuildBytes(reuse ...[]byte) ([]byte, error)
+	BuildBytes(...[]byte) ([]byte, error)
 	ReadCloser() (io.ReadCloser, error)
 	Size() int
 }
 
 type genericWriter struct {
 	excludedFields PathSpec
-	currentPath    []string
+	scope          []string
 	rawWriter
 }
 
 func newGenericWriter(raw rawWriter, excludedFields PathSpec) *genericWriter {
 	return &genericWriter{rawWriter: raw, excludedFields: excludedFields}
+}
+
+func (e *genericWriter) WriteRawBytes(data []byte) {
+	e.rawWriter.Raw(data, nil)
 }
 
 func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
@@ -136,7 +147,7 @@ func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
 			e.rawWriter.writeKey(key)
 			e.rawWriter.writeKeyDelimiter()
 			writer = sub
-			sub.currentPath[len(sub.currentPath)-1] = key
+			sub.scope[len(sub.scope)-1] = key
 		} else {
 			writer = noopWriter
 		}
@@ -172,13 +183,16 @@ func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
 }
 
 func (e *genericWriter) IsKeyExcluded(key string) bool {
-	return e.excludedFields.Matches(copyAndAppend(e.currentPath, key))
+	e.scope = append(e.scope, key)
+	excluded := e.excludedFields.Matches(e.scope)
+	e.scope = e.scope[:len(e.scope)-1]
+	return excluded
 }
 
-func (e *genericWriter) WithoutLastKey() Writer {
+func (e *genericWriter) SetScope(scope ...string) Writer {
 	var out genericWriter
 	out = *e
-	out.currentPath = e.currentPath[:len(e.currentPath)-1]
+	out.scope = scope
 	return &out
 }
 
@@ -195,7 +209,7 @@ func (e *genericWriter) ReadCloser() io.ReadCloser {
 func (e *genericWriter) subWriter(key string) *genericWriter {
 	var out genericWriter
 	out = *e
-	out.currentPath = copyAndAppend(e.currentPath, key)
+	out.scope = copyAndAppend(e.scope, key)
 	return &out
 }
 

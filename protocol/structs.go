@@ -12,7 +12,7 @@ type partialUpdateRequest struct {
 
 func (p *partialUpdateRequest) MarshalRestLi(writer restlicodec.Writer) error {
 	return writer.WriteMap(func(fieldNameWriter func(fieldName string) restlicodec.Writer) error {
-		return p.Patch.MarshalRestLi(fieldNameWriter("patch").WithoutLastKey())
+		return p.Patch.MarshalRestLi(fieldNameWriter("patch").SetScope())
 	})
 }
 
@@ -41,9 +41,9 @@ func (b *batchGetRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (er
 			resultsReceived = true
 			err = reader.ReadMap(b.Results)
 		case "errors":
-			b.Errors.Errors, err = reader.Raw()
+			b.Errors.Errors, err = reader.ReadRawBytes()
 		case "statuses":
-			b.Errors.Statuses, err = reader.Raw()
+			b.Errors.Statuses, err = reader.ReadRawBytes()
 		default:
 			err = reader.Skip()
 		}

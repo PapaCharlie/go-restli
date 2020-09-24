@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
@@ -16,13 +15,13 @@ func TestPrimitiveFieldExclusion(t *testing.T) {
 	spec := restlicodec.NewPathSpec("integer")
 
 	t.Run("json", func(t *testing.T) {
-		testEncodedJson(t, expected, `{"integer": 0}`, nil)
-		testEncodedJson(t, expected, `{}`, spec)
+		testJsonEquality(t, expected, `{"integer": 0}`, nil, true)
+		testJsonEquality(t, expected, `{}`, spec, true)
 	})
 
 	t.Run("ror2", func(t *testing.T) {
-		testEncodedRor2(t, expected, []string{`(integer:0)`}, nil)
-		testEncodedRor2(t, expected, []string{`()`}, spec)
+		testRor2Equality(t, expected, `(integer:0)`, nil, true)
+		testRor2Equality(t, expected, `()`, spec, true)
 	})
 }
 
@@ -51,7 +50,7 @@ func TestComplexFieldExclusion(t *testing.T) {
 	)
 
 	t.Run("json", func(t *testing.T) {
-		testEncodedJson(t, expected, `{
+		testJsonEquality(t, expected, `{
   "mapOfInts": {
     "two": 2
   },
@@ -66,23 +65,17 @@ func TestComplexFieldExclusion(t *testing.T) {
     "record2": {"foo": "foo"}
   },
   "topLevelUnion": {"extras.TopLevel": {"bar": "bar"}}
-}`, excludedFields)
+}`, excludedFields, true)
 	})
 
 	t.Run("ror2", func(t *testing.T) {
-		format := `(` +
-			`arrayOfRecords:List((foo:foo)),` +
-			`mapOfInts:(two:2),` +
-			`mapOfRecords:%s,` +
-			`topLevelRecord:(bar:bar),` +
-			`topLevelUnion:(extras.TopLevel:(bar:bar))` +
-			`)`
-		for range make([]struct{}, 1000) {
-			testEncodedRor2(t, expected, []string{
-				fmt.Sprintf(format, "(record1:(),record2:(foo:foo))"),
-				fmt.Sprintf(format, "(record2:(foo:foo),record1:())"),
-			}, excludedFields)
-		}
+		testRor2Equality(t, expected, `(`+
+			`arrayOfRecords:List((foo:foo)),`+
+			`mapOfInts:(two:2),`+
+			`mapOfRecords:(record1:(),record2:(foo:foo)),`+
+			`topLevelRecord:(bar:bar),`+
+			`topLevelUnion:(extras.TopLevel:(bar:bar))`+
+			`)`, excludedFields, true)
 	})
 }
 

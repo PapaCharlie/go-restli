@@ -2,7 +2,6 @@ package suite
 
 import (
 	"testing"
-	"time"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
@@ -42,34 +41,7 @@ func (s *TestServer) ParamsGetWithQueryparams(t *testing.T, c Client) {
 		},
 		UrlTyperef: "http://rest.li",
 	}
-
-	// Because the map iteration order is undetermined, it's possible the encoding will not match the expected order and
-	// fail the test. To mitigate this, just retry the query a few times until it succeeds. If it doesn't succeed within
-	// 100ms, fail the test with the most recent error
-	complete := make(chan error)
-	go func() {
-		for {
-			_, err := c.Get(100, params)
-			if err != nil {
-				complete <- err
-			} else {
-				close(complete)
-				return
-			}
-		}
-	}()
-
-	var err error
-	var channelOpen bool
-	timeout := time.After(100 * time.Millisecond)
-	for {
-		select {
-		case err, channelOpen = <-complete:
-			if !channelOpen {
-				return
-			}
-		case <-timeout:
-			require.FailNowf(t, "Failed to encode GetParams", "Most recent error: %+v", err)
-		}
-	}
+	m, err := c.Get(100, params)
+	require.NoError(t, err)
+	require.Equal(t, newMessage(1, "test message"), m)
 }

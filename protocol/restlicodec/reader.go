@@ -34,9 +34,14 @@ type Reader interface {
 	// error>
 	// Note that not using the inner Reader passed to the ArrayReader may result in undefined behavior.
 	ReadArray(arrayReader ArrayReader) error
+	// ReadInterface reads an interface{} analogous to the 'encoding/json' package. It is a best-effort attempt to
+	// deserialize the underlying data into map[string]interface{}, []interface{} or raw primitive types accordingly.
+	// Note that for ROR2, because all primitives are encoded as strings, it is impossible to tell what the field's type
+	// is intended to be without its schema. Therefore all primitive values are interpreted as strings
+	ReadInterface() (interface{}, error)
+	// ReadRawBytes returns the next primitive/array/map as a raw, unvalidated byte slice.
+	ReadRawBytes() ([]byte, error)
 
 	// Skip skips the next primitive/array/map completely.
 	Skip() error
-	// Raw returns the next primitive/array/map as a raw, unvalidated byte slice.
-	Raw() ([]byte, error)
 }

@@ -65,12 +65,16 @@ func (j *jsonReader) ReadArray(arrayReader ArrayReader) (err error) {
 	return j.lexer.Error()
 }
 
+func (j *jsonReader) ReadInterface() (interface{}, error) {
+	return j.lexer.Interface(), j.lexer.Error()
+}
+
 func (j *jsonReader) Skip() error {
 	j.lexer.SkipRecursive()
 	return j.lexer.Error()
 }
 
-func (j *jsonReader) Raw() ([]byte, error) {
+func (j *jsonReader) ReadRawBytes() ([]byte, error) {
 	return j.lexer.Raw(), j.lexer.Error()
 }
 

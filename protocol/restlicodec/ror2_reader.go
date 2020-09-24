@@ -10,7 +10,7 @@ type ror2ReaderState int
 
 const (
 	noState = ror2ReaderState(iota)
-	inObject
+	inMap
 	inArray
 )
 
@@ -18,8 +18,8 @@ const list = "List("
 
 func (s *ror2ReaderState) location() string {
 	switch *s {
-	case inObject:
-		return "object"
+	case inMap:
+		return "map"
 	case inArray:
 		return "array"
 	default:
@@ -34,15 +34,7 @@ type ror2Reader struct {
 	state   ror2ReaderState
 }
 
-// NewRor2Reader returns a new Reader that reads objects serialized using the rest.li protocol 2.0 object and array
-// representation (ROR2), whose spec is defined here:
-// https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
-// Because the "reduced" URL encoding used for rest.li headers is a subset of the standard URL encoding, this Reader can
-// be used for both the "full" URL encoding and the "reduced" URL encoding.
-// An error will be returned if an upfront validation of the given string reveals it is not a valid ROR2 string. Note
-// that if this function does not return an error, it does _not_ mean subsequent calls to the Read* functions will not
-// return an error
-func NewRor2Reader(data string) (Reader, error) {
+func validateRor2Input(data string) error {
 	parens := 0
 	for i, c := range data {
 		switch c {
@@ -51,9 +43,27 @@ func NewRor2Reader(data string) (Reader, error) {
 		case ')':
 			parens--
 			if parens < 0 {
-				return nil, fmt.Errorf("illegal ROR2 string has unbalanced delimiters at %d: %q", i, data)
+				return fmt.Errorf("illegal ROR2 string has unbalanced delimiters at %d: %q", i, data)
 			}
 		}
+	}
+	return nil
+}
+
+// NewRor2Reader returns a new Reader that reads objects serialized using the rest.li protocol 2.0 object and array
+// representation (ROR2), whose spec is defined here:
+// https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
+// Because the "reduced" URL encoding used for rest.li headers is a subset of the standard URL encoding, this Reader can
+// be used for both the "full" URL encoding and the "reduced" URL encoding (though query parameters should be read with
+// the reader returned by NewRor2QueryReader as there exist encoding differences, namely " " being encoding as `%20` and
+// `+` respectively)
+// An error will be returned if an upfront validation of the given string reveals it is not a valid ROR2 string. Note
+// that if this function does not return an error, it does _not_ mean subsequent calls to the Read* functions will not
+// return an error
+func NewRor2Reader(data string) (Reader, error) {
+	err := validateRor2Input(data)
+	if err != nil {
+		return nil, err
 	}
 	return &ror2Reader{
 		decoder: url.PathUnescape,
@@ -62,35 +72,48 @@ func NewRor2Reader(data string) (Reader, error) {
 }
 
 // readFieldName advances the current position until a ':' is encountered or the end of the data is reached, and returns
-// the string found between the starting position and the end position
-func (u *ror2Reader) readFieldName() string {
+// the string found between the starting position and the end position.
+func (u *ror2Reader) readFieldName() (string, error) {
+	if u.data[u.pos] == ')' {
+		return ")", nil
+	}
 	startPos := u.pos
+loop:
 	for ; u.pos < len(u.data); u.pos++ {
-		if u.data[u.pos] == ':' {
-			break
+		switch u.data[u.pos] {
+		case ':':
+			if u.pos == startPos {
+				return "", fmt.Errorf("invalid ROR2 %s string has empty field name at %d: %q", u.state.location(), u.pos, string(u.data))
+			}
+			break loop
+		case ',', ')':
+			return "", fmt.Errorf("invalid ROR2 %s string has invalid field name at %d: %q", u.state.location(), u.pos, string(u.data))
 		}
 	}
 	s := string(u.data[startPos:u.pos])
 	u.pos++
-	return s
+	return s, nil
 }
 
 func (u *ror2Reader) ReadMap(mapReader MapReader) (err error) {
-	u.state = inObject
-	if len(u.data) <= u.pos || u.data[u.pos] != '(' {
+	u.state = inMap
+	if len(u.data) < u.pos || u.data[u.pos] != '(' {
 		return fmt.Errorf("invalid ROR2 %s string does not start with '(': %q", u.state.location(), string(u.data))
 	}
 	u.pos++
+	if len(u.data) < u.pos {
+		return fmt.Errorf("invalid ROR2 %s is unclosed: %q", u.state.location(), string(u.data))
+	}
 
 loop:
 	for {
-		fieldName := u.readFieldName()
+		fieldName, err := u.readFieldName()
+		if err != nil {
+			return err
+		}
 		switch fieldName {
-		case "":
-			return fmt.Errorf("invalid ROR2 %s string does not end with ')': %q", u.state.location(), string(u.data))
 		case ")":
-			// This should only happen if the empty map/object () was read
-			// Consider sanity check that u.data[u.pos-1] == '(' ?
+			u.pos++
 			break loop
 		default:
 			err = mapReader(u, fieldName)
@@ -123,6 +146,14 @@ func (u *ror2Reader) ReadArray(arrayReader ArrayReader) (err error) {
 		return fmt.Errorf("invalid ROR2 %s string does not start with "+list+": %q", u.state.location(), string(u.data))
 	}
 	u.pos += len(list)
+	if len(u.data) < u.pos {
+		return fmt.Errorf("invalid ROR2 %s string is not closed %q", u.state.location(), string(u.data))
+	}
+	if u.data[u.pos] == ')' {
+		u.pos++
+		return nil
+	}
+
 loop:
 	for {
 		err = arrayReader(u)
@@ -146,6 +177,44 @@ loop:
 
 func (u *ror2Reader) atArray() bool {
 	return len(u.data)-u.pos > len(list) && string(u.data[u.pos:u.pos+len(list)]) == list
+}
+
+func (u *ror2Reader) ReadInterface() (interface{}, error) {
+	switch {
+	case u.atMap():
+		m := make(map[string]interface{})
+		err := u.ReadMap(func(reader Reader, k string) (err error) {
+			var v interface{}
+			v, err = reader.ReadInterface()
+			if err != nil {
+				return err
+			}
+
+			m[k] = v
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return m, nil
+	case u.atArray():
+		var a []interface{}
+		err := u.ReadArray(func(reader Reader) (err error) {
+			var v interface{}
+			v, err = reader.ReadInterface()
+			if err != nil {
+				return err
+			}
+			a = append(a, v)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	default:
+		return u.ReadString()
+	}
 }
 
 func (u *ror2Reader) Skip() error {
@@ -186,7 +255,7 @@ func (u *ror2Reader) Skip() error {
 	return fmt.Errorf("invalid ROR2 string has incorrect object delimiters: %q", string(u.data))
 }
 
-func (u *ror2Reader) Raw() ([]byte, error) {
+func (u *ror2Reader) ReadRawBytes() ([]byte, error) {
 	startPos := u.pos
 	err := u.Skip()
 	if err != nil {

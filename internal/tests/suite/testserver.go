@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -79,7 +78,7 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			writeErrorResponse(res, "%+v", r)
+			writeErrorResponse(res, "%+v: %s", r, string(debug.Stack()))
 		}
 	}()
 
@@ -146,61 +145,88 @@ func writeErrorResponse(res http.ResponseWriter, format string, args ...interfac
 	http.Error(res, string(response), UnexpectedRequestStatus)
 }
 
-func queriesEqual(expected, actual string) error {
-	if expected == actual {
+func queriesEqual(expectedStr, actualStr string) error {
+	if expectedStr == actualStr {
 		return nil
 	}
-	type fieldReader struct {
-		Err   error
-		Name  string
-		Value string
-	}
-	read := func(rawQuery string) chan fieldReader {
+	read := func(rawQuery string) (map[string]interface{}, error) {
 		reader := restlicodec.NewRestLiQueryParamsReader(rawQuery)
-		c := make(chan fieldReader)
-		go func() {
-			err := reader.ReadParams(func(reader restlicodec.Reader, field string) error {
-				f := fieldReader{Name: field}
-				var raw []byte
-				raw, f.Err = reader.Raw()
-				if f.Err == nil {
-					f.Value, f.Err = url.QueryUnescape(string(raw))
-				}
-				c <- f
-				return nil
-			})
+		query := make(map[string]interface{})
+		err := reader.ReadParams(func(reader restlicodec.Reader, field string) error {
+			raw, err := reader.ReadInterface()
 			if err != nil {
-				c <- fieldReader{Err: err}
+				return err
 			}
-			close(c)
-		}()
-		return c
+			query[field] = raw
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		return query, nil
 	}
 
-	expectedChan := read(expected)
-	actualChan := read(actual)
+	expected, err := read(expectedStr)
+	if err != nil {
+		return err
+	}
+	actual, err := read(actualStr)
+	if err != nil {
+		return err
+	}
 
-	for {
-		e, expectedOk := <-expectedChan
-		a, actualOk := <-actualChan
+	if len(expected) != len(actual) {
+		return fmt.Errorf("query parameter count differs (expected: %d, actual: %d)", len(expected), len(actual))
+	}
 
-		if expectedOk != actualOk {
-			return fmt.Errorf("query parameters differ: expected: %+v actual: %+v", e, a)
+	for k, v := range expected {
+		actualV, ok := actual[k]
+		if !ok {
+			return fmt.Errorf("query parameter missing in actual: %q", k)
 		}
-		if !expectedOk {
-			break
-		}
-
-		if e.Err != nil {
-			return fmt.Errorf("faied to read field from expected query %q: %w", expected, e.Err)
-		}
-		if a.Err != nil {
-			return fmt.Errorf("faied to read field from actual query %q: %w", actual, a.Err)
-		}
-		if e != a {
-			return fmt.Errorf("field mistmatch: expected: %+v actual: %+v", e, a)
+		err = deepEquals(nil, v, actualV)
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func deepEquals(scope []string, expected, actual interface{}) error {
+	switch expected := expected.(type) {
+	case map[string]interface{}:
+		actual := actual.(map[string]interface{})
+		if len(expected) != len(actual) {
+			return fmt.Errorf("%v: unequal map sizes (expected: %d, actual: %d)", scope, len(expected), len(actual))
+		}
+		for k, v := range expected {
+			actualV, ok := actual[k]
+			if !ok {
+				return fmt.Errorf("%v: actual map does not contain key %q", scope, k)
+			}
+			err := deepEquals(append(append([]string(nil), scope...)), v, actualV)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	case []interface{}:
+		actual := actual.([]interface{})
+		if len(expected) != len(actual) {
+			return fmt.Errorf("%v: unequal array sizes (expected: %d, actual: %d)", scope, len(expected), len(actual))
+		}
+		for index, v := range expected {
+			err := deepEquals(append(append([]string(nil), scope...)), v, actual[index])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		if expected.(string) != actual.(string) {
+			return fmt.Errorf("%v: unequal primitives (expected: %s, actual: %s)", scope, expected, actual)
+		}
+		return nil
+	}
 }

@@ -1,6 +1,9 @@
 package restlicodec
 
-import "fmt"
+import (
+	"fmt"
+	"net/url"
+)
 
 type RestLiQueryParamsReader interface {
 	ReadParams(paramsReader MapReader) error
@@ -24,9 +27,14 @@ func (r *queryParamsReader) ReadParams(paramsReader MapReader) (err error) {
 		if fieldName == "" {
 			break
 		}
-		reader, err := NewRor2Reader(r.readField())
+		data := r.readField()
+		err = validateRor2Input(data)
 		if err != nil {
 			return err
+		}
+		reader := &ror2Reader{
+			decoder: url.QueryUnescape,
+			data:    []byte(data),
 		}
 		err = paramsReader(reader, fieldName)
 		if err != nil {

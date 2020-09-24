@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"log"
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
@@ -393,19 +394,19 @@ func TestRaw(t *testing.T) {
 		require.NoError(t, reader.ReadMap(func(reader restlicodec.Reader, field string) error {
 			switch field {
 			case "map":
-				raw, err := reader.Raw()
+				raw, err := reader.ReadRawBytes()
 				require.NoError(t, err)
 				var actual map[string]int
 				require.NoError(t, json.Unmarshal(raw, &actual))
 				require.Equal(t, map[string]int{"foo": 1, "bar": 42}, actual)
 			case "array":
-				raw, err := reader.Raw()
+				raw, err := reader.ReadRawBytes()
 				require.NoError(t, err)
 				var actual []int
 				require.NoError(t, json.Unmarshal(raw, &actual))
 				require.Equal(t, []int{1, 2}, actual)
 			case "primitive":
-				raw, err := reader.Raw()
+				raw, err := reader.ReadRawBytes()
 				require.NoError(t, err)
 				var actual string
 				require.NoError(t, json.Unmarshal(raw, &actual))
@@ -421,15 +422,15 @@ func TestRaw(t *testing.T) {
 		require.NoError(t, reader.ReadMap(func(reader restlicodec.Reader, field string) error {
 			switch field {
 			case "map":
-				raw, err := reader.Raw()
+				raw, err := reader.ReadRawBytes()
 				require.NoError(t, err)
 				require.Equal(t, "(foo:1,bar:42)", string(raw))
 			case "array":
-				raw, err := reader.Raw()
+				raw, err := reader.ReadRawBytes()
 				require.NoError(t, err)
 				require.Equal(t, "List(1,2)", string(raw))
 			case "primitive":
-				raw, err := reader.Raw()
+				raw, err := reader.ReadRawBytes()
 				require.NoError(t, err)
 				require.Equal(t, "test", string(raw))
 			}
@@ -446,7 +447,7 @@ type restliObject interface {
 
 func testJsonEncoding(t *testing.T, expected, actual restliObject, expectedRawJson string) {
 	t.Run("encode", func(t *testing.T) {
-		testEncodedJson(t, expected, expectedRawJson, nil)
+		testJsonEquality(t, expected, expectedRawJson, nil, true)
 	})
 
 	t.Run("decode", func(t *testing.T) {
@@ -456,7 +457,7 @@ func testJsonEncoding(t *testing.T, expected, actual restliObject, expectedRawJs
 	})
 }
 
-func testEncodedJson(t *testing.T, obj restliObject, expectedRawJson string, excludedFields restlicodec.PathSpec) {
+func testJsonEquality(t *testing.T, obj restliObject, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
 	require.NoError(t, obj.MarshalRestLi(writer))
 
@@ -464,12 +465,16 @@ func testEncodedJson(t *testing.T, obj restliObject, expectedRawJson string, exc
 	require.NoError(t, json.Unmarshal([]byte(expectedRawJson), &expectedRaw))
 	var raw map[string]interface{}
 	require.NoError(t, json.Unmarshal([]byte(writer.Finalize()), &raw))
-	require.Equal(t, expectedRaw, raw)
+	if equal {
+		require.Equal(t, expectedRaw, raw)
+	} else {
+		require.NotEqual(t, expectedRaw, raw)
+	}
 }
 
 func testRor2Encoding(t *testing.T, expected, actual restliObject, expectedRawRor2 string) {
 	t.Run("encode", func(t *testing.T) {
-		testEncodedRor2(t, expected, []string{expectedRawRor2}, nil)
+		testRor2Equality(t, expected, expectedRawRor2, nil, true)
 	})
 
 	t.Run("decode", func(t *testing.T) {
@@ -480,18 +485,29 @@ func testRor2Encoding(t *testing.T, expected, actual restliObject, expectedRawRo
 	})
 }
 
-// testEncodedRor2 marshals the given object and checks the output against different alternative expected outputs which
-// can results from map iteration order being inconsistent.
-func testEncodedRor2(t *testing.T, obj restliObject, expectedRor2Alternatives []string, excludedFields restlicodec.PathSpec) {
+func testRor2Equality(t *testing.T, obj restliObject, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewRor2HeaderWriterWithExcludedFields(excludedFields)
 	require.NoError(t, obj.MarshalRestLi(writer))
-	final := writer.Finalize()
-	for _, s := range expectedRor2Alternatives {
-		if s == final {
-			return
-		}
+	log.Println(expectedRawRor2)
+
+	unmarhsal := func(s string) interface{} {
+		reader, err := restlicodec.NewRor2Reader(s)
+		require.NoError(t, err)
+
+		i, err := reader.ReadInterface()
+		require.NoError(t, err)
+
+		return i
 	}
-	require.Equal(t, expectedRor2Alternatives[0], final)
+
+	expected := unmarhsal(expectedRawRor2)
+	actual := unmarhsal(writer.Finalize())
+
+	if equal {
+		require.Equal(t, expected, actual)
+	} else {
+		require.NotEqual(t, expected, actual)
+	}
 }
 
 func requireEqual(t *testing.T, expected, actual restliObject) {
