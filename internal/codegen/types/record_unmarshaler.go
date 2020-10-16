@@ -26,41 +26,18 @@ func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *G
 
 func (r *Record) GenerateUnmarshalRestLi() *Statement {
 	return AddUnmarshalRestli(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateUnmarshaler(def, nil, nil)
+		r.generateUnmarshaler(def)
 	})
 }
 
-func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statement, complexKeyParamsType *utils.Identifier) {
+func (r *Record) generateUnmarshaler(def *Group) {
 	fields := r.SortedFields()
-
-	complexKeyParamsIndex := -1
-	if complexKeyKeyAccessor != nil {
-		fields = append([]Field{{
-			Name:       "$params",
-			IsOptional: true,
-			Type:       RestliType{Reference: complexKeyParamsType},
-		}}, fields...)
-		complexKeyParamsIndex = 0
-	}
 
 	if len(fields) == 0 {
 		def.Return(Reader.ReadMap(Reader, func(reader Code, field Code, def *Group) {
 			def.Return(Reader.Skip(reader))
 		}))
 		return
-	}
-
-	var fieldAccessor func(i int, f Field) Code
-	if complexKeyKeyAccessor != nil {
-		fieldAccessor = func(i int, f Field) Code {
-			if i == complexKeyParamsIndex {
-				return Id(r.Receiver()).Dot(ComplexKeyParamsField)
-			} else {
-				return Add(complexKeyKeyAccessor).Dot(f.FieldName())
-			}
-		}
-	} else {
-		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
 	}
 
 	atInputStart := Id("atInputStart")
@@ -77,9 +54,9 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 
 	def.Err().Op("=").Add(Reader.ReadMap(Reader, func(reader, field Code, def *Group) {
 		def.Switch(field).BlockFunc(func(def *Group) {
-			for i, f := range fields {
+			for _, f := range fields {
 				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
-					accessor := fieldAccessor(i, f)
+					accessor := r.fieldAccessor(f)
 
 					if f.IsOptionalOrDefault() {
 						def.Add(accessor).Op("=").New(f.Type.GoType())

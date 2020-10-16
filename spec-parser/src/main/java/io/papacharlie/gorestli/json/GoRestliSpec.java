@@ -59,7 +59,7 @@ public class GoRestliSpec {
       return getNamedType().getIdentifier();
     }
 
-    private NamedType getNamedType() {
+    public NamedType getNamedType() {
       if (_enum != null) {
         return _enum;
       }

@@ -2,6 +2,7 @@ package io.papacharlie.gorestli.json;
 
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.data.schema.DataSchema;
+import com.linkedin.data.schema.NamedDataSchema;
 import java.util.Map;
 import java.util.Objects;
 
@@ -67,6 +68,10 @@ public final class RestliType {
     public Identifier(String namespace, String name) {
       _namespace = namespace;
       _name = name;
+    }
+
+    public Identifier(NamedDataSchema schema) {
+      this(schema.getNamespace(), schema.getName());
     }
 
     @Override

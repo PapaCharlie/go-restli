@@ -16,38 +16,29 @@ func (ck *ComplexKey) InnerTypes() utils.IdentifierSet {
 }
 
 func (ck *ComplexKey) GenerateCode() *Statement {
-	def := utils.AddWordWrappedComment(Empty(), ck.Doc).Line().
-		Type().Id(ck.Name).
-		StructFunc(func(def *Group) {
-			def.Id(ComplexKeyParamsField).Op("*").Add(ck.Params.Qual()).Tag(utils.JsonFieldTag("$params", false))
-			def.Add(ck.Key.Qual())
-		}).Line().Line()
-
 	record := &Record{
 		NamedType: ck.NamedType,
-		Fields:    utils.TypeRegistry.Resolve(ck.Key).(*Record).Fields,
+		Fields: []Field{
+			{
+				Name:               ComplexKeyParams,
+				IsOptional:         true,
+				Type:               RestliType{Reference: &ck.Params},
+				isComplexKeyParams: true,
+			},
+		},
+		IncludedRecords: []utils.Identifier{ck.Key},
 	}
-	receiver := Id(record.Receiver())
+	for _, f := range utils.TypeRegistry.Resolve(ck.Key).(*Record).Fields {
+		f.IncludedFrom = &ck.Key
+		record.Fields = append(record.Fields, f)
+	}
 
-	AddEquals(def, record.Receiver(), ck.Name, func(other Code, def *Group) {
-		def.Add(equals(RestliType{Reference: &ck.Key}, false,
-			Add(receiver).Add(ck.KeyAccessor()),
-			Add(other).Add(ck.KeyAccessor()))).Line()
-		def.Add(equals(RestliType{Reference: &ck.Params}, true,
-			Add(receiver).Dot(ComplexKeyParamsField),
-			Add(other).Dot(ComplexKeyParamsField))).Line()
-		def.Return(True())
-	})
-
-	AddMarshalRestLi(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.generateMarshaler(def, Add(receiver).Add(ck.KeyAccessor()))
-	})
-
-	AddUnmarshalRestli(def, record.Receiver(), ck.Name, func(def *Group) {
-		record.generateUnmarshaler(def, Add(receiver).Add(ck.KeyAccessor()), &ck.Params)
-	})
-
-	return def
+	return Empty().
+		Add(record.GenerateStruct()).Line().Line().
+		Add(record.GenerateEquals()).Line().Line().
+		Add(record.GenerateComputeHash()).Line().Line().
+		Add(record.GenerateMarshalRestLi()).Line().Line().
+		Add(record.GenerateUnmarshalRestLi()).Line().Line()
 }
 
 func (ck *ComplexKey) KeyAccessor() Code {

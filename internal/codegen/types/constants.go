@@ -12,6 +12,7 @@ const (
 	ComputeHash                = "ComputeHash"
 	ValidateUnionFields        = "ValidateUnionFields"
 	ComplexKeyParamsField      = "Params"
+	ComplexKeyParams           = "$params"
 	FinderNameParam            = "q"
 	EntityIDsParam             = "ids"
 	PartialUpdate              = "_PartialUpdate"

@@ -29,38 +29,15 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Gro
 
 func (r *Record) GenerateMarshalRestLi() *Statement {
 	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, func(def *Group) {
-		r.generateMarshaler(def, nil)
+		r.generateMarshaler(def)
 	})
 }
 
-func (r *Record) generateMarshaler(def *Group, complexKeyKeyAccessor *Statement) {
+func (r *Record) generateMarshaler(def *Group) {
 	fields := r.SortedFields()
 
-	complexKeyParamsIndex := -1
-	if complexKeyKeyAccessor != nil {
-		fields = append([]Field{{
-			Name:       "$params",
-			IsOptional: true,
-			Type:       RestliType{Reference: new(utils.Identifier)},
-		}}, fields...)
-		complexKeyParamsIndex = 0
-	}
-
-	var fieldAccessor func(i int, f Field) Code
-	if complexKeyKeyAccessor != nil {
-		fieldAccessor = func(i int, f Field) Code {
-			if i == complexKeyParamsIndex {
-				return Id(r.Receiver()).Dot(ComplexKeyParamsField)
-			} else {
-				return Add(complexKeyKeyAccessor).Dot(f.FieldName())
-			}
-		}
-	} else {
-		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
-	}
-
 	def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-		writeAllFields(def, fields, fieldAccessor, keyWriter)
+		writeAllFields(def, fields, func(_ int, f Field) Code { return r.fieldAccessor(f) }, keyWriter)
 	}))
 }
 
@@ -109,7 +86,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 							if i == qIndex {
 								return Lit(*finderName)
 							} else {
-								return r.field(f)
+								return r.fieldAccessor(f)
 							}
 						}, paramNameWriter)
 					}

@@ -115,12 +115,17 @@ public class TypeParser {
           Arrays.asList(schema.getName(), field.getName()));
       boolean optional = field.getOptional();
 
+      Identifier includedFrom = schema.isFieldFromIncludes(field)
+          ? new Identifier(field.getRecord())
+          : null;
+
       fields.add(new Field(
           field.getName(),
           field.getDoc(),
           fieldRestliType,
           optional,
-          field.getDefault()));
+          field.getDefault(),
+          includedFrom));
     }
 
     registerDataType(new DataType(new Record(schema, sourceFile, fields)));

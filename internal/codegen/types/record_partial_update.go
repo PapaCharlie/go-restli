@@ -80,11 +80,16 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
 			if len(deletableFields) > 0 {
 				var hasDeletes *Statement
-				for _, f := range deletableFields {
+				for i, f := range deletableFields {
 					if hasDeletes == nil {
 						hasDeletes = deleteAccessor(f)
 					} else {
-						hasDeletes.Op("||").Line().Add(deleteAccessor(f))
+						hasDeletes.Op("||")
+						// Cosmetic linebreak every 4 elements roughly hits the 120 char mark
+						if i%4 == 0 {
+							hasDeletes.Line()
+						}
+						hasDeletes.Add(deleteAccessor(f))
 					}
 				}
 
@@ -107,9 +112,17 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 				def.Line()
 			}
 
-			hasSets := updateAccessor(fields[0]).Op("!=").Nil()
-			for i := 1; i < len(fields); i++ {
-				hasSets.Op("||").Line().Add(updateAccessor(fields[i])).Op("!=").Nil()
+			var hasSets *Statement
+			for i, f := range fields {
+				if hasSets == nil {
+					hasSets = updateAccessor(f).Op("!=").Nil()
+				} else {
+					hasSets.Op("||")
+					if i%3 == 0 {
+						hasSets.Line()
+					}
+					hasSets.Add(updateAccessor(fields[i])).Op("!=").Nil()
+				}
 			}
 
 			def.If(hasSets).BlockFunc(func(def *Group) {

@@ -19,7 +19,7 @@ func (r *Record) GenerateComputeHash() Code {
 	return AddComputeHash(Empty(), r.Receiver(), r.Name, func(h Code, def *Group) {
 		def.Add(h).Op("=").Add(NewHash).Line()
 		for _, f := range r.SortedFields() {
-			def.Add(hash(h, f.Type, f.IsOptionalOrDefault(), r.field(f))).Line()
+			def.Add(hash(h, f.Type, f.IsOptionalOrDefault(), r.fieldAccessor(f))).Line()
 		}
 		def.Return(h)
 	})

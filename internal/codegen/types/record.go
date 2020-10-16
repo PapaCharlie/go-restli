@@ -16,7 +16,8 @@ var (
 
 type Record struct {
 	NamedType
-	Fields []Field
+	Fields          []Field
+	IncludedRecords []utils.Identifier
 }
 
 func (r *Record) InnerTypes() utils.IdentifierSet {
@@ -37,15 +38,25 @@ func (r *Record) PartialUpdateStruct() *Statement {
 }
 
 type Field struct {
-	Type         RestliType
-	Name         string
-	Doc          string
-	IsOptional   bool
-	DefaultValue *string
+	Type               RestliType
+	Name               string
+	Doc                string
+	IsOptional         bool
+	DefaultValue       *string
+	IncludedFrom       *utils.Identifier
+	isComplexKeyParams bool
 }
 
-func (r *Record) field(f Field) Code {
-	return Id(r.Receiver()).Dot(f.FieldName())
+func (r *Record) fieldAccessor(f Field) Code {
+	return fieldAccessor(Id(r.Receiver()), f)
+}
+
+func fieldAccessor(receiver Code, f Field) Code {
+	accessor := Add(receiver)
+	if r := f.ResolveRecord(); r != nil {
+		accessor.Dot(r.Name)
+	}
+	return accessor.Dot(f.FieldName())
 }
 
 func (f *Field) IsOptionalOrDefault() bool {
@@ -53,7 +64,20 @@ func (f *Field) IsOptionalOrDefault() bool {
 }
 
 func (f *Field) FieldName() string {
-	return utils.ExportedIdentifier(f.Name)
+	if f.isComplexKeyParams {
+		return ComplexKeyParamsField
+	} else {
+		return utils.ExportedIdentifier(f.Name)
+	}
+}
+
+func (f *Field) ResolveRecord() *Record {
+	if f.IncludedFrom == nil {
+		return nil
+	} else {
+		// This is guaranteed to be a record
+		return f.IncludedFrom.Resolve().(*Record)
+	}
 }
 
 func (r *Record) SortedFields() (fields []Field) {
@@ -77,7 +101,13 @@ func (r *Record) GenerateStruct() *Statement {
 	return utils.AddWordWrappedComment(Empty(), r.Doc).Line().
 		Type().Id(r.Name).
 		StructFunc(func(def *Group) {
+			for _, id := range r.IncludedRecords {
+				def.Add(id.Qual())
+			}
 			for _, f := range r.Fields {
+				if f.IncludedFrom != nil {
+					continue
+				}
 				field := def.Empty()
 				utils.AddWordWrappedComment(field, f.Doc).Line()
 				field.Id(f.FieldName())
@@ -113,7 +143,7 @@ func (r *Record) generateDefaultValuesCode() Code {
 					continue
 				}
 				if record := f.Type.Record(); record != nil && !f.IsOptionalOrDefault() && record.hasDefaultValue() {
-					def.Add(r.field(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
+					def.Add(r.fieldAccessor(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
 				}
 			}
 			def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
@@ -123,7 +153,7 @@ func (r *Record) generateDefaultValuesCode() Code {
 	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
 		for _, f := range r.Fields {
 			if f.DefaultValue != nil {
-				r.setDefaultValue(def, f.FieldName(), *f.DefaultValue, &f.Type)
+				r.setDefaultValue(def, r.fieldAccessor(f), *f.DefaultValue, &f.Type)
 				def.Line()
 			}
 		}
@@ -132,9 +162,8 @@ func (r *Record) generateDefaultValuesCode() Code {
 	return def
 }
 
-func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType) {
-	def.If(Id(r.Receiver()).Dot(name).Op("==").Nil()).BlockFunc(func(def *Group) {
-		accessor := Code(Id(r.Receiver()).Dot(name))
+func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *RestliType) {
+	def.If(Add(accessor).Op("==").Nil()).BlockFunc(func(def *Group) {
 		declareReader := func() {
 			def.Var().Err().Error()
 			def.Add(Reader).Op(":=").Add(NewJsonReader).Call(Index().Byte().Call(Lit(rawJson)))
@@ -167,7 +196,7 @@ func (r *Record) setDefaultValue(def *Group, name, rawJson string, t *RestliType
 				def.Id("val").Op(":=").Add(t.GoType()).Call(typeref.Type.getLit(rawJson))
 				def.Add(accessor).Op("= &").Id("val")
 			} else if t.Record() != nil || t.StandaloneUnion() != nil {
-				def.Id(r.Receiver()).Dot(name).Op("=").New(t.GoType())
+				def.Add(accessor).Op("=").New(t.GoType())
 				declareReader()
 				def.Add(Reader.Read(*t, Reader, accessor))
 				addPanic()
