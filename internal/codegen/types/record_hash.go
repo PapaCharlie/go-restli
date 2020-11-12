@@ -40,14 +40,14 @@ func hash(h Code, t RestliType, isPointer bool, accessor Code) Code {
 		case t.Reference != nil:
 			def.Add(h).Dot("Add").Call(Add(accessor).Dot(ComputeHash).Call())
 		case t.Array != nil:
-			item := Id("item")
+			_, item := tempIteratorVariableNames(t)
 			def.For().List(Id("_"), item).Op(":=").Range().Add(accessor).BlockFunc(func(def *Group) {
 				def.Add(hash(h, *t.Array, t.Array.ShouldReference(), item))
 			})
 		case t.Map != nil:
 			hashSum := Id("hashSum")
 			def.Var().Add(hashSum).Add(Hash)
-			key, value := Id("key"), Id("value")
+			key, value := tempIteratorVariableNames(t)
 			def.For().List(key, value).Op(":=").Range().Add(accessor).BlockFunc(func(def *Group) {
 				kvHash := Id("hvHash")
 				def.Add(kvHash).Op(":=").Add(NewHash)

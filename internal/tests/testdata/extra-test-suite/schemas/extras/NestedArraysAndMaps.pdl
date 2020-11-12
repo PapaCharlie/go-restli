@@ -5,4 +5,9 @@ record NestedArraysAndMaps {
   arrayOfArrays: array[array[string]]
   mapOfArraysOfMaps: map[string, array[map[string, string]]]
   arraysOfMapsOfArrays: array[map[string, array[string]]]
+
+  temperatureMapOfMaps: map[string, map[string, Temperature]]
+  temperatureArrayOfArrays: array[array[Temperature]]
+  temperatureMapOfArraysOfMaps: map[string, array[map[string, Temperature]]]
+  temperatureArraysOfMapsOfArrays: array[map[string, array[Temperature]]]
 }

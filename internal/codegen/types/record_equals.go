@@ -31,6 +31,15 @@ func (r *Record) GenerateEquals() Code {
 }
 
 func equals(t RestliType, isPointer bool, left, right Code) Code {
+	allocateNewRight := func(def *Group, t RestliType, right Code) Code {
+		if t.Typeref() != nil {
+			ref := Id("ref")
+			def.Add(ref).Op(":=").Add(right)
+			return ref
+		} else {
+			return right
+		}
+	}
 	check := func(left, right Code) Code {
 		def := Empty()
 		switch {
@@ -47,15 +56,17 @@ func equals(t RestliType, isPointer bool, left, right Code) Code {
 			def.If(Op("!").Add(left).Dot(Equals).Call(right)).Block(Return(False()))
 		case t.Array != nil:
 			def.If(Len(left).Op("!=").Len(right)).Block(Return(False())).Line()
-			index, item := Id("index"), Id("item")
+			index, item := tempIteratorVariableNames(t)
 			def.For().List(index, item).Op(":=").Range().Add(left).BlockFunc(func(def *Group) {
-				def.Add(equals(*t.Array, t.Array.ShouldReference(), item, Parens(right).Index(index)))
+				def.Add(equals(*t.Array, t.Array.ShouldReference(), item,
+					allocateNewRight(def, *t.Array, Parens(right).Index(index))))
 			})
 		case t.Map != nil:
 			def.If(Len(left).Op("!=").Len(right)).Block(Return(False())).Line()
-			key, value := Id("key"), Id("value")
+			key, value := tempIteratorVariableNames(t)
 			def.For().List(key, value).Op(":=").Range().Add(left).BlockFunc(func(def *Group) {
-				def.Add(equals(*t.Map, t.Map.ShouldReference(), value, Parens(right).Index(key)))
+				def.Add(equals(*t.Map, t.Map.ShouldReference(), value,
+					allocateNewRight(def, *t.Map, Parens(right).Index(key))))
 			})
 		}
 		return def

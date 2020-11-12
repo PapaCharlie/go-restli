@@ -41,7 +41,7 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 		return Err().Op("=").Add(targetAccessor).Dot(UnmarshalRestLi).Call(reader)
 	case t.Array != nil:
 		return Err().Op("=").Add(d.ReadArray(reader, func(reader Code, def *Group) {
-			item := Id(tempReaderVariableName(t))
+			_, item := tempIteratorVariableNames(t)
 			def.Var().Add(item).Add(t.Array.GoType())
 			def.Add(d.Read(*t.Array, reader, item))
 			def.Add(utils.IfErrReturn(Err()))
@@ -55,7 +55,7 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 		return Add(targetAccessor).Op("=").Make(t.GoType()).Line().
 			Err().Op("=").
 			Add(d.ReadMap(reader, func(reader, key Code, def *Group) {
-				value := Id(tempReaderVariableName(t))
+				_, value := tempIteratorVariableNames(t)
 				def.Var().Add(value).Add(t.Map.GoType())
 				def.Add(d.Read(*t.Map, reader, value))
 				def.Add(utils.IfErrReturn(Err()))
@@ -71,18 +71,32 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 	}
 }
 
-func tempReaderVariableName(t RestliType) string {
-	if t.Array != nil {
-		if t.Array.IsMapOrArray() {
-			return "array" + utils.ExportedIdentifier(tempReaderVariableName(*t.Array))
+func tempIteratorVariableNames(t RestliType) (Code, Code) {
+	var tempName func(t RestliType) string
+	tempName = func(t RestliType) string {
+		if t.Array != nil {
+			if t.Array.IsMapOrArray() {
+				return "array" + utils.ExportedIdentifier(tempName(*t.Array))
+			} else {
+				return ""
+			}
 		} else {
-			return "item"
-		}
-	} else {
-		if t.Map.IsMapOrArray() {
-			return "map" + utils.ExportedIdentifier(tempReaderVariableName(*t.Map))
-		} else {
-			return "value"
+			if t.Map.IsMapOrArray() {
+				return "map" + utils.ExportedIdentifier(tempName(*t.Map))
+			} else {
+				return ""
+			}
 		}
 	}
+	prefix := tempName(t)
+	var left, right string
+	if t.Array != nil {
+		left, right = "index", "item"
+	} else {
+		left, right = "key", "value"
+	}
+	if prefix != "" {
+		left, right = utils.ExportedIdentifier(left), utils.ExportedIdentifier(right)
+	}
+	return Id(prefix + left), Id(prefix + right)
 }

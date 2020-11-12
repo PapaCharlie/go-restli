@@ -42,7 +42,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 		return def
 	case t.Array != nil:
 		def := Err().Op("=").Add(e.WriteArray(writerAccessor, func(itemWriter Code, def *Group) {
-			item := Id("item")
+			_, item := tempIteratorVariableNames(t)
 			def.For(List(Id("_"), item).Op(":=").Range().Add(sourceAccessor)).BlockFunc(func(def *Group) {
 				def.Add(e.Write(*t.Array, Add(itemWriter).Call(), item, Err()))
 			})
@@ -52,7 +52,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 		return def
 	case t.Map != nil:
 		def := Err().Op("=").Add(e.WriteMap(writerAccessor, func(keyWriter Code, def *Group) {
-			key, value := Id("key"), Id("value")
+			key, value := tempIteratorVariableNames(t)
 			def.For(List(key, value).Op(":=").Range().Parens(sourceAccessor)).BlockFunc(func(def *Group) {
 				def.Add(e.Write(*t.Map, Add(keyWriter).Call(key), value, Err()))
 			})
