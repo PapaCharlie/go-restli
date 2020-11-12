@@ -3,8 +3,16 @@ package protocol
 import (
 	"fmt"
 
+	"github.com/PapaCharlie/go-restli/fnv1a"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
+
+type RestLiObject interface {
+	restlicodec.Marshaler
+	restlicodec.Unmarshaler
+	ComputeHash() fnv1a.Hash
+	Equals(interface{}) bool
+}
 
 type partialUpdateRequest struct {
 	Patch restlicodec.Marshaler

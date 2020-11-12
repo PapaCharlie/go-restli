@@ -90,7 +90,7 @@ func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
 	}
 	keyPatch := new(conflictresolution.ComplexKey_PartialUpdate)
 	newPart1 := "newpart1"
-	keyPatch.Update.Part1 = &newPart1
+	keyPatch.Update_Fields.Part1 = &newPart1
 
 	err := c.PartialUpdate(id, &conflictresolution.LargeRecord_PartialUpdate{Key: keyPatch})
 	require.NoError(t, err)

@@ -86,11 +86,11 @@ func TestExcludeOnPartialUpdate(t *testing.T) {
 	)
 
 	excluded := new(conflictresolution.LargeRecord_PartialUpdate)
-	excluded.Delete.OptionalArray = true
+	excluded.Delete_Fields.OptionalArray = true
 	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 
 	excluded = new(conflictresolution.LargeRecord_PartialUpdate)
-	excluded.Update.OptionalArray = new([]int32)
+	excluded.Update_Fields.OptionalArray = new([]int32)
 	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 
 	excluded = new(conflictresolution.LargeRecord_PartialUpdate)
@@ -99,6 +99,6 @@ func TestExcludeOnPartialUpdate(t *testing.T) {
 
 	excluded = new(conflictresolution.LargeRecord_PartialUpdate)
 	excluded.Key = new(conflictresolution.ComplexKey_PartialUpdate)
-	excluded.Key.Update.Part1 = new(string)
+	excluded.Key.Update_Fields.Part1 = new(string)
 	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 }

@@ -73,7 +73,7 @@ func (s *TestServer) CollectionPartialUpdate(t *testing.T, c Client) {
 	id := int64(1)
 	patch := new(conflictresolution.Message_PartialUpdate)
 	message := "partial updated message"
-	patch.Update.Message = &message
+	patch.Update_Fields.Message = &message
 	err := c.PartialUpdate(id, patch)
 	require.NoError(t, err)
 }

@@ -24,7 +24,13 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	def.Type().Id(r.Name).Add(r.Type.GoType()).Line().Line()
 
 	AddEquals(def, r.Receiver(), r.Name, func(other Code, def *Group) {
-		def.Return(Op("*").Id(r.Receiver()).Op("== *").Add(other))
+		left, right := Op("*").Id(r.Receiver()), Op("*").Add(other)
+
+		if r.Type.IsBytes() {
+			def.Return(Qual("bytes", "Equal").Call(left, right))
+		} else {
+			def.Return(Add(left).Op("==").Add(right))
+		}
 	})
 	AddComputeHash(def, r.Receiver(), r.Name, func(h Code, def *Group) {
 		def.Add(h).Dot(r.Type.HasherName()).Call(cast)

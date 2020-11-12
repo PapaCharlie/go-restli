@@ -6,6 +6,7 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +39,7 @@ func TestDefaults(t *testing.T) {
 }
 
 func TestEquals(t *testing.T) {
-	testEquality := func(t *testing.T, tests [][]bool, supplier func(index int) restliObject) {
+	testEquality := func(t *testing.T, tests [][]bool, supplier func(index int) protocol.RestLiObject) {
 		for i, row := range tests {
 			for j, expected := range row {
 				a, b := supplier(i), supplier(j)
@@ -62,7 +63,7 @@ func TestEquals(t *testing.T) {
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, func(i int) restliObject {
+		}, func(i int) protocol.RestLiObject {
 			return &data[i]
 		})
 	})
@@ -77,7 +78,7 @@ func TestEquals(t *testing.T) {
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, func(i int) restliObject {
+		}, func(i int) protocol.RestLiObject {
 			return data[i]
 		})
 	})
@@ -97,7 +98,7 @@ func TestEquals(t *testing.T) {
 			{true, true, true, false, false},
 			{false, false, false, true, false},
 			{false, false, false, false, true},
-		}, func(i int) restliObject {
+		}, func(i int) protocol.RestLiObject {
 			return data[i]
 		})
 	})
@@ -117,7 +118,7 @@ func TestEquals(t *testing.T) {
 			{false, true, true, true, false},
 			{false, true, true, true, false},
 			{false, false, false, false, true},
-		}, func(i int) restliObject {
+		}, func(i int) protocol.RestLiObject {
 			return data[i]
 		})
 	})

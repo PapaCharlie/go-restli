@@ -16,8 +16,8 @@ var multiplePrimitiveFields = &extras.MultiplePrimitiveFields{
 
 func (s *TestServer) CollectionWithAnnotationsPartialUpdate(t *testing.T, c Client) {
 	update := new(extras.MultiplePrimitiveFields_PartialUpdate)
-	update.Update.Field3 = new(string)
-	*update.Update.Field3 = "trois"
+	update.Update_Fields.Field3 = new(string)
+	*update.Update_Fields.Field3 = "trois"
 	require.NoError(t, c.PartialUpdate(1, update))
 }
 

@@ -11,8 +11,8 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	def := Empty()
 
 	const (
-		DeleteField = "Delete"
-		UpdateField = "Update"
+		DeleteField = "Delete_Fields"
+		UpdateField = "Update_Fields"
 	)
 
 	// Generate the struct

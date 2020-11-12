@@ -46,9 +46,11 @@ generate-restli: clean $(JARGO)
 		--output-dir $(TESTDATA)/generated_extras \
 		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX)_extras \
+		--named-schemas-to-generate extras.RecordWithDelete \
 		--named-schemas-to-generate extras.NestedArraysAndMaps \
 		--named-schemas-to-generate extras.EvenMoreComplexTypes \
 		--named-schemas-to-generate extras.DefaultTyperef \
+		--named-schemas-to-generate extras.IPAddress \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated \
