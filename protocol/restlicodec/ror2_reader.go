@@ -28,6 +28,7 @@ func (s *ror2ReaderState) location() string {
 }
 
 type ror2Reader struct {
+	missingFieldsTracker
 	decoder func(string) (string, error)
 	data    []byte
 	pos     int
@@ -43,7 +44,9 @@ func validateRor2Input(data string) error {
 		case ')':
 			parens--
 			if parens < 0 {
-				return fmt.Errorf("illegal ROR2 string has unbalanced delimiters at %d: %q", i, data)
+				return &DeserializationError{
+					Err: fmt.Errorf("illegal ROR2 string has unbalanced delimiters at %d: %q", i, data),
+				}
 			}
 		}
 	}
@@ -83,11 +86,11 @@ loop:
 		switch u.data[u.pos] {
 		case ':':
 			if u.pos == startPos {
-				return "", fmt.Errorf("invalid ROR2 %s string has empty field name at %d: %q", u.state.location(), u.pos, string(u.data))
+				return "", u.errorf("invalid ROR2 %s string has empty field name at %d: %q", u.state.location(), u.pos, string(u.data))
 			}
 			break loop
 		case ',', ')':
-			return "", fmt.Errorf("invalid ROR2 %s string has invalid field name at %d: %q", u.state.location(), u.pos, string(u.data))
+			return "", u.errorf("invalid ROR2 %s string has invalid field name at %d: %q", u.state.location(), u.pos, string(u.data))
 		}
 	}
 	s := string(u.data[startPos:u.pos])
@@ -97,17 +100,18 @@ loop:
 
 func (u *ror2Reader) ReadMap(mapReader MapReader) (err error) {
 	u.state = inMap
-	if len(u.data) < u.pos || u.data[u.pos] != '(' {
-		return fmt.Errorf("invalid ROR2 %s string does not start with '(': %q", u.state.location(), string(u.data))
+	if !u.atMap() {
+		return u.errorf("invalid ROR2 %s string does not start with '(': %q", u.state.location(), string(u.data))
 	}
 	u.pos++
 	if len(u.data) < u.pos {
-		return fmt.Errorf("invalid ROR2 %s is unclosed: %q", u.state.location(), string(u.data))
+		return u.errorf("invalid ROR2 %s is unclosed: %q", u.state.location(), string(u.data))
 	}
 
 loop:
 	for {
-		fieldName, err := u.readFieldName()
+		var fieldName string
+		fieldName, err = u.readFieldName()
 		if err != nil {
 			return err
 		}
@@ -116,10 +120,12 @@ loop:
 			u.pos++
 			break loop
 		default:
+			u.enterMapScope(fieldName)
 			err = mapReader(u, fieldName)
 			if err != nil {
 				return err
 			}
+			u.exitScope()
 			switch u.data[u.pos] {
 			case ',':
 				u.pos++
@@ -128,7 +134,7 @@ loop:
 				u.pos++
 				break loop
 			default:
-				return fmt.Errorf("invalid ROR2 string does has incorrect object delimiter at %d: %q", u.pos, string(u.data))
+				return u.errorf("invalid ROR2 string does has incorrect object delimiter at %d: %q", u.pos, string(u.data))
 			}
 		}
 	}
@@ -143,23 +149,27 @@ func (u *ror2Reader) atMap() bool {
 func (u *ror2Reader) ReadArray(arrayReader ArrayReader) (err error) {
 	u.state = inArray
 	if !u.atArray() {
-		return fmt.Errorf("invalid ROR2 %s string does not start with "+list+": %q", u.state.location(), string(u.data))
+		return u.errorf("invalid ROR2 %s string does not start with "+list+": %q", u.state.location(), string(u.data))
 	}
 	u.pos += len(list)
 	if len(u.data) < u.pos {
-		return fmt.Errorf("invalid ROR2 %s string is not closed %q", u.state.location(), string(u.data))
+		return u.errorf("invalid ROR2 %s string is not closed %q", u.state.location(), string(u.data))
 	}
 	if u.data[u.pos] == ')' {
 		u.pos++
 		return nil
 	}
 
+	index := 0
 loop:
 	for {
+		u.enterArrayScope(index)
 		err = arrayReader(u)
 		if err != nil {
 			return err
 		}
+		u.exitScope()
+		index++
 		switch u.data[u.pos] {
 		case ',':
 			u.pos++
@@ -168,7 +178,7 @@ loop:
 			u.pos++
 			break loop
 		default:
-			return fmt.Errorf("invalid ROR2 string has incorrect array delimiter at %d: %q", u.pos, string(u.data))
+			return u.errorf("invalid ROR2 string has incorrect array delimiter at %d: %q", u.pos, string(u.data))
 		}
 	}
 
@@ -229,7 +239,7 @@ func (u *ror2Reader) Skip() error {
 		switch u.data[u.pos] {
 		case '(':
 			if !inMapOrArray {
-				return fmt.Errorf("unescaped '(' at %d: %q", u.pos, string(u.data))
+				return u.errorf("unescaped '(' at %d: %q", u.pos, string(u.data))
 			} else {
 				parens++
 			}
@@ -252,14 +262,14 @@ func (u *ror2Reader) Skip() error {
 			}
 		}
 	}
-	return fmt.Errorf("invalid ROR2 string has incorrect object delimiters: %q", string(u.data))
+	return u.errorf("invalid ROR2 string has incorrect object delimiters: %q", string(u.data))
 }
 
 func (u *ror2Reader) ReadRawBytes() ([]byte, error) {
 	startPos := u.pos
 	err := u.Skip()
 	if err != nil {
-		return nil, err
+		return nil, u.wrapDeserializationError(err)
 	} else {
 		return u.data[startPos:u.pos], nil
 	}
@@ -281,13 +291,13 @@ func (u *ror2Reader) unsafeReadPrimitiveFieldValue() (startPos int, err error) {
 			}
 		}
 		if u.pos == len(u.data) {
-			return 0, fmt.Errorf("invalid ROR2 string has incorrect field delimiters: %q", string(u.data))
+			return 0, u.errorf("invalid ROR2 string has incorrect field delimiters: %q", string(u.data))
 		}
 	}
 	for i := startPos; i < u.pos; i++ {
 		// Check that the field didn't contain any illegal unescaped characters
 		if c := u.data[i]; c == '(' || c == ',' || c == ')' {
-			return 0, fmt.Errorf("illegal unescaped '%s' in primitive field at %d: %q", string(c), i, string(u.data))
+			return 0, u.errorf("illegal unescaped '%s' in primitive field at %d: %q", string(c), i, string(u.data))
 		}
 	}
 	return startPos, nil
@@ -300,7 +310,8 @@ func (u *ror2Reader) readAndDecodePrimitiveFieldValue() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return u.decoder(string(u.data[startPos:u.pos]))
+	s, err := u.decoder(string(u.data[startPos:u.pos]))
+	return s, u.wrapDeserializationError(err)
 }
 
 func (u *ror2Reader) ReadInt32() (v int32, err error) {
@@ -310,7 +321,7 @@ func (u *ror2Reader) ReadInt32() (v int32, err error) {
 		return v, err
 	}
 	i, err := strconv.ParseInt(decoded, 10, 32)
-	return int32(i), err
+	return int32(i), u.wrapDeserializationError(err)
 }
 
 func (u *ror2Reader) ReadInt64() (v int64, err error) {
@@ -319,7 +330,8 @@ func (u *ror2Reader) ReadInt64() (v int64, err error) {
 	if err != nil {
 		return v, err
 	}
-	return strconv.ParseInt(decoded, 10, 64)
+	v, err = strconv.ParseInt(decoded, 10, 64)
+	return v, u.wrapDeserializationError(err)
 }
 
 func (u *ror2Reader) ReadFloat32() (v float32, err error) {
@@ -329,7 +341,7 @@ func (u *ror2Reader) ReadFloat32() (v float32, err error) {
 		return v, err
 	}
 	f, err := strconv.ParseFloat(decoded, 32)
-	return float32(f), err
+	return float32(f), u.wrapDeserializationError(err)
 }
 
 func (u *ror2Reader) ReadFloat64() (v float64, err error) {
@@ -338,7 +350,8 @@ func (u *ror2Reader) ReadFloat64() (v float64, err error) {
 	if err != nil {
 		return v, err
 	}
-	return strconv.ParseFloat(decoded, 64)
+	v, err = strconv.ParseFloat(decoded, 64)
+	return v, u.wrapDeserializationError(err)
 }
 
 func (u *ror2Reader) ReadBool() (v bool, err error) {
@@ -347,7 +360,8 @@ func (u *ror2Reader) ReadBool() (v bool, err error) {
 	if err != nil {
 		return v, err
 	}
-	return strconv.ParseBool(decoded)
+	v, err = strconv.ParseBool(decoded)
+	return v, u.wrapDeserializationError(err)
 }
 
 func (u *ror2Reader) ReadString() (v string, err error) {
@@ -363,12 +377,23 @@ func (u *ror2Reader) ReadBytes() (v []byte, err error) {
 
 	s := string(u.data[startPos:u.pos])
 	if len(s) == 0 {
-		return nil, fmt.Errorf("invalid empty element at %d: %q", startPos, string(u.data))
+		return nil, u.errorf("invalid empty element at %d: %q", startPos, string(u.data))
 	}
 	if s == emptyString {
 		return nil, nil
 	}
 	var decoded string
 	decoded, err = u.decoder(s)
-	return []byte(decoded), nil
+	return []byte(decoded), u.wrapDeserializationError(err)
+}
+
+func (u *ror2Reader) errorf(format string, args ...interface{}) error {
+	return &DeserializationError{
+		Scope: u.scopeString(),
+		Err:   fmt.Errorf(format, args...),
+	}
+}
+
+func (u *ror2Reader) AtInputStart() bool {
+	return u.pos == 0
 }

@@ -1,0 +1,5 @@
+namespace extras
+
+record RecordArray {
+  records: array[TopLevel]
+}

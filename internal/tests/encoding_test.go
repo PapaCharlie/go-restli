@@ -7,6 +7,7 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
@@ -230,9 +231,8 @@ func TestUnknownFieldReads(t *testing.T) {
 				requireEqual(t, &expected, &test.Actual)
 			})
 
-			t.Run("url", func(t *testing.T) {
-				reader, err := restlicodec.NewRor2Reader(test.RestLi)
-				require.NoError(t, err)
+			t.Run("ror2", func(t *testing.T) {
+				reader := newRor2Reader(t, test.RestLi)
 				require.NoError(t, test.Actual.UnmarshalRestLi(reader))
 				requireEqual(t, &expected, &test.Actual)
 			})
@@ -240,33 +240,74 @@ func TestUnknownFieldReads(t *testing.T) {
 	}
 }
 
-func TestReadIncorrectType(t *testing.T) {
-	t.Run("json", func(t *testing.T) {
-		var actual conflictresolution.Message
-		reader := restlicodec.NewJsonReader([]byte(`{"message": [1]}`))
-		require.Error(t, actual.UnmarshalRestLi(reader))
+func TestDeserializationErrorHandling(t *testing.T) {
+	checkDeserializationError := func(t *testing.T, err error, scope string) {
+		require.Error(t, err)
+		require.Equal(t, scope, err.(*restlicodec.DeserializationError).Scope)
+	}
+
+	t.Run("array", func(t *testing.T) {
+		t.Run("json", func(t *testing.T) {
+			var actual conflictresolution.Message
+			reader := restlicodec.NewJsonReader([]byte(`{"message": [1]}`))
+			checkDeserializationError(t, actual.UnmarshalRestLi(reader), "message")
+		})
+
+		t.Run("ror2", func(t *testing.T) {
+			var actual conflictresolution.Message
+			reader := newRor2Reader(t, `(message:List(1))`)
+			checkDeserializationError(t, actual.UnmarshalRestLi(reader), "message")
+		})
 	})
 
-	t.Run("url", func(t *testing.T) {
-		var actual conflictresolution.Message
-		reader, err := restlicodec.NewRor2Reader(`(message:List(1))`)
-		require.NoError(t, err)
-		require.Error(t, actual.UnmarshalRestLi(reader))
+	t.Run("illegal primitive", func(t *testing.T) {
+		t.Run("json", func(t *testing.T) {
+			var actual Optionals
+			reader := restlicodec.NewJsonReader([]byte(`{"optionalInteger": "asd"}`))
+			checkDeserializationError(t, actual.UnmarshalRestLi(reader), "optionalInteger")
+		})
+
+		t.Run("ror2", func(t *testing.T) {
+			var actual Optionals
+			reader := newRor2Reader(t, `(optionalInteger:asd)`)
+			checkDeserializationError(t, actual.UnmarshalRestLi(reader), "optionalInteger")
+		})
 	})
 }
 
 func TestMissingRequiredFields(t *testing.T) {
-	t.Run("json", func(t *testing.T) {
-		var actual conflictresolution.Message
-		reader := restlicodec.NewJsonReader([]byte(`{"id":1}`))
-		require.Error(t, actual.UnmarshalRestLi(reader))
+	checkRequiredFieldsError := func(t *testing.T, err error, fields ...string) {
+		require.Equal(t, &restlicodec.MissingRequiredFieldsError{Fields: fields}, err)
+	}
+
+	t.Run("simple", func(t *testing.T) {
+		t.Run("json", func(t *testing.T) {
+			var actual conflictresolution.Message
+			reader := restlicodec.NewJsonReader([]byte(`{"id":1}`))
+			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "message")
+		})
+
+		t.Run("ror2", func(t *testing.T) {
+			var actual conflictresolution.Message
+			reader := newRor2Reader(t, `(id:1)`)
+			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "message")
+		})
 	})
 
-	t.Run("url", func(t *testing.T) {
-		var actual conflictresolution.Message
-		reader, err := restlicodec.NewRor2Reader(`(id:1)`)
-		require.NoError(t, err)
-		require.Error(t, actual.UnmarshalRestLi(reader))
+	t.Run("complex", func(t *testing.T) {
+		t.Run("json", func(t *testing.T) {
+			var actual extras.RecordArray
+			reader := restlicodec.NewJsonReader([]byte(
+				`{ "records": [ { "foo": "foo", "bar": "bar" }, { "bar": "bar" } ] }`,
+			))
+			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[1].foo")
+		})
+
+		t.Run("ror2", func(t *testing.T) {
+			var actual extras.RecordArray
+			reader := newRor2Reader(t, `(records:List((foo:foo,bar:bar),(bar:bar)))`)
+			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[1].foo")
+		})
 	})
 }
 
@@ -417,8 +458,7 @@ func TestRaw(t *testing.T) {
 		}))
 	})
 	t.Run("ror2", func(t *testing.T) {
-		reader, err := restlicodec.NewRor2Reader(`(map:(foo:1,bar:42),array:List(1,2),primitive:test)`)
-		require.NoError(t, err)
+		reader := newRor2Reader(t, `(map:(foo:1,bar:42),array:List(1,2),primitive:test)`)
 
 		require.NoError(t, reader.ReadMap(func(reader restlicodec.Reader, field string) error {
 			switch field {
@@ -473,8 +513,7 @@ func testRor2Encoding(t *testing.T, expected, actual protocol.RestLiObject, expe
 	})
 
 	t.Run("decode", func(t *testing.T) {
-		reader, err := restlicodec.NewRor2Reader(expectedRawRor2)
-		require.NoError(t, err)
+		reader := newRor2Reader(t, expectedRawRor2)
 		require.NoError(t, actual.UnmarshalRestLi(reader))
 		requireEqual(t, expected, actual)
 	})
@@ -486,8 +525,7 @@ func testRor2Equality(t *testing.T, obj protocol.RestLiObject, expectedRawRor2 s
 	log.Println(expectedRawRor2)
 
 	unmarhsal := func(s string) interface{} {
-		reader, err := restlicodec.NewRor2Reader(s)
-		require.NoError(t, err)
+		reader := newRor2Reader(t, s)
 
 		i, err := reader.ReadInterface()
 		require.NoError(t, err)
@@ -508,4 +546,10 @@ func testRor2Equality(t *testing.T, obj protocol.RestLiObject, expectedRawRor2 s
 func requireEqual(t *testing.T, expected, actual protocol.RestLiObject) {
 	require.Equal(t, expected, actual)
 	require.True(t, expected.Equals(actual))
+}
+
+func newRor2Reader(t *testing.T, data string) restlicodec.Reader {
+	reader, err := restlicodec.NewRor2Reader(data)
+	require.NoError(t, err)
+	return reader
 }

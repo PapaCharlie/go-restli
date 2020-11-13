@@ -5,6 +5,7 @@ import (
 )
 
 type jsonReader struct {
+	missingFieldsTracker
 	lexer jlexer.Lexer
 }
 
@@ -19,7 +20,7 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 			j.lexer.Consumed()
 		}
 		j.lexer.Skip()
-		return j.lexer.Error()
+		return j.checkError()
 	}
 
 	j.lexer.Delim('{')
@@ -32,10 +33,12 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 			continue
 		}
 
+		j.enterMapScope(fieldName)
 		err = mapReader(j, fieldName)
 		if err != nil {
 			return err
 		}
+		j.exitScope()
 
 		j.lexer.WantComma()
 	}
@@ -45,7 +48,7 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 		j.lexer.Consumed()
 	}
 
-	return j.lexer.Error()
+	return j.checkError()
 }
 
 func (j *jsonReader) ReadArray(arrayReader ArrayReader) (err error) {
@@ -53,55 +56,68 @@ func (j *jsonReader) ReadArray(arrayReader ArrayReader) (err error) {
 		j.lexer.Skip()
 	} else {
 		j.lexer.Delim('[')
+		index := 0
 		for !j.lexer.IsDelim(']') {
+			j.enterArrayScope(index)
 			err = arrayReader(j)
 			if err != nil {
 				return err
 			}
+			j.exitScope()
+			index++
 			j.lexer.WantComma()
 		}
 		j.lexer.Delim(']')
 	}
-	return j.lexer.Error()
+
+	return j.checkError()
 }
 
 func (j *jsonReader) ReadInterface() (interface{}, error) {
-	return j.lexer.Interface(), j.lexer.Error()
+	return j.lexer.Interface(), j.checkError()
 }
 
 func (j *jsonReader) Skip() error {
 	j.lexer.SkipRecursive()
-	return j.lexer.Error()
+	return j.checkError()
 }
 
 func (j *jsonReader) ReadRawBytes() ([]byte, error) {
-	return j.lexer.Raw(), j.lexer.Error()
+	return j.lexer.Raw(), j.checkError()
 }
 
 func (j *jsonReader) ReadInt32() (int32, error) {
-	return j.lexer.Int32(), j.lexer.Error()
+	return j.lexer.Int32(), j.checkError()
 }
 
 func (j *jsonReader) ReadInt64() (int64, error) {
-	return j.lexer.Int64(), j.lexer.Error()
+	return j.lexer.Int64(), j.checkError()
 }
 
 func (j *jsonReader) ReadFloat32() (float32, error) {
-	return j.lexer.Float32(), j.lexer.Error()
+	return j.lexer.Float32(), j.checkError()
 }
 
 func (j *jsonReader) ReadFloat64() (float64, error) {
-	return j.lexer.Float64(), j.lexer.Error()
+	return j.lexer.Float64(), j.checkError()
 }
 
 func (j *jsonReader) ReadBool() (bool, error) {
-	return j.lexer.Bool(), j.lexer.Error()
+	return j.lexer.Bool(), j.checkError()
 }
 
 func (j *jsonReader) ReadString() (string, error) {
-	return j.lexer.String(), j.lexer.Error()
+	return j.lexer.String(), j.checkError()
 }
 
 func (j *jsonReader) ReadBytes() ([]byte, error) {
-	return []byte(j.lexer.String()), j.lexer.Error()
+	return []byte(j.lexer.String()), j.checkError()
+}
+
+func (j *jsonReader) checkError() error {
+	return j.wrapDeserializationError(j.lexer.Error())
+}
+
+func (j *jsonReader) AtInputStart() bool {
+	return j.lexer.IsStart()
 }

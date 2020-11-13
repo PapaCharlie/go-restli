@@ -1,5 +1,9 @@
 package restlicodec
 
+import (
+	"fmt"
+)
+
 // Unmarshaler is the interface that should be implemented by objects that can be deserialized from JSON and ROR2
 type Unmarshaler interface {
 	UnmarshalRestLi(Reader) error
@@ -44,4 +48,17 @@ type Reader interface {
 
 	// Skip skips the next primitive/array/map completely.
 	Skip() error
+
+	AtInputStart() bool
+	RecordMissingRequiredFields(missingRequiredFields map[string]struct{})
+	CheckMissingFields() error
+}
+
+type DeserializationError struct {
+	Scope string
+	Err   error
+}
+
+func (d *DeserializationError) Error() string {
+	return fmt.Sprintf("go-restli: Failed to deserialize %q (%+v)", d.Scope, d.Err)
 }

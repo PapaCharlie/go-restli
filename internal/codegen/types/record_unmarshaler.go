@@ -63,11 +63,14 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 		fieldAccessor = func(_ int, f Field) Code { return r.field(f) }
 	}
 
+	atInputStart := Id("atInputStart")
+	def.Add(atInputStart).Op(":=").Add(Reader).Dot("AtInputStart").Call()
+
 	requiredFieldsRemaining := Id("requiredFieldsRemaining")
-	def.Add(requiredFieldsRemaining).Op(":=").Map(String()).Bool().Values(DictFunc(func(dict Dict) {
+	def.Add(requiredFieldsRemaining).Op(":=").Map(String()).Struct().Values(DictFunc(func(dict Dict) {
 		for _, f := range fields {
 			if !f.IsOptionalOrDefault() {
-				dict[Lit(f.Name)] = True()
+				dict[Lit(f.Name)] = Values()
 			}
 		}
 	})).Line()
@@ -98,16 +101,17 @@ func (r *Record) generateUnmarshaler(def *Group, complexKeyKeyAccessor *Statemen
 	})).Line()
 
 	def.Add(utils.IfErrReturn(Err())).Line()
-
-	def.If(Len(requiredFieldsRemaining).Op("!=").Lit(0)).BlockFunc(func(def *Group) {
-		def.Return(Qual("fmt", "Errorf").Call(Lit("required fields not all present: %+v"), requiredFieldsRemaining))
-	}).Line()
+	def.Add(Reader).Dot("RecordMissingRequiredFields").Call(requiredFieldsRemaining).Line()
 
 	if r.hasDefaultValue() {
 		def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
 	}
 
-	def.Return(Nil())
+	def.If(atInputStart).Block(
+		Return(Add(Reader).Dot("CheckMissingFields").Call()),
+	).Else().Block(
+		Return(Nil()),
+	)
 }
 
 // TODO
