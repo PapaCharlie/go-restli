@@ -18,12 +18,21 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 	}, returns...)
 
 	ck := r.EntityPathKey.Type.ComplexKey()
+	isComplexKey := ck != nil || r.EntityPathKey.Type.UnderlyingPrimitive() == nil
+	keyAccessor := func(accessor Code) *Statement {
+		if ck != nil {
+			return Add(accessor).Add(ck.KeyAccessor())
+		} else {
+			return Add(accessor)
+		}
+	}
+
 	originalKeys := Id("originalKeys")
-	if ck != nil {
+	if isComplexKey {
 		def.Add(originalKeys).Op(":=").Make(Map(types.Hash).Index().Add(r.EntityPathKey.Type.ReferencedType()))
 		def.For().List(Id("_"), key).Op(":=").Range().Add(Keys).BlockFunc(func(def *Group) {
 			keyHash := Id("keyHash")
-			def.Add(keyHash).Op(":=").Add(key).Add(ck.KeyAccessor()).Dot(types.ComputeHash).Call()
+			def.Add(keyHash).Op(":=").Add(keyAccessor(key)).Dot(types.ComputeHash).Call()
 			index := Add(originalKeys).Index(keyHash)
 			def.Add(index).Op("=").Append(index, key)
 		}).Line()
@@ -33,7 +42,7 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 	rawKey := Id("rawKey")
 	resultsReader := Func().Params(Add(types.Reader).Add(types.ReaderQual), Add(rawKey).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
 		v := Code(Id("v"))
-		if ck != nil {
+		if isComplexKey {
 			def.Add(v).Op(":=").New(r.EntityPathKey.Type.GoType())
 		} else {
 			def.Var().Add(v).Add(r.EntityPathKey.Type.GoType())
@@ -44,11 +53,16 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 		def.Add(types.Reader.Read(r.EntityPathKey.Type, keyReader, v))
 		def.Add(utils.IfErrReturn(Err())).Line()
 
-		if ck != nil {
+		if isComplexKey {
 			originalKey := Code(Id("originalKey"))
 			def.Var().Add(originalKey).Add(r.EntityPathKey.Type.ReferencedType())
-			def.For().List(Id("_"), key).Op(":=").Range().Add(originalKeys).Index(Add(v).Add(ck.KeyAccessor()).Dot(types.ComputeHash).Call()).BlockFunc(func(def *Group) {
-				def.If(Add(v).Add(ck.KeyAccessor()).Dot(types.Equals).Call(Op("&").Add(key).Add(ck.KeyAccessor()))).Block(
+			def.For().List(Id("_"), key).Op(":=").Range().Add(originalKeys).Index(keyAccessor(v).Dot(types.ComputeHash).Call()).BlockFunc(func(def *Group) {
+				right := keyAccessor(key)
+				if ck != nil {
+					right = Op("&").Add(right)
+				}
+
+				def.If(keyAccessor(v).Dot(types.Equals).Call(right)).Block(
 					Add(originalKey).Op("=").Add(key),
 					Break(),
 				)

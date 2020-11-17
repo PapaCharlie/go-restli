@@ -8,13 +8,18 @@ import (
 func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def *Group)) *Statement {
 	other := Id("other")
 	otherInterface := Id("otherInterface")
-	return utils.AddFuncOnReceiver(def, receiver, typeName, Equals).
+	rightHandType := Op("*").Id(typeName)
+	utils.AddFuncOnReceiver(def, receiver, typeName, EqualsInterface).
 		Params(Add(otherInterface).Interface()).Bool().
 		BlockFunc(func(def *Group) {
 			ok := Id("ok")
-			def.List(other, ok).Op(":=").Add(otherInterface).Assert(Op("*").Id(typeName))
+			def.List(other, ok).Op(":=").Add(otherInterface).Assert(rightHandType)
 			def.If(Op("!").Add(ok)).Block(Return(False())).Line()
-			def.If(Id(receiver).Op("==").Add(other)).Block(Return(True()))
+			def.Return(Id(receiver).Dot(Equals).Call(other))
+		}).Line().Line()
+	return utils.AddFuncOnReceiver(def, receiver, typeName, Equals).
+		Params(Add(other).Add(rightHandType)).Bool().
+		BlockFunc(func(def *Group) {
 			def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
 			f(other, def)
 		}).Line().Line()

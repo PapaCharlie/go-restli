@@ -43,7 +43,7 @@ func TestEquals(t *testing.T) {
 		for i, row := range tests {
 			for j, expected := range row {
 				a, b := supplier(i), supplier(j)
-				require.Equal(t, expected, a.Equals(b), "Equals(%d, %d)", i, j)
+				require.Equal(t, expected, a.EqualsInterface(b), "Equals(%d, %d)", i, j)
 				if expected {
 					require.Equal(t, a, b)
 				} else {

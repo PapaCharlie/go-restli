@@ -8,6 +8,7 @@ const (
 	EncodeQueryParams          = "EncodeQueryParams"
 	PopulateLocalDefaultValues = "populateLocalDefaultValues"
 	Equals                     = "Equals"
+	EqualsInterface            = "EqualsInterface"
 	ComputeHash                = "ComputeHash"
 	ValidateUnionFields        = "ValidateUnionFields"
 	ComplexKeyParamsField      = "Params"

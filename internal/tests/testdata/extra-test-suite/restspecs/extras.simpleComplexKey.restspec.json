@@ -1,0 +1,21 @@
+{
+  "name": "simpleComplexKey",
+  "namespace": "extras",
+  "path": "/simpleComplexKey",
+  "schema": "extras.SinglePrimitiveField",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.SinglePrimitiveField"
+    },
+    "methods": [
+      {
+        "method": "batch_get"
+      }
+    ],
+    "entity": {
+      "path": "/simpleComplexKey/{key}"
+    }
+  }
+}

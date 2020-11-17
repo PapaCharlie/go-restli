@@ -545,7 +545,7 @@ func testRor2Equality(t *testing.T, obj protocol.RestLiObject, expectedRawRor2 s
 
 func requireEqual(t *testing.T, expected, actual protocol.RestLiObject) {
 	require.Equal(t, expected, actual)
-	require.True(t, expected.Equals(actual))
+	require.True(t, expected.EqualsInterface(actual))
 }
 
 func newRor2Reader(t *testing.T, data string) restlicodec.Reader {

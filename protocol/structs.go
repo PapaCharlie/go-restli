@@ -11,7 +11,7 @@ type RestLiObject interface {
 	restlicodec.Marshaler
 	restlicodec.Unmarshaler
 	ComputeHash() fnv1a.Hash
-	Equals(interface{}) bool
+	EqualsInterface(interface{}) bool
 }
 
 type partialUpdateRequest struct {

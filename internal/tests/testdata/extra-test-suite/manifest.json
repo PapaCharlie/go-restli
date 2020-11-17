@@ -13,6 +13,15 @@
       ]
     },
     {
+      "name": "simpleComplexKey",
+      "restspec": "restspecs/extras.simpleComplexKey.restspec.json",
+      "operations": [
+        {
+          "name": "simpleComplexKey-batch-get"
+        }
+      ]
+    },
+    {
       "name": "collectionWithAnnotations",
       "restspec": "restspecs/extras.collectionWithAnnotations.restspec.json",
       "operations": [
