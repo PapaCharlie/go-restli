@@ -82,8 +82,5 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 		def.Add(Return(Err()))
 	})
 	def.Err().Op("=").Id(ClientReceiver).Dot("DoBatchGetRequest").Call(Ctx, Url, resultsReader)
-
-	def.Add(utils.IfErrReturn(returns...)).Line()
-
-	def.Return()
+	def.Return(Entities, Err())
 }

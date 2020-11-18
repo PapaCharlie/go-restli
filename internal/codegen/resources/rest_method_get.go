@@ -1,17 +1,11 @@
 package resources
 
 import (
-	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
 func (r *RestMethod) generateGet(def *Group) {
-	returns := []Code{
-		r.Return.ZeroValueReference(),
-		Err(),
-	}
-
-	formatQueryUrl(r, def, nil, returns...)
+	formatQueryUrl(r, def, nil, r.Return.ZeroValueReference(), Err())
 
 	var result Code
 	if r.Return.ShouldReference() {
@@ -22,7 +16,5 @@ func (r *RestMethod) generateGet(def *Group) {
 	}
 
 	def.Err().Op("=").Id(ClientReceiver).Dot("DoGetRequest").Call(Ctx, Url, Entity)
-	def.Add(utils.IfErrReturn(returns...)).Line()
-
-	def.Return(Entity, Nil())
+	def.Return(Entity, Err())
 }

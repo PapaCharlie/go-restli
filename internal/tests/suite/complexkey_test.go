@@ -66,7 +66,7 @@ func (s *TestServer) ComplexkeyCreate(t *testing.T, c Client) {
 		Part2: 2,
 		Part3: conflictresolution.Fruits_APPLE,
 	}
-	actualKey, err := c.Create(&conflictresolution.LargeRecord{
+	_, err := c.Create(&conflictresolution.LargeRecord{
 		Key: expectedKey,
 		Message: conflictresolution.Message{
 			Message: "test message",
@@ -74,9 +74,7 @@ func (s *TestServer) ComplexkeyCreate(t *testing.T, c Client) {
 	})
 	require.IsType(t, new(protocol.CreateResponseHasNoEntityHeaderError), err)
 	// TODO: Merge https://github.com/linkedin/rest.li-test-suite/pull/6 and actually test the contents of the key
-	if actualKey != nil {
-		require.Equal(t, expectedKey, actualKey.ComplexKey)
-	}
+	// require.Equal(t, expectedKey, actualKey.ComplexKey)
 }
 
 func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {

@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -11,7 +10,6 @@ func (r *RestMethod) generateCreate(def *Group) {
 		returns = append(returns, r.Return.ZeroValueReference())
 	}
 	returns = append(returns, Err())
-
 	formatQueryUrl(r, def, nil, returns...)
 
 	id := Id(r.EntityPathKey.Name)
@@ -44,15 +42,14 @@ func (r *RestMethod) generateCreate(def *Group) {
 		idUnmarshaler,
 		returnEntityUnmarshaler,
 	)
-	def.Add(utils.IfErrReturn(returns...)).Line()
 
 	if r.EntityPathKey.Type.ShouldReference() {
 		id = Op("&").Add(id)
 	}
 
 	if r.ReturnEntity {
-		def.Return(id, ReturnedEntity, Nil())
+		def.Return(id, ReturnedEntity, Err())
 	} else {
-		def.Return(id, Nil())
+		def.Return(id, Err())
 	}
 }

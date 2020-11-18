@@ -135,12 +135,11 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 		def.Err().Op("=").Id(ClientReceiver).Dot("DoActionRequest").Call(Ctx, Url, params, resultsAccessor)
 
 		if returns {
-			def.Add(utils.IfErrReturn(errReturnParams...)).Line()
 			returnValue := Add(result).Dot("Value")
 			if a.Return.ShouldReference() {
 				returnValue = Op("&").Add(returnValue)
 			}
-			def.Return(returnValue, Nil())
+			def.Return(returnValue, Err())
 		} else {
 			def.Return(Err())
 		}

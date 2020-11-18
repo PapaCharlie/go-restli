@@ -79,9 +79,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 		def.Var().Add(accessor).Id(f.resultsStructType())
 
 		def.Err().Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(Ctx, Url, Op("&").Add(accessor))
-		def.Add(utils.IfErrReturn(Nil(), Err())).Line()
-
-		def.Return(Add(accessor).Dot("Elements"), Nil())
+		def.Return(Add(accessor).Dot("Elements"), Err())
 	})
 
 	return c
