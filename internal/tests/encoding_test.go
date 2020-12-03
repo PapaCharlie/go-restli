@@ -281,32 +281,52 @@ func TestMissingRequiredFields(t *testing.T) {
 	}
 
 	t.Run("simple", func(t *testing.T) {
+		expected := conflictresolution.Message{Id: new(int64)}
+		*expected.Id = 1
+
 		t.Run("json", func(t *testing.T) {
 			var actual conflictresolution.Message
 			reader := restlicodec.NewJsonReader([]byte(`{"id":1}`))
 			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "message")
+			require.Equal(t, expected, actual)
 		})
 
 		t.Run("ror2", func(t *testing.T) {
 			var actual conflictresolution.Message
 			reader := newRor2Reader(t, `(id:1)`)
 			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "message")
+			require.Equal(t, expected, actual)
 		})
 	})
 
 	t.Run("complex", func(t *testing.T) {
+		expected := extras.RecordArray{
+			Records: []*extras.TopLevel{
+				{
+					Foo: "",
+					Bar: "bar",
+				},
+				{
+					Foo: "foo",
+					Bar: "bar",
+				},
+			},
+		}
+
 		t.Run("json", func(t *testing.T) {
 			var actual extras.RecordArray
 			reader := restlicodec.NewJsonReader([]byte(
-				`{ "records": [ { "foo": "foo", "bar": "bar" }, { "bar": "bar" } ] }`,
+				`{ "records": [ { "bar": "bar" }, { "foo": "foo", "bar": "bar" } ] }`,
 			))
-			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[1].foo")
+			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[0].foo")
+			require.Equal(t, expected, actual)
 		})
 
 		t.Run("ror2", func(t *testing.T) {
 			var actual extras.RecordArray
-			reader := newRor2Reader(t, `(records:List((foo:foo,bar:bar),(bar:bar)))`)
-			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[1].foo")
+			reader := newRor2Reader(t, `(records:List((bar:bar),(foo:foo,bar:bar)))`)
+			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[0].foo")
+			require.Equal(t, expected, actual)
 		})
 	})
 }

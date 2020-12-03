@@ -10,7 +10,7 @@ import (
 
 // DoGetRequest executes a rest.li Get request against the given url and parses the results in the given
 // restlicodec.Unmarshaler
-func (c *RestLiClient) DoGetRequest(ctx context.Context, url *url.URL, result restlicodec.Unmarshaler) error {
+func (c *RestLiClient) DoGetRequest(ctx context.Context, url *url.URL, result restlicodec.Unmarshaler) (err error) {
 	req, err := GetRequest(ctx, url, Method_get)
 	if err != nil {
 		return err
@@ -66,6 +66,9 @@ func (c *RestLiClient) DoCreateRequest(
 			return err
 		}
 		err = id.UnmarshalRestLi(reader)
+		if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.StrictResponseDeserialization {
+			err = nil
+		}
 		if err != nil {
 			return err
 		}

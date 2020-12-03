@@ -56,6 +56,9 @@ var RestLiMethodNameMapping = func() map[string]RestLiMethod {
 type RestLiClient struct {
 	*http.Client
 	HostnameResolver
+	// Whether or not missing fields in a restli response should cause a MissingRequiredFields error to be returned.
+	// Note that even if the error is returned, the response will still be fully deserialized.
+	StrictResponseDeserialization bool
 }
 
 func (c *RestLiClient) FormatQueryUrl(resourceBasename, rawQuery string) (*url.URL, error) {
@@ -216,6 +219,9 @@ func (c *RestLiClient) doAndConsumeBody(req *http.Request, bodyConsumer func(bod
 	}
 
 	err = bodyConsumer(data)
+	if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.StrictResponseDeserialization {
+		err = nil
+	}
 	if err != nil {
 		return nil, err
 	}

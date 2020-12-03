@@ -5,6 +5,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,8 +21,22 @@ func (s *TestServer) CollectionWithTyperefKeyBatchGetWithParams(t *testing.T, c 
 }
 
 func (s *TestServer) CollectionWithTyperefKeyGet(t *testing.T, c Client) {
-	var id extras.Temperature = 42
-	res, err := c.Get(id)
+	res, err := c.Get(42)
 	require.NoError(t, err)
 	require.Equal(t, &extras.SinglePrimitiveField{Integer: 42}, res)
+}
+
+func (s *TestServer) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T, c Client) {
+	oldValue := s.client.StrictResponseDeserialization
+
+	s.client.StrictResponseDeserialization = false
+	res, err := c.Get(42)
+	require.NoError(t, err)
+	require.Equal(t, &extras.SinglePrimitiveField{}, res)
+	s.client.StrictResponseDeserialization = true
+	_, err = c.Get(42)
+	require.Error(t, err)
+	require.IsType(t, new(restlicodec.MissingRequiredFieldsError), err)
+
+	s.client.StrictResponseDeserialization = oldValue
 }

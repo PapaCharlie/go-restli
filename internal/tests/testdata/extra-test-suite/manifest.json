@@ -9,6 +9,9 @@
         },
         {
           "name": "collectionWithTyperefKey-get"
+        },
+        {
+          "name": "collectionWithTyperefKey-get-incomplete-response"
         }
       ]
     },

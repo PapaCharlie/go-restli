@@ -32,8 +32,9 @@ func TestGoRestli(rootT *testing.T) {
 	s.server = httptest.NewServer(s)
 	serverUrl, _ := url.Parse(s.server.URL)
 	s.client = &protocol.RestLiClient{
-		Client:           &http.Client{},
-		HostnameResolver: &protocol.SimpleHostnameResolver{Hostname: serverUrl},
+		Client:                        &http.Client{},
+		HostnameResolver:              &protocol.SimpleHostnameResolver{Hostname: serverUrl},
+		StrictResponseDeserialization: true,
 	}
 
 	operations := make(map[string]Operation)
