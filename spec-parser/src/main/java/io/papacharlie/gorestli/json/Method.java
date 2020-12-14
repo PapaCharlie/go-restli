@@ -21,6 +21,7 @@ public class Method {
   public List<Field> _params;
   public RestliType _return;
   public boolean _returnEntity;
+  public boolean _pagingSupported;
 
   public static class PathKey {
     public final String _name;

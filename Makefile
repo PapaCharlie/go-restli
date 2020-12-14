@@ -31,6 +31,7 @@ bin/go-restli_%: $(shell git ls-files | grep "\.go")
 
 generate:
 	go generate $(PACKAGES)
+	go run ./internal/codegen/pagingcontext
 
 test: generate imports
 	go test $(PACKAGES)

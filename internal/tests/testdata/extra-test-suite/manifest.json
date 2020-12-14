@@ -12,6 +12,9 @@
         },
         {
           "name": "collectionWithTyperefKey-get-incomplete-response"
+        },
+        {
+          "name": "collectionWithTyperefKey-find-with-paging-context"
         }
       ]
     },

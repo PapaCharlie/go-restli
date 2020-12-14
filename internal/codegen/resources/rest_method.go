@@ -131,7 +131,7 @@ func (r *RestMethod) generator() func(*Group) {
 func (r *RestMethod) GenerateCode() *utils.CodeFile {
 	c := r.Resource.NewCodeFile(r.Name)
 
-	if len(r.Params) > 0 {
+	if len(r.Params) > 0 || r.PagingSupported {
 		p := &types.Record{
 			NamedType: types.NamedType{
 				Identifier: utils.Identifier{
@@ -141,6 +141,9 @@ func (r *RestMethod) GenerateCode() *utils.CodeFile {
 				Doc: fmt.Sprintf("This struct provides the parameters to the %s method", r.Name),
 			},
 			Fields: r.Params,
+		}
+		if r.PagingSupported {
+			addPagingContextFields(p)
 		}
 		c.Code.Add(p.GenerateStruct()).Line().Line()
 		c.Code.Add(p.GenerateQueryParamMarshaler(nil, r.isBatch())).Line().Line()

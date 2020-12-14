@@ -31,6 +31,18 @@
         "method": "get"
       }
     ],
+    "finders": [
+      {
+        "name": "search",
+        "parameters": [
+          {
+            "name": "keyword",
+            "type": "string"
+          }
+        ],
+        "pagingSupported": true
+      }
+    ],
     "entity": {
       "path": "/collectionWithTyperefKey/{key}"
     }

@@ -1,0 +1,5 @@
+GET /collectionWithTyperefKey?count=10&keyword=test&q=search&start=0 HTTP/1.1
+Accept: application/json
+X-RestLi-Protocol-Version: 2.0.0
+
+

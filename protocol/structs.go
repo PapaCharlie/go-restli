@@ -72,3 +72,10 @@ func (b *batchGetRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (er
 	}
 	return nil
 }
+
+func NewPagingContext(start int32, count int32) PagingContext {
+	return PagingContext{
+		Start: &start,
+		Count: &count,
+	}
+}

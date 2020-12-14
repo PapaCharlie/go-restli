@@ -2,6 +2,9 @@ package restlicodec
 
 import (
 	"io"
+	"math"
+
+	"github.com/mailru/easyjson/jwriter"
 )
 
 // Unmarshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
@@ -217,4 +220,15 @@ func copyAndAppend(a []string, v string) (out []string) {
 	out = append(out, a...)
 	out = append(out, v)
 	return out
+}
+
+func writeFloat64(w jwriter.Writer, v float64) {
+	switch {
+	case math.IsInf(v, 1):
+		w.String("Infinity")
+	case math.IsInf(v, -1):
+		w.String("-Infinity")
+	default:
+		w.Float64(v)
+	}
 }

@@ -66,16 +66,17 @@ const (
 )
 
 type Method struct {
-	MethodType    MethodType        `json:"methodType"`
-	Name          string            `json:"name"`
-	Doc           string            `json:"doc"`
-	Path          string            `json:"path"`
-	OnEntity      bool              `json:"onEntity"`
-	EntityPathKey *PathKey          `json:"entityPathKey"`
-	PathKeys      []PathKey         `json:"pathKeys"`
-	Params        []types.Field     `json:"params"`
-	Return        *types.RestliType `json:"return"`
-	ReturnEntity  bool              `json:"returnEntity"`
+	MethodType      MethodType        `json:"methodType"`
+	Name            string            `json:"name"`
+	Doc             string            `json:"doc"`
+	Path            string            `json:"path"`
+	OnEntity        bool              `json:"onEntity"`
+	EntityPathKey   *PathKey          `json:"entityPathKey"`
+	PathKeys        []PathKey         `json:"pathKeys"`
+	Params          []types.Field     `json:"params"`
+	Return          *types.RestliType `json:"return"`
+	ReturnEntity    bool              `json:"returnEntity"`
+	PagingSupported bool              `json:"pagingSupported"`
 }
 
 type PathKey struct {

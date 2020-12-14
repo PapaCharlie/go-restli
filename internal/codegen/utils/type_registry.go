@@ -47,7 +47,10 @@ func (reg typeRegistry) IsCyclic(id Identifier) bool {
 }
 
 func (reg typeRegistry) GenerateTypeCode() (files []*CodeFile) {
-	for _, t := range reg {
+	for id, t := range reg {
+		if id == PagingContextIdentifier {
+			continue
+		}
 		files = append(files, &CodeFile{
 			SourceFile:  t.Type.GetSourceFile(),
 			PackagePath: t.Type.GetIdentifier().PackagePath(),
@@ -160,4 +163,9 @@ func (p Path) IntroducesCycle(nextNode Identifier) Path {
 		}
 	}
 	return nil
+}
+
+var PagingContextIdentifier = Identifier{
+	Name:      "PagingContext",
+	Namespace: ProtocolPackage,
 }

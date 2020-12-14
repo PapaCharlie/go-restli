@@ -35,3 +35,11 @@ func (c *collectionWithTyperefKeyClient) Get(extras.Temperature) (*extras.Single
 func (c *collectionWithTyperefKeyClient) GetWithContext(context.Context, extras.Temperature) (*extras.SinglePrimitiveField, error) {
 	panic(nil)
 }
+
+func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, err error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context, *collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, err error) {
+	panic(nil)
+}

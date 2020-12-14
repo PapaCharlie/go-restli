@@ -31,6 +31,9 @@ func (i Identifier) PackagePath() string {
 	if i.Name == "" {
 		Logger.Panicf("%+v has no name!", i)
 	}
+	if strings.HasPrefix(i.Namespace, ProtocolPackage) {
+		return i.Namespace
+	}
 	var p string
 	if TypeRegistry.IsCyclic(i) {
 		p = "conflictResolution"

@@ -53,6 +53,9 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 		},
 		Fields: f.Params,
 	}
+	if f.PagingSupported {
+		addPagingContextFields(params)
+	}
 	c.Code.Add(params.GenerateStruct()).Line().Line()
 	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name, false)).Line().Line()
 
