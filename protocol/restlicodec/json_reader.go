@@ -95,11 +95,16 @@ func (j *jsonReader) ReadInt64() (int64, error) {
 }
 
 func (j *jsonReader) ReadFloat32() (float32, error) {
-	return j.lexer.Float32(), j.checkError()
+	f, err := j.ReadFloat64()
+	return float32(f), err
 }
 
 func (j *jsonReader) ReadFloat64() (float64, error) {
-	return j.lexer.Float64(), j.checkError()
+	n, err := j.lexer.JsonNumber(), j.checkError()
+	if err != nil {
+		return 0, err
+	}
+	return n.Float64()
 }
 
 func (j *jsonReader) ReadBool() (bool, error) {

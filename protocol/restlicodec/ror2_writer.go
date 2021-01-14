@@ -1,6 +1,10 @@
 package restlicodec
 
-import "github.com/mailru/easyjson/jwriter"
+import (
+	"math"
+
+	"github.com/mailru/easyjson/jwriter"
+)
 
 type ror2Writer struct {
 	jwriter.Writer
@@ -69,11 +73,18 @@ func (u *ror2Writer) WriteInt64(v int64) {
 }
 
 func (u *ror2Writer) WriteFloat32(v float32) {
-	u.Writer.Float32(v)
+	u.WriteFloat64(float64(v))
 }
 
 func (u *ror2Writer) WriteFloat64(v float64) {
-	u.Writer.Float64(v)
+	switch {
+	case math.IsInf(v, 1):
+		u.Writer.RawString("Infinity")
+	case math.IsInf(v, -1):
+		u.Writer.RawString("-Infinity")
+	default:
+		u.Writer.Float64(v)
+	}
 }
 
 func (u *ror2Writer) WriteBool(v bool) {

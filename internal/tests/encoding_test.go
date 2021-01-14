@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
@@ -38,6 +39,21 @@ func TestEncodePrimitives(t *testing.T) {
 		testRor2Encoding(t, expected, new(Primitives),
 			`(primitiveBytes:@ABC🕴,primitiveDouble:66.5,primitiveFloat:52.5,primitiveInteger:1,primitiveLong:23,primitiveString:a string%2C%28%29%27)`,
 		)
+	})
+}
+
+func TestEncodeInfinity(t *testing.T) {
+	inf := math.Inf(-1)
+	expected := &Optionals{
+		OptionalDouble: &inf,
+	}
+
+	t.Run("json", func(t *testing.T) {
+		testJsonEncoding(t, expected, new(Optionals), `{"optionalDouble":"-Infinity"}`)
+	})
+
+	t.Run("ror2", func(t *testing.T) {
+		testRor2Encoding(t, expected, new(Optionals), `(optionalDouble:-Infinity)`)
 	})
 }
 

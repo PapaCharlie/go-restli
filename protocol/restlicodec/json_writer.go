@@ -1,6 +1,8 @@
 package restlicodec
 
 import (
+	"math"
+
 	"github.com/mailru/easyjson/jwriter"
 )
 
@@ -63,11 +65,18 @@ func (c *compactJsonWriter) WriteInt64(v int64) {
 }
 
 func (c *compactJsonWriter) WriteFloat32(v float32) {
-	c.Writer.Float32(v)
+	c.WriteFloat64(float64(v))
 }
 
 func (c *compactJsonWriter) WriteFloat64(v float64) {
-	c.Writer.Float64(v)
+	switch {
+	case math.IsInf(v, 1):
+		c.Writer.String("Infinity")
+	case math.IsInf(v, -1):
+		c.Writer.String("-Infinity")
+	default:
+		c.Writer.Float64(v)
+	}
 }
 
 func (c *compactJsonWriter) WriteBool(v bool) {
