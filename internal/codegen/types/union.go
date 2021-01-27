@@ -35,14 +35,14 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 	})
 
 	AddComputeHash(def, unionReceiver, u.Name, func(h Code, def *Group) {
-		def.Add(h).Op("=").Add(NewHash).Line()
+		def.Add(h).Op("=").Add(utils.NewHash).Line()
 		for _, m := range u.Union.Members {
 			def.Add(hash(h, m.Type, true, Id(unionReceiver).Dot(m.name()))).Line()
 		}
 		def.Return(h)
 	})
 
-	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, ValidateUnionFields).
+	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, utils.ValidateUnionFields).
 		Params().
 		Params(Error()).
 		BlockFunc(func(def *Group) {

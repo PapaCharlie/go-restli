@@ -60,7 +60,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	})
 
 	AddComputeHash(def, receiver, e.Name, func(h Code, def *Group) {
-		def.Add(h).Op("=").Add(Hash).Call(Op("*").Id(receiver))
+		def.Add(h).Op("=").Add(utils.Hash).Call(Op("*").Id(receiver))
 		def.Return(h)
 	})
 

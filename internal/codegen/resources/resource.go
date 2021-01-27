@@ -60,7 +60,7 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 	}
 
 	newPathSpec := func(directives []string) Code {
-		return Qual(types.RestLiCodecPackage, "NewPathSpec").CallFunc(func(def *Group) {
+		return Qual(utils.RestLiCodecPackage, "NewPathSpec").CallFunc(func(def *Group) {
 			for _, d := range directives {
 				def.Line().Add(Lit(d))
 			}
@@ -109,7 +109,7 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 		ParamsFunc(func(def *Group) { addParams(def, m.entityParamNames(), m.entityParamTypes()) }).
 		Params(Id("path").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(types.Writer).Op(":=").Qual(types.RestLiCodecPackage, "NewRor2PathWriter").Call()
+			def.Add(types.Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewRor2PathWriter").Call()
 
 			path := m.Path
 			for _, pk := range m.PathKeys {

@@ -39,7 +39,7 @@ func formatQueryUrl(m MethodImplementation, def *Group, keyWriter func(itemWrite
 
 	def.Add(utils.IfErrReturn(returns...)).Line()
 
-	encodeQueryParams := Code(Add(QueryParams).Dot(types.EncodeQueryParams))
+	encodeQueryParams := Code(Add(QueryParams).Dot(utils.EncodeQueryParams))
 	callEncodeQueryParams := func(encoder Code) {
 		rawQuery := Id("rawQuery")
 		def.Var().Add(rawQuery).String()
@@ -63,7 +63,7 @@ func formatQueryUrl(m MethodImplementation, def *Group, keyWriter func(itemWrite
 			if hasParams {
 				callEncodeQueryParams(Add(encodeQueryParams).Call(encoder))
 			} else {
-				callEncodeQueryParams(Qual(types.ProtocolPackage, "GenerateBatchKeysParam").Call(encoder))
+				callEncodeQueryParams(Qual(utils.ProtocolPackage, "GenerateBatchKeysParam").Call(encoder))
 			}
 		} else {
 			if hasParams {

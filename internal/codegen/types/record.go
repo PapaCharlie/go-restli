@@ -30,7 +30,7 @@ func (r *Record) InnerTypes() utils.IdentifierSet {
 }
 
 func (r *Record) PartialUpdateStructName() string {
-	return r.Name + PartialUpdate
+	return r.Name + utils.PartialUpdate
 }
 
 func (r *Record) PartialUpdateStruct() *Statement {
@@ -65,7 +65,7 @@ func (f *Field) IsOptionalOrDefault() bool {
 
 func (f *Field) FieldName() string {
 	if f.isComplexKeyParams {
-		return ComplexKeyParamsField
+		return utils.ComplexKeyParamsField
 	} else {
 		return utils.ExportedIdentifier(f.Name)
 	}
@@ -146,11 +146,11 @@ func (r *Record) generateDefaultValuesCode() Code {
 					def.Add(r.fieldAccessor(f)).Op("=").Op("*").Qual(record.PackagePath(), record.defaultValuesConstructor()).Call()
 				}
 			}
-			def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
+			def.Id(r.Receiver()).Dot(utils.PopulateLocalDefaultValues).Call()
 			def.Return()
 		}).Line().Line()
 
-	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, utils.PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
 		for _, f := range r.Fields {
 			if f.DefaultValue != nil {
 				r.setDefaultValue(def, r.fieldAccessor(f), *f.DefaultValue, &f.Type)
@@ -166,7 +166,7 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 	def.If(Add(accessor).Op("==").Nil()).BlockFunc(func(def *Group) {
 		declareReader := func() {
 			def.Var().Err().Error()
-			def.Add(Reader).Op(":=").Add(NewJsonReader).Call(Index().Byte().Call(Lit(rawJson)))
+			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(Index().Byte().Call(Lit(rawJson)))
 		}
 		addPanic := func() {
 			def.If(Err().Op("!=").Nil()).Block(Qual("log", "Panicln").Call(Lit("Illegal default value"), Err()))

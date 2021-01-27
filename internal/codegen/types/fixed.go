@@ -34,7 +34,7 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 	})
 
 	AddComputeHash(def, receiver, f.Name, func(h Code, def *Group) {
-		def.Add(h).Op("=").Add(NewHash)
+		def.Add(h).Op("=").Add(utils.NewHash)
 		def.Add(hash(h, FixedUnderlyingType, false, Id(receiver).Add(slice)))
 		def.Return(h)
 	})

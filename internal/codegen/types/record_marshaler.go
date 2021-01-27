@@ -8,7 +8,7 @@ import (
 )
 
 func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	utils.AddFuncOnReceiver(def, receiver, typeName, MarshalRestLi).
+	utils.AddFuncOnReceiver(def, receiver, typeName, utils.MarshalRestLi).
 		Params(Add(Writer).Add(WriterQual)).
 		Params(Err().Error()).
 		BlockFunc(f).
@@ -18,8 +18,8 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Gro
 		Params().
 		Params(Id("data").Index().Byte(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewCompactJsonWriter").Call()
-			def.Err().Op("=").Id(receiver).Dot(MarshalRestLi).Call(Writer)
+			def.Add(Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewCompactJsonWriter").Call()
+			def.Err().Op("=").Id(receiver).Dot(utils.MarshalRestLi).Call(Writer)
 			def.Add(utils.IfErrReturn(Nil(), Err()))
 			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
 		}).Line().Line()
@@ -46,14 +46,14 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 	var params []Code
 	entityIDsWriter := Code(Id("entityIDsWriter"))
 	if isBatchRequest {
-		params = []Code{Add(entityIDsWriter).Qual(RestLiCodecPackage, "ArrayWriter")}
+		params = []Code{Add(entityIDsWriter).Qual(utils.RestLiCodecPackage, "ArrayWriter")}
 	}
 
-	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, EncodeQueryParams).
+	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams).
 		Params(params...).
 		Params(Id("rawQuery").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Writer).Op(":=").Qual(RestLiCodecPackage, "NewRestLiQueryParamsWriter").Call()
+			def.Add(Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewRestLiQueryParamsWriter").Call()
 
 			fields := r.SortedFields()
 
@@ -62,16 +62,16 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 			}
 			qIndex := -1
 			if finderName != nil {
-				qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= FinderNameParam })
+				qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= utils.FinderNameParam })
 				insertFieldAt(qIndex, Field{
 					Type:       RestliType{Primitive: &StringPrimitive},
-					Name:       FinderNameParam,
+					Name:       utils.FinderNameParam,
 					IsOptional: false,
 				})
 			}
 			idsIndex := -1
 			if isBatchRequest {
-				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= EntityIDsParam })
+				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= utils.EntityIDsParam })
 				insertFieldAt(idsIndex, Field{})
 			}
 
@@ -80,7 +80,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 			def.Err().Op("=").Add(Writer).Dot("WriteParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
 				for i, f := range fields {
 					if i == idsIndex {
-						def.Err().Op("=").Add(paramNameWriter).Call(Lit(EntityIDsParam)).Dot("WriteArray").Call(entityIDsWriter)
+						def.Err().Op("=").Add(paramNameWriter).Call(Lit(utils.EntityIDsParam)).Dot("WriteArray").Call(entityIDsWriter)
 					} else {
 						writeField(def, i, f, func(i int, f Field) Code {
 							if i == qIndex {

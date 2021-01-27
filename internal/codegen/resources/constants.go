@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"github.com/PapaCharlie/go-restli/internal/codegen/types"
+	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	RestLiClient = Code(Qual(types.ProtocolPackage, "RestLiClient"))
+	RestLiClient = Code(Qual(utils.ProtocolPackage, "RestLiClient"))
 	Context      = Code(Qual("context", "Context"))
 
 	Url            = Code(Id("url"))
@@ -34,7 +34,7 @@ var (
 	QueryParams    = Code(Id("queryParams"))
 	ActionParams   = Code(Id("actionParams"))
 
-	NoExcludedFields        = Code(Qual(types.RestLiCodecPackage, "NoExcludedFields"))
+	NoExcludedFields        = Code(Qual(utils.RestLiCodecPackage, "NoExcludedFields"))
 	ReadOnlyFields          = Code(Id("ReadOnlyFields"))
 	CreateOnlyFields        = Code(Id("CreateOnlyFields"))
 	CreateAndReadOnlyFields = Code(Id("CreateAndReadOnlyFields"))

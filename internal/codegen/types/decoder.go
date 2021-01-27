@@ -13,7 +13,7 @@ type reader struct {
 
 var (
 	Reader     = &reader{Id("reader")}
-	ReaderQual = Qual(RestLiCodecPackage, "Reader")
+	ReaderQual = Qual(utils.RestLiCodecPackage, "Reader")
 )
 
 func (d *reader) ReadMap(reader Code, mapReader func(reader, key Code, def *Group)) Code {
@@ -38,7 +38,7 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 	case t.Primitive != nil:
 		return List(targetAccessor, Err()).Op("=").Add(reader).Dot(t.Primitive.ReaderName()).Call()
 	case t.Reference != nil:
-		return Err().Op("=").Add(targetAccessor).Dot(UnmarshalRestLi).Call(reader)
+		return Err().Op("=").Add(targetAccessor).Dot(utils.UnmarshalRestLi).Call(reader)
 	case t.Array != nil:
 		return Err().Op("=").Add(d.ReadArray(reader, func(reader Code, def *Group) {
 			_, item := tempIteratorVariableNames(t)

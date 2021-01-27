@@ -6,7 +6,7 @@ import (
 )
 
 func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	utils.AddFuncOnReceiver(def, receiver, typeName, UnmarshalRestLi).
+	utils.AddFuncOnReceiver(def, receiver, typeName, utils.UnmarshalRestLi).
 		Params(Add(Reader).Add(ReaderQual)).
 		Params(Err().Error()).
 		BlockFunc(f).
@@ -17,8 +17,8 @@ func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *G
 		Params(Add(data).Index().Byte()).
 		Params(Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Reader).Op(":=").Add(NewJsonReader).Call(data)
-			def.Return(Id(receiver).Dot(UnmarshalRestLi).Call(Reader))
+			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(data)
+			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
 		}).Line().Line()
 
 	return def
@@ -81,7 +81,7 @@ func (r *Record) generateUnmarshaler(def *Group) {
 	def.Add(Reader).Dot("RecordMissingRequiredFields").Call(requiredFieldsRemaining).Line()
 
 	if r.hasDefaultValue() {
-		def.Id(r.Receiver()).Dot(PopulateLocalDefaultValues).Call()
+		def.Id(r.Receiver()).Dot(utils.PopulateLocalDefaultValues).Call()
 	}
 
 	def.If(atInputStart).Block(

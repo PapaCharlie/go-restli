@@ -9,15 +9,15 @@ func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def
 	other := Id("other")
 	otherInterface := Id("otherInterface")
 	rightHandType := Op("*").Id(typeName)
-	utils.AddFuncOnReceiver(def, receiver, typeName, EqualsInterface).
+	utils.AddFuncOnReceiver(def, receiver, typeName, utils.EqualsInterface).
 		Params(Add(otherInterface).Interface()).Bool().
 		BlockFunc(func(def *Group) {
 			ok := Id("ok")
 			def.List(other, ok).Op(":=").Add(otherInterface).Assert(rightHandType)
 			def.If(Op("!").Add(ok)).Block(Return(False())).Line()
-			def.Return(Id(receiver).Dot(Equals).Call(other))
+			def.Return(Id(receiver).Dot(utils.Equals).Call(other))
 		}).Line().Line()
-	return utils.AddFuncOnReceiver(def, receiver, typeName, Equals).
+	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals).
 		Params(Add(other).Add(rightHandType)).Bool().
 		BlockFunc(func(def *Group) {
 			def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
@@ -58,7 +58,7 @@ func equals(t RestliType, isPointer bool, left, right Code) Code {
 			if !isPointer {
 				right = Op("&").Add(right)
 			}
-			def.If(Op("!").Add(left).Dot(Equals).Call(right)).Block(Return(False()))
+			def.If(Op("!").Add(left).Dot(utils.Equals).Call(right)).Block(Return(False()))
 		case t.Array != nil:
 			def.If(Len(left).Op("!=").Len(right)).Block(Return(False())).Line()
 			index, item := tempIteratorVariableNames(t)

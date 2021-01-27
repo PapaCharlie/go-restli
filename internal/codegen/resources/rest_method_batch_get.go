@@ -29,10 +29,10 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 
 	originalKeys := Id("originalKeys")
 	if isComplexKey {
-		def.Add(originalKeys).Op(":=").Make(Map(types.Hash).Index().Add(r.EntityPathKey.Type.ReferencedType()))
+		def.Add(originalKeys).Op(":=").Make(Map(utils.Hash).Index().Add(r.EntityPathKey.Type.ReferencedType()))
 		def.For().List(Id("_"), key).Op(":=").Range().Add(Keys).BlockFunc(func(def *Group) {
 			keyHash := Id("keyHash")
-			def.Add(keyHash).Op(":=").Add(keyAccessor(key)).Dot(types.ComputeHash).Call()
+			def.Add(keyHash).Op(":=").Add(keyAccessor(key)).Dot(utils.ComputeHash).Call()
 			index := Add(originalKeys).Index(keyHash)
 			def.Add(index).Op("=").Append(index, key)
 		}).Line()
@@ -48,7 +48,7 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 			def.Var().Add(v).Add(r.EntityPathKey.Type.GoType())
 		}
 		keyReader := Id("keyReader")
-		def.List(keyReader, Err()).Op(":=").Add(types.NewRor2Reader).Call(rawKey)
+		def.List(keyReader, Err()).Op(":=").Add(utils.NewRor2Reader).Call(rawKey)
 		def.Add(utils.IfErrReturn(Err()))
 		def.Add(types.Reader.Read(r.EntityPathKey.Type, keyReader, v))
 		def.Add(utils.IfErrReturn(Err())).Line()
@@ -56,13 +56,13 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 		if isComplexKey {
 			originalKey := Code(Id("originalKey"))
 			def.Var().Add(originalKey).Add(r.EntityPathKey.Type.ReferencedType())
-			def.For().List(Id("_"), key).Op(":=").Range().Add(originalKeys).Index(keyAccessor(v).Dot(types.ComputeHash).Call()).BlockFunc(func(def *Group) {
+			def.For().List(Id("_"), key).Op(":=").Range().Add(originalKeys).Index(keyAccessor(v).Dot(utils.ComputeHash).Call()).BlockFunc(func(def *Group) {
 				right := keyAccessor(key)
 				if ck != nil {
 					right = Op("&").Add(right)
 				}
 
-				def.If(keyAccessor(v).Dot(types.Equals).Call(right)).Block(
+				def.If(keyAccessor(v).Dot(utils.Equals).Call(right)).Block(
 					Add(originalKey).Op("=").Add(key),
 					Break(),
 				)

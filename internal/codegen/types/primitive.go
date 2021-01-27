@@ -123,5 +123,5 @@ func (p *PrimitiveType) HasherName() string {
 }
 
 func (p *PrimitiveType) NewPrimitiveUnmarshaler(accessor Code) Code {
-	return Qual(RestLiCodecPackage, "New"+p.exportedName()+"PrimitiveUnmarshaler").Call(Op("&").Add(accessor))
+	return Qual(utils.RestLiCodecPackage, "New"+p.exportedName()+"PrimitiveUnmarshaler").Call(Op("&").Add(accessor))
 }

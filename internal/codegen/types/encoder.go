@@ -15,7 +15,7 @@ var (
 	KeyWriter       = Code(Id("keyWriter"))
 	ItemWriter      = Code(Id("itemWriter"))
 	Writer          = &writer{Id("writer")}
-	WriterQual Code = Qual(RestLiCodecPackage, "Writer")
+	WriterQual Code = Qual(utils.RestLiCodecPackage, "Writer")
 )
 
 func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
@@ -37,7 +37,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 	case t.Primitive != nil:
 		return Add(writerAccessor).Dot(t.Primitive.WriterName()).Call(sourceAccessor)
 	case t.Reference != nil:
-		def := Err().Op("=").Add(sourceAccessor).Dot(MarshalRestLi).Call(writerAccessor).Line()
+		def := Err().Op("=").Add(sourceAccessor).Dot(utils.MarshalRestLi).Call(writerAccessor).Line()
 		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
 	case t.Array != nil:

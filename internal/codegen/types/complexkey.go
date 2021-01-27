@@ -20,7 +20,7 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		NamedType: ck.NamedType,
 		Fields: []Field{
 			{
-				Name:               ComplexKeyParams,
+				Name:               utils.ComplexKeyParams,
 				IsOptional:         true,
 				Type:               RestliType{Reference: &ck.Params},
 				isComplexKeyParams: true,
