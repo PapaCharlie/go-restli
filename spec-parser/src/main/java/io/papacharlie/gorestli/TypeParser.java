@@ -44,10 +44,12 @@ import static io.papacharlie.gorestli.json.RestliType.*;
 
 public class TypeParser {
   private final DataSchemaParser _parser;
+  private final Set<String> _rawRecords;
   private final Map<Identifier, DataType> _dataTypes = new HashMap<>();
 
-  public TypeParser(DataSchemaParser parser) {
+  public TypeParser(DataSchemaParser parser, Set<String> rawRecords) {
     _parser = parser;
+    _rawRecords = rawRecords;
   }
 
   public void extractDataTypes(ResourceSchema resourceSchema) {
@@ -106,6 +108,10 @@ public class TypeParser {
   }
 
   private void parseDataType(RecordDataSchema schema, File sourceFile) {
+    if (_rawRecords.contains(schema.getFullName())) {
+      return;
+    }
+
     List<Field> fields = new ArrayList<>();
     for (RecordDataSchema.Field field : schema.getFields()) {
       RestliType fieldRestliType = fromDataSchema(
@@ -143,6 +149,10 @@ public class TypeParser {
       @Nullable List<String> hierarchy) {
     if (schema.isPrimitive()) {
       return new RestliType(primitiveType(schema));
+    }
+
+    if (schema instanceof NamedDataSchema && _rawRecords.contains(((NamedDataSchema) schema).getFullName())) {
+      return RAW_RECORD;
     }
 
     switch (schema.getType()) {

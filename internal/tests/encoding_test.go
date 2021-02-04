@@ -256,6 +256,113 @@ func TestUnknownFieldReads(t *testing.T) {
 	}
 }
 
+func TestRawRecord(t *testing.T) {
+	expected := &protocol.RawRecord{
+		"arrayOfInts": []int{1, 2, 3},
+		"arrayOfMaps": []map[string]int{
+			{"foo": 1},
+			{"bar": 2},
+		},
+		"mapOfInts": map[string]int{"foo": 1, "bar": 2},
+		"mapOfArrays": map[string][]string{
+			"one": {"a"},
+			"two": {"b", "c"},
+		},
+		"record":    &extras.SinglePrimitiveField{Integer: 1},
+		"int":       42,
+		"fixed":     [5]byte{'a', 'b', 'c', 'd', 'e'},
+		"realFixed": [5]byte{'f', 'g', 'h', 'i', 'j'},
+		"bytes":     []byte{'a', 'b'},
+	}
+
+	t.Run("json", func(t *testing.T) {
+		expectedJson := `{
+  "arrayOfInts": [
+    1,
+    2,
+    3
+  ],
+  "arrayOfMaps": [
+    {
+      "foo": 1
+    },
+    {
+      "bar": 2
+    }
+  ],
+  "bytes": "ab",
+  "fixed": "abcde",
+  "int": 42,
+  "mapOfArrays": {
+    "one": [
+      "a"
+    ],
+    "two": [
+      "b",
+      "c"
+    ]
+  },
+  "mapOfInts": {
+    "bar": 2,
+    "foo": 1
+  },
+  "realFixed": "fghij",
+  "record": {
+    "integer": 1
+  }
+}`
+		w := restlicodec.NewPrettyJsonWriter()
+		require.NoError(t, expected.MarshalRestLi(w))
+		require.Equal(t, expectedJson, w.Finalize())
+
+		raw := new(protocol.RawRecord)
+		require.NoError(t, raw.UnmarshalRestLi(restlicodec.NewJsonReader([]byte(expectedJson))))
+
+		w = restlicodec.NewPrettyJsonWriter()
+		require.NoError(t, raw.MarshalRestLi(w))
+		require.Equal(t, expectedJson, w.Finalize())
+	})
+
+	t.Run("ror2", func(t *testing.T) {
+		expectedRor2 := `(` +
+			`arrayOfInts:List(1,2,3),` +
+			`arrayOfMaps:List((foo:1),(bar:2)),` +
+			`bytes:ab,` +
+			`fixed:abcde,` +
+			`int:42,` +
+			`mapOfArrays:(one:List(a),two:List(b,c)),` +
+			`mapOfInts:(bar:2,foo:1),` +
+			`realFixed:fghij,` +
+			`record:(integer:1)` +
+			`)`
+
+		w := restlicodec.NewRor2HeaderWriter()
+		require.NoError(t, expected.MarshalRestLi(w))
+		require.Equal(t, expectedRor2, w.Finalize())
+
+		raw := new(protocol.RawRecord)
+		r, err := restlicodec.NewRor2Reader(expectedRor2)
+		require.NoError(t, err)
+		require.NoError(t, raw.UnmarshalRestLi(r))
+
+		w = restlicodec.NewRor2HeaderWriter()
+		require.NoError(t, raw.MarshalRestLi(w))
+		require.Equal(t, expectedRor2, w.Finalize())
+	})
+
+}
+
+func TestRawRecordUnmarshalTo(t *testing.T) {
+	raw := &protocol.RawRecord{
+		"integer": 1,
+	}
+	expected := &extras.SinglePrimitiveField{Integer: 1}
+	actual := new(extras.SinglePrimitiveField)
+	require.NoError(t, raw.UnmarshalTo(actual))
+	require.Equal(t, expected, actual)
+	require.True(t, expected.Equals(actual))
+}
+
 func TestDeserializationErrorHandling(t *testing.T) {
 	checkDeserializationError := func(t *testing.T, err error, scope string) {
 		require.Error(t, err)

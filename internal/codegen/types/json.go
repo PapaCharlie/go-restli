@@ -18,6 +18,7 @@ type RestliType struct {
 	Reference *utils.Identifier `json:"reference"`
 	Array     *RestliType       `json:"array"`
 	Map       *RestliType       `json:"map"`
+	RawRecord bool              `json:"rawRecord"`
 }
 
 func (t *RestliType) UnmarshalJSON(data []byte) error {
@@ -35,6 +36,9 @@ func (t *RestliType) UnmarshalJSON(data []byte) error {
 	case t.Array != nil:
 		return nil
 	case t.Map != nil:
+		return nil
+	case t.RawRecord:
+		t.Reference = &utils.RawRecordContextIdentifier
 		return nil
 	default:
 		return errors.Errorf("go-restli: RestliType declares no underlying type! (%s)", string(data))

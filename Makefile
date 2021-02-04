@@ -53,6 +53,8 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate extras.DefaultTyperef \
 		--named-schemas-to-generate extras.IPAddress \
 		--named-schemas-to-generate extras.RecordArray \
+		--named-schemas-to-generate extras.RecordWithAny \
+		--raw-records extras.Any \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated \

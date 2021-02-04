@@ -1,0 +1,5 @@
+namespace extras
+
+record RecordWithAny {
+  any: Any
+}

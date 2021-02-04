@@ -24,6 +24,7 @@ type JarStdinParameters struct {
 	ResolverPath               string   `json:"resolverPath"`
 	RestSpecPaths              []string `json:"restSpecPaths"`
 	NamedDataSchemasToGenerate []string `json:"namedDataSchemasToGenerate"`
+	RawRecords                 []string `json:"rawRecords"`
 }
 
 func CodeGenerator() *cobra.Command {
@@ -55,6 +56,8 @@ specs.`)
 			"The directory that contains all the .pdsc/.pdl files that may be needed")
 		cmd.Flags().StringArrayVarP(&params.NamedDataSchemasToGenerate, "named-schemas-to-generate", "n", nil,
 			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
+		cmd.Flags().StringArrayVar(&params.RawRecords, "raw-records", nil,
+			"These records will be interpreted as `protocol.RawRecord`s instead of their actual underlying type.")
 
 		cmd.Args = func(_ *cobra.Command, args []string) error {
 			params.RestSpecPaths = args

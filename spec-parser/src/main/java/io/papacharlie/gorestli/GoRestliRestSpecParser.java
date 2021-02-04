@@ -30,9 +30,11 @@ public class GoRestliRestSpecParser {
    * @param restSpecPaths The set of rest specs to generate bindings for. Cannot be empty unless
    *                      {@code namedDataSchemasToGenerate} is not empty.
    * @param namedDataSchemasToGenerate A set of named types to generate bindings for.
+   * @param rawRecords Types that appear in this set will be treated as raw record types and be presented as a
+   *                   {@code map[string]interface{}}
    */
   public static GoRestliSpec parse(String resolverPath, Set<String> restSpecPaths,
-      Set<String> namedDataSchemasToGenerate) {
+      Set<String> namedDataSchemasToGenerate, Set<String> rawRecords) {
     if (restSpecPaths.isEmpty() && namedDataSchemasToGenerate.isEmpty()) {
       throw new IllegalArgumentException("Must specify at least one rest spec or a named data schema to generate!");
     }
@@ -40,7 +42,7 @@ public class GoRestliRestSpecParser {
     GoRestliSpec parsedSpec = new GoRestliSpec();
     DataSchemaParser dataSchemaParser = new DataSchemaParser(resolverPath);
     Map<String, NamedDataSchema> schemas = loadAllSchemas(dataSchemaParser);
-    TypeParser typeParser = new TypeParser(dataSchemaParser);
+    TypeParser typeParser = new TypeParser(dataSchemaParser, rawRecords);
 
     RestSpecParser.ParseResult restSpecParseResult =
         new RestSpecParser().parseSources(restSpecPaths.toArray(new String[0]));
@@ -98,6 +100,7 @@ public class GoRestliRestSpecParser {
     String _resolverPath;
     Set<String> _restSpecPaths;
     Set<String> _namedDataSchemasToGenerate;
+    Set<String> _rawRecords;
   }
 
   public static void main(String[] args) throws IOException {
@@ -115,11 +118,15 @@ public class GoRestliRestSpecParser {
     parameters._namedDataSchemasToGenerate = (parameters._namedDataSchemasToGenerate == null)
         ? Collections.emptySet()
         : parameters._namedDataSchemasToGenerate;
+    parameters._rawRecords = (parameters._rawRecords == null)
+        ? Collections.emptySet()
+        : parameters._rawRecords;
 
     GoRestliSpec spec = parse(
         parameters._resolverPath,
         parameters._restSpecPaths,
-        parameters._namedDataSchemasToGenerate);
+        parameters._namedDataSchemasToGenerate,
+        parameters._rawRecords);
     System.out.println(Utils.toJson(spec));
   }
 }
