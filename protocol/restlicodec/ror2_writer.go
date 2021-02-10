@@ -82,6 +82,8 @@ func (u *ror2Writer) WriteFloat64(v float64) {
 		u.Writer.RawString("Infinity")
 	case math.IsInf(v, -1):
 		u.Writer.RawString("-Infinity")
+	case math.IsNaN(v):
+		u.Writer.RawString("NaN")
 	default:
 		u.Writer.Float64(v)
 	}

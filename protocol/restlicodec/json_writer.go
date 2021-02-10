@@ -74,6 +74,8 @@ func (c *compactJsonWriter) WriteFloat64(v float64) {
 		c.Writer.String("Infinity")
 	case math.IsInf(v, -1):
 		c.Writer.String("-Infinity")
+	case math.IsNaN(v):
+		c.Writer.String("NaN")
 	default:
 		c.Writer.Float64(v)
 	}
