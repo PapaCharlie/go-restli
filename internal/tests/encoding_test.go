@@ -696,3 +696,5 @@ func newRor2Reader(t *testing.T, data string) restlicodec.Reader {
 	require.NoError(t, err)
 	return reader
 }
+
+// TODO add some protobuf tests - testProtobufEncoding, testProtobufEquality, etc
