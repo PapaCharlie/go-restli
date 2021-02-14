@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// Unmarshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
+// Marshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
 type Marshaler interface {
 	MarshalRestLi(Writer) error
 }
