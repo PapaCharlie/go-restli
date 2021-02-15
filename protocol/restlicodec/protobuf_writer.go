@@ -3,6 +3,7 @@ package restlicodec
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -11,33 +12,61 @@ import (
 type protobufWriter struct {
 	excludedFields PathSpec
 	scope          []string
-	options        protobufWriterOptions
+	options        ProtobufOptions
 	buf            *bytes.Buffer
 }
-type protobufWriterOptions struct {
+
+// options for protobufWriter and protobufReader
+type ProtobufOptions struct {
 	symbolTable       SymbolTable
 	fixedWidthFloat32 bool
 	fixedWidthFloat64 bool
+	expVarintImpl     bool
 }
 
 type pbOrdinal byte
 
+func (o pbOrdinal) String() string {
+	omap := map[pbOrdinal]string{
+		pbMapOrdinal:                "Map",
+		pbListOrdinal:               "List",
+		pbStringLiteralOrdinal:      "StringLiteral",
+		pbStringReferenceOrdinal:    "StringReference",
+		pbIntegerOrdinal:            "Integer",
+		pbLongOrdinal:               "Long",
+		pbFloatOrdinal:              "Float",
+		pbDoubleOrdinal:             "Double",
+		pbBooleanTrueOrdinal:        "BooleanTrue",
+		pbBooleanFalseOrdinal:       "BooleanFalse",
+		pbRawBytesOrdinal:           "RawBytes",
+		pbNullOrdinal:               "Null",
+		pbASCIIStringLiteralOrdinal: "ASCIIStringLiteral",
+		pbFixedFloatOrdinal:         "FixedFloat",
+		pbFixedDoubleOrdinal:        "FixedDouble",
+	}
+	n, f := omap[o]
+	if !f {
+		n = "Unknown"
+	}
+	return fmt.Sprintf("%x [%v]", byte(o), n)
+}
+
 const (
-	pbMapOrdinal                pbOrdinal = '\x00'
-	pbListOrdinal               pbOrdinal = '\x01'
-	pbStringLiteralOrdinal      pbOrdinal = '\x02'
-	pbStringReferenceOrdinal    pbOrdinal = '\x03'
-	pbIntegerOrdinal            pbOrdinal = '\x04'
-	pbLongOrdinal               pbOrdinal = '\x05'
-	pbFloatOrdinal              pbOrdinal = '\x06'
-	pbDoubleOrdinal             pbOrdinal = '\x07'
-	pbBooleanTrueOrdinal        pbOrdinal = '\x08'
-	pbBooleanFalseOrdinal       pbOrdinal = '\x09'
-	pbRawBytesOrdinal           pbOrdinal = '\x0A'
-	pbNullOrdinal               pbOrdinal = '\x0B'
-	pbASCIIStringLiteralOrdinal pbOrdinal = '\x14'
-	pbFixedFloatOrdinal         pbOrdinal = '\x15'
-	pbFixedDoubleOrdinal        pbOrdinal = '\x16'
+	pbMapOrdinal                pbOrdinal = 0x00
+	pbListOrdinal               pbOrdinal = 0x01
+	pbStringLiteralOrdinal      pbOrdinal = 0x02
+	pbStringReferenceOrdinal    pbOrdinal = 0x03
+	pbIntegerOrdinal            pbOrdinal = 0x04
+	pbLongOrdinal               pbOrdinal = 0x05
+	pbFloatOrdinal              pbOrdinal = 0x06
+	pbDoubleOrdinal             pbOrdinal = 0x07
+	pbBooleanTrueOrdinal        pbOrdinal = 0x08
+	pbBooleanFalseOrdinal       pbOrdinal = 0x09
+	pbRawBytesOrdinal           pbOrdinal = 0x0A
+	pbNullOrdinal               pbOrdinal = 0x0B
+	pbASCIIStringLiteralOrdinal pbOrdinal = 0x14
+	pbFixedFloatOrdinal         pbOrdinal = 0x15
+	pbFixedDoubleOrdinal        pbOrdinal = 0x16
 )
 
 // TODO remove these type assertions
@@ -80,7 +109,6 @@ func (p *protobufWriter) swapBuffer(next *bytes.Buffer) *bytes.Buffer {
 
 func (p *protobufWriter) WriteMap(mapWriter MapWriter) (err error) {
 	tmpBuffer := p.pushBuffer()
-
 	var count int64
 	sub := p.subWriter("")
 
@@ -245,14 +273,26 @@ func (p *protobufWriter) Finalize() string {
 
 //  https://developers.google.com/protocol-buffers/docs/encoding#varints
 func (p *protobufWriter) WriteVarint(v int64) {
-	var buf []byte = make([]byte, 4)
-	s := binary.PutVarint(buf, 4)
-	p.WriteRawBytes(buf[:s])
+	if p.options.expVarintImpl {
+		// use the embedded varint implementation
+		p.writeVarintImpl(uint64(v))
+	} else {
+		// use the Go built-in varint implementation
+		var buf []byte = make([]byte, 4)
+		s := binary.PutVarint(buf, 4)
+		p.WriteRawBytes(buf[:s])
+	}
 }
 func (p *protobufWriter) WriteUvarint(v uint64) {
-	var buf []byte = make([]byte, 4)
-	s := binary.PutUvarint(buf, 4)
-	p.WriteRawBytes(buf[:s])
+	if p.options.expVarintImpl {
+		// use the embedded varint implementation
+		p.writeVarintImpl(v)
+	} else {
+		// use the Go built-in varint implementation
+		var buf []byte = make([]byte, 16)
+		s := binary.PutUvarint(buf, 16)
+		p.WriteRawBytes(buf[:s])
+	}
 }
 func (p *protobufWriter) WriteVarDouble(v float64) {
 	uintBits := math.Float64bits(v)
@@ -273,4 +313,7 @@ func (p *protobufWriter) writeFixed64(value uint64) {
 	p.buf.WriteByte(byte((value >> 40) & 0xFF))
 	p.buf.WriteByte(byte((value >> 48) & 0xFF))
 	p.buf.WriteByte(byte((value >> 56) & 0xFF))
+}
+func (p *protobufWriter) writeVarintImpl(value uint64) {
+
 }
