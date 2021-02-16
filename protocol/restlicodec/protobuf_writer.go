@@ -71,21 +71,27 @@ const (
 // TODO remove these type assertions
 var _ PrimitiveWriter = new(protobufWriter) // assert PrimitiveWriter
 var _ Writer = new(protobufWriter)          // assert Writer
+var _ Closer = new(protobufWriter)          // assert Closer
 var _ WriteCloser = new(protobufWriter)     // assert WriteCloser
 
 // NewProtobufWriter returns a WriteCloser that serializes objects using a Protocol buffer encoder modeled after this codec:
 // https://github.com/linkedin/rest.li/blob/master/data/src/main/java/com/linkedin/data/codec/ProtobufDataCodec.java
 func NewProtobufWriter() WriteCloser {
-	out := new(protobufWriter)
-	out.buf = new(bytes.Buffer)
+	out := makeProtobufWriter()
 	return out
 }
 
 // NewProtobufWriterWithExcludedFields returns a WriteCloser as from NewProtobufWriter(), excluding any fields matched by the given PathSpec.
 func NewProtobufWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+	out := makeProtobufWriter()
+	out.excludedFields = excludedFields
+	return out
+}
+func makeProtobufWriter() *protobufWriter {
 	out := new(protobufWriter)
 	out.buf = new(bytes.Buffer)
-	out.excludedFields = excludedFields
+	out.options.fixedWidthFloat32 = false
+	out.options.fixedWidthFloat64 = false
 	return out
 }
 
@@ -110,7 +116,6 @@ func (p *protobufWriter) WriteMap(mapWriter MapWriter) (err error) {
 	tmpBuffer := p.pushBuffer()
 	var count int64
 	sub := p.subWriter("")
-
 	defer func() {
 		tmpBuffer = p.swapBuffer(tmpBuffer)
 		p.WriteOrdinal(pbMapOrdinal)
@@ -199,7 +204,7 @@ func (p *protobufWriter) WriteInt64(v int64) {
 func (p *protobufWriter) WriteFloat32(v float32) {
 	if p.options.fixedWidthFloat32 {
 		p.WriteOrdinal(pbFixedFloatOrdinal)
-		p.writeFixed32(uint32(math.Float64bits(float64(v))))
+		p.writeFixed32(math.Float32bits(v))
 	} else {
 		p.WriteOrdinal(pbFloatOrdinal)
 		p.WriteVarDouble(float64(v))
@@ -208,7 +213,7 @@ func (p *protobufWriter) WriteFloat32(v float32) {
 
 // WriteFloat64 implements PrimitiveWriter
 func (p *protobufWriter) WriteFloat64(v float64) {
-	if p.options.fixedWidthFloat32 {
+	if p.options.fixedWidthFloat64 {
 		p.WriteOrdinal(pbFixedDoubleOrdinal)
 		p.writeFixed64(math.Float64bits(float64(v)))
 	} else {

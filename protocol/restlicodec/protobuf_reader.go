@@ -293,6 +293,34 @@ func (p *protobufReader) readFixed64() (uint64, error) {
 	return value, nil
 }
 
+// ReadBytes implements PrimitiveReader
+func (p *protobufReader) ReadBytes() ([]byte, error) {
+	ord, err := p.ReadOrdinal()
+	if err != nil {
+		return []byte{}, err
+	}
+	if pbRawBytesOrdinal != ord {
+		return []byte{}, &DeserializationError{
+			Err: fmt.Errorf("unexpected token in protobuf stream %v - expected %v", ord, pbRawBytesOrdinal),
+		}
+	}
+	size, err := p.readVarint()
+	if err != nil {
+		return []byte{}, err
+	}
+	b := make([]byte, size)
+	bytesRead, err := p.buf.Read(b)
+	if err != nil {
+		return b, err
+	}
+	if size > int64(bytesRead) {
+		return b, &DeserializationError{
+			Err: fmt.Errorf("buffer read yielded less bytes than expected: %d < %d", bytesRead, size),
+		}
+	}
+	return b, nil
+}
+
 func (p *protobufReader) ReadString() (string, error) {
 	ord, err := p.ReadOrdinal()
 	if err != nil {
@@ -370,9 +398,4 @@ func (p *protobufReader) PeakByte() (byte, error) {
 		p.buf.UnreadByte()
 	}
 	return b, err
-}
-
-func (p *protobufReader) ReadBytes() ([]byte, error) {
-	b := p.buf.Bytes()
-	return b, nil
 }
