@@ -698,3 +698,34 @@ func newRor2Reader(t *testing.T, data string) restlicodec.Reader {
 }
 
 // TODO add some protobuf tests - testProtobufEncoding, testProtobufEquality, etc
+
+func TestProtobufEncoding(t *testing.T) {
+	example := &Primitives{
+		PrimitiveInteger: 1,
+		PrimitiveLong:    23,
+		PrimitiveFloat:   52.5,
+		PrimitiveDouble:  66.5,
+		PrimitiveBytes:   []byte("@ABC🕴" + string([]byte{1})),
+		PrimitiveString:  `a string,()'`,
+	}
+	// encode an "example" object into protobuf
+	writer := restlicodec.NewProtobufWriter()
+	require.NoError(t, example.MarshalRestLi(writer))
+	exampleProto := []byte(writer.Finalize())
+
+	// read object data from protobuf into new "clone" object
+	clone := &Primitives{}
+	reader := restlicodec.NewProtobufReader([]byte(writer.Finalize()))
+	require.NoError(t, clone.UnmarshalRestLi(reader))
+
+	// original "example" object should be equal to "clone"
+	require.Equal(t, example, clone)
+
+	// encode an "clone" object into protobuf
+	writer = restlicodec.NewProtobufWriter()
+	require.NoError(t, clone.MarshalRestLi(writer))
+	cloneProto := []byte(writer.Finalize())
+
+	// "example" object protobuf should be equal to "clone" object protobuf
+	require.Equal(t, exampleProto, cloneProto)
+}
