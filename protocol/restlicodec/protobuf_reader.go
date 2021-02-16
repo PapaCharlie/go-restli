@@ -226,22 +226,22 @@ func (p *protobufReader) readFixed32() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
-	value = value & uint32(b)
+	value = value | uint32(b)
 	b, err = p.buf.ReadByte()
 	if err != nil {
 		return 0, err
 	}
-	value = value & (uint32(b) << 8)
+	value = value | (uint32(b) << 8)
 	b, err = p.buf.ReadByte()
 	if err != nil {
 		return 0, err
 	}
-	value = value & (uint32(b) << 16)
+	value = value | (uint32(b) << 16)
 	b, err = p.buf.ReadByte()
 	if err != nil {
 		return 0, err
 	}
-	value = value & (uint32(b) << 24)
+	value = value | (uint32(b) << 24)
 	return value, nil
 }
 func (p *protobufReader) readFixed64() (uint64, error) {
