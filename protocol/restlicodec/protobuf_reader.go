@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 )
 
@@ -153,16 +152,14 @@ func (p *protobufReader) ReadInt64() (int64, error) {
 }
 
 func (p *protobufReader) readVarint() (int64, error) {
-	var br io.ByteReader = p.buf
-	val, err := binary.ReadVarint(br)
+	val, err := binary.ReadVarint(p.buf)
 	if err != nil {
 		return 0, err
 	}
 	return val, nil
 }
 func (p *protobufReader) readUvarint() (uint64, error) {
-	var br io.ByteReader = p.buf
-	val, err := binary.ReadUvarint(br)
+	val, err := binary.ReadUvarint(p.buf)
 	if err != nil {
 		return 0, err
 	}

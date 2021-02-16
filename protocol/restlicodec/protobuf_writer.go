@@ -21,7 +21,6 @@ type ProtobufOptions struct {
 	symbolTable       SymbolTable
 	fixedWidthFloat32 bool
 	fixedWidthFloat64 bool
-	expVarintImpl     bool
 }
 
 type pbOrdinal byte
@@ -273,26 +272,15 @@ func (p *protobufWriter) Finalize() string {
 
 //  https://developers.google.com/protocol-buffers/docs/encoding#varints
 func (p *protobufWriter) WriteVarint(v int64) {
-	if p.options.expVarintImpl {
-		// use the embedded varint implementation
-		p.writeVarintImpl(uint64(v))
-	} else {
-		// use the Go built-in varint implementation
-		var buf []byte = make([]byte, 4)
-		s := binary.PutVarint(buf, 4)
-		p.WriteRawBytes(buf[:s])
-	}
+	const bufSize = binary.MaxVarintLen64
+	var buf []byte = make([]byte, bufSize)
+	s := binary.PutVarint(buf, v)
+	p.WriteRawBytes(buf[:s])
 }
 func (p *protobufWriter) WriteUvarint(v uint64) {
-	if p.options.expVarintImpl {
-		// use the embedded varint implementation
-		p.writeVarintImpl(v)
-	} else {
-		// use the Go built-in varint implementation
-		var buf []byte = make([]byte, 16)
-		s := binary.PutUvarint(buf, 16)
-		p.WriteRawBytes(buf[:s])
-	}
+	var buf []byte = make([]byte, binary.MaxVarintLen64)
+	s := binary.PutUvarint(buf, v)
+	p.WriteRawBytes(buf[:s])
 }
 func (p *protobufWriter) WriteVarDouble(v float64) {
 	uintBits := math.Float64bits(v)
@@ -313,7 +301,4 @@ func (p *protobufWriter) writeFixed64(value uint64) {
 	p.buf.WriteByte(byte((value >> 40) & 0xFF))
 	p.buf.WriteByte(byte((value >> 48) & 0xFF))
 	p.buf.WriteByte(byte((value >> 56) & 0xFF))
-}
-func (p *protobufWriter) writeVarintImpl(value uint64) {
-
 }
