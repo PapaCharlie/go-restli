@@ -172,23 +172,24 @@ func (p *protobufReader) ReadFloat32() (float32, error) {
 	if err != nil {
 		return 0, err
 	}
-	if pbFloatOrdinal != ord {
-		return 0, &DeserializationError{
-			Err: fmt.Errorf("unexpected token in protobuf stream %v - expected %v", ord, pbFloatOrdinal),
+	if pbFloatOrdinal == ord {
+		val, err := p.readUvarint()
+		if err != nil {
+			return 0, err
 		}
+		return math.Float32frombits(uint32(val)), nil
 	}
-	if p.options.fixedWidthFloat32 {
+	if pbFixedFloatOrdinal == ord {
 		val, err := p.readFixed32()
 		if err != nil {
 			return 0, err
 		}
 		return math.Float32frombits(val), nil
 	}
-	val, err := p.readUvarint()
-	if err != nil {
-		return 0, err
+	return 0, &DeserializationError{
+		Err: fmt.Errorf("unexpected token in protobuf stream %v - expected %v", ord, pbFloatOrdinal),
 	}
-	return math.Float32frombits(uint32(val)), nil
+
 }
 
 // ReadFloat64 implements Reader
@@ -197,23 +198,23 @@ func (p *protobufReader) ReadFloat64() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if pbDoubleOrdinal != ord {
-		return 0, &DeserializationError{
-			Err: fmt.Errorf("unexpected token in protobuf stream %v - expected %v", ord, pbDoubleOrdinal),
+	if pbDoubleOrdinal == ord {
+		val, err := p.readUvarint()
+		if err != nil {
+			return 0, err
 		}
+		return math.Float64frombits(uint64(val)), nil
 	}
-	if p.options.fixedWidthFloat64 {
+	if pbFixedDoubleOrdinal == ord {
 		val, err := p.readFixed64()
 		if err != nil {
 			return 0, err
 		}
 		return math.Float64frombits(val), nil
 	}
-	val, err := p.readUvarint()
-	if err != nil {
-		return 0, err
+	return 0, &DeserializationError{
+		Err: fmt.Errorf("unexpected token in protobuf stream %v - expected %v or %v", ord, pbDoubleOrdinal, pbFixedDoubleOrdinal),
 	}
-	return math.Float64frombits(uint64(val)), nil
 }
 
 func (p *protobufReader) readFixed32() (uint32, error) {
@@ -254,7 +255,7 @@ func (p *protobufReader) readFixed64() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	value = value & uint64(b)
+	value = value | uint64(b)
 	b, err = p.buf.ReadByte()
 	if err != nil {
 		return 0, err

@@ -90,8 +90,8 @@ func NewProtobufWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
 func makeProtobufWriter() *protobufWriter {
 	out := new(protobufWriter)
 	out.buf = new(bytes.Buffer)
-	out.options.fixedWidthFloat32 = false
-	out.options.fixedWidthFloat64 = false
+	out.options.fixedWidthFloat32 = true
+	out.options.fixedWidthFloat64 = true
 	return out
 }
 
