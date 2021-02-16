@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// Marshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
+// Marshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2 and Protobuf
 type Marshaler interface {
 	MarshalRestLi(Writer) error
 }
