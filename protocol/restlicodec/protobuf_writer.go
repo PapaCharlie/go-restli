@@ -95,6 +95,18 @@ func makeProtobufWriter() *protobufWriter {
 	return out
 }
 
+func (p ProtobufOptions) NewProtobufWriter() WriteCloser {
+	out := makeProtobufWriter()
+	out.options = p
+	return out
+}
+func (p ProtobufOptions) NewProtobufWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+	out := makeProtobufWriter()
+	out.excludedFields = excludedFields
+	out.options = p
+	return out
+}
+
 func (p *protobufWriter) subWriter(key string) *protobufWriter {
 	var out protobufWriter
 	out = *p

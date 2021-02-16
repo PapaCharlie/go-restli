@@ -177,7 +177,7 @@ func (p *protobufReader) ReadFloat32() (float32, error) {
 		if err != nil {
 			return 0, err
 		}
-		return math.Float32frombits(uint32(val)), nil
+		return float32(math.Float64frombits(val)), nil
 	}
 	if pbFixedFloatOrdinal == ord {
 		val, err := p.readFixed32()
@@ -189,7 +189,6 @@ func (p *protobufReader) ReadFloat32() (float32, error) {
 	return 0, &DeserializationError{
 		Err: fmt.Errorf("unexpected token in protobuf stream %v - expected %v", ord, pbFloatOrdinal),
 	}
-
 }
 
 // ReadFloat64 implements Reader
