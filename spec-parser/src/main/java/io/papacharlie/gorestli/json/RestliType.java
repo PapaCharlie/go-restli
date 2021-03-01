@@ -93,6 +93,11 @@ public final class RestliType {
       return _namespace.equals(identifier._namespace)
           && _name.equals(identifier._name);
     }
+
+    @Override
+    public String toString() {
+      return _namespace + "." + _name;
+    }
   }
 
   public static class UnknownTypeException extends RuntimeException {

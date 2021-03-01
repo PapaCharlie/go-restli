@@ -25,6 +25,15 @@ public class Record extends NamedType {
         .collect(Collectors.toList());
   }
 
+  public Field getField(String name) {
+    for (Field field : _fields) {
+      if (field._name.equals(name)) {
+        return field;
+      }
+    }
+    throw new IllegalArgumentException(String.format("No such field %s in %s", name, getIdentifier()));
+  }
+
   public static class Field {
     public final String _name;
     public final String _doc;

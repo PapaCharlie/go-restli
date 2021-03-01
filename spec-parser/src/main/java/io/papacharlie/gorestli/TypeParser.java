@@ -114,16 +114,29 @@ public class TypeParser {
 
     List<Field> fields = new ArrayList<>();
     for (RecordDataSchema.Field field : schema.getFields()) {
-      RestliType fieldRestliType = fromDataSchema(
-          field.getType(),
-          schema.getNamespace(),
-          sourceFile,
-          Arrays.asList(schema.getName(), field.getName()));
-      boolean optional = field.getOptional();
-
       Identifier includedFrom = schema.isFieldFromIncludes(field)
           ? new Identifier(field.getRecord())
           : null;
+
+      RestliType fieldRestliType;
+      if (includedFrom != null) {
+        // Special case for transitive types (such as unions) that don't exist in PDL but do exist as standalone types
+        // in go-restli. Always refer to the included record's type and skip calling fromDataSchema to prevent such
+        // transient types from being generated more than once
+        Record parent = (Record) _dataTypes.get(includedFrom).getNamedType();
+        if (parent == null) {
+          throw new IllegalStateException(includedFrom + " was not yet parsed, "
+              + "SnapshotGenerator.generateModelList iteration order has changed!");
+        }
+        fieldRestliType = parent.getField(field.getName())._type;
+      } else {
+        fieldRestliType = fromDataSchema(
+            field.getType(),
+            schema.getNamespace(),
+            sourceFile,
+            Arrays.asList(schema.getName(), field.getName()));
+      }
+      boolean optional = field.getOptional();
 
       fields.add(new Field(
           field.getName(),
