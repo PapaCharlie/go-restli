@@ -60,6 +60,14 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 		})).Line()
 		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
+	case t.NativeTyperef != nil:
+		return BlockFunc(func(def *Group) {
+			raw := Id("raw")
+			def.Var().Add(raw).Add(t.NativeTyperef.Primitive.GoType())
+			def.List(raw, Err()).Op("=").Add(t.NativeTyperef.Marshaler()).Call(sourceAccessor)
+			def.Add(utils.IfErrReturn(returnOnError...))
+			def.Add(writerAccessor).Dot(t.NativeTyperef.Primitive.WriterName()).Call(raw)
+		})
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil

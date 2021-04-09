@@ -20,6 +20,7 @@ func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def
 	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals).
 		Params(Add(other).Add(rightHandType)).Bool().
 		BlockFunc(func(def *Group) {
+			def.If(Id(receiver).Op("==").Add(other)).Block(Return(True()))
 			def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
 			f(other, def)
 		}).Line().Line()
@@ -73,6 +74,8 @@ func equals(t RestliType, isPointer bool, left, right Code) Code {
 				def.Add(equals(*t.Map, t.Map.ShouldReference(), value,
 					allocateNewRight(def, *t.Map, Parens(right).Index(key))))
 			})
+		case t.NativeTyperef != nil:
+			def.If(Op("!").Add(t.NativeTyperef.Equals()).Call(left, right)).Block(Return(False()))
 		}
 		return def
 	}

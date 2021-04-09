@@ -20,6 +20,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
 	collectiontyperef "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/typerefs/collectionTyperef"
 	collectionwithannotations "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
+	collectionwithnativetyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithNativeTyperefKey"
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	simplecomplexkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	"github.com/PapaCharlie/go-restli/protocol"
@@ -62,6 +63,9 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 		return v
 	case "collectionWithTyperefKey":
 		*v = reflect.ValueOf(collectionwithtyperefkey.NewClient(s.client))
+		return v
+	case "collectionWithNativeTyperefKey":
+		*v = reflect.ValueOf(collectionwithnativetyperefkey.NewClient(s.client))
 		return v
 	case "collectionWithAnnotations":
 		*v = reflect.ValueOf(collectionwithannotations.NewClient(s.client))

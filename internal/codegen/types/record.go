@@ -223,6 +223,12 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 			def.Add(Reader.Read(*t, Reader, Op("*").Add(accessor)))
 			addPanic()
 			return
+		case t.NativeTyperef != nil:
+			val := Id("val")
+			def.List(val, Err()).Op(":=").Add(t.NativeTyperef.Unmarshaler()).Call(t.NativeTyperef.Primitive.getLit(rawJson))
+			addPanic()
+			def.Add(accessor).Op("= &").Id("val")
+			return
 		}
 	})
 }

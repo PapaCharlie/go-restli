@@ -21,6 +21,8 @@ func (t *RestliType) InnerTypes() utils.IdentifierSet {
 		return t.Array.InnerTypes()
 	case t.Map != nil:
 		return t.Map.InnerTypes()
+	case t.NativeTyperef != nil:
+		return utils.IdentifierSet{}
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
@@ -37,6 +39,8 @@ func (t *RestliType) GoType() *Statement {
 		return Index().Add(t.Array.ReferencedType())
 	case t.Map != nil:
 		return Map(String()).Add(t.Map.ReferencedType())
+	case t.NativeTyperef != nil:
+		return t.NativeTyperef.GoType()
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
@@ -55,14 +59,6 @@ func (t *RestliType) UnderlyingPrimitive() *PrimitiveType {
 	return nil
 }
 
-func (t *RestliType) UnderlyingPrimitiveZeroValueLit() *Statement {
-	if t.Primitive != nil {
-		return t.Primitive.zeroValueLit()
-	} else {
-		return Add(t.GoType()).Call(t.UnderlyingPrimitive().zeroValueLit())
-	}
-}
-
 func (t *RestliType) ShouldReference() bool {
 	switch {
 	case t.UnderlyingPrimitive() != nil:
@@ -73,12 +69,11 @@ func (t *RestliType) ShouldReference() bool {
 		return false
 	case t.Enum() != nil:
 		return false
+	case t.NativeTyperef != nil:
+		// For now, it's assumed native typerefs deserialize to types that don't mind being copied
+		return false
 	}
 	return true
-}
-
-func (t *RestliType) IsReferenceEncodable() bool {
-	return t.Reference != nil && !t.ShouldReference()
 }
 
 func (t *RestliType) ReferencedType() Code {
@@ -91,11 +86,13 @@ func (t *RestliType) ReferencedType() Code {
 
 func (t *RestliType) ZeroValueReference() Code {
 	if tr := t.Typeref(); tr != nil {
-		return t.GoType().Call(t.UnderlyingPrimitive().zeroValueLit())
+		return Add(t.GoType()).Call(t.UnderlyingPrimitive().zeroValueLit())
 	} else if p := t.UnderlyingPrimitive(); p != nil {
 		return p.zeroValueLit()
 	} else if e := t.Enum(); e != nil {
 		return e.zeroValueLit()
+	} else if t.NativeTyperef != nil {
+		return t.NativeTyperef.ZeroValue().Call()
 	} else {
 		return Nil()
 	}

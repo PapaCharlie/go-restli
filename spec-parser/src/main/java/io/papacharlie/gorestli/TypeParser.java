@@ -20,9 +20,11 @@ import io.papacharlie.gorestli.json.ComplexKey;
 import io.papacharlie.gorestli.json.Enum;
 import io.papacharlie.gorestli.json.Fixed;
 import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
+import io.papacharlie.gorestli.json.Identifier;
 import io.papacharlie.gorestli.json.Method.PathKey;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
+import io.papacharlie.gorestli.json.RestliNativeTyperef;
 import io.papacharlie.gorestli.json.RestliType;
 import io.papacharlie.gorestli.json.StandaloneUnion;
 import io.papacharlie.gorestli.json.Typeref;
@@ -45,11 +47,13 @@ import static io.papacharlie.gorestli.json.RestliType.*;
 public class TypeParser {
   private final DataSchemaParser _parser;
   private final Set<String> _rawRecords;
+  private final Map<String, NativeTyperef> _nativeTyperefs;
   private final Map<Identifier, DataType> _dataTypes = new HashMap<>();
 
-  public TypeParser(DataSchemaParser parser, Set<String> rawRecords) {
+  public TypeParser(DataSchemaParser parser, Set<String> rawRecords, Map<String, NativeTyperef> nativeTyperefs) {
     _parser = parser;
     _rawRecords = rawRecords;
+    _nativeTyperefs = nativeTyperefs;
   }
 
   public void extractDataTypes(ResourceSchema resourceSchema) {
@@ -174,9 +178,14 @@ public class TypeParser {
 
         DataSchema ref = typerefSchema.getRef();
         if (ref.isPrimitive()) {
-          Typeref typeref = new Typeref(typerefSchema, resolveSourceFile(typerefSchema), primitiveType(ref));
-          registerDataType(new DataType(typeref));
-          return new RestliType(typeref.getIdentifier());
+          NativeTyperef nativeTyperef = _nativeTyperefs.get(typerefSchema.getFullName());
+          if (nativeTyperef != null) {
+            return new RestliType(new RestliNativeTyperef(primitiveType(ref), nativeTyperef));
+          } else {
+            Typeref typeref = new Typeref(typerefSchema, resolveSourceFile(typerefSchema), primitiveType(ref));
+            registerDataType(new DataType(typeref));
+            return new RestliType(typeref.getIdentifier());
+          }
         } else if (typerefSchema.getRef().getType() == TYPEREF) {
           return fromDataSchema(typerefSchema.getRef(), null, null, null);
         } else {

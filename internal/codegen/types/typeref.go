@@ -1,13 +1,16 @@
 package types
 
 import (
+	"encoding/json"
+
 	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
 type Typeref struct {
 	NamedType
-	Type *PrimitiveType `json:"type"`
+	Type       *PrimitiveType             `json:"type"`
+	Properties map[string]json.RawMessage `json:"properties"`
 }
 
 func (r *Typeref) InnerTypes() utils.IdentifierSet {

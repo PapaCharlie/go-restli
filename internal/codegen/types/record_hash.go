@@ -56,6 +56,8 @@ func hash(h Code, t RestliType, isPointer bool, accessor Code) Code {
 				def.Add(hashSum).Op("+=").Add(kvHash)
 			})
 			def.Add(h).Dot("Add").Call(hashSum)
+		case t.NativeTyperef != nil:
+			def.Add(h).Dot("Add").Call(t.NativeTyperef.ComputeHash().Call(accessor))
 		}
 	})
 }

@@ -18,7 +18,8 @@ func (r *RestMethod) generateBatchGet(def *Group) {
 	}, returns...)
 
 	ck := r.EntityPathKey.Type.ComplexKey()
-	isComplexKey := ck != nil || r.EntityPathKey.Type.UnderlyingPrimitive() == nil
+	isComplexKey := ck != nil ||
+		(r.EntityPathKey.Type.UnderlyingPrimitive() == nil && r.EntityPathKey.Type.NativeTyperef == nil)
 	keyAccessor := func(accessor Code) *Statement {
 		if ck != nil {
 			return Add(accessor).Add(ck.KeyAccessor())

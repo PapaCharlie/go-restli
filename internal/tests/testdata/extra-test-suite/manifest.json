@@ -19,6 +19,24 @@
       ]
     },
     {
+      "name": "collectionWithNativeTyperefKey",
+      "restspec": "restspecs/extras.collectionWithNativeTyperefKey.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithNativeTyperefKey-echo"
+        },
+        {
+          "name": "collectionWithNativeTyperefKey-find"
+        },
+        {
+          "name": "collectionWithNativeTyperefKey-batch-get"
+        },
+        {
+          "name": "collectionWithNativeTyperefKey-get"
+        }
+      ]
+    },
+    {
       "name": "simpleComplexKey",
       "restspec": "restspecs/extras.simpleComplexKey.restspec.json",
       "operations": [

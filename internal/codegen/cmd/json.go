@@ -18,12 +18,12 @@ type GoRestliSpec struct {
 		StandaloneUnion *types.StandaloneUnion `json:"standaloneUnion"`
 		Typeref         *types.Typeref         `json:"typeref"`
 	} `json:"dataTypes"`
-	Resources []resources.Resource
+	Resources []resources.Resource `json:"resources"`
 }
 
 func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
-	type t GoRestliSpec
-	err := json.Unmarshal(data, (*t)(s))
+	type _t GoRestliSpec
+	err := json.Unmarshal(data, (*_t)(s))
 	if err != nil {
 		return err
 	}

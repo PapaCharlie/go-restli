@@ -2,9 +2,7 @@ package io.papacharlie.gorestli.json;
 
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.data.schema.DataSchema;
-import com.linkedin.data.schema.NamedDataSchema;
 import java.util.Map;
-import java.util.Objects;
 
 import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.*;
 
@@ -14,7 +12,7 @@ public final class RestliType {
     BOOL, INT32, INT64, FLOAT32, FLOAT64, STRING, BYTES;
   }
 
-  public static final RestliType RAW_RECORD = new RestliType(null, null, null, null, null, true);
+  public static final RestliType RAW_RECORD = new RestliType(null, null, null, null, null, true, null);
 
   public static final Map<DataSchema.Type, GoPrimitive> JAVA_TO_GO_PRIMTIIVE_TYPE =
       ImmutableMap.<DataSchema.Type, GoPrimitive>builder()
@@ -32,28 +30,34 @@ public final class RestliType {
   public final RestliType _array;
   public final RestliType _map;
   public final Typeref _typeref;
-  public final boolean _rawRecord;
+  public final Boolean _rawRecord;
+  public final RestliNativeTyperef _nativeTyperef;
 
   private RestliType(GoPrimitive primitive, Identifier reference, RestliType array, RestliType map, Typeref typeref,
-      boolean rawRecord) {
+      Boolean rawRecord, RestliNativeTyperef nativeTyperef) {
     _primitive = primitive;
     _reference = reference;
     _array = array;
     _map = map;
     _typeref = typeref;
     _rawRecord = rawRecord;
+    _nativeTyperef = nativeTyperef;
   }
 
   public RestliType(GoPrimitive primitive) {
-    this(primitive, null, null, null, null, false);
+    this(primitive, null, null, null, null, null, null);
   }
 
   public RestliType(Identifier reference) {
-    this(null, reference, null, null, null, false);
+    this(null, reference, null, null, null, null, null);
   }
 
   public RestliType(RestliType array, RestliType map) {
-    this(null, null, array, map, null, false);
+    this(null, null, array, map, null, null, null);
+  }
+
+  public RestliType(RestliNativeTyperef nativeTyperef) {
+    this(null, null, null, null, null, null, nativeTyperef);
   }
 
   public static class UnionMember {
@@ -63,46 +67,6 @@ public final class RestliType {
     public UnionMember(RestliType type, String alias) {
       _type = type;
       _alias = alias;
-    }
-  }
-
-  public static class Identifier {
-    public final String _namespace;
-    public final String _name;
-
-    public Identifier(String namespace, String name) {
-      _namespace = namespace;
-      _name = name;
-    }
-
-    public Identifier(NamedDataSchema schema) {
-      this(schema.getNamespace(), schema.getName());
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(_namespace, _name);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (!(obj instanceof Identifier)) {
-        return false;
-      }
-      Identifier identifier = (Identifier) obj;
-      return _namespace.equals(identifier._namespace)
-          && _name.equals(identifier._name);
-    }
-
-    @Override
-    public String toString() {
-      return _namespace + "." + _name;
-    }
-  }
-
-  public static class UnknownTypeException extends RuntimeException {
-    private UnknownTypeException(DataSchema.Type type) {
-      super("Unknown type: " + type);
     }
   }
 }

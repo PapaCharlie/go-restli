@@ -56,6 +56,7 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate extras.RecordWithAny \
 		--named-schemas-to-generate extras.IncludesUnion \
 		--raw-records extras.Any \
+		--native-typerefs $(EXTRA_TEST_SUITE)/native_typerefs.json \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated \

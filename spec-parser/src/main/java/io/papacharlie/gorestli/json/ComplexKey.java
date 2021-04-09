@@ -1,7 +1,6 @@
 package io.papacharlie.gorestli.json;
 
 import io.papacharlie.gorestli.Utils;
-import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
 
 

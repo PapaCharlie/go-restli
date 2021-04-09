@@ -28,6 +28,9 @@ func (p *PagingContext) EqualsInterface(otherInterface interface{}) bool {
 }
 
 func (p *PagingContext) Equals(other *PagingContext) bool {
+	if p == other {
+		return true
+	}
 	if p == nil || other == nil {
 		return false
 	}

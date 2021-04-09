@@ -65,6 +65,14 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 				def.Parens(targetAccessor).Index(key).Op("=").Add(value)
 				def.Return(Nil())
 			}))
+	case t.NativeTyperef != nil:
+		return BlockFunc(func(def *Group) {
+			raw := Id("raw")
+			def.Var().Add(raw).Add(t.NativeTyperef.Primitive.GoType())
+			def.List(raw, Err()).Op("=").Add(reader).Dot(t.NativeTyperef.Primitive.ReaderName()).Call()
+			def.Add(utils.IfErrReturn(Err()))
+			def.List(targetAccessor, Err()).Op("=").Add(t.NativeTyperef.Unmarshaler()).Call(raw)
+		})
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil

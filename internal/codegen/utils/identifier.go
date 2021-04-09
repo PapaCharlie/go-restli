@@ -12,8 +12,9 @@ import (
 var namespaceEscape = regexp.MustCompile("([/.])_?internal([/.]?)")
 
 type Identifier struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	IsNativeIdentifier bool   `json:"isNativeIdentifier"`
+	Name               string `json:"name"`
+	Namespace          string `json:"namespace"`
 }
 
 func (i Identifier) String() string {
@@ -31,7 +32,7 @@ func (i Identifier) PackagePath() string {
 	if i.Name == "" {
 		Logger.Panicf("%+v has no name!", i)
 	}
-	if strings.HasPrefix(i.Namespace, ProtocolPackage) {
+	if i.IsNativeIdentifier {
 		return i.Namespace
 	}
 	var p string

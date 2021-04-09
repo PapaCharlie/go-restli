@@ -1,0 +1,9 @@
+POST /collectionWithNativeTyperefKey?action=echo HTTP/1.1
+Accept: application/json
+Content-Type: application/json
+X-RestLi-Method: action
+X-RestLi-Protocol-Version: 2.0.0
+
+{
+  "input": 42
+}

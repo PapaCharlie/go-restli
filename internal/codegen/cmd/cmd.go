@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PapaCharlie/go-restli/internal/codegen/types"
 	"github.com/PapaCharlie/go-restli/internal/codegen/utils"
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
@@ -21,10 +22,11 @@ import (
 var Version string
 
 type JarStdinParameters struct {
-	ResolverPath               string   `json:"resolverPath"`
-	RestSpecPaths              []string `json:"restSpecPaths"`
-	NamedDataSchemasToGenerate []string `json:"namedDataSchemasToGenerate"`
-	RawRecords                 []string `json:"rawRecords"`
+	ResolverPath               string                         `json:"resolverPath"`
+	RestSpecPaths              []string                       `json:"restSpecPaths"`
+	NamedDataSchemasToGenerate []string                       `json:"namedDataSchemasToGenerate"`
+	RawRecords                 []string                       `json:"rawRecords"`
+	NativeTyperefs             map[string]types.NativeTyperef `json:"nativeTyperefs"`
 }
 
 func CodeGenerator() *cobra.Command {
@@ -58,6 +60,9 @@ specs.`)
 			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
 		cmd.Flags().StringArrayVar(&params.RawRecords, "raw-records", nil,
 			"These records will be interpreted as `protocol.RawRecord`s instead of their actual underlying type.")
+		var nativeTyperefs string
+		cmd.Flags().StringVar(&nativeTyperefs, "native-typerefs", "",
+			"This parameter expects a file containing a JSON map of fully classified name to a native typeref.")
 
 		cmd.Args = func(_ *cobra.Command, args []string) error {
 			params.RestSpecPaths = args
@@ -69,6 +74,22 @@ specs.`)
 				return errors.New("go-restli: Must specify a schema dir")
 			} else if _, err := os.Stat(params.ResolverPath); err != nil {
 				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
+			}
+
+			if nativeTyperefs != "" {
+				f, err := os.Open(nativeTyperefs)
+				if err != nil {
+					return err
+				}
+				err = json.NewDecoder(f).Decode(&params.NativeTyperefs)
+				if err != nil {
+					return err
+				}
+				for _, v := range params.NativeTyperefs {
+					if v.Primitive != nil {
+						return errors.New("go-restli: Native typeref cannot declare underlying primitive type")
+					}
+				}
 			}
 
 			return nil

@@ -9,10 +9,16 @@ func init() {
 	utils.TypeRegistry.Register(new(RawRecord))
 }
 
+var RawRecordIdentifier = utils.Identifier{
+	IsNativeIdentifier: true,
+	Name:               "RawRecord",
+	Namespace:          utils.ProtocolPackage,
+}
+
 type RawRecord struct{}
 
 func (r *RawRecord) GetIdentifier() utils.Identifier {
-	return utils.RawRecordContextIdentifier
+	return RawRecordIdentifier
 }
 
 func (r *RawRecord) GetSourceFile() string {

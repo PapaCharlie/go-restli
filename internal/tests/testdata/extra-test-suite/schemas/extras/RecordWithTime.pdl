@@ -1,0 +1,7 @@
+namespace extras
+
+record RecordWithTime {
+  time: Time
+  timeWithDefault: Time = 1
+  optionalTime: optional Time
+}
