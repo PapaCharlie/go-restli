@@ -1,0 +1,24 @@
+{
+  "name": "collectionWithInvalidMapKeyCustomTyperefKey",
+  "namespace": "extras",
+  "path": "/collectionWithInvalidMapKeyCustomTyperefKey",
+  "schema": "extras.SinglePrimitiveField",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.BigDecimal2"
+    },
+    "supports": [
+      "batch_get"
+    ],
+    "methods": [
+      {
+        "method": "batch_get"
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithInvalidMapKeyCustomTyperefKey/{key}"
+    }
+  }
+}

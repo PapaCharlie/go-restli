@@ -175,6 +175,13 @@ func (c *RestLiClient) DoBatchGetRequest(ctx context.Context, url *url.URL, resu
 			Request: req,
 		},
 	}
-	res.Errors.Response, err = c.DoAndDecode(req, res)
+	res.Errors.Response, err = c.doAndConsumeBody(req, func(body []byte) (err error) {
+		reader := restlicodec.NewJsonReader(body)
+		err = res.UnmarshalRestLi(reader)
+		if err != nil {
+			return err
+		}
+		return reader.CheckMissingFields()
+	})
 	return err
 }

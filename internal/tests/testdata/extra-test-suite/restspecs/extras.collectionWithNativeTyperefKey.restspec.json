@@ -1,0 +1,52 @@
+{
+  "name": "collectionWithNativeTyperefKey",
+  "namespace": "extras",
+  "path": "/collectionWithNativeTyperefKey",
+  "schema": "extras.RecordWithTime",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.Time"
+    },
+    "supports": [
+      "batch_get",
+      "create",
+      "get"
+    ],
+    "methods": [
+      {
+        "method": "batch_get"
+      },
+      {
+        "method": "get"
+      }
+    ],
+    "finders": [
+      {
+        "name": "search",
+        "parameters": [
+          {
+            "name": "keyword",
+            "type": "string"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "name": "echo",
+        "parameters": [
+          {
+            "name": "input",
+            "type": "extras.Time"
+          }
+        ],
+        "returns": "extras.Time"
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithNativeTyperefKey/{key}"
+    }
+  }
+}

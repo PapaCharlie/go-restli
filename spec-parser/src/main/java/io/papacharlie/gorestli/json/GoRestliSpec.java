@@ -1,7 +1,6 @@
 package io.papacharlie.gorestli.json;
 
 import com.google.common.base.Preconditions;
-import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.util.HashSet;
 import java.util.Set;
 

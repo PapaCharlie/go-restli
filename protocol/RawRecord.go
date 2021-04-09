@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/PapaCharlie/go-restli/fnv1a"
+	"github.com/PapaCharlie/go-fnv1a"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 

@@ -14,6 +14,6 @@ spec-parser/out/
 *.ipr
 *.iws
 bin/
-internal/codegen/cmd/classpath_jar.go
+cmd/classpath_jar.go
 internal/tests/parsed-specs.json
 releases/

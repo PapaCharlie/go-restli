@@ -8,7 +8,7 @@ Source file: https://github.com/PapaCharlie/go-restli/blob/master/internal/codeg
 package protocol
 
 import (
-	fnv1a "github.com/PapaCharlie/go-restli/fnv1a"
+	fnv1a "github.com/PapaCharlie/go-fnv1a"
 	restlicodec "github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 
@@ -28,6 +28,9 @@ func (p *PagingContext) EqualsInterface(otherInterface interface{}) bool {
 }
 
 func (p *PagingContext) Equals(other *PagingContext) bool {
+	if p == other {
+		return true
+	}
 	if p == nil || other == nil {
 		return false
 	}
