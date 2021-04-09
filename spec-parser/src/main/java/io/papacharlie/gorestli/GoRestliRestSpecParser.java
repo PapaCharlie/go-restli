@@ -32,9 +32,10 @@ public class GoRestliRestSpecParser {
    * @param namedDataSchemasToGenerate A set of named types to generate bindings for.
    * @param rawRecords Types that appear in this set will be treated as raw record types and be presented as a
    *                   {@code map[string]interface{}}
+   * @param nativeTyperefs A map of named types that should reference native go types
    */
   public static GoRestliSpec parse(String resolverPath, Set<String> restSpecPaths,
-      Set<String> namedDataSchemasToGenerate, Set<String> rawRecords) {
+      Set<String> namedDataSchemasToGenerate, Set<String> rawRecords, Map<String, NativeTyperef> nativeTyperefs) {
     if (restSpecPaths.isEmpty() && namedDataSchemasToGenerate.isEmpty()) {
       throw new IllegalArgumentException("Must specify at least one rest spec or a named data schema to generate!");
     }
@@ -42,7 +43,7 @@ public class GoRestliRestSpecParser {
     GoRestliSpec parsedSpec = new GoRestliSpec();
     DataSchemaParser dataSchemaParser = new DataSchemaParser(resolverPath);
     Map<String, NamedDataSchema> schemas = loadAllSchemas(dataSchemaParser);
-    TypeParser typeParser = new TypeParser(dataSchemaParser, rawRecords);
+    TypeParser typeParser = new TypeParser(dataSchemaParser, rawRecords, nativeTyperefs);
 
     RestSpecParser.ParseResult restSpecParseResult =
         new RestSpecParser().parseSources(restSpecPaths.toArray(new String[0]));
@@ -83,7 +84,7 @@ public class GoRestliRestSpecParser {
   /**
    * Read all the schemas provided in the {@link DataSchemaParser#getResolverPath()}
    */
-  private static Map<String, NamedDataSchema> loadAllSchemas(DataSchemaParser parser) {
+  public static Map<String, NamedDataSchema> loadAllSchemas(DataSchemaParser parser) {
     DataSchemaParser.ParseResult res;
     try {
       res = parser.parseSources(new String[]{parser.getResolverPath()});
@@ -101,6 +102,7 @@ public class GoRestliRestSpecParser {
     Set<String> _restSpecPaths;
     Set<String> _namedDataSchemasToGenerate;
     Set<String> _rawRecords;
+    Map<String, NativeTyperef> _nativeTyperefs;
   }
 
   public static void main(String[] args) throws IOException {
@@ -121,12 +123,17 @@ public class GoRestliRestSpecParser {
     parameters._rawRecords = (parameters._rawRecords == null)
         ? Collections.emptySet()
         : parameters._rawRecords;
+    parameters._nativeTyperefs = (parameters._nativeTyperefs == null)
+        ? Collections.emptyMap()
+        : parameters._nativeTyperefs;
 
     GoRestliSpec spec = parse(
         parameters._resolverPath,
         parameters._restSpecPaths,
         parameters._namedDataSchemasToGenerate,
-        parameters._rawRecords);
+        parameters._rawRecords,
+        parameters._nativeTyperefs
+    );
     System.out.println(Utils.toJson(spec));
   }
 }

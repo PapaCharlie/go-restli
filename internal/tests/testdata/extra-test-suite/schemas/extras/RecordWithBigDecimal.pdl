@@ -1,0 +1,7 @@
+namespace extras
+
+record RecordWithBigDecimal {
+  bigDecimal: BigDecimal
+  bigDecimalWithDefault: BigDecimal = "42.27"
+  optionalBigDecimal: optional BigDecimal
+}

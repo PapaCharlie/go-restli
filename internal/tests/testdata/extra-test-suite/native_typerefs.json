@@ -1,0 +1,7 @@
+{
+  "extras.Time": {
+    "typePackage": "time",
+    "typeName": "Time",
+    "objectFunctionsPackage": "github.com/PapaCharlie/go-restli/internal/tests/native"
+  }
+}

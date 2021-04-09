@@ -22,6 +22,51 @@
       ]
     },
     {
+      "name": "collectionWithNativeTyperefKey",
+      "restspec": "restspecs/extras.collectionWithNativeTyperefKey.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithNativeTyperefKey-echo"
+        },
+        {
+          "name": "collectionWithNativeTyperefKey-find"
+        },
+        {
+          "name": "collectionWithNativeTyperefKey-batch-get"
+        },
+        {
+          "name": "collectionWithNativeTyperefKey-get"
+        }
+      ]
+    },
+    {
+      "name": "collectionWithCustomTyperefKey",
+      "restspec": "restspecs/extras.collectionWithCustomTyperefKey.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithCustomTyperefKey-echo"
+        },
+        {
+          "name": "collectionWithCustomTyperefKey-find"
+        },
+        {
+          "name": "collectionWithCustomTyperefKey-batch-get"
+        },
+        {
+          "name": "collectionWithCustomTyperefKey-get"
+        }
+      ]
+    },
+    {
+      "name": "collectionWithInvalidMapKeyCustomTyperefKey",
+      "restspec": "restspecs/extras.collectionWithInvalidMapKeyCustomTyperefKey.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithInvalidMapKeyCustomTyperefKey-batch-get"
+        }
+      ]
+    },
+    {
       "name": "simpleComplexKey",
       "restspec": "restspecs/extras.simpleComplexKey.restspec.json",
       "operations": [

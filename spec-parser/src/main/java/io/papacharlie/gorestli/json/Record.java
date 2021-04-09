@@ -2,7 +2,6 @@ package io.papacharlie.gorestli.json;
 
 import com.linkedin.data.ByteString;
 import com.linkedin.data.schema.NamedDataSchema;
-import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.List;

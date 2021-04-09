@@ -1,0 +1,52 @@
+{
+  "name": "collectionWithCustomTyperefKey",
+  "namespace": "extras",
+  "path": "/collectionWithCustomTyperefKey",
+  "schema": "extras.RecordWithBigDecimal",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.BigDecimal"
+    },
+    "supports": [
+      "batch_get",
+      "create",
+      "get"
+    ],
+    "methods": [
+      {
+        "method": "batch_get"
+      },
+      {
+        "method": "get"
+      }
+    ],
+    "finders": [
+      {
+        "name": "search",
+        "parameters": [
+          {
+            "name": "keyword",
+            "type": "string"
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "name": "echo",
+        "parameters": [
+          {
+            "name": "input",
+            "type": "extras.BigDecimal"
+          }
+        ],
+        "returns": "extras.BigDecimal"
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithCustomTyperefKey/{key}"
+    }
+  }
+}
