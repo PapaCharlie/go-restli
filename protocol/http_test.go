@@ -52,6 +52,13 @@ func TestRestLiClient_FormatQuery(t *testing.T) {
 				mustParse("/"),
 			},
 		},
+		{
+			Name:     "Segment with partial match of basename",
+			Expected: "/seas-searcher/search?action=search",
+			Values: []*url.URL{
+				mustParse("/seas-searcher"),
+			},
+		},
 	}
 
 	for _, test := range tests {

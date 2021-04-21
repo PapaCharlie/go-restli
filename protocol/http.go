@@ -79,8 +79,9 @@ func (c *RestLiClient) FormatQueryUrl(resourceBasename, rawQuery string) (*url.U
 		return hostUrl.ResolveReference(query), nil
 	}
 
-	if idx := strings.Index(resolvedPath, resourceBasename); idx >= 0 {
-		resolvedPath = resolvedPath[:idx-1]
+	if idx := strings.Index(resolvedPath, "/"+resourceBasename); idx >= 0 &&
+		(len(resolvedPath) == idx+len(resourceBasename)+1 || resolvedPath[idx+len(resourceBasename)+1] == '/') {
+		resolvedPath = resolvedPath[:idx]
 	}
 
 	return hostUrl.Parse(resolvedPath + query.RequestURI())
