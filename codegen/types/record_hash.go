@@ -11,13 +11,13 @@ func AddComputeHash(def *Statement, receiver, typeName string, f func(h Code, de
 		Params().Params(Add(h).Add(utils.Hash)).
 		BlockFunc(func(def *Group) {
 			def.Add(If(Id(receiver).Op("==").Nil()).Block(Return(h)))
+			def.Add(h).Op("=").Add(utils.NewHash).Line()
 			f(h, def)
 		}).Line().Line()
 }
 
 func (r *Record) GenerateComputeHash() Code {
 	return AddComputeHash(Empty(), r.Receiver(), r.Name, func(h Code, def *Group) {
-		def.Add(h).Op("=").Add(utils.NewHash).Line()
 		for _, f := range r.SortedFields() {
 			def.Add(hash(h, f.Type, f.IsOptionalOrDefault(), r.fieldAccessor(f))).Line()
 		}

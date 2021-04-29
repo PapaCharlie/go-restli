@@ -35,7 +35,6 @@ func (u *StandaloneUnion) GenerateCode() Code {
 	})
 
 	AddComputeHash(def, unionReceiver, u.Name, func(h Code, def *Group) {
-		def.Add(h).Op("=").Add(utils.NewHash).Line()
 		for _, m := range u.Union.Members {
 			def.Add(hash(h, m.Type, true, Id(unionReceiver).Dot(m.name()))).Line()
 		}
