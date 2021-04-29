@@ -8,6 +8,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
+var total Code = Id("total")
+
 type Finder struct{ methodImplementation }
 
 func (f *Finder) IsSupported() bool {
@@ -27,7 +29,11 @@ func (f *Finder) FuncParamTypes() []Code {
 }
 
 func (f *Finder) NonErrorFuncReturnParams() []Code {
-	return []Code{Id("results").Index().Add(f.Return.ReferencedType())}
+	params := []Code{Id("results").Index().Add(f.Return.ReferencedType())}
+	if f.PagingSupported {
+		params = append(params, Add(total).Op("*").Int())
+	}
+	return params
 }
 
 func (f *Finder) paramsStructType() string {
@@ -59,30 +65,38 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 	c.Code.Add(params.GenerateStruct()).Line().Line()
 	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name, false)).Line().Line()
 
-	results := &types.Record{
-		NamedType: types.NamedType{
-			Identifier: utils.Identifier{
-				Name:      f.resultsStructType(),
-				Namespace: f.Resource.Namespace,
-			},
-			Doc: fmt.Sprintf("This struct deserializes the response from the %s finder", f.Name),
-		},
-		Fields: []types.Field{{
-			Type: types.RestliType{Array: f.Return},
-			Name: "elements",
-		}},
-	}
-	c.Code.Add(results.GenerateStruct()).Line().Line()
-	c.Code.Add(results.GenerateUnmarshalRestLi()).Line().Line()
-
 	f.Resource.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
-		formatQueryUrl(f, def, nil, Nil(), Err())
+		returnsOnErr := []Code{Nil()}
+		if f.PagingSupported {
+			returnsOnErr = append(returnsOnErr, Nil())
+		}
+		returnsOnErr = append(returnsOnErr, Err())
+		formatQueryUrl(f, def, nil, returnsOnErr...)
 
-		accessor := Id("elements")
-		def.Var().Add(accessor).Id(f.resultsStructType())
+		elementType := types.RestliType{Array: f.Return}
+		elements := Id("elements")
+		def.Var().Add(elements).Add(elementType.GoType())
 
-		def.Err().Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(Ctx, Url, Op("&").Add(accessor))
-		def.Return(Add(accessor).Dot("Elements"), Err())
+		var finderReturns []Code
+		if f.PagingSupported {
+			finderReturns = append(finderReturns, total)
+		} else {
+			finderReturns = append(finderReturns, Id("_"))
+		}
+		finderReturns = append(finderReturns, Err())
+
+		def.List(finderReturns...).Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(Ctx, Url,
+			Func().Params(Add(types.Reader).Add(types.ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
+				types.Reader.ReadArrayFunc(elementType, types.Reader, elements, def)
+			}),
+		)
+
+		returns := []Code{elements}
+		if f.PagingSupported {
+			returns = append(returns, total)
+		}
+		returns = append(returns, Err())
+		def.Return(returns...)
 	})
 
 	return c

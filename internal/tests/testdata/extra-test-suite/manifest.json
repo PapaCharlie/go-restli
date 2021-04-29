@@ -15,6 +15,9 @@
         },
         {
           "name": "collectionWithTyperefKey-find-with-paging-context"
+        },
+        {
+          "name": "collectionWithTyperefKey-find-with-paging-context-no-total"
         }
       ]
     },

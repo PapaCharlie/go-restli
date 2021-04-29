@@ -314,6 +314,15 @@ func (u *ror2Reader) readAndDecodePrimitiveFieldValue() (string, error) {
 	return s, u.wrapDeserializationError(err)
 }
 
+func (u *ror2Reader) ReadInt() (v int, err error) {
+	var v64 int64
+	v64, err = u.ReadInt64()
+	if err != nil {
+		return v, err
+	}
+	return int(v64), nil
+}
+
 func (u *ror2Reader) ReadInt32() (v int32, err error) {
 	var decoded string
 	decoded, err = u.readAndDecodePrimitiveFieldValue()

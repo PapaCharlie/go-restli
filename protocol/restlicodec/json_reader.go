@@ -86,6 +86,10 @@ func (j *jsonReader) ReadRawBytes() ([]byte, error) {
 	return j.lexer.Raw(), j.checkError()
 }
 
+func (j *jsonReader) ReadInt() (int, error) {
+	return j.lexer.Int(), j.checkError()
+}
+
 func (j *jsonReader) ReadInt32() (int32, error) {
 	return j.lexer.Int32(), j.checkError()
 }

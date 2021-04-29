@@ -123,14 +123,54 @@ func (c *RestLiClient) DoDeleteRequest(ctx context.Context, url *url.URL) error 
 
 // DoFinderRequest executes a rest.li Finder request and uses the given restlicodec.Unmarshaler to unmarshal the
 // response's body.
-func (c *RestLiClient) DoFinderRequest(ctx context.Context, url *url.URL, results restlicodec.Unmarshaler) error {
+func (c *RestLiClient) DoFinderRequest(ctx context.Context, url *url.URL, elements restlicodec.ArrayReader) (total *int, err error) {
 	req, err := GetRequest(ctx, url, Method_finder)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	results := restlicodec.UnmarshalerFunc(func(reader restlicodec.Reader) error {
+		const elementsField = "elements"
+		hasElements := false
+
+		err = reader.ReadMap(func(reader restlicodec.Reader, key string) error {
+			switch key {
+			case elementsField:
+				hasElements = true
+				return reader.ReadArray(elements)
+			case "paging":
+				return reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
+					if key == "total" {
+						var t int64
+						t, err = reader.ReadInt64()
+						if err != nil {
+							return err
+						}
+						tInt := int(t)
+						total = &tInt
+					} else {
+						err = reader.Skip()
+					}
+					return nil
+				})
+			default:
+				return reader.Skip()
+			}
+		})
+
+		if err != nil {
+			return err
+		}
+
+		if !hasElements {
+			reader.RecordMissingRequiredFields(map[string]struct{}{elementsField: {}})
+		}
+
+		return reader.CheckMissingFields()
+	})
+
 	_, err = c.DoAndDecode(req, results)
-	return err
+	return total, err
 }
 
 // DoActionRequest executes a rest.li Action request and places the given restlicodec.Marshaler in the request's body.

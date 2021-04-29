@@ -41,15 +41,7 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 		return Err().Op("=").Add(targetAccessor).Dot(utils.UnmarshalRestLi).Call(reader)
 	case t.Array != nil:
 		return Err().Op("=").Add(d.ReadArray(reader, func(reader Code, def *Group) {
-			_, item := tempIteratorVariableNames(t)
-			def.Var().Add(item).Add(t.Array.GoType())
-			def.Add(d.Read(*t.Array, reader, item))
-			def.Add(utils.IfErrReturn(Err()))
-			if t.Array.ShouldReference() {
-				item = Op("&").Add(item)
-			}
-			def.Add(targetAccessor).Op("=").Append(targetAccessor, item)
-			def.Return(Nil())
+			d.ReadArrayFunc(t, reader, targetAccessor, def)
 		}))
 	case t.Map != nil:
 		return Add(targetAccessor).Op("=").Make(t.GoType()).Line().
@@ -69,6 +61,18 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
 	}
+}
+
+func (d *reader) ReadArrayFunc(t RestliType, reader, targetAccessor Code, def *Group) {
+	_, item := tempIteratorVariableNames(t)
+	def.Var().Add(item).Add(t.Array.GoType())
+	def.Add(d.Read(*t.Array, reader, item))
+	def.Add(utils.IfErrReturn(Err()))
+	if t.Array.ShouldReference() {
+		item = Op("&").Add(item)
+	}
+	def.Add(targetAccessor).Op("=").Append(targetAccessor, item)
+	def.Return(Nil())
 }
 
 func tempIteratorVariableNames(t RestliType) (Code, Code) {

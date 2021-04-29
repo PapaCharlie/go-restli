@@ -9,11 +9,18 @@ type Unmarshaler interface {
 	UnmarshalRestLi(Reader) error
 }
 
+type UnmarshalerFunc func(Reader) error
+
+func (u UnmarshalerFunc) UnmarshalRestLi(reader Reader) error {
+	return u(reader)
+}
+
 // PrimitiveReader describes the set of functions that read the supported rest.li primitives from the input. Note that
 // if the reader's next input is not a primitive (i.e. it is an object/map or an array), each of these methods will
 // return errors. The encoding spec can be found here:
 // https://linkedin.github.io/rest.li/how_data_is_serialized_for_transport
 type PrimitiveReader interface {
+	ReadInt() (int, error)
 	ReadInt32() (int32, error)
 	ReadInt64() (int64, error)
 	ReadFloat32() (float32, error)

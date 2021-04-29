@@ -36,10 +36,10 @@ func (c *collectionWithTyperefKeyClient) GetWithContext(context.Context, extras.
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, err error) {
+func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, total *int, err error) {
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context, *collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, err error) {
+func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context, *collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, total *int, err error) {
 	panic(nil)
 }
