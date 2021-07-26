@@ -95,3 +95,13 @@ func (s *TestServer) CollectionGet(t *testing.T, c *Client) {
 }
 ```
 Once you have written your tests, just run `make` in the root directory and all the tests will be run.
+
+
+## Building from source
+
+This project uses ``make`` as the build tool and requires following dependencies:
+
+* Golang
+* Java 1.8+
+* ``goimports``
+* ``stringer``
