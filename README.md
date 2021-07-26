@@ -77,7 +77,7 @@ might be.
 ## Contributing to this project
 First, you have to clone this repo and all its submodules:
 ```bash
-% git clone --recurse-submodules git@github.com/PapaCharlie/go-restli
+% git clone --recurse-submodules git@github.com:PapaCharlie/go-restli
 ```
 There exists a testing framework for Rest.li client implementations that provide expected requests and responses. The
 [gorestli_test.go](tests/gorestli_test.go) and [manifest.go](tests/manifest.go) files read the testing
