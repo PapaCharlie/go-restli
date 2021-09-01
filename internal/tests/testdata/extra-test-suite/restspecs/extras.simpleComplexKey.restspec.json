@@ -11,6 +11,9 @@
     },
     "methods": [
       {
+        "method": "get"
+      },
+      {
         "method": "batch_get"
       }
     ],

@@ -26,6 +26,9 @@
       "restspec": "restspecs/extras.simpleComplexKey.restspec.json",
       "operations": [
         {
+          "name": "simpleComplexKey-get"
+        },
+        {
           "name": "simpleComplexKey-batch-get"
         }
       ]

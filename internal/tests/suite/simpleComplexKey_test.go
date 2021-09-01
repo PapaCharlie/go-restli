@@ -21,3 +21,10 @@ func (s *TestServer) SimpleComplexKeyBatchGet(t *testing.T, c Client) {
 	}
 	require.Equal(t, expected, res)
 }
+
+func (s *TestServer) SimpleComplexKeyGet(t *testing.T, c Client) {
+	expected := &extras.SinglePrimitiveField{String: "string:with:colons"}
+	actual, err := c.Get(expected)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
