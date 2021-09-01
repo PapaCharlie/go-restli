@@ -268,7 +268,7 @@ func TestRawRecord(t *testing.T) {
 			"one": {"a"},
 			"two": {"b", "c"},
 		},
-		"record":    &extras.SinglePrimitiveField{Integer: 1},
+		"record":    &extras.SinglePrimitiveField{String: "abc"},
 		"int":       42,
 		"fixed":     [5]byte{'a', 'b', 'c', 'd', 'e'},
 		"realFixed": [5]byte{'f', 'g', 'h', 'i', 'j'},
@@ -308,7 +308,7 @@ func TestRawRecord(t *testing.T) {
   },
   "realFixed": "fghij",
   "record": {
-    "integer": 1
+    "string": "abc"
   }
 }`
 		w := restlicodec.NewPrettyJsonWriter()
@@ -333,7 +333,7 @@ func TestRawRecord(t *testing.T) {
 			`mapOfArrays:(one:List(a),two:List(b,c)),` +
 			`mapOfInts:(bar:2,foo:1),` +
 			`realFixed:fghij,` +
-			`record:(integer:1)` +
+			`record:(string:abc)` +
 			`)`
 
 		w := restlicodec.NewRor2HeaderWriter()
@@ -354,9 +354,9 @@ func TestRawRecord(t *testing.T) {
 
 func TestRawRecordUnmarshalTo(t *testing.T) {
 	raw := &protocol.RawRecord{
-		"integer": 1,
+		"string": "abc",
 	}
-	expected := &extras.SinglePrimitiveField{Integer: 1}
+	expected := &extras.SinglePrimitiveField{String: "abc"}
 	actual := new(extras.SinglePrimitiveField)
 	require.NoError(t, raw.UnmarshalTo(actual))
 	require.Equal(t, expected, actual)

@@ -1,5 +1,5 @@
 namespace extras
 
 record SinglePrimitiveField {
-  integer: int
+  string: string
 }

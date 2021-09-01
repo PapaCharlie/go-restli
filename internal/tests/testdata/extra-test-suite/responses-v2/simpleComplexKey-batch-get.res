@@ -1,16 +1,16 @@
 HTTP/1.1 200 OK
-Content-Length: 158
+Content-Length: 196
 Content-Type: application/json
 X-RestLi-Protocol-Version: 2.0.0
 
 {
   "statuses" : { },
   "results" : {
-    "(integer:1)" : {
-      "integer" : 1
+    "(string:1)" : {
+      "string" : "1"
     },
-    "(integer:2)" : {
-      "integer" : 2
+    "(string:string%3Awith%3Acolons)" : {
+      "string" : "string:with:colons"
     }
   },
   "errors" : { }

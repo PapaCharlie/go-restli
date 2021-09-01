@@ -10,8 +10,8 @@ import (
 
 func (s *TestServer) SimpleComplexKeyBatchGet(t *testing.T, c Client) {
 	keys := []*extras.SinglePrimitiveField{
-		{Integer: 1},
-		{Integer: 2},
+		{String: "1"},
+		{String: "string:with:colons"},
 	}
 	res, err := c.BatchGet(keys)
 	require.NoError(t, err)

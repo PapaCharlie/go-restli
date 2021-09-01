@@ -1,6 +1,7 @@
 package suite
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
@@ -16,7 +17,7 @@ func (s *TestServer) CollectionWithTyperefKeyBatchGetWithParams(t *testing.T, c 
 	require.NoError(t, err)
 	expected := make(map[extras.Temperature]*extras.SinglePrimitiveField)
 	for _, k := range keys {
-		expected[k] = &extras.SinglePrimitiveField{Integer: int32(k)}
+		expected[k] = &extras.SinglePrimitiveField{String: fmt.Sprint(k)}
 	}
 	require.Equal(t, expected, res)
 }
@@ -24,7 +25,7 @@ func (s *TestServer) CollectionWithTyperefKeyBatchGetWithParams(t *testing.T, c 
 func (s *TestServer) CollectionWithTyperefKeyGet(t *testing.T, c Client) {
 	res, err := c.Get(42)
 	require.NoError(t, err)
-	require.Equal(t, &extras.SinglePrimitiveField{Integer: 42}, res)
+	require.Equal(t, &extras.SinglePrimitiveField{String: "42"}, res)
 }
 
 func (s *TestServer) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T, c Client) {
