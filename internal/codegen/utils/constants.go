@@ -24,8 +24,9 @@ const (
 )
 
 var (
-	NewJsonReader = Code(Qual(RestLiCodecPackage, "NewJsonReader"))
-	NewRor2Reader = Code(Qual(RestLiCodecPackage, "NewRor2Reader"))
+	NewJsonReader     = Code(Qual(RestLiCodecPackage, "NewJsonReader"))
+	NewRor2Reader     = Code(Qual(RestLiCodecPackage, "NewRor2Reader"))
+	NewProtobufReader = Code(Qual(RestLiCodecPackage, "NewProtobufReader"))
 
 	NewHash = Code(Qual(HashPackage, "NewHash").Call())
 	Hash    = Code(Qual(HashPackage, "Hash"))

@@ -21,6 +21,14 @@ func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *G
 			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
 		}).Line().Line()
 
+	utils.AddFuncOnReceiver(def, receiver, typeName, "UnmarshalProtobuf").
+		Params(Id("data").Index().Byte()).
+		Params(Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Reader).Op(":=").Add(utils.NewProtobufReader).Call(data)
+			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
+		}).Line().Line()
+
 	return def
 }
 

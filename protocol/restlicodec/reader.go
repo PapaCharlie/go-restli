@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Unmarshaler is the interface that should be implemented by objects that can be deserialized from JSON and ROR2
+// Unmarshaler is the interface that should be implemented by objects that can be deserialized from JSON and ROR2 and Protobuf
 type Unmarshaler interface {
 	UnmarshalRestLi(Reader) error
 }

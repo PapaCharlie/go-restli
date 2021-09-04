@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"log"
 	"math"
@@ -38,6 +39,18 @@ func TestEncodePrimitives(t *testing.T) {
 	t.Run("ror2", func(t *testing.T) {
 		testRor2Encoding(t, expected, new(Primitives),
 			`(primitiveBytes:@ABC🕴,primitiveDouble:66.5,primitiveFloat:52.5,primitiveInteger:1,primitiveLong:23,primitiveString:a string%2C%28%29%27)`,
+		)
+	})
+
+	t.Run("protobuf", func(t *testing.T) {
+		// when vardouble floats by default
+		// testProtobufEncoding(t, expected, new(Primitives),
+		// 	"000C021C7072696D697469766542797465730A1240414243F09F95B401021E7072696D6974697665446F75626C6507808080808080A8A840021C7072696D6974697665466C6F61740680808080808090A54002207072696D6974697665496E74656765720402021A7072696D69746976654C6F6E67052E021E7072696D6974697665537472696E6702186120737472696E672C282927",
+		// )
+
+		// when fixedWidthFloat32 & fixedWidthFloat64 by default
+		testProtobufEncoding(t, expected, new(Primitives),
+			"000C021C7072696D697469766542797465730A1240414243F09F95B401021E7072696D6974697665446F75626C65160000000000A05040021C7072696D6974697665466C6F6174150000524202207072696D6974697665496E74656765720402021A7072696D69746976654C6F6E67052E021E7072696D6974697665537472696E6702186120737472696E672C282927",
 		)
 	})
 }
@@ -695,4 +708,36 @@ func newRor2Reader(t *testing.T, data string) restlicodec.Reader {
 	reader, err := restlicodec.NewRor2Reader(data)
 	require.NoError(t, err)
 	return reader
+}
+
+func testProtobufEncoding(t *testing.T, expected, actual protocol.RestLiObject, expectedRawBytesAsHexStr string) {
+	t.Run("encode", func(t *testing.T) {
+		testProtobufEquality(t, expected, expectedRawBytesAsHexStr, nil, true)
+	})
+	t.Run("decode", func(t *testing.T) {
+		reader := newProtobufReader(t, expectedRawBytesAsHexStr)
+		require.NoError(t, actual.UnmarshalRestLi(reader))
+		requireEqual(t, expected, actual)
+	})
+}
+
+func newProtobufReader(t *testing.T, dataAsHexStr string) restlicodec.Reader {
+	data, err := hex.DecodeString(dataAsHexStr)
+	require.NoError(t, err)
+	reader := restlicodec.NewProtobufReader(data)
+	return reader
+}
+
+func testProtobufEquality(t *testing.T, obj protocol.RestLiObject, expectedRawBytesAsHexStr string, excludedFields restlicodec.PathSpec, equal bool) {
+	writer := restlicodec.NewProtobufWriterWithExcludedFields(excludedFields)
+	require.NoError(t, obj.MarshalRestLi(writer))
+	raw := []byte(writer.Finalize())
+	// log.Printf("%X", raw) // uncomment to print current hexstr
+	expectedRaw, err := hex.DecodeString(expectedRawBytesAsHexStr)
+	require.NoError(t, err)
+	if equal {
+		require.Equal(t, expectedRaw, raw)
+	} else {
+		require.NotEqual(t, expectedRaw, raw)
+	}
 }

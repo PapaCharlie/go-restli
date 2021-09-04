@@ -24,6 +24,16 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Gro
 			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
 		}).Line().Line()
 
+	utils.AddFuncOnReceiver(def, receiver, typeName, "MarshalProtobuf").
+		Params().
+		Params(Id("data").Index().Byte(), Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewProtobufWriter").Call()
+			def.Err().Op("=").Id(receiver).Dot(utils.MarshalRestLi).Call(Writer)
+			def.Add(utils.IfErrReturn(Nil(), Err()))
+			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
+		}).Line().Line()
+
 	return def
 }
 
