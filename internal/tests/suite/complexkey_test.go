@@ -129,7 +129,7 @@ func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
 	}, res)
 }
 
-const specialChars = "!*'();:@&=+$,/?#[]" + ".~"
+const specialChars = `!*'();:@&=+$,/?#[].~`
 
 var specialCharsKey = &Complexkey_ComplexKey{
 	Params: newKeyParams("param"+specialChars, 5),

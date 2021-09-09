@@ -91,7 +91,7 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if expected, got := s.o.Request.URL.Path, req.URL.Path; expected != got {
+	if expected, got := s.o.Request.URL.RawPath, req.URL.RawPath; expected != got {
 		writeErrorResponse(res, "Request paths did not match! Expected %q, got %q.", expected, got)
 		return
 	}
