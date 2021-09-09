@@ -17,11 +17,11 @@ type ror2PathWriter struct {
 
 const hexChars = "0123456789ABCDEF"
 
-var unescapedCharacters = func() map[rune]struct{} {
+var unescapedCharacters = func() map[byte]struct{} {
 	const chars = `!$&*+-.0123456789=@ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~`
-	m := make(map[rune]struct{}, len(chars))
-	for _, c := range chars {
-		m[c] = struct{}{}
+	m := make(map[byte]struct{}, len(chars))
+	for i := range chars {
+		m[chars[i]] = struct{}{}
 	}
 	return m
 }()
@@ -32,11 +32,11 @@ var unescapedCharacters = func() map[rune]struct{} {
 // url.PathEscape but the Rest.li escaper escapes it.
 func Ror2PathEscape(s string) string {
 	buf := new(strings.Builder)
-	for _, c := range s {
+	for _, c := range []byte(s) {
 		if _, ok := unescapedCharacters[c]; ok {
-			buf.WriteRune(c)
+			buf.WriteByte(c)
 		} else {
-			buf.WriteRune('%')
+			buf.WriteByte('%')
 			buf.WriteByte(hexChars[c>>4])
 			buf.WriteByte(hexChars[c&15])
 		}

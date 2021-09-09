@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"net/url"
 	"testing"
+	"unicode/utf8"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
@@ -695,4 +697,27 @@ func newRor2Reader(t *testing.T, data string) restlicodec.Reader {
 	reader, err := restlicodec.NewRor2Reader(data)
 	require.NoError(t, err)
 	return reader
+}
+
+var pathEscapeSpecialCases = map[rune]string{
+	'!': "!",
+	'*': "*",
+	':': "%3A",
+}
+
+func TestPathEscape(t *testing.T) {
+	// Enumerate all valid UTF-8 runes
+	for c := rune(0); c < 0x110000; c++ {
+		// Skip surrogate half runes
+		if !utf8.ValidRune(c) {
+			continue
+		}
+		// Ensure that each rune is escaped correctly according to the normal URL path encoding spec, except for the
+		// known special cases
+		if expected, ok := pathEscapeSpecialCases[c]; ok {
+			require.Equal(t, expected, restlicodec.Ror2PathEscape(string(c)))
+		} else {
+			require.Equal(t, url.PathEscape(string(c)), restlicodec.Ror2PathEscape(string(c)))
+		}
+	}
 }
