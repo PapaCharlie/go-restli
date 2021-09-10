@@ -194,7 +194,7 @@ func GenerateCode(specBytes []byte, outputDir string) error {
 		return errors.Wrapf(err, "go-restli: Could not deserialize GoRestliSpec")
 	}
 
-	tmpOutputDir, err := ioutil.TempDir("", "go-restli_*")
+	tmpOutputDir, err := ioutil.TempDir(outputDir, ".go-restli_*")
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Failed to create temporary directory")
 	}
