@@ -10,7 +10,7 @@ echo "$${tag#v}"$$([[ HEAD == "$$ref" ]] || echo "-SNAPSHOT")
 endef
 
 VERSION := $(shell $(get-version))
-JARGO := internal/codegen/cmd/classpath_jar.go
+JARGO := ./cmd/classpath_jar.go
 FAT_JAR := spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar
 GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 
@@ -18,7 +18,7 @@ TESTDATA := internal/tests/testdata
 TEST_SUITE := $(TESTDATA)/rest.li-test-suite/client-testsuite
 EXTRA_TEST_SUITE := $(TESTDATA)/extra-test-suite
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/testdata/generated
-PACKAGES := ./internal/codegen/* ./d2 ./protocol
+PACKAGES := ./codegen/* ./d2 ./protocol
 
 build: generate test integration-test
 	rm -rf bin
@@ -27,11 +27,11 @@ build: generate test integration-test
 bin/go-restli_%: $(shell git ls-files | grep "\.go")
 	export GOOS=$(word 1,$(subst -, ,$(*F))) ; \
 	export GOARCH=$(word 2,$(subst -, ,$(*F))) ; \
-	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/internal/codegen/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
+	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
 generate:
 	go generate $(PACKAGES)
-	go run ./internal/codegen/pagingcontext
+	go run ./internal/pagingcontext
 
 test: generate imports
 	go test $(PACKAGES)
