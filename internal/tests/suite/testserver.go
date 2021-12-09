@@ -23,7 +23,6 @@ import (
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	simplecomplexkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 
 type TestServer struct {
@@ -96,8 +95,8 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := queriesEqual(s.o.Request.URL.RawQuery, req.URL.RawQuery); err != nil {
-		writeErrorResponse(res, err.Error())
+	if expected, got := s.o.Request.URL.RawQuery, req.URL.RawQuery; expected != got {
+		writeErrorResponse(res, "Request queries did not match!\nExpected: %q\nGot:      %q.", expected, got)
 		return
 	}
 
@@ -147,90 +146,4 @@ func writeErrorResponse(res http.ResponseWriter, format string, args ...interfac
 	response, _ := json.Marshal(err)
 	res.Header().Add(protocol.RestLiHeader_ErrorResponse, fmt.Sprint(true))
 	http.Error(res, string(response), UnexpectedRequestStatus)
-}
-
-func queriesEqual(expectedStr, actualStr string) error {
-	if expectedStr == actualStr {
-		return nil
-	}
-	read := func(rawQuery string) (map[string]interface{}, error) {
-		reader := restlicodec.NewRestLiQueryParamsReader(rawQuery)
-		query := make(map[string]interface{})
-		err := reader.ReadParams(func(reader restlicodec.Reader, field string) error {
-			raw, err := reader.ReadInterface()
-			if err != nil {
-				return err
-			}
-			query[field] = raw
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		return query, nil
-	}
-
-	expected, err := read(expectedStr)
-	if err != nil {
-		return err
-	}
-	actual, err := read(actualStr)
-	if err != nil {
-		return err
-	}
-
-	if len(expected) != len(actual) {
-		return fmt.Errorf("query parameter count differs (expected: %d, actual: %d)", len(expected), len(actual))
-	}
-
-	for k, v := range expected {
-		actualV, ok := actual[k]
-		if !ok {
-			return fmt.Errorf("query parameter missing in actual: %q", k)
-		}
-		err = deepEquals(nil, v, actualV)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func deepEquals(scope []string, expected, actual interface{}) error {
-	switch expected := expected.(type) {
-	case map[string]interface{}:
-		actual := actual.(map[string]interface{})
-		if len(expected) != len(actual) {
-			return fmt.Errorf("%v: unequal map sizes (expected: %d, actual: %d)", scope, len(expected), len(actual))
-		}
-		for k, v := range expected {
-			actualV, ok := actual[k]
-			if !ok {
-				return fmt.Errorf("%v: actual map does not contain key %q", scope, k)
-			}
-			err := deepEquals(append(append([]string(nil), scope...)), v, actualV)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	case []interface{}:
-		actual := actual.([]interface{})
-		if len(expected) != len(actual) {
-			return fmt.Errorf("%v: unequal array sizes (expected: %d, actual: %d)", scope, len(expected), len(actual))
-		}
-		for index, v := range expected {
-			err := deepEquals(append(append([]string(nil), scope...)), v, actual[index])
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	default:
-		if expected.(string) != actual.(string) {
-			return fmt.Errorf("%v: unequal primitives (expected: %s, actual: %s)", scope, expected, actual)
-		}
-		return nil
-	}
 }

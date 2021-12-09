@@ -15,9 +15,7 @@ type ror2PathWriter struct {
 	*genericWriter
 }
 
-const hexChars = "0123456789ABCDEF"
-
-var unescapedCharacters = func() map[byte]struct{} {
+var unescapedPathCharacters = func() map[byte]struct{} {
 	const chars = `!$&*+-.0123456789=@ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~`
 	m := make(map[byte]struct{}, len(chars))
 	for i := range chars {
@@ -33,12 +31,10 @@ var unescapedCharacters = func() map[byte]struct{} {
 func Ror2PathEscape(s string) string {
 	buf := new(strings.Builder)
 	for _, c := range []byte(s) {
-		if _, ok := unescapedCharacters[c]; ok {
+		if _, ok := unescapedPathCharacters[c]; ok {
 			buf.WriteByte(c)
 		} else {
-			buf.WriteByte('%')
-			buf.WriteByte(hexChars[c>>4])
-			buf.WriteByte(hexChars[c&15])
+			hexEscape(buf, c)
 		}
 	}
 	return buf.String()
