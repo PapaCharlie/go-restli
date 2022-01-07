@@ -27,6 +27,9 @@ var (
 	NewJsonReader = Code(Qual(RestLiCodecPackage, "NewJsonReader"))
 	NewRor2Reader = Code(Qual(RestLiCodecPackage, "NewRor2Reader"))
 
+	EntityIDsEncoder      = Code(Id("entityIDsEncoder"))
+	BatchEntityIDsEncoder = Code(Qual(ProtocolPackage, "BatchEntityIDsEncoder"))
+
 	NewHash = Code(Qual(HashPackage, "NewHash").Call())
 	Hash    = Code(Qual(HashPackage, "Hash"))
 )

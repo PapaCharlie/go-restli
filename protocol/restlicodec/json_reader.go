@@ -130,3 +130,7 @@ func (j *jsonReader) checkError() error {
 func (j *jsonReader) AtInputStart() bool {
 	return j.lexer.IsStart()
 }
+
+func (j *jsonReader) String() string {
+	return string(j.lexer.Data)
+}

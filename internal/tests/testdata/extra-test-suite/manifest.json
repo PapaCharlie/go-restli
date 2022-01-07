@@ -30,6 +30,9 @@
         },
         {
           "name": "simpleComplexKey-batch-get"
+        },
+        {
+          "name": "simpleComplexKey-batch-partial-update"
         }
       ]
     },

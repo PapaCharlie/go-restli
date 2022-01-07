@@ -30,7 +30,11 @@ func (m *methodImplementation) GetResource() *Resource {
 	return m.Resource
 }
 
-func formatQueryUrl(m MethodImplementation, def *Group, keyWriter func(itemWriter Code, def *Group), returns ...Code) {
+func (m *methodImplementation) addEntityId(def *Group, accessor Code, returns []Code) {
+	def.Add(types.Writer.Write(m.EntityPathKey.Type, Add(utils.EntityIDsEncoder).Dot("AddEntityID").Call(), accessor, returns...))
+}
+
+func formatQueryUrl(m MethodImplementation, def *Group, populateEntityIDs func(def *Group), returns ...Code) {
 	if m.GetMethod().OnEntity {
 		def.List(Path, Err()).Op(":=").Id(ResourceEntityPath).Call(m.GetMethod().entityParamNames()...)
 	} else {
@@ -58,12 +62,14 @@ func formatQueryUrl(m MethodImplementation, def *Group, keyWriter func(itemWrite
 		r := m.(*RestMethod)
 		hasParams := len(m.GetMethod().Params) > 0
 		if r.isBatch() {
-			encoder := Func().Params(Add(types.ItemWriter).Func().Params().Add(types.WriterQual)).Params(Err().Error()).
-				BlockFunc(func(def *Group) { keyWriter(types.ItemWriter, def) })
+			def.Add(utils.EntityIDsEncoder).Op(":=").New(utils.BatchEntityIDsEncoder)
+			populateEntityIDs(def)
+			def.Line()
+
 			if hasParams {
-				callEncodeQueryParams(Add(encodeQueryParams).Call(encoder))
+				callEncodeQueryParams(Add(encodeQueryParams).Call(utils.EntityIDsEncoder))
 			} else {
-				callEncodeQueryParams(Qual(utils.ProtocolPackage, "GenerateBatchKeysParam").Call(encoder))
+				callEncodeQueryParams(Add(utils.EntityIDsEncoder).Dot("GenerateRawQuery").Call())
 			}
 		} else {
 			if hasParams {
@@ -117,4 +123,70 @@ func (m *Method) entityParamTypes() (params []Code) {
 		params = append(params, pk.Type.ReferencedType())
 	}
 	return params
+}
+
+func (r *RestMethod) batchMethodBoilerplate(def *Group, valueSetter func(def *Group, keyAccessor, valueReader Code)) Code {
+	ck := r.EntityPathKey.Type.ComplexKey()
+	isComplexKey := ck != nil || r.EntityPathKey.Type.UnderlyingPrimitive() == nil
+	keyAccessor := func(accessor Code) *Statement {
+		if ck != nil {
+			return Add(accessor).Add(ck.KeyAccessor())
+		} else {
+			return Add(accessor)
+		}
+	}
+
+	originalKeys := Id("originalKeys")
+	if isComplexKey {
+		def.Add(originalKeys).Op(":=").Make(Map(utils.Hash).Index().Add(r.EntityPathKey.Type.ReferencedType()))
+
+		var entityKeyIterator Code
+		if r.usesBatchMapInput() {
+			entityKeyIterator = List(Key).Op(":=").Range().Add(Entities)
+		} else {
+			entityKeyIterator = List(Id("_"), Key).Op(":=").Range().Add(Keys)
+		}
+
+		def.For().Add(entityKeyIterator).BlockFunc(func(def *Group) {
+			keyHash := Id("keyHash")
+			def.Add(keyHash).Op(":=").Add(keyAccessor(Key)).Dot(utils.ComputeHash).Call()
+			index := Add(originalKeys).Index(keyHash)
+			def.Add(index).Op("=").Append(index, Key)
+		}).Line()
+	}
+
+	keyReader, valueReader := Id("keyReader"), Id("valueReader")
+	return Func().Params(Add(keyReader).Add(types.ReaderQual), Add(valueReader).Add(types.ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
+		v := Code(Id("v"))
+		if isComplexKey {
+			def.Add(v).Op(":=").New(r.EntityPathKey.Type.GoType())
+		} else {
+			def.Var().Add(v).Add(r.EntityPathKey.Type.GoType())
+		}
+		def.Add(types.Reader.Read(r.EntityPathKey.Type, keyReader, v))
+		def.Add(utils.IfErrReturn(Err())).Line()
+
+		if isComplexKey {
+			originalKey := Code(Id("originalKey"))
+			def.Var().Add(originalKey).Add(r.EntityPathKey.Type.ReferencedType())
+			def.For().List(Id("_"), Key).Op(":=").Range().Add(originalKeys).Index(keyAccessor(v).Dot(utils.ComputeHash).Call()).BlockFunc(func(def *Group) {
+				right := keyAccessor(Key)
+				if ck != nil {
+					right = Op("&").Add(right)
+				}
+
+				def.If(keyAccessor(v).Dot(utils.Equals).Call(right)).Block(
+					Add(originalKey).Op("=").Add(Key),
+					Break(),
+				)
+			})
+			def.If(Add(originalKey).Op("==").Nil()).Block(
+				Return(Qual("fmt", "Errorf").Call(Lit("unknown key returned by batch get: %q"), keyReader)),
+			)
+			def.Line()
+			v = originalKey
+		}
+
+		valueSetter(def, v, valueReader)
+	})
 }

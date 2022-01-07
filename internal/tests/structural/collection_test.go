@@ -7,6 +7,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
 	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
 	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple"
+	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.collection
@@ -59,6 +60,14 @@ func (c *collectionClient) BatchGet([]int64) (map[int64]*conflictresolution.Mess
 }
 
 func (c *collectionClient) BatchGetWithContext(context.Context, []int64) (map[int64]*conflictresolution.Message, error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchPartialUpdate(map[int64]*conflictresolution.Message_PartialUpdate) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchPartialUpdateWithContext(context.Context, map[int64]*conflictresolution.Message_PartialUpdate) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
 	panic(nil)
 }
 

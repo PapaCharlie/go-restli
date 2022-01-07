@@ -5,7 +5,7 @@ import (
 )
 
 type RestLiQueryParamsWriter interface {
-	Closer
+	WriteCloser
 	WriteParams(paramsWriter MapWriter) error
 }
 
@@ -22,7 +22,7 @@ var unescapedQueryCharacters = func() map[byte]struct{} {
 	return m
 }()
 
-// Ror2QUeryEscape query-escapes the given string using Rest.li's query escaper (same as Ror2PathEscape). Using the same
+// Ror2QueryEscape query-escapes the given string using Rest.li's query escaper (same as Ror2PathEscape). Using the same
 // technique of generating all the UTF8 characters, a handful of characters were found to be escaped differently than
 // how a normal query encoder would do it.
 func Ror2QueryEscape(s string) string {

@@ -31,6 +31,12 @@ var batchMethods = map[protocol.RestLiMethod]bool{
 	protocol.Method_batch_partial_update: true,
 }
 
+var batchMethodsWithMapInput = map[protocol.RestLiMethod]bool{
+	protocol.Method_batch_create:         true,
+	protocol.Method_batch_update:         true,
+	protocol.Method_batch_partial_update: true,
+}
+
 type RestMethod struct{ methodImplementation }
 
 func (r *RestMethod) IsSupported() bool {
@@ -49,6 +55,8 @@ func (r *RestMethod) FuncParamNames() (params []Code) {
 		params = append(params, UpdateParam)
 	case protocol.Method_batch_get:
 		params = append(params, Keys)
+	case protocol.Method_batch_partial_update:
+		params = append(params, Entities)
 	}
 	if len(r.Params) > 0 {
 		params = append(params, QueryParams)
@@ -64,6 +72,8 @@ func (r *RestMethod) FuncParamTypes() (params []Code) {
 		params = append(params, Op("*").Add(r.Resource.ResourceSchema.Record().PartialUpdateStruct()))
 	case protocol.Method_batch_get:
 		params = append(params, Index().Add(r.EntityPathKey.Type.ReferencedType()))
+	case protocol.Method_batch_partial_update:
+		params = append(params, Map(r.EntityPathKey.Type.ReferencedType()).Add(Op("*").Add(r.Resource.ResourceSchema.Record().PartialUpdateStruct())))
 	}
 	if len(r.Params) > 0 {
 		params = append(params, Op("*").Qual(r.Resource.PackagePath(), r.queryParamsStructName()))
@@ -83,13 +93,11 @@ func (r *RestMethod) NonErrorFuncReturnParams() []Code {
 		return returns
 	case protocol.Method_batch_get:
 		return []Code{Add(Entities).Add(r.batchGetReturnType())}
+	case protocol.Method_batch_partial_update:
+		return []Code{Add(Statuses).Add(r.batchPartialUpdateReturnType())}
 	default:
 		return nil
 	}
-}
-
-func (r *RestMethod) batchGetReturnType() Code {
-	return Map(r.EntityPathKey.Type.ReferencedType()).Add(r.Return.ReferencedType())
 }
 
 func (r *RestMethod) restLiMethod() protocol.RestLiMethod {
@@ -102,6 +110,10 @@ func (r *RestMethod) restLiMethod() protocol.RestLiMethod {
 
 func (r *RestMethod) isBatch() bool {
 	return batchMethods[r.restLiMethod()]
+}
+
+func (r *RestMethod) usesBatchMapInput() bool {
+	return batchMethodsWithMapInput[r.restLiMethod()]
 }
 
 func (r *RestMethod) queryParamsStructName() string {
@@ -122,6 +134,8 @@ func (r *RestMethod) generator() func(*Group) {
 		return r.genericMethodImplementation("DoDeleteRequest")
 	case protocol.Method_batch_get:
 		return r.generateBatchGet
+	case protocol.Method_batch_partial_update:
+		return r.generateBatchPartialUpdate
 	default:
 		return nil
 	}

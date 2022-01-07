@@ -44,9 +44,8 @@ func (r *Record) generateMarshaler(def *Group) {
 func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest bool) *Statement {
 	receiver := r.Receiver()
 	var params []Code
-	entityIDsWriter := Code(Id("entityIDsWriter"))
 	if isBatchRequest {
-		params = []Code{Add(entityIDsWriter).Qual(utils.RestLiCodecPackage, "ArrayWriter")}
+		params = []Code{Add(utils.EntityIDsEncoder).Op("*").Add(utils.BatchEntityIDsEncoder)}
 	}
 
 	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams).
@@ -80,7 +79,10 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 			def.Err().Op("=").Add(Writer).Dot("WriteParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
 				for i, f := range fields {
 					if i == idsIndex {
-						def.Err().Op("=").Add(paramNameWriter).Call(Lit(utils.EntityIDsParam)).Dot("WriteArray").Call(entityIDsWriter)
+						def.BlockFunc(func(def *Group) {
+							def.Err().Op("=").Add(utils.EntityIDsEncoder).Dot("Encode").Call(paramNameWriter)
+							def.Add(utils.IfErrReturn(Err()))
+						}).Line()
 					} else {
 						writeField(def, i, f, func(i int, f Field) Code {
 							if i == qIndex {

@@ -73,6 +73,7 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 }
 
 const UnexpectedRequestStatus = 666
+const MismatchedQueriesStatus = 667
 
 func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// memory barrier for reading the Operation field since requests are served from different goroutines
@@ -96,7 +97,7 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if expected, got := s.o.Request.URL.RawQuery, req.URL.RawQuery; expected != got {
-		writeErrorResponse(res, "Request queries did not match!\nExpected: %q\nGot:      %q.", expected, got)
+		writeErrorResponseWithStatus(res, MismatchedQueriesStatus, "Request queries did not match!\nExpected: %q\nGot:      %q.", expected, got)
 		return
 	}
 
@@ -139,11 +140,15 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 }
 
 func writeErrorResponse(res http.ResponseWriter, format string, args ...interface{}) {
+	writeErrorResponseWithStatus(res, UnexpectedRequestStatus, format, args...)
+}
+
+func writeErrorResponseWithStatus(res http.ResponseWriter, status int, format string, args ...interface{}) {
 	err := &protocol.RestLiError{
 		StackTrace: string(debug.Stack()),
 		Message:    fmt.Sprintf(format, args...),
 	}
 	response, _ := json.Marshal(err)
 	res.Header().Add(protocol.RestLiHeader_ErrorResponse, fmt.Sprint(true))
-	http.Error(res, string(response), UnexpectedRequestStatus)
+	http.Error(res, string(response), status)
 }

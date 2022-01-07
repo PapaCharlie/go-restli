@@ -14,16 +14,6 @@ type RestLiObject interface {
 	EqualsInterface(interface{}) bool
 }
 
-type partialUpdateRequest struct {
-	Patch restlicodec.Marshaler
-}
-
-func (p *partialUpdateRequest) MarshalRestLi(writer restlicodec.Writer) error {
-	return writer.WriteMap(func(fieldNameWriter func(fieldName string) restlicodec.Writer) error {
-		return p.Patch.MarshalRestLi(fieldNameWriter("patch").SetScope())
-	})
-}
-
 var EmptyRecord emptyRecord
 
 type emptyRecord struct{}
@@ -36,18 +26,57 @@ func (e emptyRecord) MarshalRestLi(writer restlicodec.Writer) error {
 	return writer.WriteMap(func(func(string) restlicodec.Writer) error { return nil })
 }
 
-type batchGetRequestResponse struct {
-	Results restlicodec.MapReader
+type BatchEntities map[string]restlicodec.Marshaler
+
+func (b BatchEntities) Add(key restlicodec.Marshaler, value restlicodec.Marshaler) (err error) {
+	writer := restlicodec.NewRor2HeaderWriter()
+	err = key.MarshalRestLi(writer)
+	if err != nil {
+		return err
+	}
+
+	b[writer.Finalize()] = value
+	return nil
+}
+
+func (b BatchEntities) MarshalRestLi(writer restlicodec.Writer) error {
+	return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) error {
+		return keyWriter("entities").WriteMap(func(keyWriter func(key string) restlicodec.Writer) error {
+			for k, v := range b {
+				err := keyWriter(k).WriteMap(func(keyWriter func(key string) restlicodec.Writer) error {
+					return v.MarshalRestLi(keyWriter("patch"))
+				})
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		})
+	})
+}
+
+type BatchResultsReader func(keyReader restlicodec.Reader, valueReader restlicodec.Reader) (err error)
+
+type batchRequestResponse struct {
+	Results BatchResultsReader
 	Errors  *BatchMethodError
 }
 
-func (b *batchGetRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
+func (b *batchRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
 	resultsReceived := false
 	err = reader.ReadMap(func(reader restlicodec.Reader, field string) (err error) {
 		switch field {
 		case "results":
 			resultsReceived = true
-			err = reader.ReadMap(b.Results)
+			err = reader.ReadMap(func(valueReader restlicodec.Reader, rawKey string) (err error) {
+				keyReader, err := restlicodec.NewRor2Reader(rawKey)
+				if err != nil {
+					return err
+				}
+
+				return b.Results(keyReader, valueReader)
+			})
 		case "errors":
 			b.Errors.Errors, err = reader.ReadRawBytes()
 		case "statuses":
@@ -71,6 +100,22 @@ func (b *batchGetRequestResponse) UnmarshalRestLi(reader restlicodec.Reader) (er
 		})
 	}
 	return nil
+}
+
+type BatchEntityUpdateResponse struct {
+	Status int
+}
+
+func (b *BatchEntityUpdateResponse) UnmarshalRestLi(reader restlicodec.Reader) error {
+	return reader.ReadMap(func(reader restlicodec.Reader, field string) (err error) {
+		switch field {
+		case "status":
+			b.Status, err = reader.ReadInt()
+		default:
+			err = reader.Skip()
+		}
+		return err
+	})
 }
 
 func NewPagingContext(start int32, count int32) PagingContext {

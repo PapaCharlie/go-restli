@@ -28,7 +28,7 @@ func ReadRequestFromFile(filename string) (*http.Request, []byte, error) {
 
 	req, err := http.ReadRequest(r)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Could not read request")
+		return nil, nil, errors.Wrapf(err, "Could not read request from: %q", filename)
 	}
 	// ReadRequest only reads the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers. What remains of
 	// the buffer is the body of the request, which we need to preserve for subsequent reads
@@ -45,7 +45,7 @@ func ReadResponseFromFile(filename string, req *http.Request) (*http.Response, [
 
 	res, err := http.ReadResponse(r, req)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Could not read request")
+		return nil, nil, errors.Wrapf(err, "Could not read response from: %q", filename)
 	}
 	// ReadResponse only reads the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers. What remains of
 	// the buffer is the body of the response, which we need to preserve for subsequent reads

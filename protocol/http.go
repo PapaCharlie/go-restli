@@ -151,7 +151,7 @@ func JsonRequest(
 	return req, nil
 }
 
-// JsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
+// RawJsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
 // request with the given reader
 func RawJsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), contents)

@@ -21,8 +21,8 @@ func NewRor2HeaderWriter() WriteCloser {
 	return newGenericWriter(&ror2Writer{stringEscaper: headerEncodingEscaper}, nil)
 }
 
-// NewRor2HeaderWriter returns a new WriteCloser that serializes objects using the rest.li protocol 2.0 object and
-// array representation (ROR2), whose spec is defined here:
+// NewRor2HeaderWriterWithExcludedFields returns a new WriteCloser that serializes objects using the rest.li protocol
+// 2.0 object and array representation (ROR2), whose spec is defined here:
 // https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
 // This specific WriteCloser uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
 // following characters using url.QueryEscape:

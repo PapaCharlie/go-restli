@@ -124,7 +124,36 @@ func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
 }
 
 func (s *TestServer) CollectionBatchPartialUpdate(t *testing.T, c Client) {
-	t.SkipNow()
+	keys := []int64{1, 3}
+	msg1 := "partial updated message"
+	msg2 := "another partial message"
+	res, err := c.BatchPartialUpdate(map[int64]*conflictresolution.Message_PartialUpdate{
+		keys[0]: {
+			Update_Fields: struct {
+				Id      *int64
+				Message *string
+			}{
+				Message: &msg1,
+			},
+		},
+		keys[1]: {
+			Update_Fields: struct {
+				Id      *int64
+				Message *string
+			}{
+				Message: &msg2,
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[int64]*protocol.BatchEntityUpdateResponse{
+		keys[0]: {
+			Status: 204,
+		},
+		keys[1]: {
+			Status: 204,
+		},
+	}, res)
 }
 
 func (s *TestServer) CollectionBatchDelete(t *testing.T, c Client) {

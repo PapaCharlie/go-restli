@@ -4,9 +4,17 @@ import (
 	"io"
 )
 
-// Unmarshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
+// Marshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
 type Marshaler interface {
 	MarshalRestLi(Writer) error
+}
+
+// The MarshalerFunc type is an adapter to allow the use of ordinary functions as marshalers, useful for inlining
+// marshalers instead of defining new types
+type MarshalerFunc func(Writer) error
+
+func (m MarshalerFunc) MarshalRestLi(writer Writer) error {
+	return m(writer)
 }
 
 // Closer provides methods for the underlying Writer to release its buffer and return the constructed objects to the

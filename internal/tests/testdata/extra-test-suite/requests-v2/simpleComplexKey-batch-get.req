@@ -1,4 +1,4 @@
-GET /simpleComplexKey?ids=List((string:1),(string:string%3Awith%3Acolons)) HTTP/1.1
+GET /simpleComplexKey?ids=List(($params:(temp:1),string:1),($params:(temp:42),string:string%3Awith%3Acolons)) HTTP/1.1
 Accept: application/json
 X-RestLi-Protocol-Version: 2.0.0
 

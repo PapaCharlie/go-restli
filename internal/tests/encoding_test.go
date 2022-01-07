@@ -476,12 +476,12 @@ func TestIllegalRor2Strings(t *testing.T) {
 			},
 		}
 
-		s := restlicodec.NewStringPrimitiveUnmarshaler(new(string))
 		for _, test := range tests {
 			t.Run(test.Name, func(t *testing.T) {
 				reader, err := restlicodec.NewRor2Reader(test.Data)
 				if err == nil {
-					require.Error(t, s.UnmarshalRestLi(reader))
+					_, err = reader.ReadString()
+					require.Error(t, err)
 				}
 			})
 		}

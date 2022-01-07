@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"sort"
 
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
@@ -101,7 +102,12 @@ func (c *RestLiClient) DoPartialUpdateRequest(
 	patch restlicodec.Marshaler,
 	createAndReadOnlyFields restlicodec.PathSpec,
 ) error {
-	req, err := JsonRequest(ctx, url, http.MethodPost, Method_partial_update, &partialUpdateRequest{Patch: patch}, createAndReadOnlyFields)
+	req, err := JsonRequest(ctx, url, http.MethodPost, Method_partial_update,
+		restlicodec.MarshalerFunc(func(writer restlicodec.Writer) error {
+			return writer.WriteMap(func(fieldNameWriter func(fieldName string) restlicodec.Writer) error {
+				return patch.MarshalRestLi(fieldNameWriter("patch").SetScope())
+			})
+		}), createAndReadOnlyFields)
 	if err != nil {
 		return err
 	}
@@ -190,12 +196,33 @@ func (c *RestLiClient) DoActionRequest(ctx context.Context, url *url.URL, params
 	return err
 }
 
-// GenerateBatchKeysParam is intended for use by generated code when batch methods have no extra query parameters. Batch
-// methods with query parameters will have a standalone object that includes the "ids" parameter
-func GenerateBatchKeysParam(keyWriter restlicodec.ArrayWriter) (string, error) {
+type BatchEntityIDsEncoder []restlicodec.WriteCloser
+
+func (e *BatchEntityIDsEncoder) AddEntityID() restlicodec.Writer {
 	writer := restlicodec.NewRestLiQueryParamsWriter()
-	err := writer.WriteParams(func(paramNameWriter func(paramName string) restlicodec.Writer) error {
-		return paramNameWriter("ids").WriteArray(keyWriter)
+	*e = append(*e, writer)
+	return writer
+}
+
+func (e *BatchEntityIDsEncoder) Encode(paramNameWriter func(string) restlicodec.Writer) error {
+	encodedKeys := make([]string, len(*e))
+	for i, w := range *e {
+		encodedKeys[i] = w.Finalize()
+	}
+	sort.Strings(encodedKeys)
+
+	return paramNameWriter("ids").WriteArray(func(itemWriter func() restlicodec.Writer) error {
+		for _, k := range encodedKeys {
+			itemWriter().WriteRawBytes([]byte(k))
+		}
+		return nil
+	})
+}
+
+func (e *BatchEntityIDsEncoder) GenerateRawQuery() (string, error) {
+	writer := restlicodec.NewRestLiQueryParamsWriter()
+	err := writer.WriteParams(func(paramNameWriter func(key string) restlicodec.Writer) error {
+		return e.Encode(paramNameWriter)
 	})
 	if err != nil {
 		return "", err
@@ -203,14 +230,36 @@ func GenerateBatchKeysParam(keyWriter restlicodec.ArrayWriter) (string, error) {
 	return writer.Finalize(), nil
 }
 
-func (c *RestLiClient) DoBatchGetRequest(ctx context.Context, url *url.URL, resultsReader restlicodec.MapReader) (err error) {
+func (c *RestLiClient) DoBatchGetRequest(ctx context.Context, url *url.URL, reader BatchResultsReader) (err error) {
 	req, err := GetRequest(ctx, url, Method_batch_get)
 	if err != nil {
 		return err
 	}
 
-	res := &batchGetRequestResponse{
-		Results: resultsReader,
+	res := &batchRequestResponse{
+		Results: reader,
+		Errors: &BatchMethodError{
+			Request: req,
+		},
+	}
+	res.Errors.Response, err = c.DoAndDecode(req, res)
+	return err
+}
+
+func (c *RestLiClient) DoBatchPartialUpdateRequest(
+	ctx context.Context,
+	url *url.URL,
+	entities BatchEntities,
+	reader BatchResultsReader,
+	createAndReadOnlyFields restlicodec.PathSpec,
+) (err error) {
+	req, err := JsonRequest(ctx, url, http.MethodPost, Method_batch_partial_update, entities, createAndReadOnlyFields)
+	if err != nil {
+		return err
+	}
+
+	res := &batchRequestResponse{
+		Results: reader,
 		Errors: &BatchMethodError{
 			Request: req,
 		},

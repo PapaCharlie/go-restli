@@ -406,3 +406,7 @@ func (u *ror2Reader) errorf(format string, args ...interface{}) error {
 func (u *ror2Reader) AtInputStart() bool {
 	return u.pos == 0
 }
+
+func (u *ror2Reader) String() string {
+	return string(u.data)
+}

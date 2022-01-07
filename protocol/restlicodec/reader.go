@@ -9,6 +9,8 @@ type Unmarshaler interface {
 	UnmarshalRestLi(Reader) error
 }
 
+// The UnmarshalerFunc type is an adapter to allow the use of ordinary functions as unmarshalers, useful for inlining
+// marshalers instead of defining new types
 type UnmarshalerFunc func(Reader) error
 
 func (u UnmarshalerFunc) UnmarshalRestLi(reader Reader) error {
@@ -36,6 +38,7 @@ type (
 )
 
 type Reader interface {
+	fmt.Stringer
 	PrimitiveReader
 	// ReadMap tells the Reader that it should expect a map/object as its next input. If it is not (e.g. it is an array
 	// or a primitive) it will return an error.

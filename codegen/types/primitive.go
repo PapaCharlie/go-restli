@@ -122,6 +122,16 @@ func (p *PrimitiveType) HasherName() string {
 	return "Add" + p.exportedName()
 }
 
+func (p *PrimitiveType) NewPrimitiveMarshaler(accessor Code) Code {
+	return Qual(utils.RestLiCodecPackage, "MarshalerFunc").Call(Func().Params(Add(Writer).Add(WriterQual)).Error().BlockFunc(func(def *Group) {
+		def.Add(Writer.Write(RestliType{Primitive: p}, Writer, accessor))
+		def.Return(Nil())
+	}))
+}
+
 func (p *PrimitiveType) NewPrimitiveUnmarshaler(accessor Code) Code {
-	return Qual(utils.RestLiCodecPackage, "New"+p.exportedName()+"PrimitiveUnmarshaler").Call(Op("&").Add(accessor))
+	return Qual(utils.RestLiCodecPackage, "UnmarshalerFunc").Call(Func().Params(Add(Reader).Add(ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
+		def.Add(Reader.Read(RestliType{Primitive: p}, Reader, accessor))
+		def.Return(Err())
+	}))
 }
