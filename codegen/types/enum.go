@@ -1,8 +1,6 @@
 package types
 
 import (
-	"fmt"
-
 	"github.com/PapaCharlie/go-restli/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
@@ -46,13 +44,12 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		}
 	})).Line().Line()
 
+	val, ok := Code(Id("val")), Code(Id("ok"))
 	receiver := utils.ReceiverName(e.Name)
 	getter := "Get" + e.Name + "FromString"
 	accessor := Op("*").Id(receiver)
-	getEnumString := func(def *Group) (*Statement, *Statement) {
-		val, ok := Id("val"), Id("ok")
+	getEnumString := func(def *Group) {
 		def.List(val, ok).Op(":=").Id(strings).Index(accessor)
-		return val, ok
 	}
 
 	AddEquals(def, receiver, e.Name, func(other Code, def *Group) {
@@ -72,35 +69,35 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		}))
 	}).Line().Line()
 
-	def.Func().Id(getter).Params(Id("val").String()).Params(Id(receiver).Id(e.Name), Err().Error()).
+	def.Func().Id(getter).Params(Add(val).String()).Params(Id(receiver).Id(e.Name), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.List(Id(receiver), Id("ok")).Op(":=").Id(values).Index(Id("val"))
-			def.If(Op("!").Id("ok")).BlockFunc(func(def *Group) {
-				def.Err().Op("=").Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("unknown %q: %%s", e.Identifier)), Id("val"))
+			def.List(Id(receiver), ok).Op(":=").Id(values).Index(val)
+			def.If(Op("!").Add(ok)).BlockFunc(func(def *Group) {
+				def.Err().Op("=").Op("&").Add(utils.UnknownEnumValue).Values(Dict{
+					Id("Enum"):  Lit(e.Identifier.String()),
+					Id("Value"): val,
+				})
 			})
-			def.Return()
+			def.Return(Id(receiver), Err())
 		}).Line().Line()
 
 	utils.AddStringer(def, receiver, e.Name, func(def *Group) {
-		val, ok := getEnumString(def)
+		getEnumString(def)
 		def.If(Op("!").Add(ok)).Block(
 			Return(Lit("$UNKNOWN$")),
 		)
 		def.Return(val)
 	}).Line().Line()
 
-	def.Func().
-		Params(Id(receiver).Id(e.Name)).
-		Id("Pointer").Params().
-		Op("*").Id(e.Name).
-		BlockFunc(func(def *Group) {
-			def.Return(Op("&").Id(receiver))
-		}).Line().Line()
+	utils.AddPointer(def, receiver, e.Name)
 
 	AddMarshalRestLi(def, receiver, e.Name, func(def *Group) {
-		val, ok := getEnumString(def)
+		getEnumString(def)
 		def.If(Op("!").Add(ok)).Block(
-			Return(Qual("fmt", "Errorf").Call(Lit(fmt.Sprintf("illegal %q: %%d", e.Identifier)), Int().Call(accessor))),
+			Return(Op("&").Add(utils.IllegalEnumConstant).Values(Dict{
+				Id("Enum"):     Lit(e.Identifier.String()),
+				Id("Constant"): Int().Call(accessor),
+			})),
 		)
 		def.List(Writer).Dot("WriteString").Call(val)
 		def.Return(Nil())

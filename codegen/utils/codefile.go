@@ -172,6 +172,18 @@ func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) 
 		BlockFunc(f)
 }
 
+func AddPointer(def *Statement, receiver, typeName string) *Statement {
+	def.Comment("Pointer returns a pointer to the given receiver, useful for inlining setting optional fields.").Line()
+	def.Func().
+		Params(Id(receiver).Id(typeName)).
+		Id("Pointer").Params().
+		Op("*").Id(typeName).
+		BlockFunc(func(def *Group) {
+			def.Return(Op("&").Id(receiver))
+		}).Line().Line()
+	return def
+}
+
 func IfErrReturn(results ...Code) *Statement {
 	return If(Err().Op("!=").Nil()).Block(Return(results...))
 }

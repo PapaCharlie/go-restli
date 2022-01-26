@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -153,7 +152,13 @@ func JsonRequest(
 
 // RawJsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
 // request with the given reader
-func RawJsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLiMethod RestLiMethod, contents io.Reader) (*http.Request, error) {
+func RawJsonRequest(
+	ctx context.Context,
+	url *url.URL,
+	httpMethod string,
+	restLiMethod RestLiMethod,
+	contents io.Reader,
+) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), contents)
 	if err != nil {
 		return nil, err
@@ -169,13 +174,15 @@ func RawJsonRequest(ctx context.Context, url *url.URL, httpMethod string, restLi
 // Do is a very thin shim between the standard http.Client.Do. All it does it parse the response into a RestLiError if
 // the RestLi error header is set. A non-nil Response with a non-nil error will only occur if http.Client.Do returns
 // such values (see the corresponding documentation). Otherwise, the response will only be non-nil if the error is nil.
+// All (and only) network-related errors will be of type *url.Error. Other types of errors such as parse errors will use
+// different error types.
 func (c *RestLiClient) Do(req *http.Request) (*http.Response, error) {
 	res, err := c.Client.Do(req)
 	if err != nil {
 		return res, err
 	}
 
-	err = IsErrorResponse(req, res)
+	err = IsErrorResponse(res)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +198,7 @@ func (c *RestLiClient) DoAndDecode(req *http.Request, v restlicodec.Unmarshaler)
 	})
 }
 
-// DoAndDecode calls Do and drops the response's body. The response body will always be read to EOF and closed, to
+// DoAndIgnore calls Do and drops the response's body. The response body will always be read to EOF and closed, to
 // ensure the connection can be reused.
 func (c *RestLiClient) DoAndIgnore(req *http.Request) (*http.Response, error) {
 	return c.doAndConsumeBody(req, func([]byte) error {
@@ -206,17 +213,25 @@ func (c *RestLiClient) doAndConsumeBody(req *http.Request, bodyConsumer func(bod
 	}
 
 	if v := res.Header.Get(RestLiHeader_ProtocolVersion); v != RestLiProtocolVersion {
-		return nil, fmt.Errorf("go-restli: Unsupported rest.li protocol version: %s", v)
+		return nil, &UnsupportedRestLiProtocolVersion{v}
 	}
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, err
+		return nil, &url.Error{
+			Op:  "ReadResponse",
+			URL: req.URL.String(),
+			Err: err,
+		}
 	}
 
 	err = res.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, &url.Error{
+			Op:  "CloseResponse",
+			URL: req.URL.String(),
+			Err: err,
+		}
 	}
 
 	err = bodyConsumer(data)

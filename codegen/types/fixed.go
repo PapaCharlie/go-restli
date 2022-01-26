@@ -38,6 +38,8 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 		def.Return(h)
 	})
 
+	utils.AddPointer(def, f.Receiver(), f.Name)
+
 	AddMarshalRestLi(def, receiver, f.Name, func(def *Group) {
 		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Add(slice)))
 		def.Return(Nil())

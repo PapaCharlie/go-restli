@@ -36,6 +36,9 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		def.Add(h).Dot(r.Type.HasherName()).Call(cast)
 		def.Return(h)
 	})
+
+	utils.AddPointer(def, r.Receiver(), r.Name)
+
 	AddMarshalRestLi(def, r.Receiver(), r.Name, func(def *Group) {
 		def.Add(Writer.Write(underlyingType, Writer, cast))
 		def.Return(Nil())

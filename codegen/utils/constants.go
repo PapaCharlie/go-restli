@@ -32,4 +32,7 @@ var (
 
 	NewHash = Code(Qual(HashPackage, "NewHash").Call())
 	Hash    = Code(Qual(HashPackage, "Hash"))
+
+	IllegalEnumConstant = Code(Qual(ProtocolPackage, "IllegalEnumConstant"))
+	UnknownEnumValue    = Code(Qual(ProtocolPackage, "UnknownEnumValue"))
 )
