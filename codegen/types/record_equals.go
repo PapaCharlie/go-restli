@@ -6,6 +6,13 @@ import (
 )
 
 func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def *Group)) *Statement {
+	return AddCustomEquals(def, receiver, typeName, func(other Code, def *Group) {
+		def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
+		f(other, def)
+	})
+}
+
+func AddCustomEquals(def *Statement, receiver, typeName string, f func(other Code, def *Group)) *Statement {
 	other := Id("other")
 	otherInterface := Id("otherInterface")
 	rightHandType := Op("*").Id(typeName)
@@ -20,7 +27,6 @@ func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def
 	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals).
 		Params(Add(other).Add(rightHandType)).Bool().
 		BlockFunc(func(def *Group) {
-			def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
 			f(other, def)
 		}).Line().Line()
 }

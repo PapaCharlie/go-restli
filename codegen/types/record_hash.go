@@ -6,12 +6,18 @@ import (
 )
 
 func AddComputeHash(def *Statement, receiver, typeName string, f func(h Code, def *Group)) *Statement {
+	return AddCustomComputeHash(def, receiver, typeName, func(h Code, def *Group) {
+		def.Add(If(Id(receiver).Op("==").Nil()).Block(Return(h)))
+		def.Add(h).Op("=").Add(utils.NewHash).Line()
+		f(h, def)
+	})
+}
+
+func AddCustomComputeHash(def *Statement, receiver, typeName string, f func(h Code, def *Group)) *Statement {
 	h := Id("hash")
 	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.ComputeHash).
 		Params().Params(Add(h).Add(utils.Hash)).
 		BlockFunc(func(def *Group) {
-			def.Add(If(Id(receiver).Op("==").Nil()).Block(Return(h)))
-			def.Add(h).Op("=").Add(utils.NewHash).Line()
 			f(h, def)
 		}).Line().Line()
 }

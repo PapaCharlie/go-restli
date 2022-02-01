@@ -119,21 +119,3 @@ type UnsupportedRestLiProtocolVersion struct {
 func (u *UnsupportedRestLiProtocolVersion) Error() string {
 	return fmt.Sprintf("go-restli: Unsupported rest.li protocol version: %s", u.ReturnedVersion)
 }
-
-type IllegalEnumConstant struct {
-	Enum     string
-	Constant int
-}
-
-func (i *IllegalEnumConstant) Error() string {
-	return fmt.Sprintf("go-restli: Illegal constant for %q enum: %d", i.Enum, i.Constant)
-}
-
-type UnknownEnumValue struct {
-	Enum  string
-	Value string
-}
-
-func (u *UnknownEnumValue) Error() string {
-	return fmt.Sprintf("go-restli: Unknown enum value for %q: %q", u.Enum, u.Value)
-}

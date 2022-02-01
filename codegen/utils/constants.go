@@ -16,6 +16,7 @@ const (
 	FinderNameParam            = "q"
 	EntityIDsParam             = "ids"
 	PartialUpdate              = "_PartialUpdate"
+	IsUnknown                  = "IsUnknown"
 
 	RootPackage        = "github.com/PapaCharlie/go-restli"
 	HashPackage        = RootPackage + "/fnv1a"
@@ -35,4 +36,6 @@ var (
 
 	IllegalEnumConstant = Code(Qual(ProtocolPackage, "IllegalEnumConstant"))
 	UnknownEnumValue    = Code(Qual(ProtocolPackage, "UnknownEnumValue"))
+
+	Enum = Code(Qual(ProtocolPackage, "Enum"))
 )

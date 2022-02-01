@@ -18,9 +18,9 @@ func (e *Enum) InnerTypes() utils.IdentifierSet {
 func (e *Enum) GenerateCode() (def *Statement) {
 	def = Empty()
 	utils.AddWordWrappedComment(def, e.Doc).Line()
-	def.Type().Id(e.Name).Int().Line()
+	def.Type().Id(e.Name).Add(utils.Enum).Line()
 
-	unknownEnum := Id("_" + e.SymbolIdentifier("unknown"))
+	unknownEnum := Code(Id("_" + e.SymbolIdentifier("unknown")))
 
 	def.Const().DefsFunc(func(def *Group) {
 		def.Add(unknownEnum).Op("=").Id(e.Name).Call(Iota())
@@ -52,13 +52,20 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		def.List(val, ok).Op(":=").Id(strings).Index(accessor)
 	}
 
-	AddEquals(def, receiver, e.Name, func(other Code, def *Group) {
-		def.Return(Op("*").Id(receiver).Op("== *").Add(other))
+	cast := func(c Code) *Statement {
+		return Parens(Op("*").Add(utils.Enum)).Call(c)
+	}
+
+	utils.AddFuncOnReceiver(def, receiver, e.Name, utils.IsUnknown).Params().Bool().BlockFunc(func(def *Group) {
+		def.Return(cast(Id(receiver)).Dot(utils.IsUnknown).Call())
+	}).Line().Line()
+
+	AddCustomEquals(def, receiver, e.Name, func(other Code, def *Group) {
+		def.Return(cast(Id(receiver)).Dot(utils.Equals).Call(cast(other)))
 	})
 
-	AddComputeHash(def, receiver, e.Name, func(h Code, def *Group) {
-		def.Add(h).Op("=").Add(utils.Hash).Call(Op("*").Id(receiver))
-		def.Return(h)
+	AddCustomComputeHash(def, receiver, e.Name, func(h Code, def *Group) {
+		def.Return(cast(Id(receiver)).Dot(utils.ComputeHash).Call())
 	})
 
 	def.Func().Id("All" + e.Name + "Values").Params().Index().Id(e.Name).BlockFunc(func(def *Group) {
