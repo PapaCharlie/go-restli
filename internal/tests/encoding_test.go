@@ -2,7 +2,6 @@ package tests
 
 import (
 	"encoding/json"
-	"log"
 	"math"
 	"net/url"
 	"testing"
@@ -11,8 +10,8 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,11 +27,11 @@ func TestEncodePrimitives(t *testing.T) {
 
 	t.Run("json", func(t *testing.T) {
 		testJsonEncoding(t, expected, new(Primitives), `{
+  "primitiveBytes": "@ABC🕴\u0001",
+  "primitiveDouble": 66.5,
+  "primitiveFloat": 52.5,
   "primitiveInteger": 1,
   "primitiveLong": 23,
-  "primitiveFloat": 52.5,
-  "primitiveDouble": 66.5,
-  "primitiveBytes": "@ABC🕴\u0001",
   "primitiveString": "a string,()'"
 }`)
 	})
@@ -51,7 +50,9 @@ func TestEncodeInfinity(t *testing.T) {
 	}
 
 	t.Run("json", func(t *testing.T) {
-		testJsonEncoding(t, expected, new(Optionals), `{"optionalDouble":"-Infinity"}`)
+		testJsonEncoding(t, expected, new(Optionals), `{
+  "optionalDouble": "-Infinity"
+}`)
 	})
 
 	t.Run("ror2", func(t *testing.T) {
@@ -116,6 +117,11 @@ func TestEncodeComplexTypes(t *testing.T) {
 
 	t.Run("json", func(t *testing.T) {
 		testJsonEncoding(t, expected, new(ComplexTypes), `{
+  "anotherUnionOfComplexTypes": {
+    "complexTypeUnion": {
+      "testsuite.Fruits": "APPLE"
+    }
+  },
   "arrayOfMaps": {
     "arrayOfMaps": [
       {
@@ -142,11 +148,6 @@ func TestEncodeComplexTypes(t *testing.T) {
   "unionOfPrimitives": {
     "primitivesUnion": {
       "int": 5
-    }
-  },
-  "anotherUnionOfComplexTypes": {
-    "complexTypeUnion": {
-      "testsuite.Fruits": "APPLE"
     }
   },
   "unionOfSameTypes": {
@@ -259,7 +260,7 @@ func TestUnknownFieldReads(t *testing.T) {
 }
 
 func TestRawRecord(t *testing.T) {
-	expected := &protocol.RawRecord{
+	expected := &stdstructs.RawRecord{
 		"arrayOfInts": []int{1, 2, 3},
 		"arrayOfMaps": []map[string]int{
 			{"foo": 1},
@@ -317,7 +318,7 @@ func TestRawRecord(t *testing.T) {
 		require.NoError(t, expected.MarshalRestLi(w))
 		require.Equal(t, expectedJson, w.Finalize())
 
-		raw := new(protocol.RawRecord)
+		raw := new(stdstructs.RawRecord)
 		require.NoError(t, raw.UnmarshalRestLi(restlicodec.NewJsonReader([]byte(expectedJson))))
 
 		w = restlicodec.NewPrettyJsonWriter()
@@ -342,7 +343,7 @@ func TestRawRecord(t *testing.T) {
 		require.NoError(t, expected.MarshalRestLi(w))
 		require.Equal(t, expectedRor2, w.Finalize())
 
-		raw := new(protocol.RawRecord)
+		raw := new(stdstructs.RawRecord)
 		r, err := restlicodec.NewRor2Reader(expectedRor2)
 		require.NoError(t, err)
 		require.NoError(t, raw.UnmarshalRestLi(r))
@@ -355,7 +356,7 @@ func TestRawRecord(t *testing.T) {
 }
 
 func TestRawRecordUnmarshalTo(t *testing.T) {
-	raw := &protocol.RawRecord{
+	raw := &stdstructs.RawRecord{
 		"string": "abc",
 	}
 	expected := &extras.SinglePrimitiveField{String: "abc"}
@@ -625,7 +626,13 @@ func TestRaw(t *testing.T) {
 	})
 }
 
-func testJsonEncoding(t *testing.T, expected, actual protocol.RestLiObject, expectedRawJson string) {
+type RestLiObject[T any] interface {
+	restlicodec.Marshaler
+	restlicodec.Unmarshaler
+	Equals(T) bool
+}
+
+func testJsonEncoding[T RestLiObject[T]](t *testing.T, expected, actual T, expectedRawJson string) {
 	t.Run("encode", func(t *testing.T) {
 		testJsonEquality(t, expected, expectedRawJson, nil, true)
 	})
@@ -637,22 +644,19 @@ func testJsonEncoding(t *testing.T, expected, actual protocol.RestLiObject, expe
 	})
 }
 
-func testJsonEquality(t *testing.T, obj protocol.RestLiObject, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
-	writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
+func testJsonEquality[T RestLiObject[T]](t *testing.T, obj T, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
+	writer := restlicodec.NewPrettyJsonWriterWithExcludedFields(excludedFields)
 	require.NoError(t, obj.MarshalRestLi(writer))
 
-	var expectedRaw map[string]interface{}
-	require.NoError(t, json.Unmarshal([]byte(expectedRawJson), &expectedRaw))
-	var raw map[string]interface{}
-	require.NoError(t, json.Unmarshal([]byte(writer.Finalize()), &raw))
+	actualRawJson := writer.Finalize()
 	if equal {
-		require.Equal(t, expectedRaw, raw)
+		require.Equal(t, expectedRawJson, actualRawJson)
 	} else {
-		require.NotEqual(t, expectedRaw, raw)
+		require.NotEqual(t, expectedRawJson, actualRawJson)
 	}
 }
 
-func testRor2Encoding(t *testing.T, expected, actual protocol.RestLiObject, expectedRawRor2 string) {
+func testRor2Encoding[T RestLiObject[T]](t *testing.T, expected, actual T, expectedRawRor2 string) {
 	t.Run("encode", func(t *testing.T) {
 		testRor2Equality(t, expected, expectedRawRor2, nil, true)
 	})
@@ -664,33 +668,22 @@ func testRor2Encoding(t *testing.T, expected, actual protocol.RestLiObject, expe
 	})
 }
 
-func testRor2Equality(t *testing.T, obj protocol.RestLiObject, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
+func testRor2Equality[T RestLiObject[T]](t *testing.T, obj T, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewRor2HeaderWriterWithExcludedFields(excludedFields)
 	require.NoError(t, obj.MarshalRestLi(writer))
-	log.Println(expectedRawRor2)
 
-	unmarhsal := func(s string) interface{} {
-		reader := newRor2Reader(t, s)
-
-		i, err := reader.ReadInterface()
-		require.NoError(t, err)
-
-		return i
-	}
-
-	expected := unmarhsal(expectedRawRor2)
-	actual := unmarhsal(writer.Finalize())
+	actualRawRor2 := writer.Finalize()
 
 	if equal {
-		require.Equal(t, expected, actual)
+		require.Equal(t, expectedRawRor2, actualRawRor2)
 	} else {
-		require.NotEqual(t, expected, actual)
+		require.NotEqual(t, expectedRawRor2, actualRawRor2)
 	}
 }
 
-func requireEqual(t *testing.T, expected, actual protocol.RestLiObject) {
+func requireEqual[T RestLiObject[T]](t *testing.T, expected, actual T) {
 	require.Equal(t, expected, actual)
-	require.True(t, expected.EqualsInterface(actual))
+	require.True(t, expected.Equals(actual), "%+v and %+v should be equals", expected, actual)
 }
 
 func newRor2Reader(t *testing.T, data string) restlicodec.Reader {
@@ -720,4 +713,11 @@ func TestPathEscape(t *testing.T) {
 			require.Equal(t, url.PathEscape(string(c)), restlicodec.Ror2PathEscape(string(c)))
 		}
 	}
+}
+
+func TestReadArray(t *testing.T) {
+	r := restlicodec.NewJsonReader([]byte(`["APPLE"]`))
+	fruits, err := restlicodec.ReadArray[conflictresolution.Fruits](r, conflictresolution.UnmarshalFruits)
+	require.NoError(t, err)
+	require.Equal(t, []conflictresolution.Fruits{conflictresolution.Fruits_APPLE}, fruits)
 }

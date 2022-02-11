@@ -1,12 +1,13 @@
 package tests
 
 import (
+	"crypto/md5"
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/protocol/equals"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,10 @@ func TestInclude(t *testing.T) {
 		PrimitiveField: testsuite.PrimitiveField{Integer: int32(1)},
 		F1:             4.27,
 	}
-	testJsonEncoding(t, expected, new(testsuite.Include), `{ "integer": 1, "f1": 4.27 }`)
+	testJsonEncoding(t, expected, new(testsuite.Include), `{
+  "f1": 4.27,
+  "integer": 1
+}`)
 }
 
 // TestDefaults tests that default values are loaded correctly (see
@@ -38,88 +42,76 @@ func TestDefaults(t *testing.T) {
 	require.Equal(t, testsuite.Defaults_DefaultUnion{Int: &five}, *d.DefaultUnion)
 }
 
-func TestEquals(t *testing.T) {
-	testEquality := func(t *testing.T, tests [][]bool, supplier func(index int) protocol.RestLiObject) {
-		for i, row := range tests {
-			for j, expected := range row {
-				a, b := supplier(i), supplier(j)
-				require.Equal(t, expected, a.EqualsInterface(b), "Equals(%d, %d)", i, j)
-				if expected {
-					require.Equal(t, a, b)
-				} else {
-					require.NotEqual(t, a, b)
-				}
+func testEquality[T equals.Equatable[T]](t *testing.T, tests [][]bool, data []T) {
+	for i, row := range tests {
+		for j, expected := range row {
+			a, b := data[i], data[j]
+			require.Equal(t, expected, a.Equals(b), "Equals(%d, %d)", a, b)
+			if expected {
+				require.Equal(t, a, b)
+			} else {
+				require.NotEqual(t, a, b)
 			}
 		}
 	}
+}
 
+func TestEquals(t *testing.T) {
 	t.Run("enum", func(t *testing.T) {
-		data := []conflictresolution.Fruits{
-			conflictresolution.Fruits_APPLE,
-			conflictresolution.Fruits_APPLE,
-			conflictresolution.Fruits_ORANGE,
-		}
 		testEquality(t, [][]bool{
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, func(i int) protocol.RestLiObject {
-			return &data[i]
+		}, []conflictresolution.Fruits{
+			conflictresolution.Fruits_APPLE,
+			conflictresolution.Fruits_APPLE,
+			conflictresolution.Fruits_ORANGE,
 		})
 	})
 
 	t.Run("fixed", func(t *testing.T) {
-		data := []*testsuite.Fixed5{
-			{0, 1, 2, 3, 4},
-			{0, 1, 2, 3, 4},
-			{1, 2, 3, 4, 5},
-		}
 		testEquality(t, [][]bool{
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, func(i int) protocol.RestLiObject {
-			return data[i]
+		}, []*testsuite.Fixed5{
+			{0, 1, 2, 3, 4},
+			{0, 1, 2, 3, 4},
+			{1, 2, 3, 4, 5},
 		})
 	})
 
 	t.Run("union", func(t *testing.T) {
 		i1, i2, i3, l := int32(1), int32(1), int32(2), int64(2)
-		data := []*testsuite.UnionOfPrimitives_PrimitivesUnion{
-			{Int: &i1},
-			{Int: &i1},
-			{Int: &i2},
-			{Int: &i3},
-			{Long: &l},
-		}
 		testEquality(t, [][]bool{
 			{true, true, true, false, false},
 			{true, true, true, false, false},
 			{true, true, true, false, false},
 			{false, false, false, true, false},
 			{false, false, false, false, true},
-		}, func(i int) protocol.RestLiObject {
-			return data[i]
+		}, []*testsuite.UnionOfPrimitives_PrimitivesUnion{
+			{Int: &i1},
+			{Int: &i1},
+			{Int: &i2},
+			{Int: &i3},
+			{Long: &l},
 		})
 	})
 
 	t.Run("record", func(t *testing.T) {
 		t1, t2, t3 := extras.Temperature(1), extras.Temperature(1), extras.Temperature(2)
-		data := []*extras.DefaultTyperef{
-			{Foo: nil},
-			{Foo: &t1},
-			{Foo: &t1},
-			{Foo: &t2},
-			{Foo: &t3},
-		}
 		testEquality(t, [][]bool{
 			{true, false, false, false, false},
 			{false, true, true, true, false},
 			{false, true, true, true, false},
 			{false, true, true, true, false},
 			{false, false, false, false, true},
-		}, func(i int) protocol.RestLiObject {
-			return data[i]
+		}, []*extras.DefaultTyperef{
+			{Foo: nil},
+			{Foo: &t1},
+			{Foo: &t1},
+			{Foo: &t2},
+			{Foo: &t3},
 		})
 	})
 }
@@ -208,4 +200,10 @@ func TestReadInterface(t *testing.T) {
 			require.Equal(t, []interface{}{}, read(t, "[]"))
 		})
 	})
+}
+
+// ensures the Hex method on MD5 is never deleted by the code generator
+func TestMD5Hex(t *testing.T) {
+	m := extras.MD5(md5.Sum([]byte("abc")))
+	require.Equal(t, "900150983cd24fb0d6963f7d28e17f72", m.Hex())
 }

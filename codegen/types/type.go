@@ -71,10 +71,8 @@ func (t *RestliType) ShouldReference() bool {
 	case t.IsMapOrArray():
 		// Maps and arrays are already reference types, no need to take the pointer
 		return false
-	case t.Enum() != nil:
-		return false
 	}
-	return true
+	return t.Reference.Resolve().ShouldReference().ShouldUsePointer()
 }
 
 func (t *RestliType) IsReferenceEncodable() bool {

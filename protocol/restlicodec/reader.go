@@ -33,8 +33,9 @@ type PrimitiveReader interface {
 }
 
 type (
-	MapReader   func(reader Reader, field string) (err error)
-	ArrayReader func(reader Reader) (err error)
+	GenericUnmarshaler[T any] func(reader Reader) (T, error)
+	MapReader                 func(reader Reader, field string) (err error)
+	ArrayReader               func(reader Reader) (err error)
 )
 
 type Reader interface {
@@ -44,8 +45,12 @@ type Reader interface {
 	// or a primitive) it will return an error.
 	// Note that not using the inner Reader passed to the MapReader may result in undefined behavior.
 	ReadMap(mapReader MapReader) error
+	// ReadRecord tells the Reader that it should expect an object as its next input and calls recordReader for each
+	// field of the object. If the next input is not an object, it will return an error.
+	// Note that not using the inner Reader passed to the MapReader may result in undefined behavior.
+	ReadRecord(requiredFields RequiredFields, recordReader MapReader) error
 	// ReadArray tells the reader that it should expect an array as its next input. If it is not, it will return an
-	// error>
+	// error
 	// Note that not using the inner Reader passed to the ArrayReader may result in undefined behavior.
 	ReadArray(arrayReader ArrayReader) error
 	// ReadInterface reads an interface{} analogous to the 'encoding/json' package. It is a best-effort attempt to
@@ -58,10 +63,71 @@ type Reader interface {
 
 	// Skip skips the next primitive/array/map completely.
 	Skip() error
+}
+
+type rawReader interface {
+	ReadMap(mapReader MapReader) error
 
 	AtInputStart() bool
 	RecordMissingRequiredFields(missingRequiredFields map[string]struct{})
 	CheckMissingFields() error
+}
+
+func readRecord(reader rawReader, requiredFields RequiredFields, mapReader MapReader) (err error) {
+	atInputStart := reader.AtInputStart()
+	requiredFieldsRemaining := requiredFields.toMap()
+
+	err = reader.ReadMap(func(reader Reader, field string) (err error) {
+		err = mapReader(reader, field)
+		if err != nil {
+			return err
+		}
+
+		delete(requiredFieldsRemaining, field)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	reader.RecordMissingRequiredFields(requiredFieldsRemaining)
+
+	if atInputStart {
+		return reader.CheckMissingFields()
+	} else {
+		return nil
+	}
+}
+
+func ReadMap[V any](reader Reader, unmarshaler GenericUnmarshaler[V]) (result map[string]V, err error) {
+	result = make(map[string]V)
+	err = reader.ReadMap(func(reader Reader, field string) (err error) {
+		result[field], err = unmarshaler(reader)
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func ReadArray[V any](reader Reader, unmarshaler GenericUnmarshaler[V]) (result []V, err error) {
+	err = reader.ReadArray(func(reader Reader) (err error) {
+		item, err := unmarshaler(reader)
+		if err != nil {
+			return err
+		}
+		result = append(result, item)
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 type DeserializationError struct {
@@ -71,4 +137,14 @@ type DeserializationError struct {
 
 func (d *DeserializationError) Error() string {
 	return fmt.Sprintf("go-restli: Failed to deserialize %q (%+v)", d.Scope, d.Err)
+}
+
+type RequiredFields []string
+
+func (rf RequiredFields) toMap() map[string]struct{} {
+	fields := make(map[string]struct{}, len(rf))
+	for _, f := range rf {
+		fields[f] = struct{}{}
+	}
+	return fields
 }

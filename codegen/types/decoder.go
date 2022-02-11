@@ -12,14 +12,22 @@ type reader struct {
 }
 
 var (
-	Reader     = &reader{Id("reader")}
-	ReaderQual = Qual(utils.RestLiCodecPackage, "Reader")
+	Reader      = &reader{Id("reader")}
+	ReaderQual  = Qual(utils.RestLiCodecPackage, "Reader")
+	ReaderParam = Add(Reader).Add(ReaderQual)
 )
 
 func (d *reader) ReadMap(reader Code, mapReader func(reader, key Code, def *Group)) Code {
 	key := Id("key")
 	return Add(reader).Dot("ReadMap").Call(Func().Params(Add(d).Add(ReaderQual), Add(key).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
 		mapReader(d, key, def)
+	}))
+}
+
+func (d *reader) ReadRecord(reader Code, requiredFields Code, mapReader func(reader, key Code, def *Group)) Code {
+	field := Id("field")
+	return Add(reader).Dot("ReadRecord").Call(requiredFields, Func().Params(Add(d).Add(ReaderQual), Add(field).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
+		mapReader(d, field, def)
 	}))
 }
 
@@ -39,68 +47,43 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 		return List(targetAccessor, Err()).Op("=").Add(reader).Dot(t.Primitive.ReaderName()).Call()
 	case t.Reference != nil:
 		return Err().Op("=").Add(targetAccessor).Dot(utils.UnmarshalRestLi).Call(reader)
-	case t.Array != nil:
-		return Err().Op("=").Add(d.ReadArray(reader, func(reader Code, def *Group) {
-			d.ReadArrayFunc(t, reader, targetAccessor, def)
-		}))
-	case t.Map != nil:
-		return Add(targetAccessor).Op("=").Make(t.GoType()).Line().
-			Err().Op("=").
-			Add(d.ReadMap(reader, func(reader, key Code, def *Group) {
-				_, value := tempIteratorVariableNames(t)
-				def.Var().Add(value).Add(t.Map.GoType())
-				def.Add(d.Read(*t.Map, reader, value))
-				def.Add(utils.IfErrReturn(Err()))
-				if t.Map.ShouldReference() {
-					value = Op("&").Add(value)
-				}
-				def.Parens(targetAccessor).Index(key).Op("=").Add(value)
-				def.Return(Nil())
-			}))
+	case t.IsMapOrArray():
+		return List(targetAccessor, Err()).Op("=").Add(d.NestedUnmarshaler(t, reader))
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
 	}
 }
 
-func (d *reader) ReadArrayFunc(t RestliType, reader, targetAccessor Code, def *Group) {
-	_, item := tempIteratorVariableNames(t)
-	def.Var().Add(item).Add(t.Array.GoType())
-	def.Add(d.Read(*t.Array, reader, item))
-	def.Add(utils.IfErrReturn(Err()))
-	if t.Array.ShouldReference() {
-		item = Op("&").Add(item)
+func (d *reader) UnmarshalerFunc(t RestliType) Code {
+	switch {
+	case t.Primitive != nil:
+		return t.Primitive.UnmarshalerFunc()
+	case t.Reference != nil:
+		return t.Reference.UnmarshalerFunc()
+	case t.IsMapOrArray():
+		return Func().
+			Params(Add(Reader).Add(ReaderQual)).
+			Params(t.GoType(), Error()).
+			BlockFunc(func(def *Group) {
+				def.Return(d.NestedUnmarshaler(t, Reader))
+			})
+	default:
+		log.Panicf("Illegal restli type: %+v", t)
+		return nil
 	}
-	def.Add(targetAccessor).Op("=").Append(targetAccessor, item)
-	def.Return(Nil())
 }
 
-func tempIteratorVariableNames(t RestliType) (Code, Code) {
-	var tempName func(t RestliType) string
-	tempName = func(t RestliType) string {
-		if t.Array != nil {
-			if t.Array.IsMapOrArray() {
-				return "array" + utils.ExportedIdentifier(tempName(*t.Array))
-			} else {
-				return ""
-			}
-		} else {
-			if t.Map.IsMapOrArray() {
-				return "map" + utils.ExportedIdentifier(tempName(*t.Map))
-			} else {
-				return ""
-			}
-		}
-	}
-	prefix := tempName(t)
-	var left, right string
-	if t.Array != nil {
-		left, right = "index", "item"
+func (d *reader) NestedUnmarshaler(t RestliType, reader Code) Code {
+	var readFunc Code
+	var innerT RestliType
+	if t.Map != nil {
+		readFunc = utils.ReadMap
+		innerT = *t.Map
 	} else {
-		left, right = "key", "value"
+		readFunc = utils.ReadArray
+		innerT = *t.Array
 	}
-	if prefix != "" {
-		left, right = utils.ExportedIdentifier(left), utils.ExportedIdentifier(right)
-	}
-	return Id(prefix + left), Id(prefix + right)
+
+	return Add(readFunc).Call(reader, d.UnmarshalerFunc(innerT))
 }

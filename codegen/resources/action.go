@@ -72,30 +72,12 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 					Name:      a.paramsStructType(),
 					Namespace: a.Resource.Namespace,
 				},
-				Doc: fmt.Sprintf("This struct provides the parameters to the %s action", a.Name),
+				Doc: fmt.Sprintf("%s provides the parameters to the %s action", a.paramsStructType(), a.Name),
 			},
 			Fields: a.Params,
 		}
 		c.Code.Add(record.GenerateStruct()).Line()
 		c.Code.Add(record.GenerateMarshalRestLi()).Line()
-	}
-
-	if a.Return != nil {
-		results := &types.Record{
-			NamedType: types.NamedType{
-				Identifier: utils.Identifier{
-					Name:      a.resultsStructType(),
-					Namespace: a.Resource.Namespace,
-				},
-				Doc: fmt.Sprintf("This struct deserializes the response from the %s action", a.Name),
-			},
-			Fields: []types.Field{{
-				Type: *a.Return,
-				Name: "value",
-			}},
-		}
-		c.Code.Add(results.GenerateStruct()).Line().Line()
-		c.Code.Add(results.GenerateUnmarshalRestLi()).Line().Line()
 	}
 
 	a.Resource.addClientFuncDeclarations(c.Code, ClientType, a, func(def *Group) {
@@ -107,42 +89,23 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 			errReturnParams = []Code{Err()}
 		}
 
-		formatQueryUrl(a, def, nil, errReturnParams...)
+		formatQueryUrl(a, def, errReturnParams...)
 
 		var params Code
 		if hasParams {
 			params = ActionParams
 		} else {
-			params = Qual(utils.ProtocolPackage, "EmptyRecord")
+			params = Qual(utils.StdStructsPackage, "EmptyRecord")
 		}
 
-		callParams := []Code{
-			Ctx,
-			Url,
-			params,
-		}
-
-		result := Id("actionResultUnmarshaler")
-		var resultsAccessor Code
+		f := "DoActionRequest"
+		callParams := []Code{RestLiClientReceiver, Ctx, Url, params}
 		if returns {
-			def.Var().Add(result).Id(a.resultsStructType())
-			callParams = append(callParams, result)
-			resultsAccessor = Op("&").Add(result)
-		} else {
-			resultsAccessor = Nil()
+			f += "WithResults"
+			callParams = append(callParams, types.Reader.UnmarshalerFunc(*a.Return))
 		}
 
-		def.Err().Op("=").Id(ClientReceiver).Dot("DoActionRequest").Call(Ctx, Url, params, resultsAccessor)
-
-		if returns {
-			returnValue := Add(result).Dot("Value")
-			if a.Return.ShouldReference() {
-				returnValue = Op("&").Add(returnValue)
-			}
-			def.Return(returnValue, Err())
-		} else {
-			def.Return(Err())
-		}
+		def.Return(Qual(utils.ProtocolPackage, f).Call(callParams...))
 	})
 
 	return c

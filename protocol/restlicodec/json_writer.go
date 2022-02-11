@@ -44,6 +44,11 @@ func (c *compactJsonWriter) writeMapEnd() {
 	c.Writer.RawByte('}')
 }
 
+func (c *compactJsonWriter) writeEmptyMap() {
+	c.writeMapStart()
+	c.writeMapEnd()
+}
+
 func (c *compactJsonWriter) writeArrayStart() {
 	c.Writer.RawByte('[')
 }
@@ -54,6 +59,11 @@ func (c *compactJsonWriter) writeArrayItemDelimiter() {
 
 func (c *compactJsonWriter) writeArrayEnd() {
 	c.Writer.RawByte(']')
+}
+
+func (c *compactJsonWriter) writeEmptyArray() {
+	c.writeArrayStart()
+	c.writeArrayEnd()
 }
 
 func (c *compactJsonWriter) WriteInt32(v int32) {

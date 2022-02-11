@@ -10,6 +10,7 @@ type ComplexType interface {
 	GetIdentifier() Identifier
 	GetSourceFile() string
 	InnerTypes() IdentifierSet
+	ShouldReference() ShouldUsePointer
 	GenerateCode() *jen.Statement
 }
 
@@ -167,10 +168,10 @@ func (p Path) IntroducesCycle(nextNode Identifier) Path {
 
 var PagingContextIdentifier = Identifier{
 	Name:      "PagingContext",
-	Namespace: ProtocolPackage,
+	Namespace: StdStructsPackage,
 }
 
 var RawRecordContextIdentifier = Identifier{
 	Name:      "RawRecord",
-	Namespace: ProtocolPackage,
+	Namespace: StdStructsPackage,
 }

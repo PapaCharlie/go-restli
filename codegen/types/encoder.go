@@ -40,30 +40,62 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 		def := Err().Op("=").Add(sourceAccessor).Dot(utils.MarshalRestLi).Call(writerAccessor).Line()
 		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
-	case t.Array != nil:
-		def := Err().Op("=").Add(e.WriteArray(writerAccessor, func(itemWriter Code, def *Group) {
-			_, item := tempIteratorVariableNames(t)
-			def.For(List(Id("_"), item).Op(":=").Range().Add(sourceAccessor)).BlockFunc(func(def *Group) {
-				def.Add(e.Write(*t.Array, Add(itemWriter).Call(), item, Err()))
-			})
-			def.Return(Nil())
-		})).Line()
-		def.Add(utils.IfErrReturn(returnOnError...))
-		return def
-	case t.Map != nil:
-		def := Err().Op("=").Add(e.WriteMap(writerAccessor, func(keyWriter Code, def *Group) {
-			key, value := tempIteratorVariableNames(t)
-			def.For(List(key, value).Op(":=").Range().Parens(sourceAccessor)).BlockFunc(func(def *Group) {
-				def.Add(e.Write(*t.Map, Add(keyWriter).Call(key), value, Err()))
-			})
-			def.Return(Nil())
-		})).Line()
+	case t.IsMapOrArray():
+		def := Err().Op("=").Add(e.NestedMarshaler(t, writerAccessor, sourceAccessor)).Line()
 		def.Add(utils.IfErrReturn(returnOnError...))
 		return def
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
 	}
+}
+
+func (e *writer) MarshalerFunc(t RestliType) Code {
+	switch {
+	case t.Primitive != nil:
+		return t.Primitive.MarshalerFunc()
+	case t.Reference != nil:
+		return t.Reference.Qual().Dot(utils.MarshalRestLi)
+	case t.IsMapOrArray():
+		v := Id("t")
+		return Func().
+			Params(Add(v).Add(t.GoType()), Add(Writer).Add(WriterQual)).Error().
+			BlockFunc(func(def *Group) {
+				def.Return(e.NestedMarshaler(t, Writer, v))
+			})
+	default:
+		log.Panicf("Illegal restli type: %+v", t)
+		return nil
+	}
+}
+
+func (e *writer) NestedMarshaler(t RestliType, writerAccessor, sourceAccessor Code) Code {
+	var innerT RestliType
+	if t.Array != nil {
+		innerT = *t.Array
+	} else {
+		innerT = *t.Map
+	}
+
+	switch {
+	case innerT.Primitive != nil:
+		return writeFunc(t, "Primitive").Call(writerAccessor, sourceAccessor, innerT.Primitive.MarshalerFunc())
+	case innerT.Reference != nil:
+		return writeFunc(t, "Object").Call(writerAccessor, sourceAccessor)
+	default:
+		return writeFunc(t, "").Call(writerAccessor, sourceAccessor, e.MarshalerFunc(innerT))
+	}
+
+}
+
+func writeFunc(t RestliType, writeFuncType string) *Statement {
+	var variant string
+	if t.Array != nil {
+		variant = "Array"
+	} else {
+		variant = "Map"
+	}
+	return Qual(utils.RestLiCodecPackage, "Write"+writeFuncType+variant)
 }
 
 func (e *writer) Finalize() Code {

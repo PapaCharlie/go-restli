@@ -12,29 +12,30 @@ const (
 	WithContext = "WithContext"
 	FindBy      = "FindBy"
 
+	RestLiClient        = "RestLiClient"
 	ClientReceiver      = "c"
 	ClientType          = "client"
 	ClientInterfaceType = "Client"
 )
 
 var (
-	RestLiClient = Code(Qual(utils.ProtocolPackage, "RestLiClient"))
-	Context      = Code(Qual("context", "Context"))
+	RestLiClientQual     = Code(Qual(utils.ProtocolPackage, RestLiClient))
+	RestLiClientReceiver = Code(Id(ClientReceiver).Dot(RestLiClient))
+	Context              = Code(Qual("context", "Context"))
 
-	Url            = Code(Id("url"))
-	Path           = Code(Id("path"))
-	Ctx            = Code(Id("ctx"))
-	Key            = Code(Id("key"))
-	Entity         = Code(Id("entity"))
-	Entities       = Code(Id("entities"))
-	Statuses       = Code(Id("statuses"))
-	EntityKey      = Code(Id("entityKey"))
-	ReturnedEntity = Code(Id("returnedEntity"))
-	CreateParam    = Code(Id("create"))
-	UpdateParam    = Code(Id("update"))
-	Keys           = Code(Id("keys"))
-	QueryParams    = Code(Id("queryParams"))
-	ActionParams   = Code(Id("actionParams"))
+	Url             = Code(Id("url"))
+	Path            = Code(Id("path"))
+	Ctx             = Code(Id("ctx"))
+	Key             = Code(Id("key"))
+	Entity          = Code(Id("entity"))
+	Entities        = Code(Id("entities"))
+	CreatedEntities = Code(Id("createdEntities"))
+	Statuses        = Code(Id("statuses"))
+	EntityKey       = Code(Id("entityKey"))
+	ReturnedEntity  = Code(Id("returnedEntity"))
+	Keys            = Code(Id("keys"))
+	QueryParams     = Code(Id("queryParams"))
+	ActionParams    = Code(Id("actionParams"))
 
 	NoExcludedFields        = Code(Qual(utils.RestLiCodecPackage, "NoExcludedFields"))
 	ReadOnlyFields          = Code(Id("ReadOnlyFields"))

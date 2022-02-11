@@ -6,6 +6,7 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +16,9 @@ func TestPrimitiveFieldExclusion(t *testing.T) {
 	spec := restlicodec.NewPathSpec("integer")
 
 	t.Run("json", func(t *testing.T) {
-		testJsonEquality(t, expected, `{"integer": 0}`, nil, true)
+		testJsonEquality(t, expected, `{
+  "integer": 0
+}`, nil, true)
 		testJsonEquality(t, expected, `{}`, spec, true)
 	})
 
@@ -51,20 +54,28 @@ func TestComplexFieldExclusion(t *testing.T) {
 
 	t.Run("json", func(t *testing.T) {
 		testJsonEquality(t, expected, `{
+  "arrayOfRecords": [
+    {
+      "foo": "foo"
+    }
+  ],
   "mapOfInts": {
     "two": 2
+  },
+  "mapOfRecords": {
+    "record1": {},
+    "record2": {
+      "foo": "foo"
+    }
   },
   "topLevelRecord": {
     "bar": "bar"
   },
-  "arrayOfRecords": [
-    {"foo": "foo"}
-  ],
-  "mapOfRecords": {
-    "record1": {},
-    "record2": {"foo": "foo"}
-  },
-  "topLevelUnion": {"extras.TopLevel": {"bar": "bar"}}
+  "topLevelUnion": {
+    "extras.TopLevel": {
+      "bar": "bar"
+    }
+  }
 }`, excludedFields, true)
 	})
 
@@ -85,20 +96,31 @@ func TestExcludeOnPartialUpdate(t *testing.T) {
 		"key/part1",
 	)
 
-	excluded := new(conflictresolution.LargeRecord_PartialUpdate)
-	excluded.Delete_Fields.OptionalArray = true
+	excluded := &conflictresolution.LargeRecord_PartialUpdate{
+		Delete_Fields: conflictresolution.LargeRecord_PartialUpdate_Delete_Fields{
+			OptionalArray: true,
+		},
+	}
 	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 
-	excluded = new(conflictresolution.LargeRecord_PartialUpdate)
-	excluded.Update_Fields.OptionalArray = new([]int32)
+	excluded = &conflictresolution.LargeRecord_PartialUpdate{
+		Set_Fields: conflictresolution.LargeRecord_PartialUpdate_Set_Fields{
+			OptionalArray: new([]int32),
+		},
+	}
 	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 
-	excluded = new(conflictresolution.LargeRecord_PartialUpdate)
-	excluded.Key = new(conflictresolution.ComplexKey_PartialUpdate)
+	excluded = &conflictresolution.LargeRecord_PartialUpdate{
+		Key: &conflictresolution.ComplexKey_PartialUpdate{},
+	}
 	require.NoError(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 
-	excluded = new(conflictresolution.LargeRecord_PartialUpdate)
-	excluded.Key = new(conflictresolution.ComplexKey_PartialUpdate)
-	excluded.Key.Update_Fields.Part1 = new(string)
+	excluded = &conflictresolution.LargeRecord_PartialUpdate{
+		Key: &conflictresolution.ComplexKey_PartialUpdate{
+			Set_Fields: conflictresolution.ComplexKey_PartialUpdate_Set_Fields{
+				Part1: protocol.StringPointer(""),
+			},
+		},
+	}
 	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 }

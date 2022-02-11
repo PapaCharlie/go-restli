@@ -178,60 +178,37 @@ func ReadSpec(args []string) ([]byte, error) {
 }
 
 func GenerateCode(specBytes []byte, outputDir string) error {
+	err := utils.CleanTargetDir(outputDir)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not clean up output dir %q", outputDir)
+	}
+
 	var schemas GoRestliSpec
 
 	_ = os.MkdirAll(outputDir, os.ModePerm)
-	parsedSpecs := filepath.Join(outputDir, "parsed-specs.json")
-	_ = os.Remove(parsedSpecs)
-	err := ioutil.WriteFile(parsedSpecs, specBytes, utils.ReadOnlyPermissions)
+	parsedSpecs := filepath.Join(outputDir, utils.ParsedSpecsFile)
+	err = ioutil.WriteFile(parsedSpecs, specBytes, utils.ReadOnlyPermissions)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Failed to write parsed specs to %q", parsedSpecs)
 	}
 
-	// Use a Reader regardless since it'll handle leading/trailing whitespace and other niceties
 	err = json.NewDecoder(bytes.NewBuffer(specBytes)).Decode(&schemas)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Could not deserialize GoRestliSpec")
 	}
 
-	tmpOutputDir, err := ioutil.TempDir(outputDir, ".go-restli_*")
-	if err != nil {
-		return errors.Wrapf(err, "go-restli: Failed to create temporary directory")
-	}
-	defer os.RemoveAll(tmpOutputDir)
-
 	codeFiles := append(utils.TypeRegistry.GenerateTypeCode(), schemas.GenerateClientCode()...)
 
 	for _, code := range codeFiles {
-		err = code.Write(tmpOutputDir)
+		err = code.Write(outputDir, true)
 		if err != nil {
 			return errors.Wrapf(err, "go-restli: Could not generate code for %+v:\n%s", code, code.Code.GoString())
 		}
 	}
 
-	err = GenerateAllImportsTest(tmpOutputDir, codeFiles)
+	err = GenerateAllImportsTest(outputDir, codeFiles)
 	if err != nil {
 		return err
-	}
-
-	children, err := ioutil.ReadDir(tmpOutputDir)
-	if err != nil {
-		return errors.Wrapf(err, "go-restli: Could not list %q", tmpOutputDir)
-	}
-
-	for _, c := range children {
-		source := filepath.Join(tmpOutputDir, c.Name())
-		destination := filepath.Join(outputDir, c.Name())
-
-		err = os.RemoveAll(destination)
-		if err != nil {
-			return errors.Wrapf(err, "go-restli: Failed to delete %q", destination)
-		}
-
-		err = os.Rename(source, destination)
-		if err != nil {
-			return errors.Wrapf(err, "go-restli: Failed to move %q to %q", source, destination)
-		}
 	}
 
 	return nil
@@ -251,7 +228,7 @@ func GenerateAllImportsTest(outputDir string, codeFiles []*utils.CodeFile) error
 	}
 	f.Func().Id("TestAllImports").Params(jen.Op("*").Qual("testing", "T")).Block()
 
-	out := filepath.Join(outputDir, "all_imports_test.go")
+	out := filepath.Join(outputDir, "all_imports_test"+utils.GeneratedFileSuffix)
 	_ = os.Remove(out)
 	err := utils.WriteJenFile(out, f)
 	if err != nil {

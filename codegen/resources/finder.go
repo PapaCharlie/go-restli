@@ -9,6 +9,7 @@ import (
 )
 
 var total Code = Id("total")
+var results Code = Id("results")
 
 type Finder struct{ methodImplementation }
 
@@ -29,7 +30,7 @@ func (f *Finder) FuncParamTypes() []Code {
 }
 
 func (f *Finder) NonErrorFuncReturnParams() []Code {
-	params := []Code{Id("results").Index().Add(f.Return.ReferencedType())}
+	params := []Code{Add(results).Index().Add(f.Return.ReferencedType())}
 	if f.PagingSupported {
 		params = append(params, Add(total).Op("*").Int())
 	}
@@ -55,7 +56,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 				Name:      f.paramsStructType(),
 				Namespace: f.Resource.Namespace,
 			},
-			Doc: fmt.Sprintf("This struct provides the parameters to the %s finder", f.Name),
+			Doc: fmt.Sprintf("%s provides the parameters to the %s finder", f.paramsStructType(), f.Name),
 		},
 		Fields: f.Params,
 	}
@@ -63,7 +64,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 		addPagingContextFields(params)
 	}
 	c.Code.Add(params.GenerateStruct()).Line().Line()
-	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name, false)).Line().Line()
+	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name, nil)).Line().Line()
 
 	f.Resource.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
 		returnsOnErr := []Code{Nil()}
@@ -71,32 +72,20 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 			returnsOnErr = append(returnsOnErr, Nil())
 		}
 		returnsOnErr = append(returnsOnErr, Err())
-		formatQueryUrl(f, def, nil, returnsOnErr...)
+		formatQueryUrl(f, def, returnsOnErr...)
 
-		elementType := types.RestliType{Array: f.Return}
-		elements := Id("elements")
-		def.Var().Add(elements).Add(elementType.GoType())
-
-		var finderReturns []Code
-		if f.PagingSupported {
-			finderReturns = append(finderReturns, total)
-		} else {
-			finderReturns = append(finderReturns, Id("_"))
-		}
-		finderReturns = append(finderReturns, Err())
-
-		def.List(finderReturns...).Op("=").Id(ClientReceiver).Dot("DoFinderRequest").Call(Ctx, Url,
-			Func().Params(Add(types.Reader).Add(types.ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
-				types.Reader.ReadArrayFunc(elementType, types.Reader, elements, def)
-			}),
+		call := Qual(utils.ProtocolPackage, "DoFinderRequest").Call(
+			RestLiClientReceiver,
+			Ctx,
+			Url,
+			types.Reader.UnmarshalerFunc(*f.Return),
 		)
-
-		returns := []Code{elements}
 		if f.PagingSupported {
-			returns = append(returns, total)
+			def.Return(call)
+		} else {
+			def.List(results, Id("_"), Err()).Op("=").Add(call)
+			def.Return(results, Err())
 		}
-		returns = append(returns, Err())
-		def.Return(returns...)
 	})
 
 	return c

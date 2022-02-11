@@ -5,6 +5,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,9 +16,11 @@ var multiplePrimitiveFields = &extras.MultiplePrimitiveFields{
 }
 
 func (s *TestServer) CollectionWithAnnotationsPartialUpdate(t *testing.T, c Client) {
-	update := new(extras.MultiplePrimitiveFields_PartialUpdate)
-	update.Update_Fields.Field3 = new(string)
-	*update.Update_Fields.Field3 = "trois"
+	update := &extras.MultiplePrimitiveFields_PartialUpdate{
+		Set_Fields: extras.MultiplePrimitiveFields_PartialUpdate_Set_Fields{
+			Field3: protocol.StringPointer("trois"),
+		},
+	}
 	require.NoError(t, c.PartialUpdate(1, update))
 }
 

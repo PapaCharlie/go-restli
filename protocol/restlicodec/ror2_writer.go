@@ -52,6 +52,11 @@ func (u *ror2Writer) writeMapEnd() {
 	u.Writer.RawByte(')')
 }
 
+func (u *ror2Writer) writeEmptyMap() {
+	u.writeMapStart()
+	u.writeMapEnd()
+}
+
 func (u *ror2Writer) writeArrayStart() {
 	u.Writer.RawString("List(")
 }
@@ -62,6 +67,11 @@ func (u *ror2Writer) writeArrayItemDelimiter() {
 
 func (u *ror2Writer) writeArrayEnd() {
 	u.Writer.RawByte(')')
+}
+
+func (u *ror2Writer) writeEmptyArray() {
+	u.writeArrayStart()
+	u.writeArrayEnd()
 }
 
 func (u *ror2Writer) WriteInt32(v int32) {

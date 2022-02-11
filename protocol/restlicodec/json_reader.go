@@ -51,6 +51,10 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 	return j.checkError()
 }
 
+func (j *jsonReader) ReadRecord(requiredFields RequiredFields, mapReader MapReader) error {
+	return readRecord(j, requiredFields, mapReader)
+}
+
 func (j *jsonReader) ReadArray(arrayReader ArrayReader) (err error) {
 	if j.lexer.IsNull() {
 		j.lexer.Skip()

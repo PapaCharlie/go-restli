@@ -23,6 +23,7 @@ import (
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	simplecomplexkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 )
 
 type TestServer struct {
@@ -145,8 +146,11 @@ func writeErrorResponse(res http.ResponseWriter, format string, args ...interfac
 
 func writeErrorResponseWithStatus(res http.ResponseWriter, status int, format string, args ...interface{}) {
 	err := &protocol.RestLiError{
-		StackTrace: string(debug.Stack()),
-		Message:    fmt.Sprintf(format, args...),
+		ErrorResponse: stdstructs.ErrorResponse{
+			StackTrace: protocol.StringPointer(string(debug.Stack())),
+			Message:    protocol.StringPointer(fmt.Sprintf(format, args...)),
+			Status:     protocol.Int32Pointer(int32(status)),
+		},
 	}
 	response, _ := json.Marshal(err)
 	res.Header().Add(protocol.RestLiHeader_ErrorResponse, fmt.Sprint(true))

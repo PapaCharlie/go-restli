@@ -1,4 +1,4 @@
-package protocol
+package stdstructs
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ import (
 type RawRecord map[string]interface{}
 
 // ComputeHash for a RawRecord always returns the 0-hash
-func (r *RawRecord) ComputeHash() (h fnv1a.Hash) {
-	return h
+func (r RawRecord) ComputeHash() fnv1a.Hash {
+	return fnv1a.ZeroHash()
 }
 
 // EqualsInterface for a RawRecord always returns false, unless it is being compared with itself
@@ -27,11 +27,11 @@ func (r *RawRecord) EqualsInterface(otherInterface interface{}) bool {
 }
 
 // Equals for a RawRecord always returns false, unless it is being compared with itself
-func (r *RawRecord) Equals(other *RawRecord) bool {
-	return r == other
+func (r RawRecord) Equals(other RawRecord) bool {
+	return &r == &other
 }
 
-func (r *RawRecord) MarshalRestLi(writer restlicodec.Writer) error {
+func (r RawRecord) MarshalRestLi(writer restlicodec.Writer) error {
 	return writeInterface(r, writer)
 }
 

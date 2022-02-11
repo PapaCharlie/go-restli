@@ -40,8 +40,8 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 			def.Add(r.clientFuncDeclaration(m, true))
 		}
 	}).Line().Line()
-	client.Code.Type().Id(ClientType).Struct(Op("*").Add(RestLiClient)).Line().Line()
-	client.Code.Func().Id("NewClient").Params(Id("c").Op("*").Add(RestLiClient)).Id("Client").
+	client.Code.Type().Id(ClientType).Struct(Op("*").Add(RestLiClientQual)).Line().Line()
+	client.Code.Func().Id("NewClient").Params(Id("c").Op("*").Add(RestLiClientQual)).Id("Client").
 		Block(Return(Op("&").Id(ClientType).Values(Id("c")))).
 		Line().Line()
 

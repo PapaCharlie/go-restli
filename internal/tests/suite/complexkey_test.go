@@ -86,12 +86,43 @@ func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
 			Part3: conflictresolution.Fruits_APPLE,
 		},
 	}
-	keyPatch := new(conflictresolution.ComplexKey_PartialUpdate)
-	newPart1 := "newpart1"
-	keyPatch.Update_Fields.Part1 = &newPart1
+	keyPatch := &conflictresolution.ComplexKey_PartialUpdate{
+		Set_Fields: conflictresolution.ComplexKey_PartialUpdate_Set_Fields{
+			Part1: protocol.StringPointer("newpart1"),
+		},
+	}
 
 	err := c.PartialUpdate(id, &conflictresolution.LargeRecord_PartialUpdate{Key: keyPatch})
 	require.NoError(t, err)
+}
+
+func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
+	k1 := &Complexkey_ComplexKey{
+		Params: newKeyParams("param1", 5),
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "one",
+			Part2: 2,
+			Part3: conflictresolution.Fruits_APPLE,
+		},
+	}
+	k2 := &Complexkey_ComplexKey{
+		Params: newKeyParams("param2", 11),
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "two",
+			Part2: 7,
+			Part3: conflictresolution.Fruits_ORANGE,
+		},
+	}
+	res, err := c.BatchDelete([]*Complexkey_ComplexKey{k1, k2})
+	require.NoError(t, err)
+	require.Equal(t, map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+		k1: {
+			Status: 204,
+		},
+		k2: {
+			Status: 204,
+		},
+	}, res)
 }
 
 func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
@@ -162,18 +193,80 @@ func (s *TestServer) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) 
 	require.True(t, ok)
 }
 
-func (s *TestServer) ComplexkeyGetProjection(t *testing.T, c Client) {
-	t.SkipNow()
+func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
+	k1 := &Complexkey_ComplexKey{
+		Params: newKeyParams("param1", 5),
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "one",
+			Part2: 2,
+			Part3: conflictresolution.Fruits_APPLE,
+		},
+	}
+	k2 := &Complexkey_ComplexKey{
+		Params: newKeyParams("param2", 11),
+		ComplexKey: conflictresolution.ComplexKey{
+			Part1: "two",
+			Part2: 7,
+			Part3: conflictresolution.Fruits_ORANGE,
+		},
+	}
+	updates := map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{
+		k1: {
+			Key: k1.ComplexKey,
+			Message: conflictresolution.Message{
+				Message: "updated message",
+			},
+		},
+		k2: {
+			Key: k1.ComplexKey,
+			Message: conflictresolution.Message{
+				Message: "another updated message",
+			},
+		},
+	}
+	res, err := c.BatchUpdate(updates)
+	require.NoError(t, err)
+	require.Equal(t, map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+		k1: {
+			Status: 204,
+		},
+		k2: {
+			Status: 204,
+		},
+	}, res)
 }
 
 func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
-	t.SkipNow()
-}
-
-func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
-	t.SkipNow()
-}
-
-func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
-	t.SkipNow()
+	create := []*conflictresolution.LargeRecord{
+		{
+			Key: conflictresolution.ComplexKey{
+				Part1: "one",
+				Part2: 2,
+				Part3: conflictresolution.Fruits_APPLE,
+			},
+			Message: conflictresolution.Message{
+				Message: "test message",
+			},
+		},
+		{
+			Key: conflictresolution.ComplexKey{
+				Part1: "two",
+				Part2: 7,
+				Part3: conflictresolution.Fruits_ORANGE,
+			},
+			Message: conflictresolution.Message{
+				Message: "another message",
+			},
+		},
+	}
+	res, err := c.BatchCreate(create)
+	require.NoError(t, err)
+	require.Equal(t, []*protocol.CreatedEntity[*Complexkey_ComplexKey]{
+		{
+			Status: 201,
+		},
+		{
+			Status: 201,
+		},
+	}, res)
 }

@@ -2,6 +2,7 @@ package restlicodec
 
 import (
 	"io"
+	"sort"
 )
 
 // Marshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
@@ -51,8 +52,10 @@ type WriteCloser interface {
 }
 
 type (
-	ArrayWriter func(itemWriter func() Writer) error
-	MapWriter   func(keyWriter func(key string) Writer) error
+	PrimitiveMarshaler[T Primitive] func(writer Writer, t T)
+	GenericMarshaler[T any]         func(t T, writer Writer) error
+	ArrayWriter                     func(itemWriter func() Writer) (err error)
+	MapWriter                       func(keyWriter func(key string) Writer) (err error)
 )
 
 // Writer is the interface implemented by all serialization mechanisms supported by rest.li. See the New*Writer
@@ -110,10 +113,12 @@ type rawWriter interface {
 	writeKeyDelimiter()
 	writeEntryDelimiter()
 	writeMapEnd()
+	writeEmptyMap()
 
 	writeArrayStart()
 	writeArrayItemDelimiter()
 	writeArrayEnd()
+	writeEmptyArray()
 
 	// The following are exposed directly by jwriter.Writer
 	RawByte(byte)
@@ -139,16 +144,15 @@ func (e *genericWriter) WriteRawBytes(data []byte) {
 }
 
 func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
-	e.rawWriter.writeMapStart()
-
-	first := true
+	empty := true
 	sub := e.subWriter("")
 
 	err = mapWriter(func(key string) Writer {
 		var writer Writer
 		if !e.IsKeyExcluded(key) {
-			if first {
-				first = false
+			if empty {
+				e.rawWriter.writeMapStart()
+				empty = false
 			} else {
 				e.rawWriter.writeEntryDelimiter()
 			}
@@ -165,18 +169,21 @@ func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
 		return err
 	}
 
-	e.rawWriter.writeMapEnd()
+	if empty {
+		e.rawWriter.writeEmptyMap()
+	} else {
+		e.rawWriter.writeMapEnd()
+	}
 	return nil
 }
 
 func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
-	e.rawWriter.writeArrayStart()
-
-	first := true
+	empty := true
 	sub := e.subWriter(WildCard)
 	err = arrayWriter(func() Writer {
-		if first {
-			first = false
+		if empty {
+			e.rawWriter.writeArrayStart()
+			empty = false
 		} else {
 			e.rawWriter.writeArrayItemDelimiter()
 		}
@@ -186,7 +193,11 @@ func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
 		return err
 	}
 
-	e.rawWriter.writeArrayEnd()
+	if empty {
+		e.rawWriter.writeEmptyArray()
+	} else {
+		e.rawWriter.writeArrayEnd()
+	}
 	return nil
 }
 
@@ -222,7 +233,68 @@ func (e *genericWriter) subWriter(key string) *genericWriter {
 }
 
 func copyAndAppend(a []string, v string) (out []string) {
+	out = make([]string, 0, len(out)+1)
 	out = append(out, a...)
 	out = append(out, v)
 	return out
+}
+
+type ComparablePrimitive interface {
+	int32 | int64 | float32 | float64 | bool | string
+}
+
+type Primitive interface {
+	ComparablePrimitive | []byte
+}
+
+func WriteArray[T any](writer Writer, array []T, marshaler GenericMarshaler[T]) (err error) {
+	return writer.WriteArray(func(itemWriter func() Writer) (err error) {
+		for _, v := range array {
+			err = marshaler(v, itemWriter())
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func WritePrimitiveArray[T Primitive](writer Writer, array []T, marshaler PrimitiveMarshaler[T]) error {
+	return WriteArray(writer, array, func(t T, writer Writer) error {
+		marshaler(writer, t)
+		return nil
+	})
+}
+
+func WriteObjectArray[T Marshaler](writer Writer, array []T) error {
+	return WriteArray(writer, array, T.MarshalRestLi)
+}
+
+func WriteMap[T any](writer Writer, entries map[string]T, marshaler GenericMarshaler[T]) (err error) {
+	return writer.WriteMap(func(keyWriter func(key string) Writer) (err error) {
+		sortedKeys := make([]string, 0, len(entries))
+		for k := range entries {
+			sortedKeys = append(sortedKeys, k)
+		}
+		sort.Strings(sortedKeys)
+
+		for _, k := range sortedKeys {
+			err = marshaler(entries[k], keyWriter(k))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func WritePrimitiveMap[T Primitive](writer Writer, entries map[string]T, marshaler PrimitiveMarshaler[T]) error {
+	return WriteMap(writer, entries, func(t T, writer Writer) error {
+		marshaler(writer, t)
+		return nil
+	})
+}
+
+func WriteObjectMap[T Marshaler](writer Writer, entries map[string]T) error {
+	return WriteMap(writer, entries, T.MarshalRestLi)
 }

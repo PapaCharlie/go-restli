@@ -22,16 +22,16 @@ PACKAGES := ./codegen/* ./d2 ./protocol
 
 build: generate test integration-test
 	rm -rf bin
-	make $(foreach goos,linux darwin,$(foreach goarch,amd64,bin/go-restli_$(goos)-$(goarch)))
+	$(MAKE) $(foreach goos,linux darwin,$(foreach goarch,amd64,bin/go-restli_$(goos)-$(goarch)))
 
-bin/go-restli_%: $(shell git ls-files | grep "\.go")
+bin/go-restli_%:
 	export GOOS=$(word 1,$(subst -, ,$(*F))) ; \
 	export GOARCH=$(word 2,$(subst -, ,$(*F))) ; \
 	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
 generate:
 	go generate $(PACKAGES)
-	go run ./internal/pagingcontext
+	go run ./internal/stdstructs
 
 test: generate imports
 	go test $(PACKAGES)
@@ -42,7 +42,6 @@ imports:
 integration-test: generate-restli run-testsuite
 
 generate-restli: clean $(JARGO)
-	rm -rf $(TESTDATA)/generated $(TESTDATA)/generated_extras
 	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated_extras \
 		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
@@ -55,6 +54,7 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate extras.RecordArray \
 		--named-schemas-to-generate extras.RecordWithAny \
 		--named-schemas-to-generate extras.IncludesUnion \
+		--named-schemas-to-generate extras.ArrayOfFixed \
 		--raw-records extras.Any \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \

@@ -9,6 +9,7 @@ import (
 )
 
 const unionReceiver = "u"
+const UnionShouldUsePointer = utils.Yes
 
 type StandaloneUnion struct {
 	NamedType
@@ -19,6 +20,10 @@ func (u *StandaloneUnion) InnerTypes() utils.IdentifierSet {
 	return u.Union.InnerModels()
 }
 
+func (u *StandaloneUnion) ShouldReference() utils.ShouldUsePointer {
+	return UnionShouldUsePointer
+}
+
 func (u *StandaloneUnion) GenerateCode() *Statement {
 	def := Empty()
 
@@ -27,28 +32,27 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		Add(u.Union.GoType()).
 		Line().Line()
 
-	AddEquals(def, unionReceiver, u.Name, func(other Code, def *Group) {
+	AddEquals(def, unionReceiver, u.Name, UnionShouldUsePointer, func(other Code, def *Group) {
 		for _, m := range u.Union.Members {
-			def.Add(equals(m.Type, true, Id(unionReceiver).Dot(m.name()), Add(other).Dot(m.name()))).Line()
+			def.If(Op("!").Add(equalsCondition(m.Type, true, Id(unionReceiver).Dot(m.name()), Add(other).Dot(m.name())))).Block(Return(False()))
 		}
 		def.Return(True())
 	})
 
-	AddComputeHash(def, unionReceiver, u.Name, func(h Code, def *Group) {
+	AddComputeHash(def, unionReceiver, u.Name, UnionShouldUsePointer, func(h Code, def *Group) {
 		for _, m := range u.Union.Members {
 			def.Add(hash(h, m.Type, true, Id(unionReceiver).Dot(m.name()))).Line()
 		}
-		def.Return(h)
 	})
 
-	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, utils.ValidateUnionFields).
+	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, utils.ValidateUnionFields, UnionShouldUsePointer).
 		Params().
 		Params(Error()).
 		BlockFunc(func(def *Group) {
 			u.Union.validateUnionFields(def, unionReceiver, u.Name)
 		}).Line().Line()
 
-	AddMarshalRestLi(def, unionReceiver, u.Name, func(def *Group) {
+	AddMarshalRestLi(def, unionReceiver, u.Name, UnionShouldUsePointer, func(def *Group) {
 		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
 			u.Union.validateAllMembers(def, unionReceiver, u.Name, func(def *Group, m UnionMember) {
 				fieldAccessor := Id(unionReceiver).Dot(m.name())

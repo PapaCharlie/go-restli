@@ -73,7 +73,7 @@ func (s *TestServer) CollectionPartialUpdate(t *testing.T, c Client) {
 	id := int64(1)
 	patch := new(conflictresolution.Message_PartialUpdate)
 	message := "partial updated message"
-	patch.Update_Fields.Message = &message
+	patch.Set_Fields.Message = &message
 	err := c.PartialUpdate(id, patch)
 	require.NoError(t, err)
 }
@@ -98,6 +98,20 @@ func newMessage(id int64, message string) *conflictresolution.Message {
 	}
 }
 
+func (s *TestServer) CollectionBatchDelete(t *testing.T, c Client) {
+	keys := []int64{1, 3}
+	res, err := c.BatchDelete(keys)
+	require.NoError(t, err)
+	require.Equal(t, map[int64]*protocol.BatchEntityUpdateResponse{
+		keys[0]: {
+			Status: 204,
+		},
+		keys[1]: {
+			Status: 404,
+		},
+	}, res)
+}
+
 func (s *TestServer) CollectionBatchGet(t *testing.T, c Client) {
 	keys := []int64{1, 3}
 	two := int64(2)
@@ -115,33 +129,45 @@ func (s *TestServer) CollectionBatchGet(t *testing.T, c Client) {
 	}, res)
 }
 
-func (s *TestServer) CollectionBatchCreate(t *testing.T, c Client) {
-	t.SkipNow()
+func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
+	keys := []int64{1, 3}
+	res, err := c.BatchUpdate(map[int64]*conflictresolution.Message{
+		keys[0]: {
+			Id:      &keys[0],
+			Message: "updated message",
+		},
+		keys[1]: {
+			Id:      &keys[1],
+			Message: "inserted message",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[int64]*protocol.BatchEntityUpdateResponse{
+		keys[0]: {
+			Status: 204,
+		},
+		keys[1]: {
+			Status: 201,
+		},
+	}, res)
 }
 
-func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
-	t.SkipNow()
+func (s *TestServer) CollectionBatchUpdateErrors(t *testing.T, c Client) {
+	t.Log("It's impossible to produce the desired update for the same reason CollectionUpdate400 is skipped. Parsing " +
+		"batch response errors is tested in SimpleComplexKeyBatchUpdateWithErrors")
 }
 
 func (s *TestServer) CollectionBatchPartialUpdate(t *testing.T, c Client) {
 	keys := []int64{1, 3}
-	msg1 := "partial updated message"
-	msg2 := "another partial message"
 	res, err := c.BatchPartialUpdate(map[int64]*conflictresolution.Message_PartialUpdate{
 		keys[0]: {
-			Update_Fields: struct {
-				Id      *int64
-				Message *string
-			}{
-				Message: &msg1,
+			Set_Fields: conflictresolution.Message_PartialUpdate_Set_Fields{
+				Message: protocol.StringPointer("partial updated message"),
 			},
 		},
 		keys[1]: {
-			Update_Fields: struct {
-				Id      *int64
-				Message *string
-			}{
-				Message: &msg2,
+			Set_Fields: conflictresolution.Message_PartialUpdate_Set_Fields{
+				Message: protocol.StringPointer("another partial message"),
 			},
 		},
 	})
@@ -156,14 +182,24 @@ func (s *TestServer) CollectionBatchPartialUpdate(t *testing.T, c Client) {
 	}, res)
 }
 
-func (s *TestServer) CollectionBatchDelete(t *testing.T, c Client) {
-	t.SkipNow()
-}
-
-func (s *TestServer) CollectionGetProjection(t *testing.T, c Client) {
-	t.SkipNow()
-}
-
-func (s *TestServer) CollectionBatchUpdateErrors(t *testing.T, c Client) {
-	t.SkipNow()
+func (s *TestServer) CollectionBatchCreate(t *testing.T, c Client) {
+	res, err := c.BatchCreate([]*conflictresolution.Message{
+		{
+			Message: "test message",
+		},
+		{
+			Message: "another message",
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []*protocol.CreatedEntity[int64]{
+		{
+			Id:     1,
+			Status: 201,
+		},
+		{
+			Id:     3,
+			Status: 201,
+		},
+	}, res)
 }

@@ -14,7 +14,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-const ReadOnlyPermissions = os.FileMode(0444)
+const (
+	ReadOnlyPermissions = os.FileMode(0444)
+	GeneratedFileSuffix = ".gr.go"
+	ParsedSpecsFile     = "parsed-specs.gr.json"
+)
 
 var (
 	Logger = log.New(os.Stderr, "[go-restli] ", log.LstdFlags|log.Lshortfile)
@@ -36,7 +40,7 @@ type CodeFile struct {
 	Code        *Statement
 }
 
-func (f *CodeFile) Write(outputDir string) (err error) {
+func (f *CodeFile) Write(outputDir string, writeInPackageDirs bool) (err error) {
 	defer func() {
 		e := recover()
 		if e != nil {
@@ -54,12 +58,18 @@ func (f *CodeFile) Write(outputDir string) (err error) {
 	file.HeaderComment(header.String())
 	file.Add(f.Code)
 
-	relpath, err := filepath.Rel(PackagePrefix, f.PackagePath)
-	if err != nil {
-		return err
+	var filename string
+	if writeInPackageDirs {
+		relpath, err := filepath.Rel(PackagePrefix, f.PackagePath)
+		if err != nil {
+			return err
+		}
+
+		filename = filepath.Join(outputDir, relpath, f.Filename+GeneratedFileSuffix)
+	} else {
+		filename = filepath.Join(outputDir, f.Filename+GeneratedFileSuffix)
 	}
 
-	filename := filepath.Join(outputDir, relpath, f.Filename+".go")
 	err = WriteJenFile(filename, file)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Failed to write code file to %q", filename)
@@ -89,6 +99,55 @@ func WriteJenFile(filename string, file *File) error {
 	}
 
 	return nil
+}
+
+func CleanTargetDir(targetDir string) (err error) {
+	var cleanTargetDir func(targetDir string) error
+	cleanTargetDir = func(targetDir string) (err error) {
+		children, err := os.ReadDir(targetDir)
+		if err != nil {
+			return err
+		}
+
+		if len(children) == 0 {
+			return os.Remove(targetDir)
+		}
+
+		for _, c := range children {
+			sub := filepath.Join(targetDir, c.Name())
+			if c.IsDir() {
+				err = CleanTargetDir(sub)
+			} else {
+				if strings.HasSuffix(c.Name(), GeneratedFileSuffix) {
+					err = os.Remove(sub)
+				}
+			}
+			if err != nil {
+				return err
+			}
+		}
+
+		children, err = os.ReadDir(targetDir)
+		if err != nil {
+			return err
+		}
+
+		if len(children) == 0 {
+			return os.Remove(targetDir)
+		}
+		return nil
+	}
+
+	if _, err = os.Stat(targetDir); os.IsNotExist(err) {
+		return nil
+	} else {
+		err = os.Remove(filepath.Join(targetDir, ParsedSpecsFile))
+		if err == nil || os.IsNotExist(err) {
+			return cleanTargetDir(targetDir)
+		} else {
+			return err
+		}
+	}
 }
 
 func AddWordWrappedComment(code *Statement, comment string) *Statement {
@@ -159,14 +218,28 @@ func ReceiverName(typeName string) string {
 	return strings.ToLower(typeName[:1])
 }
 
-func AddFuncOnReceiver(def *Statement, receiver, typeName, funcName string) *Statement {
-	return def.Func().
-		Params(Id(receiver).Op("*").Id(typeName)).
-		Id(funcName)
+type ShouldUsePointer int
+
+const (
+	Yes = ShouldUsePointer(0)
+	No  = ShouldUsePointer(1)
+)
+
+func (p ShouldUsePointer) ShouldUsePointer() bool {
+	return p == Yes
 }
 
-func AddStringer(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	return AddFuncOnReceiver(def, receiver, typeName, "String").
+func AddFuncOnReceiver(def *Statement, receiver, typeName, funcName string, pointer ShouldUsePointer) *Statement {
+	r := Id(receiver)
+	if pointer.ShouldUsePointer() {
+		r.Op("*")
+	}
+	r.Id(typeName)
+	return def.Func().Params(r).Id(funcName)
+}
+
+func AddStringer(def *Statement, receiver, typeName string, pointer ShouldUsePointer, f func(def *Group)) *Statement {
+	return AddFuncOnReceiver(def, receiver, typeName, "String", pointer).
 		Params().
 		String().
 		BlockFunc(f)

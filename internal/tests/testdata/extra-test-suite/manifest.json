@@ -32,6 +32,9 @@
           "name": "simpleComplexKey-batch-get"
         },
         {
+          "name": "simpleComplexKey-batch-update-with-errors"
+        },
+        {
           "name": "simpleComplexKey-batch-partial-update"
         }
       ]

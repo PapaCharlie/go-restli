@@ -1,7 +1,7 @@
 .idea/
 vendor/
-internal/tests/testdata/generated
-internal/tests/testdata/generated_extras
+*.gr.go
+parsed-specs.gr.json
 /options/
 go-restli
 *.swp

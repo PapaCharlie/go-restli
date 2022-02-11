@@ -4,17 +4,18 @@ import (
 	"sort"
 
 	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	utils.AddFuncOnReceiver(def, receiver, typeName, utils.MarshalRestLi).
+func AddMarshalRestLi(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
+	utils.AddFuncOnReceiver(def, receiver, typeName, utils.MarshalRestLi, pointer).
 		Params(Add(Writer).Add(WriterQual)).
 		Params(Err().Error()).
 		BlockFunc(f).
 		Line().Line()
 
-	utils.AddFuncOnReceiver(def, receiver, typeName, "MarshalJSON").
+	utils.AddFuncOnReceiver(def, receiver, typeName, "MarshalJSON", pointer).
 		Params().
 		Params(Id("data").Index().Byte(), Err().Error()).
 		BlockFunc(func(def *Group) {
@@ -28,7 +29,7 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, f func(def *Gro
 }
 
 func (r *Record) GenerateMarshalRestLi() *Statement {
-	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, func(def *Group) {
+	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(def *Group) {
 		r.generateMarshaler(def)
 	})
 }
@@ -41,14 +42,14 @@ func (r *Record) generateMarshaler(def *Group) {
 	}))
 }
 
-func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest bool) *Statement {
+func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType Code) *Statement {
 	receiver := r.Receiver()
 	var params []Code
-	if isBatchRequest {
-		params = []Code{Add(utils.EntityIDsEncoder).Op("*").Add(utils.BatchEntityIDsEncoder)}
+	if batchKeyType != nil {
+		params = []Code{Add(utils.BatchKeySet).Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(batchKeyType)}
 	}
 
-	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams).
+	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams, RecordShouldUsePointer).
 		Params(params...).
 		Params(Id("rawQuery").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
@@ -69,8 +70,8 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 				})
 			}
 			idsIndex := -1
-			if isBatchRequest {
-				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= utils.EntityIDsParam })
+			if batchKeyType != nil {
+				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= batchkeyset.EntityIDsField })
 				insertFieldAt(idsIndex, Field{})
 			}
 
@@ -80,7 +81,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, isBatchRequest 
 				for i, f := range fields {
 					if i == idsIndex {
 						def.BlockFunc(func(def *Group) {
-							def.Err().Op("=").Add(utils.EntityIDsEncoder).Dot("Encode").Call(paramNameWriter)
+							def.Err().Op("=").Qual(utils.BatchKeySetPackage, "Encode").Call(utils.BatchKeySet, paramNameWriter)
 							def.Add(utils.IfErrReturn(Err()))
 						}).Line()
 					} else {
@@ -111,15 +112,16 @@ func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Fiel
 func writeField(def *Group, i int, f Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
 	accessor := fieldAccessor(i, f)
 
-	serialize := def.Empty()
-	if f.IsOptionalOrDefault() {
-		serialize.If(Add(accessor).Op("!=").Nil())
-	}
-
-	serialize.BlockFunc(func(def *Group) {
+	serialize := func() Code {
 		if f.IsOptionalOrDefault() && f.Type.Reference == nil {
 			accessor = Op("*").Add(accessor)
 		}
-		def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-	}).Line()
+		return Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err())
+	}
+
+	if f.IsOptionalOrDefault() {
+		def.If(Add(accessor).Op("!=").Nil()).Block(serialize())
+	} else {
+		def.Add(serialize())
+	}
 }

@@ -15,7 +15,16 @@
         "method": "get"
       },
       {
+        "annotations": {
+          "returnEntity": {}
+        },
+        "method": "batch_create"
+      },
+      {
         "method": "batch_get"
+      },
+      {
+        "method": "batch_update"
       },
       {
         "method": "batch_partial_update"

@@ -72,6 +72,14 @@ func (p *PrimitiveType) GoType() *Statement {
 	}
 }
 
+func (p *PrimitiveType) MarshalerFunc() *Statement {
+	return Add(WriterQual).Dot(p.WriterName())
+}
+
+func (p *PrimitiveType) UnmarshalerFunc() *Statement {
+	return Add(ReaderQual).Dot(p.ReaderName())
+}
+
 func getLitBytesValues(rawJson string) *Statement {
 	var v string
 	if err := json.Unmarshal([]byte(rawJson), &v); err != nil {
@@ -120,6 +128,10 @@ func (p *PrimitiveType) ReaderName() string {
 
 func (p *PrimitiveType) HasherName() string {
 	return "Add" + p.exportedName()
+}
+
+func (p *PrimitiveType) HasherQual() Code {
+	return Add(utils.Hash).Dot(p.HasherName())
 }
 
 func (p *PrimitiveType) NewPrimitiveMarshaler(accessor Code) Code {

@@ -22,7 +22,7 @@ const (
 
 type RestLiMethod int
 
-//go:generate stringer -type=RestLiMethod -trimprefix Method_
+// Disabled until https://github.com/golang/go/issues/45218 is resolved: go:generate stringer -type=RestLiMethod -trimprefix Method_
 const (
 	Method_Unknown = RestLiMethod(iota)
 
@@ -125,6 +125,29 @@ func DeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*htt
 	return req, nil
 }
 
+func CreateRequest(
+	ctx context.Context,
+	url *url.URL,
+	method RestLiMethod,
+	create restlicodec.Marshaler,
+	readOnlyFields restlicodec.PathSpec,
+) (*http.Request, error) {
+	return JsonRequest(ctx, url, http.MethodPost, method, create, readOnlyFields)
+}
+
+func BatchCreateRequest[T restlicodec.Marshaler](
+	ctx context.Context,
+	url *url.URL,
+	create []T,
+	readOnlyFields restlicodec.PathSpec,
+) (*http.Request, error) {
+	return CreateRequest(ctx, url, Method_batch_create, restlicodec.MarshalerFunc(func(writer restlicodec.Writer) error {
+		return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) (err error) {
+			return restlicodec.WriteObjectArray(keyWriter(elementsField), create)
+		})
+	}), readOnlyFields)
+}
+
 // JsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
 // request with the given restlicodec.Marshaler contents (see RawJsonRequest)
 func JsonRequest(
@@ -190,35 +213,45 @@ func (c *RestLiClient) Do(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-// DoAndDecode calls Do and attempts to unmarshal the response into the given value. The response body will always be
+// DoAndUnmarshal calls Do and attempts to unmarshal the response into the given value. The response body will always be
 // read to EOF and closed, to ensure the connection can be reused.
-func (c *RestLiClient) DoAndDecode(req *http.Request, v restlicodec.Unmarshaler) (*http.Response, error) {
-	return c.doAndConsumeBody(req, func(body []byte) error {
-		return v.UnmarshalRestLi(restlicodec.NewJsonReader(body))
-	})
+func DoAndUnmarshal[V any](
+	c *RestLiClient,
+	req *http.Request,
+	unmarshaler restlicodec.GenericUnmarshaler[V],
+) (v V, res *http.Response, err error) {
+	data, res, err := c.do(req)
+	if err != nil {
+		return v, res, err
+	}
+
+	v, err = unmarshaler(restlicodec.NewJsonReader(data))
+	if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.StrictResponseDeserialization {
+		err = nil
+	}
+	return v, res, err
 }
 
 // DoAndIgnore calls Do and drops the response's body. The response body will always be read to EOF and closed, to
 // ensure the connection can be reused.
 func (c *RestLiClient) DoAndIgnore(req *http.Request) (*http.Response, error) {
-	return c.doAndConsumeBody(req, func([]byte) error {
-		return nil
-	})
+	_, res, err := c.do(req)
+	return res, err
 }
 
-func (c *RestLiClient) doAndConsumeBody(req *http.Request, bodyConsumer func(body []byte) error) (*http.Response, error) {
+func (c *RestLiClient) do(req *http.Request) ([]byte, *http.Response, error) {
 	res, err := c.Do(req)
 	if err != nil {
-		return res, err
+		return nil, res, err
 	}
 
 	if v := res.Header.Get(RestLiHeader_ProtocolVersion); v != RestLiProtocolVersion {
-		return nil, &UnsupportedRestLiProtocolVersion{v}
+		return nil, nil, &UnsupportedRestLiProtocolVersion{v}
 	}
 
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, &url.Error{
+		return nil, nil, &url.Error{
 			Op:  "ReadResponse",
 			URL: req.URL.String(),
 			Err: err,
@@ -227,20 +260,12 @@ func (c *RestLiClient) doAndConsumeBody(req *http.Request, bodyConsumer func(bod
 
 	err = res.Body.Close()
 	if err != nil {
-		return nil, &url.Error{
+		return nil, nil, &url.Error{
 			Op:  "CloseResponse",
 			URL: req.URL.String(),
 			Err: err,
 		}
 	}
 
-	err = bodyConsumer(data)
-	if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.StrictResponseDeserialization {
-		err = nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
+	return data, res, nil
 }

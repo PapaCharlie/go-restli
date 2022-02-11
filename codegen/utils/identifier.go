@@ -47,6 +47,14 @@ func (i Identifier) Qual() *jen.Statement {
 	return jen.Qual(i.PackagePath(), i.Name)
 }
 
+func (i Identifier) UnmarshalerFuncName() string {
+	return "Unmarshal" + i.Name
+}
+
+func (i Identifier) UnmarshalerFunc() *jen.Statement {
+	return jen.Qual(i.PackagePath(), i.UnmarshalerFuncName())
+}
+
 func (i *Identifier) Receiver() string {
 	return ReceiverName(i.Name)
 }

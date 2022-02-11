@@ -14,6 +14,8 @@ var (
 	emptyArrayRegex = regexp.MustCompile("\\[ *]")
 )
 
+const RecordShouldUsePointer = utils.Yes
+
 type Record struct {
 	NamedType
 	Fields          []Field
@@ -29,8 +31,20 @@ func (r *Record) InnerTypes() utils.IdentifierSet {
 	return innerTypes
 }
 
+func (r *Record) ShouldReference() utils.ShouldUsePointer {
+	return RecordShouldUsePointer
+}
+
 func (r *Record) PartialUpdateStructName() string {
 	return r.Name + utils.PartialUpdate
+}
+
+func (r *Record) PartialUpdateDeleteFieldsStructName() string {
+	return r.Name + utils.PartialUpdate + "_" + DeleteFields
+}
+
+func (r *Record) PartialUpdateSetFieldsStructName() string {
+	return r.Name + utils.PartialUpdate + "_" + SetFields
 }
 
 func (r *Record) PartialUpdateStruct() *Statement {
@@ -47,11 +61,15 @@ type Field struct {
 	isComplexKeyParams bool
 }
 
-func (r *Record) fieldAccessor(f Field) Code {
+func (r *Record) fieldAccessor(f Field) *Statement {
 	return fieldAccessor(Id(r.Receiver()), f)
 }
 
-func fieldAccessor(receiver Code, f Field) Code {
+func (r *Record) rawFieldAccessor(f Field) *Statement {
+	return Id(r.Receiver()).Dot(f.FieldName())
+}
+
+func fieldAccessor(receiver Code, f Field) *Statement {
 	accessor := Add(receiver)
 	if r := f.ResolveRecord(); r != nil {
 		accessor.Dot(r.Name)
@@ -82,8 +100,12 @@ func (f *Field) ResolveRecord() *Record {
 
 func (r *Record) SortedFields() (fields []Field) {
 	fields = append(fields, r.Fields...)
-	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
+	sortFields(fields)
 	return fields
+}
+
+func sortFields(fields []Field) {
+	sort.Slice(fields, func(i, j int) bool { return fields[i].Name < fields[j].Name })
 }
 
 func (r *Record) GenerateCode() *Statement {
@@ -93,6 +115,7 @@ func (r *Record) GenerateCode() *Statement {
 		Add(r.GenerateEquals()).Line().Line().
 		Add(r.GenerateComputeHash()).Line().Line().
 		Add(r.GenerateMarshalRestLi()).Line().Line().
+		Add(r.GenerateUnmarshalerFunc()).Line().Line().
 		Add(r.GenerateUnmarshalRestLi()).Line().Line().
 		Add(r.generatePartialUpdateStruct()).Line()
 }
@@ -117,8 +140,6 @@ func (r *Record) GenerateStruct() *Statement {
 				} else {
 					field.Add(f.Type.GoType())
 				}
-
-				field.Tag(utils.JsonFieldTag(f.Name, f.IsOptionalOrDefault()))
 			}
 		})
 }
@@ -150,14 +171,16 @@ func (r *Record) generateDefaultValuesCode() Code {
 			def.Return()
 		}).Line().Line()
 
-	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, utils.PopulateLocalDefaultValues).Params().BlockFunc(func(def *Group) {
-		for _, f := range r.Fields {
-			if f.DefaultValue != nil {
-				r.setDefaultValue(def, r.fieldAccessor(f), *f.DefaultValue, &f.Type)
-				def.Line()
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, utils.PopulateLocalDefaultValues, RecordShouldUsePointer).
+		Params().
+		BlockFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				if f.DefaultValue != nil {
+					r.setDefaultValue(def, r.fieldAccessor(f), *f.DefaultValue, &f.Type)
+					def.Line()
+				}
 			}
-		}
-	}).Line().Line()
+		}).Line().Line()
 
 	return def
 }

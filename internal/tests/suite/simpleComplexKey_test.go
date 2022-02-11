@@ -6,6 +6,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,6 +47,51 @@ func (s *TestServer) SimpleComplexKeyGet(t *testing.T, c Client) {
 	require.Equal(t, &expected.SinglePrimitiveField, actual)
 }
 
+func (s *TestServer) SimpleComplexKeyBatchUpdateWithErrors(t *testing.T, c Client) {
+	keys := []*SimpleComplexKey_ComplexKey{
+		{
+			SinglePrimitiveField: extras.SinglePrimitiveField{
+				String: "a",
+			},
+		},
+		{
+			SinglePrimitiveField: extras.SinglePrimitiveField{
+				String: "b",
+			},
+		},
+		{
+			SinglePrimitiveField: extras.SinglePrimitiveField{
+				String: "c",
+			},
+		},
+	}
+
+	actual, err := c.BatchUpdate(map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField{
+		keys[0]: &keys[0].SinglePrimitiveField,
+		keys[1]: &keys[1].SinglePrimitiveField,
+		keys[2]: &keys[2].SinglePrimitiveField,
+	})
+	require.Equal(t, protocol.BatchRequestResponseError[*SimpleComplexKey_ComplexKey]{
+		keys[0]: &stdstructs.ErrorResponse{
+			Status:         protocol.Int32Pointer(400),
+			Message:        protocol.StringPointer("message"),
+			ExceptionClass: protocol.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
+			StackTrace:     protocol.StringPointer("trace"),
+		},
+		keys[2]: &stdstructs.ErrorResponse{
+			Status:         protocol.Int32Pointer(500),
+			Message:        nil,
+			ExceptionClass: protocol.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
+			StackTrace:     protocol.StringPointer("trace"),
+		},
+	}, err)
+
+	expected := map[*SimpleComplexKey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+		keys[1]: {Status: 204},
+	}
+	require.Equal(t, expected, actual)
+}
+
 func (s *TestServer) SimpleComplexKeyBatchPartialUpdate(t *testing.T, c Client) {
 	keys := []*SimpleComplexKey_ComplexKey{
 		{
@@ -65,22 +111,16 @@ func (s *TestServer) SimpleComplexKeyBatchPartialUpdate(t *testing.T, c Client) 
 			},
 		},
 	}
-	msg0 := "partial updated message"
-	msg1 := "another partial message"
 
 	actual, err := c.BatchPartialUpdate(map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField_PartialUpdate{
 		keys[0]: {
-			Update_Fields: struct {
-				String *string
-			}{
-				String: &msg0,
+			Set_Fields: extras.SinglePrimitiveField_PartialUpdate_Set_Fields{
+				String: protocol.StringPointer("partial updated message"),
 			},
 		},
 		keys[1]: {
-			Update_Fields: struct {
-				String *string
-			}{
-				String: &msg1,
+			Set_Fields: extras.SinglePrimitiveField_PartialUpdate_Set_Fields{
+				String: protocol.StringPointer("another partial message"),
 			},
 		},
 	})

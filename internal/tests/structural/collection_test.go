@@ -55,11 +55,35 @@ func (c *collectionClient) DeleteWithContext(context.Context, int64) error {
 	panic(nil)
 }
 
+func (c *collectionClient) BatchCreate([]*conflictresolution.Message) ([]*protocol.CreatedEntity[int64], error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchCreateWithContext(context.Context, []*conflictresolution.Message) ([]*protocol.CreatedEntity[int64], error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchDelete([]int64) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchDeleteWithContext(context.Context, []int64) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+	panic(nil)
+}
+
 func (c *collectionClient) BatchGet([]int64) (map[int64]*conflictresolution.Message, error) {
 	panic(nil)
 }
 
 func (c *collectionClient) BatchGetWithContext(context.Context, []int64) (map[int64]*conflictresolution.Message, error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchUpdate(map[int64]*conflictresolution.Message) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+	panic(nil)
+}
+
+func (c *collectionClient) BatchUpdateWithContext(context.Context, map[int64]*conflictresolution.Message) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
 	panic(nil)
 }
 

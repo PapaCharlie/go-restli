@@ -5,18 +5,14 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddEquals(def *Statement, receiver, typeName string, f func(other Code, def *Group)) *Statement {
-	return AddCustomEquals(def, receiver, typeName, func(other Code, def *Group) {
-		def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
-		f(other, def)
-	})
-}
-
-func AddCustomEquals(def *Statement, receiver, typeName string, f func(other Code, def *Group)) *Statement {
+func AddEquals(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(other Code, def *Group)) *Statement {
 	other := Id("other")
 	otherInterface := Id("otherInterface")
-	rightHandType := Op("*").Id(typeName)
-	utils.AddFuncOnReceiver(def, receiver, typeName, utils.EqualsInterface).
+	rightHandType := Id(typeName)
+	if pointer.ShouldUsePointer() {
+		rightHandType = Op("*").Add(rightHandType)
+	}
+	utils.AddFuncOnReceiver(def, receiver, typeName, utils.EqualsInterface, pointer).
 		Params(Add(otherInterface).Interface()).Bool().
 		BlockFunc(func(def *Group) {
 			ok := Id("ok")
@@ -24,74 +20,93 @@ func AddCustomEquals(def *Statement, receiver, typeName string, f func(other Cod
 			def.If(Op("!").Add(ok)).Block(Return(False())).Line()
 			def.Return(Id(receiver).Dot(utils.Equals).Call(other))
 		}).Line().Line()
-	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals).
+	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals, pointer).
 		Params(Add(other).Add(rightHandType)).Bool().
 		BlockFunc(func(def *Group) {
+			if pointer.ShouldUsePointer() {
+				def.If(Id(receiver).Op("==").Add(other)).Block(Return(True()))
+				def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
+			}
 			f(other, def)
 		}).Line().Line()
 }
 
 func (r *Record) GenerateEquals() Code {
-	return AddEquals(Empty(), r.Receiver(), r.Name, func(other Code, def *Group) {
-		for _, f := range r.SortedFields() {
-			left, right := r.fieldAccessor(f), fieldAccessor(other, f)
-			def.Add(equals(f.Type, f.IsOptionalOrDefault(), left, right)).Line()
+	return AddEquals(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(other Code, def *Group) {
+		if len(r.Fields) == 0 {
+			def.Return(True())
+			return
 		}
-		def.Return(True())
+
+		exp := Empty()
+		for i, f := range r.Fields {
+			left, right := r.fieldAccessor(f), fieldAccessor(other, f)
+			if i != 0 {
+				exp.Op("&&").Line()
+			}
+			exp.Add(equalsCondition(f.Type, f.IsOptionalOrDefault(), left, right))
+		}
+		def.Return(exp)
 	})
 }
 
-func equals(t RestliType, isPointer bool, left, right Code) Code {
-	allocateNewRight := func(def *Group, t RestliType, right Code) Code {
-		if t.Typeref() != nil {
-			ref := Id("ref")
-			def.Add(ref).Op(":=").Add(right)
-			return ref
+func equalsCondition(t RestliType, isPointer bool, left, right Code) Code {
+	var condition Code
+	switch {
+	case t.Primitive != nil:
+		var prefix, pointer string
+		if t.Primitive.IsBytes() {
+			prefix = "Bytes"
 		} else {
-			return right
+			prefix = "Comparable"
 		}
-	}
-	check := func(left, right Code) Code {
-		def := Empty()
-		switch {
-		case t.Primitive != nil:
-			if t.Primitive.IsBytes() {
-				def.If(Op("!").Qual("bytes", "Equal").Call(left, right)).Block(Return(False()))
-			} else {
-				def.If(Add(left).Op("!=").Add(right)).Block(Return(False()))
-			}
-		case t.Reference != nil:
-			if !isPointer {
-				right = Op("&").Add(right)
-			}
-			def.If(Op("!").Add(left).Dot(utils.Equals).Call(right)).Block(Return(False()))
-		case t.Array != nil:
-			def.If(Len(left).Op("!=").Len(right)).Block(Return(False())).Line()
-			index, item := tempIteratorVariableNames(t)
-			def.For().List(index, item).Op(":=").Range().Add(left).BlockFunc(func(def *Group) {
-				def.Add(equals(*t.Array, t.Array.ShouldReference(), item,
-					allocateNewRight(def, *t.Array, Parens(right).Index(index))))
-			})
-		case t.Map != nil:
-			def.If(Len(left).Op("!=").Len(right)).Block(Return(False())).Line()
-			key, value := tempIteratorVariableNames(t)
-			def.For().List(key, value).Op(":=").Range().Add(left).BlockFunc(func(def *Group) {
-				def.Add(equals(*t.Map, t.Map.ShouldReference(), value,
-					allocateNewRight(def, *t.Map, Parens(right).Index(key))))
-			})
+		if isPointer {
+			pointer = "Pointer"
 		}
-		return def
-	}
-	if isPointer {
-		return If(Add(left).Op("!=").Add(right)).BlockFunc(func(def *Group) {
-			def.If(Add(left).Op("==").Nil().Op("||").Add(right).Op("==").Nil()).Block(Return(False()))
+		condition = equalsFunc(prefix+pointer).Call(left, right)
+	case t.Reference != nil && !t.ShouldReference(): // enums and typerefs
+		if isPointer {
+			condition = equalsFunc("ObjectPointer").Call(left, right)
+		} else {
+			condition = Add(left).Dot(utils.Equals).Call(right)
+		}
+	case t.Reference != nil:
+		if !isPointer {
+			right = Op("&").Add(right)
+		}
+		condition = Add(left).Dot(utils.Equals).Call(right)
+	case t.IsMapOrArray():
+		var innerT RestliType
+		var word string
+		if t.Array != nil {
+			innerT = *t.Array
+			word = "Array"
+		} else {
+			innerT = *t.Map
+			word = "Map"
+		}
+		if isPointer {
+			word += "Pointer"
+		}
 
-			if t.Reference == nil {
-				left, right = Op("*").Add(left), Op("*").Add(right)
-			}
-			def.Add(check(left, right))
-		})
-	} else {
-		return check(left, right)
+		switch {
+		case innerT.Primitive != nil && innerT.Primitive.IsBytes():
+			condition = equalsFunc("Bytes"+word).Call(left, right)
+		case innerT.Primitive != nil:
+			condition = equalsFunc("Comparable"+word).Call(left, right)
+		case innerT.Reference != nil:
+			condition = equalsFunc("Object"+word).Call(left, right)
+		case innerT.IsMapOrArray():
+			l, r := Id("left"), Id("right")
+			condition = equalsFunc("Generic"+word).Call(left, right, Func().Params(List(l, r).Add(innerT.GoType())).Bool().Block(
+				Return(equalsCondition(innerT, false, l, r)),
+			))
+		}
 	}
+
+	return condition
+}
+
+func equalsFunc(name string) *Statement {
+	return Qual(utils.EqualsPackage, name)
 }

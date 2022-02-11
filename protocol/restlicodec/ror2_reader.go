@@ -146,6 +146,10 @@ func (u *ror2Reader) atMap() bool {
 	return len(u.data) > u.pos && u.data[u.pos] == '('
 }
 
+func (u *ror2Reader) ReadRecord(requiredFields RequiredFields, mapReader MapReader) error {
+	return readRecord(u, requiredFields, mapReader)
+}
+
 func (u *ror2Reader) ReadArray(arrayReader ArrayReader) (err error) {
 	u.state = inArray
 	if !u.atArray() {

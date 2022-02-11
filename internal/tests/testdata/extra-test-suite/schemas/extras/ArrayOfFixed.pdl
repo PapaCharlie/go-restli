@@ -1,0 +1,5 @@
+namespace extras
+
+record ArrayOfFixed {
+  fixeds: array[fixed MD5 16]
+}

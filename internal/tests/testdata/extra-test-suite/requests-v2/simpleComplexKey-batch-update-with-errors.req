@@ -1,0 +1,18 @@
+PUT /simpleComplexKey?ids=List((string:a),(string:b),(string:c)) HTTP/1.1
+Accept: application/json
+Content-Type: application/json
+X-RestLi-Protocol-Version: 2.0.0
+
+{
+  "entities" : {
+    "(string:a)" : {
+      "string" : "a"
+    },
+    "(string:b)" : {
+      "string" : "b"
+    },
+    "(string:c)" : {
+      "string" : "c"
+    }
+  }
+}

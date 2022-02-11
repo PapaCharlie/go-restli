@@ -1,20 +1,20 @@
 package protocol
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 )
 
 // RestLiError is returned by the Do* methods when the X-RestLi-Error-Response header is set to true.
 type RestLiError struct {
-	Message        string `json:"message"`
-	ExceptionClass string `json:"exceptionClass"`
-	StackTrace     string `json:"stackTrace"`
-
+	stdstructs.ErrorResponse
 	// Will be non-nil if an error occurred when attempting to deserialize the actual JSON response fields (i.e. Status,
 	// Message, ExceptionClass and StackTrace)
 	DeserializationError error `json:"-"`
@@ -27,16 +27,38 @@ type RestLiError struct {
 func (r *RestLiError) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
-		io.WriteString(s, r.Error()+"\n")
-		io.WriteString(s, r.StackTrace)
+		io.WriteString(s, r.Error())
+		if r.StackTrace != nil {
+			io.WriteString(s, "\n"+*r.StackTrace)
+		}
 	case 's':
-		io.WriteString(s, r.Error()+"\n")
+		io.WriteString(s, r.Error())
 	}
 }
 
 func (r *RestLiError) Error() string {
-	return fmt.Sprintf("RestLiError(status: %d, exceptionClass: %s, message: %s)",
-		r.Response.StatusCode, r.ExceptionClass, r.Message)
+	b := strings.Builder{}
+	b.WriteString("RestLiError(status: ")
+
+	if r.Status != nil {
+		b.WriteString(strconv.Itoa(int(*r.Status)))
+	} else {
+		b.WriteString("UNKNOWN")
+	}
+
+	if r.ExceptionClass != nil {
+		b.WriteString(", exceptionClass: ")
+		b.WriteString(*r.ExceptionClass)
+	}
+
+	if r.Message != nil {
+		b.WriteString(", message: ")
+		b.WriteString(*r.Message)
+	}
+
+	b.WriteString(")")
+
+	return b.String()
 }
 
 // UnexpectedStatusCodeError is returned by the Do* methods when the target rest.li service responded with non-2xx code
@@ -67,12 +89,14 @@ func IsErrorResponse(res *http.Response) error {
 		if err != nil {
 			return err
 		}
+
 		restLiError := &RestLiError{
 			ResponseBody: body,
 			Response:     res,
 		}
-		if deserializationError := json.Unmarshal(body, restLiError); deserializationError != nil {
-			restLiError.DeserializationError = deserializationError
+		restLiError.DeserializationError = restLiError.UnmarshalRestLi(restlicodec.NewJsonReader(body))
+		if restLiError.Status == nil {
+			restLiError.Status = Int32Pointer(int32(res.StatusCode))
 		}
 		return restLiError
 	}
@@ -92,30 +116,50 @@ func IsErrorResponse(res *http.Response) error {
 	return nil
 }
 
-// BatchMethodError is returned by BATCH_* requests when the "errors" field in the response is present and not null. It
-// contains the raw bytes of said field as its contents are untyped.
-type BatchMethodError struct {
-	// The contents of the "errors" fields in the batch request's response
-	// TODO: This is a map of the key that caused the error to a message describing the error. Ideally instead of having
-	//  raw bytes, each batch method would generate an error handler that correctly deserializes this response
-	Errors []byte
-	// The contents of the "statuses" fields in the batch request's response
-	// TODO: See above, this should also be deserialized into an actual type
-	Statuses []byte
-	// The request that resulted in this error
-	Request *http.Request
-	// The raw response that this error was parsed from
-	Response *http.Response
-}
-
-func (b *BatchMethodError) Error() string {
-	return string(b.Errors)
-}
-
+// UnsupportedRestLiProtocolVersion is returned when the server returns a version other than the requested one, which is
+// always RestLiProtocolVersion.
 type UnsupportedRestLiProtocolVersion struct {
 	ReturnedVersion string
 }
 
 func (u *UnsupportedRestLiProtocolVersion) Error() string {
-	return fmt.Sprintf("go-restli: Unsupported rest.li protocol version: %s", u.ReturnedVersion)
+	return fmt.Sprintf("go-restli: Unsupported rest.li protocol version: %s (the only supported version is %s)",
+		u.ReturnedVersion, RestLiProtocolVersion)
+}
+
+// CreateResponseHasNoEntityHeaderError is used specifically when a Create request succeeds but the resource
+// implementation does not set the X-RestLi-Id header. This error is recoverable and can be ignored if the response id
+// is not required
+type CreateResponseHasNoEntityHeaderError struct {
+	Response *http.Response
+}
+
+func (c CreateResponseHasNoEntityHeaderError) Error() string {
+	return "go-restli: response from CREATE request did not specify a " + RestLiHeader_ID + " header"
+}
+
+// IllegalPartialUpdateError is returned by PartialUpdateFieldChecker a partial update struct defines an illegal
+// operation, such as deleting and setting the same field.
+type IllegalPartialUpdateError struct {
+	Message    string
+	RecordType string
+	Field      string
+}
+
+func (c *IllegalPartialUpdateError) Error() string {
+	return fmt.Sprintf("go-restli: %s field %q of %q", c.Message, c.Field, c.RecordType)
+}
+
+// BatchRequestResponseError is returned by all the batch methods, and represents the keys on which the operation
+// failed.
+type BatchRequestResponseError[K comparable] map[K]*stdstructs.ErrorResponse
+
+func (b BatchRequestResponseError[K]) Error() string {
+	prettyErrors := make(map[string]string, len(b))
+	for k, v := range b {
+		w := restlicodec.NewCompactJsonWriter()
+		_ = v.MarshalRestLi(w)
+		prettyErrors[fmt.Sprintf("%+v", k)] = w.Finalize()
+	}
+	return fmt.Sprintf("go-restli: Not all batch operations successful: %+v", prettyErrors)
 }

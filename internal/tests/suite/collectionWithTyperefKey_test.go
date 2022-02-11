@@ -6,8 +6,8 @@ import (
 
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
-	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +45,7 @@ func (s *TestServer) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T,
 
 func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T, c Client) {
 	_, total, err := c.FindBySearch(&FindBySearchParams{
-		PagingContext: protocol.NewPagingContext(0, 10),
+		PagingContext: stdstructs.NewPagingContext(0, 10),
 		Keyword:       "test",
 	})
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T,
 
 func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContextNoTotal(t *testing.T, c Client) {
 	_, total, err := c.FindBySearch(&FindBySearchParams{
-		PagingContext: protocol.NewPagingContext(0, 10),
+		PagingContext: stdstructs.NewPagingContext(0, 10),
 		Keyword:       "test",
 	})
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "start only",
 			params: FindBySearchParams{
-				PagingContext: protocol.PagingContext{
+				PagingContext: stdstructs.PagingContext{
 					Start: &start,
 				},
 				Keyword: "foo",
@@ -91,7 +91,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "count only",
 			params: FindBySearchParams{
-				PagingContext: protocol.PagingContext{
+				PagingContext: stdstructs.PagingContext{
 					Count: &count,
 				},
 				Keyword: "foo",
@@ -101,7 +101,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "full context",
 			params: FindBySearchParams{
-				PagingContext: protocol.PagingContext{
+				PagingContext: stdstructs.PagingContext{
 					Start: &start,
 					Count: &count,
 				},
