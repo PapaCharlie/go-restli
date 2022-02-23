@@ -22,6 +22,7 @@ public class Method {
   public RestliType _return;
   public boolean _returnEntity;
   public boolean _pagingSupported;
+  public RestliType _metadata;
 
   public static class PathKey {
     public final String _name;

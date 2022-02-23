@@ -38,6 +38,14 @@ func (s *primitiveKeySet[T]) MarshalKey(writer restlicodec.Writer, t T) error {
 	return nil
 }
 
+func (s *primitiveKeySet[T]) Encode(paramNameWriter func(string) restlicodec.Writer) error {
+	return encode(s, paramNameWriter)
+}
+
+func (s *primitiveKeySet[T]) EncodeQueryParams() (params string, err error) {
+	return generateRawQuery(s)
+}
+
 func (s *primitiveKeySet[T]) encodeKeys() ([]string, error) {
 	encodedKeys := make([]string, 0, len(s.originalKeys))
 	for k := range s.originalKeys {

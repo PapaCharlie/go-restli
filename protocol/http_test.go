@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-const query = "/search?action=search"
-
 func mustParse(u string) *url.URL {
 	ur, err := url.Parse(u)
 	if err != nil {
@@ -61,12 +59,15 @@ func TestRestLiClient_FormatQuery(t *testing.T) {
 		},
 	}
 
+	const query = QueryParamsString("action=search")
+	const rp = ResourcePathString("/search")
+
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			for _, v := range test.Values {
 				supplier.Hostname = v
 
-				u, err := c.FormatQueryUrl("search", query)
+				u, err := c.FormatQueryUrl(rp, query)
 				if err != nil {
 					t.Fatal(err)
 				}

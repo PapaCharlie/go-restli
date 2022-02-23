@@ -40,21 +40,85 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 			def.Add(r.clientFuncDeclaration(m, true))
 		}
 	}).Line().Line()
-	client.Code.Type().Id(ClientType).Struct(Op("*").Add(RestLiClientQual)).Line().Line()
-	client.Code.Func().Id("NewClient").Params(Id("c").Op("*").Add(RestLiClientQual)).Id("Client").
-		Block(Return(Op("&").Id(ClientType).Values(Id("c")))).
-		Line().Line()
+
+	c := Code(Id("c"))
+	declareClient := func(structDef Code, clientValues ...Code) {
+		client.Code.Type().Id(ClientType).Struct(structDef).Line().Line()
+		client.Code.Func().Id("NewClient").Params(Add(c).Op("*").Add(RestLiClientQual)).Id(ClientInterfaceType).
+			Block(Return(Op("&").Id(ClientType).Values(clientValues...))).Line().Line()
+	}
+
+	if r.ResourceSchema == nil {
+		declareClient(Op("*").Add(RestLiClientQual), c)
+	} else {
+
+		simpleClientTypes := []Code{
+			r.ResourceSchema.ReferencedType(),
+			Op("*").Add(r.ResourceSchema.Record().PartialUpdateStruct()),
+		}
+		simpleClientType := Code(Add(SimpleClientQual).Index(List(simpleClientTypes...)))
+		simpleClientDeclaration := Add(simpleClientType).Add(utils.OrderedValues(func(add func(key Code, value Code)) {
+			add(Id(RestLiClient), c)
+			add(Id("EntityUnmarshaler"), types.Reader.UnmarshalerFunc(*r.ResourceSchema))
+			add(CreateAndReadOnlyFields, r.createAndReadOnlyFields())
+		}))
+
+		if r.IsCollection {
+			var entityKey *PathKey
+			for _, m := range r.Methods {
+				if pk := m.GetMethod().EntityPathKey; pk != nil {
+					entityKey = pk
+					break
+				}
+			}
+
+			collectionClientTypes := append([]Code{entityKey.Type.ReferencedType()}, simpleClientTypes...)
+			collectionClientType := Code(Add(CollectionClientQual).Index(List(collectionClientTypes...)))
+			declareClient(collectionClientType, Add(collectionClientType).
+				Add(utils.OrderedValues(func(add func(key Code, value Code)) {
+					add(Id(SimpleClient), simpleClientDeclaration)
+					add(Id("KeyUnmarshaler"), types.Reader.UnmarshalerFunc(entityKey.Type))
+					add(ReadOnlyFields, r.readOnlyFields())
+					add(CreateOnlyFields, r.createOnlyFields())
+
+					var batchKeySetProvider Code
+					setProvider := func(name string, params ...Code) {
+						batchKeySetProvider = Func().
+							Params().
+							Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(entityKey.Type.ReferencedType()).
+							Block(
+								Return(Qual(utils.BatchKeySetPackage, "New"+name+"KeySet").Call(params...)),
+							)
+					}
+					switch {
+					case entityKey.Type.ComplexKey() != nil:
+						setProvider("Complex", types.Reader.UnmarshalerFunc(entityKey.Type))
+					case entityKey.Type.Reference != nil:
+						setProvider("Simple", types.Reader.UnmarshalerFunc(entityKey.Type))
+					case entityKey.Type.Primitive.IsBytes():
+						setProvider("Bytes")
+					default:
+						setProvider("Primitive", entityKey.Type.Primitive.MarshalerFunc(), entityKey.Type.Primitive.UnmarshalerFunc())
+					}
+
+					add(Id("BatchKeySetProvider"), batchKeySetProvider)
+				})))
+		} else {
+			declareClient(simpleClientType, simpleClientDeclaration)
+		}
+
+	}
 
 	for _, m := range r.Methods {
 		if !m.GetMethod().OnEntity {
-			r.addResourcePathFunc(client.Code, ResourcePath, m.GetMethod())
+			r.addResourcePathStruct(client.Code, ResourcePath, m.GetMethod())
 			break
 		}
 	}
 
 	for _, m := range r.Methods {
 		if m.GetMethod().OnEntity {
-			r.addResourcePathFunc(client.Code, ResourceEntityPath, m.GetMethod())
+			r.addResourcePathStruct(client.Code, ResourceEntityPath, m.GetMethod())
 			break
 		}
 	}
@@ -104,9 +168,16 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 	return codeFiles
 }
 
-func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Method) {
-	def.Func().Id(funcName).
-		ParamsFunc(func(def *Group) { addParams(def, m.entityParamNames(), m.entityParamTypes()) }).
+func (r *Resource) addResourcePathStruct(def *Statement, structName string, m *Method) {
+	def.Type().Id(structName).StructFunc(func(def *Group) {
+		paramNames, paramTypes := m.entityParamNames(), m.entityParamTypes()
+		for i, name := range paramNames {
+			def.Add(name).Add(paramTypes[i])
+		}
+	}).Line().Line()
+	rp := "rp"
+	utils.AddFuncOnReceiver(def, rp, structName, "ResourcePath", types.RecordShouldUsePointer).
+		Params().
 		Params(Id("path").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
 			def.Add(types.Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewRor2PathWriter").Call()
@@ -121,7 +192,7 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 				def.Add(types.Writer).Dot("RawPathSegment").Call(Lit(path[:idx]))
 				path = path[idx+len(pattern):]
 
-				def.Add(types.Writer.Write(pk.Type, types.Writer, Id(pk.Name), Lit(""), Err()))
+				def.Add(types.Writer.Write(pk.Type, types.Writer, Id(rp).Dot(pk.Name), Lit(""), Err()))
 			}
 			def.Line()
 
@@ -131,6 +202,11 @@ func (r *Resource) addResourcePathFunc(def *Statement, funcName string, m *Metho
 
 			def.Return(types.Writer.Finalize(), Nil())
 		}).Line().Line()
+
+	utils.AddFuncOnReceiver(def, rp, structName, "RootResource", types.RecordShouldUsePointer).
+		Params().
+		String().
+		Block(Return(Lit(r.RootResourceName))).Line().Line()
 }
 
 func (r *Resource) generateTestCode() *utils.CodeFile {
@@ -150,7 +226,7 @@ func (r *Resource) generateTestCode() *utils.CodeFile {
 		structFields = append(structFields,
 			Id(mock+methodFuncName(m, false)).Func().ParamsFunc(func(def *Group) {
 				def.Add(Ctx).Add(Context)
-				addParams(def, methodParamNames(m), methodParamTypes(m))
+				addEntityParams(def, m)
 			}).Params(methodReturnParams(m)...),
 		)
 		r.addClientFuncDeclarations(funcs, structName, m, func(def *Group) {
@@ -177,7 +253,7 @@ func (r *Resource) clientFuncDeclaration(m MethodImplementation, withContext boo
 		if withContext {
 			def.Add(Ctx).Add(Context)
 		}
-		addParams(def, methodParamNames(m), methodParamTypes(m))
+		addEntityParams(def, m)
 	}
 
 	return Id(methodFuncName(m, withContext)).ParamsFunc(params).Params(methodReturnParams(m)...)
@@ -220,6 +296,7 @@ func (r *Resource) createOnlyFields() Code {
 		return NoExcludedFields
 	}
 }
+
 func (r *Resource) createAndReadOnlyFields() Code {
 	if len(r.ReadOnlyFields) > 0 || len(r.CreateOnlyFields) > 0 {
 		return CreateAndReadOnlyFields

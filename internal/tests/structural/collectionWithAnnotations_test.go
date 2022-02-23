@@ -5,6 +5,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	collectionwithannotations "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
+	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR extras.collectionWithAnnotations
@@ -12,11 +13,11 @@ var _ = collectionwithannotations.Client(new(collectionWithAnnotationsClient))
 
 type collectionWithAnnotationsClient struct{}
 
-func (c *collectionWithAnnotationsClient) Create(*extras.MultiplePrimitiveFields) (extras.Temperature, error) {
+func (c *collectionWithAnnotationsClient) Create(*extras.MultiplePrimitiveFields) (*protocol.CreatedEntity[extras.Temperature], error) {
 	panic(nil)
 }
 
-func (c *collectionWithAnnotationsClient) CreateWithContext(context.Context, *extras.MultiplePrimitiveFields) (extras.Temperature, error) {
+func (c *collectionWithAnnotationsClient) CreateWithContext(context.Context, *extras.MultiplePrimitiveFields) (*protocol.CreatedEntity[extras.Temperature], error) {
 	panic(nil)
 }
 

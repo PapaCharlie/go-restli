@@ -16,7 +16,10 @@ func (s *TestServer) CollectionCreate(t *testing.T, c Client) {
 		Message: "test message",
 	})
 	require.NoError(t, err)
-	require.Equal(t, id, int64(1))
+	require.Equal(t, &protocol.CreatedEntity[int64]{
+		Id:     1,
+		Status: 201,
+	}, id)
 }
 
 func (s *TestServer) CollectionCreate500(t *testing.T, c Client) {
@@ -63,7 +66,14 @@ func (s *TestServer) CollectionUpdate400(t *testing.T, c Client) {
 
 func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
 	params := &FindBySearchParams{Keyword: "message"}
-	expectedMessages := []*conflictresolution.Message{newMessage(1, "test message"), newMessage(2, "another message")}
+	expectedMessages := &protocol.FinderResults[*conflictresolution.Message]{
+		Results: []*conflictresolution.Message{
+			newMessage(1, "test message"),
+			newMessage(2, "another message"),
+		},
+		Total: protocol.IntPointer(2),
+	}
+
 	res, err := c.FindBySearch(params)
 	require.NoError(t, err)
 	require.Equal(t, expectedMessages, res)
@@ -78,14 +88,14 @@ func (s *TestServer) CollectionPartialUpdate(t *testing.T, c Client) {
 	require.NoError(t, err)
 }
 
-func (s *TestServer) SubCollectionOfCollectionGet(t *testing.T, c Client) {
+func (s *TestServer) SubCollectionOfCollectionGet(t *testing.T, _ Client) {
 	id := int64(100)
 	res, err := colletionSubCollection.NewClient(s.client).Get(1, id)
 	require.NoError(t, err)
 	require.Equal(t, newMessage(id, "sub collection message"), res)
 }
 
-func (s *TestServer) SubSimpleOfCollectionGet(t *testing.T, c Client) {
+func (s *TestServer) SubSimpleOfCollectionGet(t *testing.T, _ Client) {
 	res, err := colletionSubSimple.NewClient(s.client).Get(1)
 	require.NoError(t, err)
 	require.Equal(t, &conflictresolution.Message{Message: "sub simple message"}, res, "Invalid response from server")

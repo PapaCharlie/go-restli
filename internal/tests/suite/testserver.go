@@ -22,6 +22,7 @@ import (
 	collectionwithannotations "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	simplecomplexkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleWithPartialUpdate"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 )
@@ -44,6 +45,9 @@ func (d *WireProtocolTestData) GetClient(s *TestServer) *reflect.Value {
 		return v
 	case "simple":
 		*v = reflect.ValueOf(simple.NewClient(s.client))
+		return v
+	case "simpleWithPartialUpdate":
+		*v = reflect.ValueOf(simplewithpartialupdate.NewClient(s.client))
 		return v
 	case "actionSet":
 		*v = reflect.ValueOf(actionset.NewClient(s.client))
@@ -92,7 +96,7 @@ func (s *TestServer) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if expected, got := s.o.Request.URL.RawPath, req.URL.RawPath; expected != got {
+	if expected, got := s.o.Request.URL.Path, req.URL.Path; expected != got {
 		writeErrorResponse(res, "Request paths did not match! Expected %q, got %q.", expected, got)
 		return
 	}

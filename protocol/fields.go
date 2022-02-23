@@ -10,6 +10,9 @@ const (
 	errorsField   = "errors"
 	idField       = "id"
 	entityField   = "entity"
+	pagingField   = "paging"
+	totalField    = "total"
+	metadataField = "metadata"
 )
 
 var (

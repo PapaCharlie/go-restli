@@ -116,7 +116,9 @@ public class ResourceParser {
         _rootResourceName,
         resourceType,
         readOnlyFields,
-        createOnlyFields);
+        createOnlyFields,
+        _schema.hasCollection()
+    );
   }
 
   private String namespace() {

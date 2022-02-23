@@ -34,9 +34,9 @@ func (a *Action) FuncParamTypes() []Code {
 	}
 }
 
-func (a *Action) NonErrorFuncReturnParams() []Code {
+func (a *Action) NonErrorFuncReturnParam() Code {
 	if a.Return != nil {
-		return []Code{Id("actionResult").Add(a.Return.ReferencedType())}
+		return Id("actionResult").Add(a.Return.ReferencedType())
 	} else {
 		return nil
 	}
@@ -44,10 +44,6 @@ func (a *Action) NonErrorFuncReturnParams() []Code {
 
 func (a *Action) paramsStructType() string {
 	return a.FuncName() + "Params"
-}
-
-func (a *Action) resultsStructType() string {
-	return a.FuncName() + "Result"
 }
 
 func (m *Method) actionFuncReturnParams(def *Group) {
@@ -62,7 +58,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 	c := a.Resource.NewCodeFile(actionName)
 
 	actionNameConst := utils.ExportedIdentifier(actionName)
-	c.Code.Const().Id(actionNameConst).Op("=").Lit(a.Name).Line()
+	c.Code.Const().Id(actionNameConst).Op("=").Qual(utils.ProtocolPackage, "ActionQueryParam").Call(Lit(a.Name)).Line()
 
 	hasParams := len(a.Params) > 0
 	if hasParams {
@@ -82,24 +78,17 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 
 	a.Resource.addClientFuncDeclarations(c.Code, ClientType, a, func(def *Group) {
 		returns := a.Return != nil
-		var errReturnParams []Code
-		if returns {
-			errReturnParams = []Code{a.Return.ZeroValueReference(), Err()}
-		} else {
-			errReturnParams = []Code{Err()}
-		}
-
-		formatQueryUrl(a, def, errReturnParams...)
+		declareRpStruct(a, def)
 
 		var params Code
 		if hasParams {
 			params = ActionParams
 		} else {
-			params = Qual(utils.StdStructsPackage, "EmptyRecord")
+			params = Qual(utils.StdStructsPackage, "EmptyRecord").Values()
 		}
 
 		f := "DoActionRequest"
-		callParams := []Code{RestLiClientReceiver, Ctx, Url, params}
+		callParams := []Code{RestLiClientReceiver, Ctx, Rp, Id(actionNameConst), params}
 		if returns {
 			f += "WithResults"
 			callParams = append(callParams, types.Reader.UnmarshalerFunc(*a.Return))

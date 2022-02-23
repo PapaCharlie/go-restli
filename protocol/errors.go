@@ -163,3 +163,5 @@ func (b BatchRequestResponseError[K]) Error() string {
 	}
 	return fmt.Sprintf("go-restli: Not all batch operations successful: %+v", prettyErrors)
 }
+
+var NilQueryParams = fmt.Errorf("go-restli: Query params cannot be nil")

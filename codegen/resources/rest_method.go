@@ -31,11 +31,6 @@ var batchMethods = map[protocol.RestLiMethod]bool{
 	protocol.Method_batch_partial_update: true,
 }
 
-var batchMethodsWithMapInput = map[protocol.RestLiMethod]bool{
-	protocol.Method_batch_update:         true,
-	protocol.Method_batch_partial_update: true,
-}
-
 type RestMethod struct{ methodImplementation }
 
 func (r *RestMethod) IsSupported() bool {
@@ -82,28 +77,27 @@ func (r *RestMethod) FuncParamTypes() (params []Code) {
 	return params
 }
 
-func (r *RestMethod) NonErrorFuncReturnParams() []Code {
+func (r *RestMethod) NonErrorFuncReturnParam() Code {
 	switch r.restLiMethod() {
 	case protocol.Method_get:
-		return []Code{Add(Entity).Add(r.Return.ReferencedType())}
-	case protocol.Method_create:
-		returns := []Code{Add(EntityKey).Add(r.EntityPathKey.Type.ReferencedType())}
+		return Add(Entity).Add(r.Return.ReferencedType())
+	case protocol.Method_create, protocol.Method_batch_create:
+		var returns Code
 		if r.ReturnEntity {
-			returns = append(returns, Add(ReturnedEntity).Add(r.Return.ReferencedType()))
+			returns = Qual(utils.ProtocolPackage, "CreatedAndReturnedEntity").Index(List(r.EntityPathKey.Type.ReferencedType(), r.Return.ReferencedType()))
+		} else {
+			returns = Qual(utils.ProtocolPackage, "CreatedEntity").Index(r.EntityPathKey.Type.ReferencedType())
+		}
+		if r.restLiMethod() == protocol.Method_batch_create {
+			returns = Add(CreatedEntities).Index().Op("*").Add(returns)
+		} else {
+			returns = Add(CreatedEntity).Op("*").Add(returns)
 		}
 		return returns
-	case protocol.Method_batch_create:
-		returns := Add(CreatedEntities).Index().Op("*")
-		if r.ReturnEntity {
-			returns.Qual(utils.ProtocolPackage, "CreatedAndReturnedEntity").Index(List(r.EntityPathKey.Type.ReferencedType(), r.Return.ReferencedType()))
-		} else {
-			returns.Qual(utils.ProtocolPackage, "CreatedEntity").Index(r.EntityPathKey.Type.ReferencedType())
-		}
-		return []Code{returns}
 	case protocol.Method_batch_get:
-		return []Code{Add(Entities).Add(Map(r.EntityPathKey.Type.ReferencedType()).Add(r.Return.ReferencedType()))}
+		return Add(Entities).Add(Map(r.EntityPathKey.Type.ReferencedType()).Add(r.Return.ReferencedType()))
 	case protocol.Method_batch_delete, protocol.Method_batch_update, protocol.Method_batch_partial_update:
-		return []Code{Add(Statuses).Add(Map(r.EntityPathKey.Type.ReferencedType()).Op("*").Add(BatchEntityUpdateResponse))}
+		return Add(Statuses).Add(Map(r.EntityPathKey.Type.ReferencedType()).Op("*").Add(BatchEntityUpdateResponse))
 	default:
 		return nil
 	}
@@ -121,94 +115,36 @@ func (r *RestMethod) isBatch() bool {
 	return batchMethods[r.restLiMethod()]
 }
 
-func (r *RestMethod) usesBatchMapInput() bool {
-	return batchMethodsWithMapInput[r.restLiMethod()]
-}
-
 func (r *RestMethod) queryParamsStructName() string {
 	return restMethodFuncNames[r.restLiMethod()] + "Params"
 }
 
 func (r *RestMethod) generator() func(*Group) {
-	switch r.restLiMethod() {
-	case protocol.Method_get:
-		return r.genericMethodImplementation(
-			"DoGetRequest",
-			[]Code{r.Return.ZeroValueReference()},
-			types.Reader.UnmarshalerFunc(*r.Return),
-		)
-	case protocol.Method_create:
-		f := "DoCreateRequest"
-		returns := []Code{r.EntityPathKey.Type.ZeroValueReference()}
-		params := []Code{
-			Entity,
-			r.Resource.readOnlyFields(),
-			types.Reader.UnmarshalerFunc(r.EntityPathKey.Type),
+	return func(def *Group) {
+		params := r.FuncParamNames()
+
+		if len(r.Params) == 0 {
+			params = append(params, Nil())
+		} else {
+			def.If(Add(QueryParams).Op("==").Nil()).Block(Return(Nil(), Qual(utils.ProtocolPackage, "NilQueryParams")))
 		}
+
+		receiver := Id(ClientReceiver)
+		if r.GetResource().IsCollection {
+			receiver.Dot(CollectionClient)
+		} else {
+			receiver.Dot(SimpleClient)
+		}
+
+		f := r.FuncName()
 		if r.ReturnEntity {
 			f += "WithReturnEntity"
-			returns = append(returns, r.Return.ZeroValueReference())
-			params = append(params, types.Reader.UnmarshalerFunc(*r.Return))
 		}
-		return r.genericMethodImplementation(f, returns, params...)
-	case protocol.Method_update:
-		return r.genericMethodImplementation("DoUpdateRequest", nil, Entity)
-	case protocol.Method_partial_update:
-		return r.genericMethodImplementation(
-			"DoPartialUpdateRequest",
-			nil,
-			Entity,
-			r.Resource.createAndReadOnlyFields(),
-		)
-	case protocol.Method_delete:
-		return r.genericMethodImplementation("DoDeleteRequest", nil)
-	case protocol.Method_batch_create:
-		f := "DoBatchCreateRequest"
-		params := []Code{
-			Entities,
-			r.Resource.readOnlyFields(),
-			types.Reader.UnmarshalerFunc(r.EntityPathKey.Type),
-		}
-		if r.ReturnEntity {
-			f += "WithReturnEntity"
-			params = append(params, types.Reader.UnmarshalerFunc(*r.Return))
-		}
-		return r.genericMethodImplementation(
-			f,
-			[]Code{Nil()},
-			params...,
-		)
-	case protocol.Method_batch_delete:
-		return r.genericMethodImplementation(
-			"DoBatchDeleteRequest",
-			[]Code{Nil()},
-			utils.BatchKeySet,
-		)
-	case protocol.Method_batch_get:
-		return r.genericMethodImplementation(
-			"DoBatchGetRequest",
-			[]Code{Nil()},
-			utils.BatchKeySet,
-			types.Reader.UnmarshalerFunc(*r.Return),
-		)
-	case protocol.Method_batch_update:
-		return r.genericMethodImplementation(
-			"DoBatchUpdateRequest",
-			[]Code{Nil()},
-			utils.BatchKeySet,
-			Entities,
-			r.Resource.createAndReadOnlyFields(),
-		)
-	case protocol.Method_batch_partial_update:
-		return r.genericMethodImplementation(
-			"DoBatchPartialUpdateRequest",
-			[]Code{Nil()},
-			utils.BatchKeySet,
-			Entities,
-			r.Resource.createAndReadOnlyFields(),
-		)
-	default:
-		return nil
+
+		declareRpStruct(r, def)
+		def.Return(Add(receiver).Dot(f).Call(
+			append([]Code{Ctx, Rp}, params...)...,
+		))
 	}
 }
 
@@ -243,16 +179,4 @@ func (r *RestMethod) GenerateCode() *utils.CodeFile {
 	})
 
 	return c
-}
-
-func (r *RestMethod) genericMethodImplementation(doFuncName string, extraReturnValues []Code, args ...Code) func(*Group) {
-	return func(def *Group) {
-		returns := append([]Code(nil), extraReturnValues...)
-		returns = append(returns, Err())
-		formatQueryUrl(r, def, returns...)
-
-		def.Return(Qual(utils.ProtocolPackage, doFuncName).Call(
-			append([]Code{RestLiClientReceiver, Ctx, Url}, args...)...,
-		))
-	}
 }

@@ -13,11 +13,11 @@ var _ = complexkey.Client(new(complexKeyClient))
 
 type complexKeyClient struct{}
 
-func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (*complexkey.Complexkey_ComplexKey, error) {
+func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (*protocol.CreatedEntity[*complexkey.Complexkey_ComplexKey], error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) CreateWithContext(context.Context, *conflictresolution.LargeRecord) (*complexkey.Complexkey_ComplexKey, error) {
+func (c *complexKeyClient) CreateWithContext(context.Context, *conflictresolution.LargeRecord) (*protocol.CreatedEntity[*complexkey.Complexkey_ComplexKey], error) {
 	panic(nil)
 }
 

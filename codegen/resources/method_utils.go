@@ -1,9 +1,7 @@
 package resources
 
 import (
-	"github.com/PapaCharlie/go-restli/codegen/types"
 	"github.com/PapaCharlie/go-restli/codegen/utils"
-	"github.com/PapaCharlie/go-restli/protocol"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -14,7 +12,7 @@ type MethodImplementation interface {
 	FuncName() string
 	FuncParamNames() []Code
 	FuncParamTypes() []Code
-	NonErrorFuncReturnParams() []Code
+	NonErrorFuncReturnParam() Code
 	GenerateCode() *utils.CodeFile
 }
 
@@ -31,79 +29,20 @@ func (m *methodImplementation) GetResource() *Resource {
 	return m.Resource
 }
 
-func formatQueryUrl(m MethodImplementation, def *Group, returns ...Code) {
+func declareRpStruct(m MethodImplementation, def *Group) {
+	rp := def.Add(Rp).Op(":=").Op("&")
 	if m.GetMethod().OnEntity {
-		def.List(Path, Err()).Op(":=").Id(ResourceEntityPath).Call(m.GetMethod().entityParamNames()...)
+		rp.Id(ResourceEntityPath)
 	} else {
-		def.List(Path, Err()).Op(":=").Id(ResourcePath).Call(m.GetMethod().entityParamNames()...)
+		rp.Id(ResourcePath)
 	}
 
-	def.Add(utils.IfErrReturn(returns...)).Line()
-
-	encodeQueryParams := Code(Add(QueryParams).Dot(utils.EncodeQueryParams))
-	callEncodeQueryParams := func(encoder Code) {
-		rawQuery := Id("rawQuery")
-		def.Var().Add(rawQuery).String()
-		def.List(rawQuery, Err()).Op("=").Add(encoder)
-		def.Add(utils.IfErrReturn(returns...))
-		def.Add(Path).Op("+=").Lit("?").Op("+").Add(rawQuery)
-		def.Line()
-	}
-
-	switch m.(type) {
-	case *Action:
-		def.Add(Path).Op("+=").Lit("?action=" + m.GetMethod().Name)
-	case *Finder:
-		callEncodeQueryParams(Add(encodeQueryParams).Call())
-	case *RestMethod:
-		r := m.(*RestMethod)
-		hasParams := len(m.GetMethod().Params) > 0
-		if r.isBatch() && r.restLiMethod() != protocol.Method_batch_create {
-			declareKeySet := func(name string, params ...Code) {
-				def.Add(utils.BatchKeySet).Op(":=").Qual(utils.BatchKeySetPackage, "New"+name+"KeySet").Call(params...)
-			}
-			keyType := r.EntityPathKey.Type
-			switch {
-			case keyType.ComplexKey() != nil:
-				declareKeySet("Complex", types.Reader.UnmarshalerFunc(keyType))
-			case keyType.Reference != nil:
-				declareKeySet("Simple", types.Reader.UnmarshalerFunc(keyType))
-			case keyType.Primitive.IsBytes():
-				declareKeySet("Bytes")
-			default:
-				declareKeySet("Primitive", keyType.Primitive.MarshalerFunc(), keyType.Primitive.UnmarshalerFunc())
-			}
-
-			var f string
-			var accessor Code
-			if r.usesBatchMapInput() {
-				f = "AddAllMapKeys"
-				accessor = Entities
-			} else {
-				f = "AddAllKeys"
-				accessor = Add(Keys).Op("...")
-			}
-			def.Err().Op("=").Qual(utils.BatchKeySetPackage, f).Call(utils.BatchKeySet, accessor)
-			def.Add(utils.IfErrReturn(returns...))
-			def.Line()
-
-			if hasParams {
-				callEncodeQueryParams(Add(encodeQueryParams).Call(utils.BatchKeySet))
-			} else {
-				callEncodeQueryParams(Qual(utils.BatchKeySetPackage, "GenerateRawQuery").Call(utils.BatchKeySet))
-			}
-		} else {
-			if hasParams {
-				callEncodeQueryParams(Add(encodeQueryParams).Call())
-			}
+	pathParamNames := m.GetMethod().entityParamNames()
+	rp.Add(utils.OrderedValues(func(add func(key Code, value Code)) {
+		for _, name := range pathParamNames {
+			add(name, name)
 		}
-	}
-
-	def.List(Url, Err()).
-		Op(":=").
-		Id(ClientReceiver).Dot("FormatQueryUrl").
-		Call(Lit(m.GetResource().RootResourceName), Path)
-	def.Add(utils.IfErrReturn(returns...)).Line()
+	}))
 }
 
 func methodFuncName(m MethodImplementation, withContext bool) string {
@@ -114,7 +53,8 @@ func methodFuncName(m MethodImplementation, withContext bool) string {
 	return n
 }
 
-func addParams(def *Group, names, types []Code) {
+func addEntityParams(def *Group, m MethodImplementation) {
+	names, types := methodParamNames(m), methodParamTypes(m)
 	for i, name := range names {
 		def.Add(name).Add(types[i])
 	}
@@ -129,7 +69,12 @@ func methodParamTypes(m MethodImplementation) []Code {
 }
 
 func methodReturnParams(m MethodImplementation) []Code {
-	return append(m.NonErrorFuncReturnParams(), Err().Error())
+	p := m.NonErrorFuncReturnParam()
+	if p == nil {
+		return []Code{Err().Error()}
+	} else {
+		return []Code{p, Err().Error()}
+	}
 }
 
 func (m *Method) entityParamNames() (params []Code) {

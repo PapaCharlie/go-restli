@@ -5,6 +5,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
+	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR extras.collectionWithTyperefKey
@@ -12,11 +13,11 @@ var _ = collectionwithtyperefkey.Client(new(collectionWithTyperefKeyClient))
 
 type collectionWithTyperefKeyClient struct{}
 
-func (c *collectionWithTyperefKeyClient) Create(*extras.SinglePrimitiveField) (extras.Temperature, error) {
+func (c *collectionWithTyperefKeyClient) Create(*extras.SinglePrimitiveField) (*protocol.CreatedEntity[extras.Temperature], error) {
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) CreateWithContext(context.Context, *extras.SinglePrimitiveField) (extras.Temperature, error) {
+func (c *collectionWithTyperefKeyClient) CreateWithContext(context.Context, *extras.SinglePrimitiveField) (*protocol.CreatedEntity[extras.Temperature], error) {
 	panic(nil)
 }
 
@@ -36,10 +37,10 @@ func (c *collectionWithTyperefKeyClient) GetWithContext(context.Context, extras.
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, total *int, err error) {
+func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.FindBySearchParams) (*protocol.FinderResults[*extras.SinglePrimitiveField], error) {
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context, *collectionwithtyperefkey.FindBySearchParams) (results []*extras.SinglePrimitiveField, total *int, err error) {
+func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context, *collectionwithtyperefkey.FindBySearchParams) (*protocol.FinderResults[*extras.SinglePrimitiveField], error) {
 	panic(nil)
 }

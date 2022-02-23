@@ -84,7 +84,10 @@ public class MethodParser {
     method._doc = finder.getDoc();
     method._params = toFieldList(finder.getParameters());
     method._return = _resourceSchema;
-    method._pagingSupported = finder.hasPagingSupported() ? finder.isPagingSupported() : false;
+    method._pagingSupported = finder.hasPagingSupported() && finder.isPagingSupported();
+    if (finder.getMetadata() != null) {
+      method._metadata = _typeParser.parseFromRestSpec(finder.getMetadata().getType());
+    }
     return method;
   }
 
@@ -101,7 +104,7 @@ public class MethodParser {
     method._params = toFieldList(restMethod.getParameters());
     method._return = _resourceSchema;
     method._returnEntity = Utils.supportsReturnEntity(restMethod);
-    method._pagingSupported = restMethod.hasPagingSupported() ? restMethod.isPagingSupported() : false;
+    method._pagingSupported = restMethod.hasPagingSupported() && restMethod.isPagingSupported();
     return method;
   }
 

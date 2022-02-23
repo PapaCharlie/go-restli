@@ -73,6 +73,14 @@ func (s *genericBatchKeySet[T]) encodeKeys() ([]string, error) {
 	return encodedKeys, nil
 }
 
+func (s *genericBatchKeySet[T]) Encode(paramNameWriter func(string) restlicodec.Writer) error {
+	return encode(s, paramNameWriter)
+}
+
+func (s *genericBatchKeySet[T]) EncodeQueryParams() (params string, err error) {
+	return generateRawQuery(s)
+}
+
 type ComplexKey[T any] interface {
 	restlicodec.Marshaler
 	ComputeComplexKeyHash() fnv1a.Hash

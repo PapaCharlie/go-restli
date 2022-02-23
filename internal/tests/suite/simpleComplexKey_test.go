@@ -10,6 +10,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func (s *TestServer) SimpleComplexKeyBatchCreate(t *testing.T, c Client) {
+	entities := []*extras.SinglePrimitiveField{
+		{
+			String: "1",
+		},
+		{
+			String: "string:with:colons",
+		},
+	}
+	res, err := c.BatchCreate(entities)
+	require.NoError(t, err)
+	expected := []*protocol.CreatedAndReturnedEntity[*SimpleComplexKey_ComplexKey, *extras.SinglePrimitiveField]{
+		{
+			CreatedEntity: protocol.CreatedEntity[*SimpleComplexKey_ComplexKey]{
+				Id:     &SimpleComplexKey_ComplexKey{SinglePrimitiveField: *entities[0]},
+				Status: 201,
+			},
+			Entity: entities[0],
+		},
+		{
+			CreatedEntity: protocol.CreatedEntity[*SimpleComplexKey_ComplexKey]{
+				Id:     &SimpleComplexKey_ComplexKey{SinglePrimitiveField: *entities[1]},
+				Status: 202,
+			},
+			Entity: entities[1],
+		},
+	}
+	require.Equal(t, expected, res)
+}
+
 func (s *TestServer) SimpleComplexKeyBatchGet(t *testing.T, c Client) {
 	keys := []*SimpleComplexKey_ComplexKey{
 		{

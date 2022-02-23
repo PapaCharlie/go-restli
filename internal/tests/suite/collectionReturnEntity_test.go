@@ -5,16 +5,22 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
 func (s *TestServer) CollectionReturnEntityCreate(t *testing.T, c Client) {
-	id, m, err := c.Create(&conflictresolution.Message{
+	e, err := c.Create(&conflictresolution.Message{
 		Message: "test message",
 	})
 	require.NoError(t, err)
-	require.Equal(t, id, int64(1))
-	require.Equal(t, m, &conflictresolution.Message{
-		Message: "test message",
-	})
+	require.Equal(t, &protocol.CreatedAndReturnedEntity[int64, *conflictresolution.Message]{
+		CreatedEntity: protocol.CreatedEntity[int64]{
+			Id:     1,
+			Status: 201,
+		},
+		Entity: &conflictresolution.Message{
+			Message: "test message",
+		},
+	}, e)
 }

@@ -3,12 +3,31 @@ package protocol
 import (
 	"context"
 	"net/http"
-	"net/url"
 
 	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
 )
+
+type queryParamsFunc func() (string, error)
+
+func (q queryParamsFunc) EncodeQueryParams() (string, error) {
+	return q()
+}
+
+type BatchQueryParams[T any] interface {
+	EncodeQueryParams(set batchkeyset.BatchKeySet[T]) (string, error)
+}
+
+func batchQueryParams[T any](set batchkeyset.BatchKeySet[T], query BatchQueryParams[T]) QueryParams {
+	if query != nil {
+		return queryParamsFunc(func() (string, error) {
+			return query.EncodeQueryParams(set)
+		})
+	} else {
+		return set
+	}
+}
 
 type CreatedEntity[K any] struct {
 	Id     K
@@ -20,24 +39,24 @@ type CreatedAndReturnedEntity[K, V any] struct {
 	Entity V
 }
 
-// DoBatchCreateRequest executes a batch_create with the given slice of entities
-func DoBatchCreateRequest[K any, V restlicodec.Marshaler](
-	c *RestLiClient,
+func (c *CollectionClient[K, V, PV]) BatchCreateRequest(
 	ctx context.Context,
-	url *url.URL,
+	rp ResourcePath,
+	query QueryParams,
+	method RestLiMethod,
+	create restlicodec.Marshaler,
+) (*http.Request, error) {
+	return c.NewJsonRequest(ctx, rp, query, http.MethodPost, method, create, c.ReadOnlyFields)
+}
+
+// BatchCreate executes a batch_create with the given slice of entities
+func (c *CollectionClient[K, V, PV]) BatchCreate(
+	ctx context.Context,
+	rp ResourcePath,
 	entities []V,
-	readOnlyFields restlicodec.PathSpec,
-	keyUnmarshaler restlicodec.GenericUnmarshaler[K],
+	query QueryParams,
 ) (createdEntities []*CreatedEntity[K], err error) {
-	res, err := DoBatchCreateRequestWithReturnEntity[K, V](
-		c,
-		ctx,
-		url,
-		entities,
-		readOnlyFields,
-		keyUnmarshaler,
-		nil,
-	)
+	res, err := c.batchCreate(ctx, rp, entities, query, false)
 	if err != nil {
 		return nil, err
 	}
@@ -49,24 +68,36 @@ func DoBatchCreateRequest[K any, V restlicodec.Marshaler](
 	return createdEntities, nil
 }
 
-func DoBatchCreateRequestWithReturnEntity[K any, V restlicodec.Marshaler](
-	c *RestLiClient,
+func (c *CollectionClient[K, V, PV]) BatchCreateWithReturnEntity(
 	ctx context.Context,
-	url *url.URL,
+	rp ResourcePath,
 	entities []V,
-	readOnlyFields restlicodec.PathSpec,
-	keyUnmarshaler restlicodec.GenericUnmarshaler[K],
-	entityUnmarshaler restlicodec.GenericUnmarshaler[V],
+	query QueryParams,
 ) (createdEntities []*CreatedAndReturnedEntity[K, V], err error) {
-	req, err := BatchCreateRequest(ctx, url, entities, readOnlyFields)
+	return c.batchCreate(ctx, rp, entities, query, true)
+}
+
+func (c *CollectionClient[K, V, PV]) batchCreate(
+	ctx context.Context,
+	rp ResourcePath,
+	entities []V,
+	query QueryParams,
+	returnEntity bool,
+) (createdEntities []*CreatedAndReturnedEntity[K, V], err error) {
+	u, err := c.FormatQueryUrl(rp, query)
 	if err != nil {
 		return nil, err
 	}
 
-	createdEntities, _, err = DoAndUnmarshal(c, req, func(reader restlicodec.Reader) (entities []*CreatedAndReturnedEntity[K, V], err error) {
+	req, err := BatchCreateRequest(ctx, u, entities, c.ReadOnlyFields)
+	if err != nil {
+		return nil, err
+	}
+
+	createdEntities, _, err = DoAndUnmarshal(c.RestLiClient, req, func(reader restlicodec.Reader) (entities []*CreatedAndReturnedEntity[K, V], err error) {
 		err = reader.ReadRecord(elementsRequiredResponseFields, func(reader restlicodec.Reader, field string) (err error) {
 			var requiredFields restlicodec.RequiredFields
-			if entityUnmarshaler != nil {
+			if returnEntity {
 				requiredFields = batchCreateWithReturnResponseRequiredFields
 			} else {
 				requiredFields = batchCreateResponseRequiredFields
@@ -90,12 +121,14 @@ func DoBatchCreateRequestWithReturnEntity[K any, V restlicodec.Marshaler](
 								return err
 							}
 
-							e.Id, err = keyUnmarshaler(r)
+							e.Id, err = c.KeyUnmarshaler(r)
 						case statusField:
 							e.Status, err = reader.ReadInt()
 						case entityField:
-							if entityUnmarshaler != nil {
-								e.Entity, err = entityUnmarshaler(reader)
+							if returnEntity {
+								e.Entity, err = c.EntityUnmarshaler(reader)
+							} else {
+								err = reader.Skip()
 							}
 						default:
 							err = reader.Skip()
@@ -117,88 +150,123 @@ func DoBatchCreateRequestWithReturnEntity[K any, V restlicodec.Marshaler](
 	return createdEntities, err
 }
 
-func DoBatchDeleteRequest[K comparable](
-	c *RestLiClient,
+func (c *CollectionClient[K, V, PV]) BatchDelete(
 	ctx context.Context,
-	url *url.URL,
-	keys batchkeyset.BatchKeySet[K],
+	rp ResourcePath,
+	keys []K,
+	query BatchQueryParams[K],
 ) (map[K]*BatchEntityUpdateResponse, error) {
-	req, err := DeleteRequest(ctx, url, Method_batch_delete)
+	keySet := c.BatchKeySetProvider()
+	err := batchkeyset.AddAllKeys(keySet, keys...)
 	if err != nil {
 		return nil, err
 	}
 
-	return doBatchQuery(c, keys, UnmarshalBatchEntityUpdateResponse, req)
+	req, err := c.NewDeleteRequest(ctx, rp, batchQueryParams(keySet, query), Method_batch_delete)
+	if err != nil {
+		return nil, err
+	}
+
+	return doBatchQuery(c.RestLiClient, keySet, UnmarshalBatchEntityUpdateResponse, req)
 }
 
-func DoBatchGetRequest[K comparable, V any](
-	c *RestLiClient,
+func (c *CollectionClient[K, V, PV]) BatchGet(
 	ctx context.Context,
-	url *url.URL,
-	keys batchkeyset.BatchKeySet[K],
-	unmarshaler restlicodec.GenericUnmarshaler[V],
+	rp ResourcePath,
+	keys []K,
+	query BatchQueryParams[K],
 ) (map[K]V, error) {
-	req, err := GetRequest(ctx, url, Method_batch_get)
+	keySet := c.BatchKeySetProvider()
+	err := batchkeyset.AddAllKeys(keySet, keys...)
 	if err != nil {
 		return nil, err
 	}
 
-	return doBatchQuery(c, keys, unmarshaler, req)
+	req, err := c.NewGetRequest(ctx, rp, batchQueryParams(keySet, query), Method_batch_get)
+	if err != nil {
+		return nil, err
+	}
+
+	return doBatchQuery(c.RestLiClient, keySet, c.EntityUnmarshaler, req)
 }
 
-func DoBatchUpdateRequest[K comparable, V restlicodec.Marshaler](
-	c *RestLiClient,
+func (c *CollectionClient[K, V, PV]) BatchUpdate(
 	ctx context.Context,
-	url *url.URL,
-	keys batchkeyset.BatchKeySet[K],
+	rp ResourcePath,
 	entities map[K]V,
-	createAndReadOnlyFields restlicodec.PathSpec,
+	query BatchQueryParams[K],
 ) (map[K]*BatchEntityUpdateResponse, error) {
-	req, err := JsonRequest(ctx, url, http.MethodPut, Method_batch_update, &batchEntities[K, V]{
-		keys:      keys,
-		entities:  entities,
-		isPartial: false,
-	}, createAndReadOnlyFields)
+	keys := c.BatchKeySetProvider()
+	err := batchkeyset.AddAllMapKeys(keys, entities)
 	if err != nil {
 		return nil, err
 	}
 
-	return doBatchQuery(c, keys, UnmarshalBatchEntityUpdateResponse, req)
+	req, err := c.NewJsonRequest(
+		ctx,
+		rp,
+		batchQueryParams(keys, query),
+		http.MethodPut,
+		Method_batch_update,
+		&batchEntities[K, V]{
+			keys:      keys,
+			entities:  entities,
+			isPartial: false,
+		},
+		c.CreateAndReadOnlyFields,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return doBatchQuery(c.RestLiClient, keys, UnmarshalBatchEntityUpdateResponse, req)
 }
 
-func DoBatchPartialUpdateRequest[K comparable, V restlicodec.Marshaler](
-	c *RestLiClient,
+func (c *CollectionClient[K, V, PV]) BatchPartialUpdate(
 	ctx context.Context,
-	url *url.URL,
-	keys batchkeyset.BatchKeySet[K],
-	entities map[K]V,
-	createAndReadOnlyFields restlicodec.PathSpec,
+	rp ResourcePath,
+	entities map[K]PV,
+	query BatchQueryParams[K],
 ) (map[K]*BatchEntityUpdateResponse, error) {
-	req, err := JsonRequest(ctx, url, http.MethodPost, Method_batch_partial_update, &batchEntities[K, V]{
-		keys:      keys,
-		entities:  entities,
-		isPartial: true,
-	}, createAndReadOnlyFields)
+	keys := c.BatchKeySetProvider()
+	err := batchkeyset.AddAllMapKeys(keys, entities)
 	if err != nil {
 		return nil, err
 	}
 
-	return doBatchQuery(c, keys, UnmarshalBatchEntityUpdateResponse, req)
+	req, err := c.NewJsonRequest(
+		ctx,
+		rp,
+		batchQueryParams(keys, query),
+		http.MethodPost,
+		Method_batch_partial_update,
+		&batchEntities[K, PV]{
+			keys:      keys,
+			entities:  entities,
+			isPartial: true,
+		},
+		c.CreateAndReadOnlyFields,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return doBatchQuery(c.RestLiClient, keys, UnmarshalBatchEntityUpdateResponse, req)
 }
 
-func doBatchQuery[K comparable, V any](
+func doBatchQuery[K comparable, T any](
 	c *RestLiClient,
 	keys batchkeyset.BatchKeySet[K],
-	unmarshaler restlicodec.GenericUnmarshaler[V],
+	unmarshaler restlicodec.GenericUnmarshaler[T],
 	req *http.Request,
-) (entities map[K]V, err error) {
+) (entities map[K]T, err error) {
 	data, _, err := c.do(req)
 	if err != nil {
 		return nil, err
 	}
 
 	reader := restlicodec.NewJsonReader(data)
-	entities = make(map[K]V)
+	entities = make(map[K]T)
 	errors := make(BatchRequestResponseError[K])
 
 	err = reader.ReadRecord(batchRequestResponseRequiredFields, func(reader restlicodec.Reader, field string) (err error) {

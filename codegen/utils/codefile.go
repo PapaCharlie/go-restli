@@ -268,3 +268,12 @@ func JsonFieldTag(name string, optional bool) map[string]string {
 	}
 	return tags
 }
+
+func OrderedValues(f func(add func(key, value Code))) *Statement {
+	return ValuesFunc(func(def *Group) {
+		f(func(key, value Code) {
+			def.Line().Add(key).Op(":").Add(value)
+		})
+		def.Line()
+	})
+}

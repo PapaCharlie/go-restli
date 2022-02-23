@@ -15,11 +15,11 @@ var _ = collection.Client(new(collectionClient))
 
 type collectionClient int
 
-func (c *collectionClient) Create(*conflictresolution.Message) (int64, error) {
+func (c *collectionClient) Create(*conflictresolution.Message) (*protocol.CreatedEntity[int64], error) {
 	panic(nil)
 }
 
-func (c *collectionClient) CreateWithContext(context.Context, *conflictresolution.Message) (int64, error) {
+func (c *collectionClient) CreateWithContext(context.Context, *conflictresolution.Message) (*protocol.CreatedEntity[int64], error) {
 	panic(nil)
 }
 
@@ -95,11 +95,11 @@ func (c *collectionClient) BatchPartialUpdateWithContext(context.Context, map[in
 	panic(nil)
 }
 
-func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) ([]*conflictresolution.Message, error) {
+func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) (*protocol.FinderResults[*conflictresolution.Message], error) {
 	panic(nil)
 }
 
-func (c *collectionClient) FindBySearchWithContext(context.Context, *collection.FindBySearchParams) ([]*conflictresolution.Message, error) {
+func (c *collectionClient) FindBySearchWithContext(context.Context, *collection.FindBySearchParams) (*protocol.FinderResults[*conflictresolution.Message], error) {
 	panic(nil)
 }
 

@@ -81,7 +81,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType Co
 				for i, f := range fields {
 					if i == idsIndex {
 						def.BlockFunc(func(def *Group) {
-							def.Err().Op("=").Qual(utils.BatchKeySetPackage, "Encode").Call(utils.BatchKeySet, paramNameWriter)
+							def.Err().Op("=").Add(utils.BatchKeySet).Dot("Encode").Call(paramNameWriter)
 							def.Add(utils.IfErrReturn(Err()))
 						}).Line()
 					} else {

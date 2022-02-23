@@ -53,6 +53,15 @@
           "name": "collectionWithAnnotations-update"
         }
       ]
+    },
+    {
+      "name": "simpleWithPartialUpdate",
+      "restspec": "restspecs/extras.simpleWithPartialUpdate.restspec.json",
+      "operations": [
+        {
+          "name": "simple-partial-update"
+        }
+      ]
     }
   ]
 }

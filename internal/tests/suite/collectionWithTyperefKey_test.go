@@ -44,22 +44,21 @@ func (s *TestServer) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T,
 }
 
 func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T, c Client) {
-	_, total, err := c.FindBySearch(&FindBySearchParams{
+	results, err := c.FindBySearch(&FindBySearchParams{
 		PagingContext: stdstructs.NewPagingContext(0, 10),
 		Keyword:       "test",
 	})
 	require.NoError(t, err)
-	require.NotNil(t, total)
-	require.Equal(t, 42, *total)
+	require.Equal(t, 42, *results.Total)
 }
 
 func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContextNoTotal(t *testing.T, c Client) {
-	_, total, err := c.FindBySearch(&FindBySearchParams{
+	results, err := c.FindBySearch(&FindBySearchParams{
 		PagingContext: stdstructs.NewPagingContext(0, 10),
 		Keyword:       "test",
 	})
 	require.NoError(t, err)
-	require.Nil(t, total)
+	require.Nil(t, results.Total)
 }
 
 func TestEmbeddedPagingContext(t *testing.T) {

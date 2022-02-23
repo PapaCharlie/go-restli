@@ -17,6 +17,7 @@ type Resource struct {
 	ReturnEntity     bool                   `json:"returnEntity"`
 	ReadOnlyFields   []string               `json:"readOnlyFields"`
 	CreateOnlyFields []string               `json:"createOnlyFields"`
+	IsCollection     bool                   `json:"isCollection"`
 }
 
 func (r *Resource) UnmarshalJSON(data []byte) (err error) {

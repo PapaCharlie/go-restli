@@ -8,17 +8,23 @@ import (
 
 const EntityIDsField = "ids"
 
-type BatchKeySet[T any] interface {
-	AddKey(T) error
-	LocateOriginalKey(keyReader restlicodec.Reader) (originalKey T, err error)
-	MarshalKey(writer restlicodec.Writer, t T) error
+type batchKeySet interface {
 	encodeKeys() ([]string, error)
 }
 
-func GenerateRawQuery[T any](set BatchKeySet[T]) (string, error) {
+type BatchKeySet[T any] interface {
+	batchKeySet
+	AddKey(T) error
+	LocateOriginalKey(keyReader restlicodec.Reader) (originalKey T, err error)
+	MarshalKey(writer restlicodec.Writer, t T) error
+	Encode(paramNameWriter func(string) restlicodec.Writer) error
+	EncodeQueryParams() (params string, err error)
+}
+
+func generateRawQuery(set batchKeySet) (string, error) {
 	writer := restlicodec.NewRestLiQueryParamsWriter()
 	err := writer.WriteParams(func(paramNameWriter func(key string) restlicodec.Writer) error {
-		return Encode(set, paramNameWriter)
+		return encode(set, paramNameWriter)
 	})
 	if err != nil {
 		return "", err
@@ -26,7 +32,7 @@ func GenerateRawQuery[T any](set BatchKeySet[T]) (string, error) {
 	return writer.Finalize(), nil
 }
 
-func Encode[T any](set BatchKeySet[T], paramNameWriter func(string) restlicodec.Writer) (err error) {
+func encode(set batchKeySet, paramNameWriter func(string) restlicodec.Writer) (err error) {
 	encodedKeys, err := set.encodeKeys()
 	if err != nil {
 		return err

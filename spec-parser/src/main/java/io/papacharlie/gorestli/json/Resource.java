@@ -15,9 +15,10 @@ public class Resource {
   public final Set<String> _readOnlyFields;
   public final Set<String> _createOnlyFields;
   public final List<Method> _methods = new ArrayList<>();
+  public final boolean _isCollection;
 
   public Resource(String namespace, String doc, String sourceFile, String rootResourceName, RestliType resourceSchema,
-      Set<String> readOnlyFields, Set<String> createOnlyFields) {
+      Set<String> readOnlyFields, Set<String> createOnlyFields, boolean isCollection) {
     _namespace = namespace;
     _doc = doc;
     _sourceFile = sourceFile;
@@ -25,6 +26,7 @@ public class Resource {
     _resourceSchema = resourceSchema;
     _readOnlyFields = readOnlyFields;
     _createOnlyFields = createOnlyFields;
+    _isCollection = isCollection;
   }
 
   public Resource addMethod(Method m) {
