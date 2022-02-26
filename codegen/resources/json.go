@@ -76,6 +76,7 @@ type Method struct {
 	PathKeys        []PathKey         `json:"pathKeys"`
 	Params          []types.Field     `json:"params"`
 	Return          *types.RestliType `json:"return"`
+	Metadata        *types.RestliType `json:"metadata"`
 	ReturnEntity    bool              `json:"returnEntity"`
 	PagingSupported bool              `json:"pagingSupported"`
 }

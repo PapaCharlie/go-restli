@@ -4,6 +4,7 @@ import (
 	"context"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
 	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
 	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple"
@@ -95,11 +96,11 @@ func (c *collectionClient) BatchPartialUpdateWithContext(context.Context, map[in
 	panic(nil)
 }
 
-func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) (*protocol.FinderResults[*conflictresolution.Message], error) {
+func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) (*protocol.FinderResultsWithMetadata[*conflictresolution.Message, *testsuite.Optionals], error) {
 	panic(nil)
 }
 
-func (c *collectionClient) FindBySearchWithContext(context.Context, *collection.FindBySearchParams) (*protocol.FinderResults[*conflictresolution.Message], error) {
+func (c *collectionClient) FindBySearchWithContext(context.Context, *collection.FindBySearchParams) (*protocol.FinderResultsWithMetadata[*conflictresolution.Message, *testsuite.Optionals], error) {
 	panic(nil)
 }
 

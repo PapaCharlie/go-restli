@@ -8,9 +8,6 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-var total Code = Id("total")
-var results Code = Id("results")
-
 type Finder struct{ methodImplementation }
 
 func (f *Finder) IsSupported() bool {
@@ -30,7 +27,13 @@ func (f *Finder) FuncParamTypes() []Code {
 }
 
 func (f *Finder) NonErrorFuncReturnParam() Code {
-	return Add(results).Op("*").Qual(utils.ProtocolPackage, "FinderResults").Index(f.Return.ReferencedType())
+	results := Id("results").Op("*")
+	if f.Metadata != nil {
+		results.Qual(utils.ProtocolPackage, "FinderResultsWithMetadata").Index(List(f.Return.ReferencedType(), f.Metadata.ReferencedType()))
+	} else {
+		results.Qual(utils.ProtocolPackage, "FinderResults").Index(f.Return.ReferencedType())
+	}
+	return results
 }
 
 func (f *Finder) paramsStructType() string {
@@ -60,7 +63,18 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 
 	f.Resource.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
 		declareRpStruct(f, def)
-		def.Return(Id(ClientReceiver).Dot("Find").Call(Ctx, Rp, QueryParams))
+
+		if f.Metadata != nil {
+			def.Return(Qual(utils.ProtocolPackage, "FindWithMetadata").Call(
+				Op("&").Id(ClientReceiver).Dot(CollectionClient),
+				Ctx,
+				Rp,
+				QueryParams,
+				types.Reader.UnmarshalerFunc(*f.Metadata),
+			))
+		} else {
+			def.Return(Id(ClientReceiver).Dot("Find").Call(Ctx, Rp, QueryParams))
+		}
 	})
 
 	return c

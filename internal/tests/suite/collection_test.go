@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
 	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
 	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple"
@@ -66,12 +67,18 @@ func (s *TestServer) CollectionUpdate400(t *testing.T, c Client) {
 
 func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
 	params := &FindBySearchParams{Keyword: "message"}
-	expectedMessages := &protocol.FinderResults[*conflictresolution.Message]{
-		Results: []*conflictresolution.Message{
-			newMessage(1, "test message"),
-			newMessage(2, "another message"),
+	expectedMessages := &protocol.FinderResultsWithMetadata[*conflictresolution.Message, *testsuite.Optionals]{
+		FinderResults: protocol.FinderResults[*conflictresolution.Message]{
+			Results: []*conflictresolution.Message{
+				newMessage(1, "test message"),
+				newMessage(2, "another message"),
+			},
+			Total: protocol.IntPointer(2),
 		},
-		Total: protocol.IntPointer(2),
+		Metadata: &testsuite.Optionals{
+			OptionalLong:   protocol.Int64Pointer(5),
+			OptionalString: protocol.StringPointer("metadata"),
+		},
 	}
 
 	res, err := c.FindBySearch(params)
