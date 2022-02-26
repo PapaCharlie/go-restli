@@ -1,6 +1,7 @@
 package fnv1a
 
 import (
+	"fmt"
 	"math"
 	"sort"
 )
@@ -26,6 +27,7 @@ type Hashable interface {
 
 // Hash provides the set of functions needed to compute a running fnv1a of the supported rest.li primitives
 type Hash interface {
+	fmt.Stringer
 	AddInt32(v int32)
 	AddInt64(v int64)
 	AddFloat32(v float32)
@@ -45,6 +47,10 @@ type (
 	HashMapKey uint32
 	hash       HashMapKey
 )
+
+func (h *hash) String() string {
+	return fmt.Sprintf("%x", uint32(*h))
+}
 
 func (h *hash) addUint32(v uint32) {
 	hV := *h
