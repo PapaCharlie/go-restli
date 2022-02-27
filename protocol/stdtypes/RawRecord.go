@@ -21,11 +21,6 @@ func (r RawRecord) ComputeHash() fnv1a.Hash {
 	return fnv1a.ZeroHash()
 }
 
-// EqualsInterface for a RawRecord always returns false, unless it is being compared with itself
-func (r *RawRecord) EqualsInterface(otherInterface interface{}) bool {
-	return r == otherInterface
-}
-
 // Equals for a RawRecord always returns false, unless it is being compared with itself
 func (r RawRecord) Equals(other RawRecord) bool {
 	return &r == &other

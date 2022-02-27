@@ -7,19 +7,11 @@ import (
 
 func AddEquals(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(other Code, def *Group)) *Statement {
 	other := Id("other")
-	otherInterface := Id("otherInterface")
 	rightHandType := Id(typeName)
 	if pointer.ShouldUsePointer() {
 		rightHandType = Op("*").Add(rightHandType)
 	}
-	utils.AddFuncOnReceiver(def, receiver, typeName, utils.EqualsInterface, pointer).
-		Params(Add(otherInterface).Interface()).Bool().
-		BlockFunc(func(def *Group) {
-			ok := Id("ok")
-			def.List(other, ok).Op(":=").Add(otherInterface).Assert(rightHandType)
-			def.If(Op("!").Add(ok)).Block(Return(False())).Line()
-			def.Return(Id(receiver).Dot(utils.Equals).Call(other))
-		}).Line().Line()
+
 	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals, pointer).
 		Params(Add(other).Add(rightHandType)).Bool().
 		BlockFunc(func(def *Group) {
