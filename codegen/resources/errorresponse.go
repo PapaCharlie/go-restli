@@ -8,7 +8,7 @@ import (
 // ErrorResponse is manually parsed from https://github.com/linkedin/rest.li/blob/master/restli-common/src/main/pegasus/com/linkedin/restli/common/ErrorResponse.pdl
 var ErrorResponse = &types.Record{
 	NamedType: types.NamedType{Identifier: utils.Identifier{
-		Namespace: utils.StdStructsPackage,
+		Namespace: utils.StdTypesPackage,
 		Name:      "ErrorResponse",
 	}},
 	Fields: []types.Field{

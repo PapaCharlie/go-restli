@@ -40,7 +40,7 @@ func main() {
 	}
 
 	for _, f := range files {
-		err := f.Write("protocol/stdstructs", false)
+		err := f.Write("protocol/stdtypes", false)
 		if err != nil {
 			log.Panic(err)
 		}

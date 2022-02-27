@@ -1,4 +1,4 @@
-// +build !jar
+//go:build !jar
 
 package cmd
 

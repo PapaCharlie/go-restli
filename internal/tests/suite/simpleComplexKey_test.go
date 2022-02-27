@@ -6,7 +6,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 	"github.com/stretchr/testify/require"
 )
 
@@ -102,13 +102,13 @@ func (s *TestServer) SimpleComplexKeyBatchUpdateWithErrors(t *testing.T, c Clien
 		keys[2]: &keys[2].SinglePrimitiveField,
 	})
 	require.Equal(t, protocol.BatchRequestResponseError[*SimpleComplexKey_ComplexKey]{
-		keys[0]: &stdstructs.ErrorResponse{
+		keys[0]: &stdtypes.ErrorResponse{
 			Status:         protocol.Int32Pointer(400),
 			Message:        protocol.StringPointer("message"),
 			ExceptionClass: protocol.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
 			StackTrace:     protocol.StringPointer("trace"),
 		},
-		keys[2]: &stdstructs.ErrorResponse{
+		keys[2]: &stdtypes.ErrorResponse{
 			Status:         protocol.Int32Pointer(500),
 			Message:        nil,
 			ExceptionClass: protocol.StringPointer("com.linkedin.restli.server.RestLiServiceException"),

@@ -6,7 +6,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
 
 type CollectionClient[K comparable, V, PartialV restlicodec.Marshaler] struct {
@@ -108,7 +108,7 @@ func (c *CollectionClient[K, V, PV]) Find(
 	rp ResourcePath,
 	query QueryParams,
 ) (*FinderResults[V], error) {
-	results, err := FindWithMetadata[K, V, PV, stdstructs.EmptyRecord](c, ctx, rp, query, nil)
+	results, err := FindWithMetadata[K, V, PV, stdtypes.EmptyRecord](c, ctx, rp, query, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -217,7 +217,7 @@ func (c *SingleServiceClient) ResolveHostnameAndContextForQuery(_ string, query 
 	return c.c.ResolveHostnameAndContextForQuery(c.serviceName, query)
 }
 
-func (c *R2D2Client) ResolveHostnameAndContextForQuery(resourceBaseName string, query *url.URL) (*url.URL, error) {
+func (c *R2D2Client) ResolveHostnameAndContextForQuery(resourceBaseName string, _ *url.URL) (*url.URL, error) {
 	service, uris, err := c.getServiceUris(resourceBaseName)
 	if err != nil {
 		return nil, err

@@ -17,10 +17,9 @@ func (t *RestliType) InnerTypes() utils.IdentifierSet {
 		return nil
 	case t.Reference != nil:
 		return utils.NewIdentifierSet(*t.Reference)
-	case t.Array != nil:
-		return t.Array.InnerTypes()
-	case t.Map != nil:
-		return t.Map.InnerTypes()
+	case t.IsMapOrArray():
+		innerT, _ := t.InnerMapOrArray()
+		return innerT.InnerTypes()
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
@@ -75,10 +74,6 @@ func (t *RestliType) ShouldReference() bool {
 	return t.Reference.Resolve().ShouldReference().ShouldUsePointer()
 }
 
-func (t *RestliType) IsReferenceEncodable() bool {
-	return t.Reference != nil && !t.ShouldReference()
-}
-
 func (t *RestliType) ReferencedType() Code {
 	if t.ShouldReference() {
 		return t.PointerType()
@@ -87,20 +82,16 @@ func (t *RestliType) ReferencedType() Code {
 	}
 }
 
-func (t *RestliType) ZeroValueReference() Code {
-	if tr := t.Typeref(); tr != nil {
-		return t.GoType().Call(t.UnderlyingPrimitive().zeroValueLit())
-	} else if p := t.UnderlyingPrimitive(); p != nil {
-		return p.zeroValueLit()
-	} else if e := t.Enum(); e != nil {
-		return e.zeroValueLit()
-	} else {
-		return Nil()
-	}
-}
-
 func (t *RestliType) IsMapOrArray() bool {
 	return t.Array != nil || t.Map != nil
+}
+
+func (t *RestliType) InnerMapOrArray() (innerT RestliType, word string) {
+	if t.Array != nil {
+		return *t.Array, "Array"
+	} else {
+		return *t.Map, "Map"
+	}
 }
 
 func (t *RestliType) Typeref() *Typeref {

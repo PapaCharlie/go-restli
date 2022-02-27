@@ -75,15 +75,6 @@ func (d *reader) UnmarshalerFunc(t RestliType) Code {
 }
 
 func (d *reader) NestedUnmarshaler(t RestliType, reader Code) Code {
-	var readFunc Code
-	var innerT RestliType
-	if t.Map != nil {
-		readFunc = utils.ReadMap
-		innerT = *t.Map
-	} else {
-		readFunc = utils.ReadArray
-		innerT = *t.Array
-	}
-
-	return Add(readFunc).Call(reader, d.UnmarshalerFunc(innerT))
+	innerT, word := t.InnerMapOrArray()
+	return Qual(utils.RestLiCodecPackage, "Read"+word).Call(reader, d.UnmarshalerFunc(innerT))
 }

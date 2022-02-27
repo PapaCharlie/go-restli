@@ -36,15 +36,15 @@ func (r *Record) ShouldReference() utils.ShouldUsePointer {
 }
 
 func (r *Record) PartialUpdateStructName() string {
-	return r.Name + utils.PartialUpdate
+	return r.Name + PartialUpdate
 }
 
 func (r *Record) PartialUpdateDeleteFieldsStructName() string {
-	return r.Name + utils.PartialUpdate + "_" + DeleteFields
+	return r.Name + PartialUpdate + "_" + DeleteFields
 }
 
 func (r *Record) PartialUpdateSetFieldsStructName() string {
-	return r.Name + utils.PartialUpdate + "_" + SetFields
+	return r.Name + PartialUpdate + "_" + SetFields
 }
 
 func (r *Record) PartialUpdateStruct() *Statement {

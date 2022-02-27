@@ -24,7 +24,7 @@ import (
 	simplecomplexkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleWithPartialUpdate"
 	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
 
 type TestServer struct {
@@ -150,7 +150,7 @@ func writeErrorResponse(res http.ResponseWriter, format string, args ...interfac
 
 func writeErrorResponseWithStatus(res http.ResponseWriter, status int, format string, args ...interface{}) {
 	err := &protocol.RestLiError{
-		ErrorResponse: stdstructs.ErrorResponse{
+		ErrorResponse: stdtypes.ErrorResponse{
 			StackTrace: protocol.StringPointer(string(debug.Stack())),
 			Message:    protocol.StringPointer(fmt.Sprintf(format, args...)),
 			Status:     protocol.Int32Pointer(int32(status)),

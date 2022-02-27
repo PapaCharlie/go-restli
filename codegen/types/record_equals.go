@@ -76,15 +76,7 @@ func equalsCondition(t RestliType, isPointer bool, left, right Code) Code {
 		}
 		condition = Add(left).Dot(utils.Equals).Call(right)
 	case t.IsMapOrArray():
-		var innerT RestliType
-		var word string
-		if t.Array != nil {
-			innerT = *t.Array
-			word = "Array"
-		} else {
-			innerT = *t.Map
-			word = "Map"
-		}
+		innerT, word := t.InnerMapOrArray()
 		if isPointer {
 			word += "Pointer"
 		}

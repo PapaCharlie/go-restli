@@ -6,7 +6,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
 
 type queryParamsFunc func() (string, error)
@@ -286,7 +286,7 @@ func doBatchQuery[K comparable, T any](
 				if isResults {
 					entities[originalKey], err = unmarshaler(valueReader)
 				} else {
-					errors[originalKey], err = stdstructs.UnmarshalErrorResponse(valueReader)
+					errors[originalKey], err = stdtypes.UnmarshalErrorResponse(valueReader)
 				}
 				return err
 			})

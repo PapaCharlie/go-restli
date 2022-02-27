@@ -84,7 +84,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 		if hasParams {
 			params = ActionParams
 		} else {
-			params = Qual(utils.StdStructsPackage, "EmptyRecord").Values()
+			params = Qual(utils.StdTypesPackage, "EmptyRecord").Values()
 		}
 
 		f := "DoActionRequest"

@@ -11,7 +11,7 @@ import (
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 	"github.com/stretchr/testify/require"
 )
 
@@ -260,7 +260,7 @@ func TestUnknownFieldReads(t *testing.T) {
 }
 
 func TestRawRecord(t *testing.T) {
-	expected := &stdstructs.RawRecord{
+	expected := &stdtypes.RawRecord{
 		"arrayOfInts": []int{1, 2, 3},
 		"arrayOfMaps": []map[string]int{
 			{"foo": 1},
@@ -318,7 +318,7 @@ func TestRawRecord(t *testing.T) {
 		require.NoError(t, expected.MarshalRestLi(w))
 		require.Equal(t, expectedJson, w.Finalize())
 
-		raw := new(stdstructs.RawRecord)
+		raw := new(stdtypes.RawRecord)
 		require.NoError(t, raw.UnmarshalRestLi(restlicodec.NewJsonReader([]byte(expectedJson))))
 
 		w = restlicodec.NewPrettyJsonWriter()
@@ -343,7 +343,7 @@ func TestRawRecord(t *testing.T) {
 		require.NoError(t, expected.MarshalRestLi(w))
 		require.Equal(t, expectedRor2, w.Finalize())
 
-		raw := new(stdstructs.RawRecord)
+		raw := new(stdtypes.RawRecord)
 		r, err := restlicodec.NewRor2Reader(expectedRor2)
 		require.NoError(t, err)
 		require.NoError(t, raw.UnmarshalRestLi(r))
@@ -356,7 +356,7 @@ func TestRawRecord(t *testing.T) {
 }
 
 func TestRawRecordUnmarshalTo(t *testing.T) {
-	raw := &stdstructs.RawRecord{
+	raw := &stdtypes.RawRecord{
 		"string": "abc",
 	}
 	expected := &extras.SinglePrimitiveField{String: "abc"}

@@ -7,7 +7,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +45,7 @@ func (s *TestServer) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T,
 
 func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T, c Client) {
 	results, err := c.FindBySearch(&FindBySearchParams{
-		PagingContext: stdstructs.NewPagingContext(0, 10),
+		PagingContext: stdtypes.NewPagingContext(0, 10),
 		Keyword:       "test",
 	})
 	require.NoError(t, err)
@@ -54,7 +54,7 @@ func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T,
 
 func (s *TestServer) CollectionWithTyperefKeyFindWithPagingContextNoTotal(t *testing.T, c Client) {
 	results, err := c.FindBySearch(&FindBySearchParams{
-		PagingContext: stdstructs.NewPagingContext(0, 10),
+		PagingContext: stdtypes.NewPagingContext(0, 10),
 		Keyword:       "test",
 	})
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "start only",
 			params: FindBySearchParams{
-				PagingContext: stdstructs.PagingContext{
+				PagingContext: stdtypes.PagingContext{
 					Start: &start,
 				},
 				Keyword: "foo",
@@ -90,7 +90,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "count only",
 			params: FindBySearchParams{
-				PagingContext: stdstructs.PagingContext{
+				PagingContext: stdtypes.PagingContext{
 					Count: &count,
 				},
 				Keyword: "foo",
@@ -100,7 +100,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "full context",
 			params: FindBySearchParams{
-				PagingContext: stdstructs.PagingContext{
+				PagingContext: stdtypes.PagingContext{
 					Start: &start,
 					Count: &count,
 				},

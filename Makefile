@@ -31,7 +31,7 @@ bin/go-restli_%:
 
 generate:
 	go generate $(PACKAGES)
-	go run ./internal/stdstructs
+	go run ./internal/stdtypes
 
 test: generate imports
 	go test $(PACKAGES)

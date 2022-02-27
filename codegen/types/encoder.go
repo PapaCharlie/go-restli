@@ -60,9 +60,7 @@ func (e *writer) MarshalerFunc(t RestliType) Code {
 		v := Id("t")
 		return Func().
 			Params(Add(v).Add(t.GoType()), Add(Writer).Add(WriterQual)).Error().
-			BlockFunc(func(def *Group) {
-				def.Return(e.NestedMarshaler(t, Writer, v))
-			})
+			Block(Return(e.NestedMarshaler(t, Writer, v)))
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
 		return nil
@@ -70,32 +68,19 @@ func (e *writer) MarshalerFunc(t RestliType) Code {
 }
 
 func (e *writer) NestedMarshaler(t RestliType, writerAccessor, sourceAccessor Code) Code {
-	var innerT RestliType
-	if t.Array != nil {
-		innerT = *t.Array
-	} else {
-		innerT = *t.Map
+	innerT, word := t.InnerMapOrArray()
+	writeFunc := func(variant string) *Statement {
+		return Qual(utils.RestLiCodecPackage, "Write"+variant+word)
 	}
 
 	switch {
 	case innerT.Primitive != nil:
-		return writeFunc(t, "Primitive").Call(writerAccessor, sourceAccessor, innerT.Primitive.MarshalerFunc())
+		return writeFunc("Primitive").Call(writerAccessor, sourceAccessor, innerT.Primitive.MarshalerFunc())
 	case innerT.Reference != nil:
-		return writeFunc(t, "Object").Call(writerAccessor, sourceAccessor)
+		return writeFunc("Object").Call(writerAccessor, sourceAccessor)
 	default:
-		return writeFunc(t, "").Call(writerAccessor, sourceAccessor, e.MarshalerFunc(innerT))
+		return writeFunc("").Call(writerAccessor, sourceAccessor, e.MarshalerFunc(innerT))
 	}
-
-}
-
-func writeFunc(t RestliType, writeFuncType string) *Statement {
-	var variant string
-	if t.Array != nil {
-		variant = "Array"
-	} else {
-		variant = "Map"
-	}
-	return Qual(utils.RestLiCodecPackage, "Write"+writeFuncType+variant)
 }
 
 func (e *writer) Finalize() Code {

@@ -40,16 +40,9 @@ func hash(h Code, t RestliType, isPointer bool, accessor Code) Code {
 		case t.Reference != nil:
 			def.Add(h).Dot("Add").Call(Add(accessor).Dot(utils.ComputeHash).Call())
 		case t.IsMapOrArray():
-			var innerT RestliType
-			var add, addHashable Code
-
-			if t.Array != nil {
-				innerT = *t.Array
-				add, addHashable = utils.AddArray, utils.AddHashableArray
-			} else {
-				innerT = *t.Map
-				add, addHashable = utils.AddMap, utils.AddHashableMap
-			}
+			innerT, word := t.InnerMapOrArray()
+			add := Qual(utils.HashPackage, "Add"+word)
+			addHashable := Qual(utils.HashPackage, "AddHashable"+word)
 
 			switch {
 			case innerT.Primitive != nil:

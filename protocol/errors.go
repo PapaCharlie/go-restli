@@ -9,12 +9,12 @@ import (
 	"strings"
 
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdstructs"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
 
 // RestLiError is returned by the Do* methods when the X-RestLi-Error-Response header is set to true.
 type RestLiError struct {
-	stdstructs.ErrorResponse
+	stdtypes.ErrorResponse
 	// Will be non-nil if an error occurred when attempting to deserialize the actual JSON response fields (i.e. Status,
 	// Message, ExceptionClass and StackTrace)
 	DeserializationError error `json:"-"`
@@ -152,7 +152,7 @@ func (c *IllegalPartialUpdateError) Error() string {
 
 // BatchRequestResponseError is returned by all the batch methods, and represents the keys on which the operation
 // failed.
-type BatchRequestResponseError[K comparable] map[K]*stdstructs.ErrorResponse
+type BatchRequestResponseError[K comparable] map[K]*stdtypes.ErrorResponse
 
 func (b BatchRequestResponseError[K]) Error() string {
 	prettyErrors := make(map[string]string, len(b))

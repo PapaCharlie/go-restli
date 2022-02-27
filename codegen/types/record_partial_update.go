@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	DeleteFields = "Delete_Fields"
-	SetFields    = "Set_Fields"
+	PartialUpdate = "_PartialUpdate"
+	DeleteFields  = "Delete_Fields"
+	SetFields     = "Set_Fields"
 )
 
 func (r *Record) generatePartialUpdateStruct() *Statement {

@@ -1,4 +1,4 @@
-package stdstructs
+package stdtypes
 
 import "github.com/PapaCharlie/go-restli/protocol/restlicodec"
 

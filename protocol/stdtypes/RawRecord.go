@@ -1,4 +1,4 @@
-package stdstructs
+package stdtypes
 
 import (
 	"fmt"

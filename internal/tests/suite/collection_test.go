@@ -60,7 +60,7 @@ func (s *TestServer) CollectionGet404(t *testing.T, c Client) {
 	require.Equal(t, 404, err.(*protocol.RestLiError).Response.StatusCode, "Unexpected status code from server")
 }
 
-func (s *TestServer) CollectionUpdate400(t *testing.T, c Client) {
+func (s *TestServer) CollectionUpdate400(t *testing.T, _ Client) {
 	t.Log("It is impossible to craft the request required using the generated code because it would require a field " +
 		"to be deliberately missing. This can be chalked up as a win for the generated code's safety.")
 }
@@ -169,7 +169,7 @@ func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
 	}, res)
 }
 
-func (s *TestServer) CollectionBatchUpdateErrors(t *testing.T, c Client) {
+func (s *TestServer) CollectionBatchUpdateErrors(t *testing.T, _ Client) {
 	t.Log("It's impossible to produce the desired update for the same reason CollectionUpdate400 is skipped. Parsing " +
 		"batch response errors is tested in SimpleComplexKeyBatchUpdateWithErrors")
 }
