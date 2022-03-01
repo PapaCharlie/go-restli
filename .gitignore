@@ -1,6 +1,7 @@
 .idea/
 vendor/
 *.gr.go
+!protocol/stdtypes/*.gr.go
 parsed-specs.gr.json
 /options/
 go-restli
