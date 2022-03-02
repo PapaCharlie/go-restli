@@ -54,7 +54,7 @@ func (p *PrimitiveType) IsBytes() bool {
 	return p.Type == "bytes"
 }
 
-func (p *PrimitiveType) Cast(accessor *Statement) *Statement {
+func (p *PrimitiveType) Cast(accessor Code) *Statement {
 	var cast *Statement
 	if p.IsBytes() {
 		cast = Index().Byte()

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -103,7 +104,7 @@ func (reg typeRegistry) FlagCyclicDependencies() {
 				for _, cyclicModel := range cycle {
 					identifiers = append(identifiers, cyclicModel.String())
 				}
-				Logger.Println("Detected cyclic dependency:", strings.Join(identifiers, " -> "))
+				log.Println("Detected cyclic dependency:", strings.Join(identifiers, " -> "))
 
 				for _, c := range cycle {
 					reg.FlagCyclic(c)

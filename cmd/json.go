@@ -43,6 +43,7 @@ func (s *GoRestliSpec) UnmarshalJSON(data []byte) error {
 			complexType = t.StandaloneUnion
 		case t.Typeref != nil:
 			complexType = t.Typeref
+			t.Typeref.CheckNativeTyperef()
 		default:
 			return errors.New("go-restli: Must declare at least one underlying type")
 		}

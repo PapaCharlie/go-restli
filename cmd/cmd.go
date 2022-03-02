@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PapaCharlie/go-restli/codegen/nativerefs"
 	"github.com/PapaCharlie/go-restli/codegen/utils"
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
@@ -36,10 +37,13 @@ func CodeGenerator() *cobra.Command {
 
 	var specBytes []byte
 	var outputDir string
+	var nativeTyperefDirs []string
 
 	cmd.Flags().StringVarP(&utils.PackagePrefix, "package-prefix", "p", "",
 		"All files will be generated as sub-packages of this package.")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", ".", "The directory in which to output the generated files")
+	cmd.Flags().StringSliceVar(&nativeTyperefDirs, "native-refs", nil,
+		"Directories containing go code with potential native typerefs defined")
 
 	if len(Jar) > 0 {
 		var params JarStdinParameters
@@ -110,7 +114,7 @@ specs.`)
 	}
 
 	cmd.RunE = func(*cobra.Command, []string) error {
-		return GenerateCode(specBytes, outputDir)
+		return GenerateCode(specBytes, outputDir, nativeTyperefDirs)
 	}
 
 	return cmd
@@ -177,8 +181,13 @@ func ReadSpec(args []string) ([]byte, error) {
 	}
 }
 
-func GenerateCode(specBytes []byte, outputDir string) error {
-	err := utils.CleanTargetDir(outputDir)
+func GenerateCode(specBytes []byte, outputDir string, nativeTyperefDirs []string) (err error) {
+	err = nativerefs.FindAllNativeTyperefs(nativeTyperefDirs...)
+	if err != nil {
+		return err
+	}
+
+	err = utils.CleanTargetDir(outputDir)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Could not clean up output dir %q", outputDir)
 	}

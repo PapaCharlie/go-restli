@@ -200,8 +200,8 @@ func ReceiverName(typeName string) string {
 type ShouldUsePointer int
 
 const (
-	Yes = ShouldUsePointer(0)
-	No  = ShouldUsePointer(1)
+	No  = ShouldUsePointer(0)
+	Yes = ShouldUsePointer(1)
 )
 
 func (p ShouldUsePointer) ShouldUsePointer() bool {

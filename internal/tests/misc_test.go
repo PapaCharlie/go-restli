@@ -3,7 +3,9 @@ package tests
 import (
 	"crypto/md5"
 	"testing"
+	"time"
 
+	"github.com/PapaCharlie/go-restli/internal/tests/native"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
@@ -99,7 +101,7 @@ func TestEquals(t *testing.T) {
 	})
 
 	t.Run("record", func(t *testing.T) {
-		t1, t2, t3 := extras.Temperature(1), extras.Temperature(1), extras.Temperature(2)
+		t1, t2, t3 := extras.Temperature(native.Temp(1)), extras.Temperature(native.Temp(1)), extras.Temperature(native.Temp(2))
 		testEquality(t, [][]bool{
 			{true, false, false, false, false},
 			{false, true, true, true, false},
@@ -113,6 +115,16 @@ func TestEquals(t *testing.T) {
 			{Foo: &t2},
 			{Foo: &t3},
 		})
+	})
+
+	t.Run("time", func(t *testing.T) {
+		t1, t2 := extras.Time(time.Now()), extras.Time(time.Now())
+		t3 := t1
+		testEquality(t, [][]bool{
+			{true, false, true},
+			{false, true, false},
+			{true, false, true},
+		}, []extras.Time{t1, t2, t3})
 	})
 }
 

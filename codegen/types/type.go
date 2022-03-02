@@ -42,36 +42,18 @@ func (t *RestliType) GoType() *Statement {
 	}
 }
 
-func (t *RestliType) UnderlyingPrimitive() *PrimitiveType {
-	switch {
-	case t.Primitive != nil:
-		return t.Primitive
-	case t.Reference != nil:
-		if typeref, ok := t.Reference.Resolve().(*Typeref); ok {
-			return typeref.Type
-		}
-	}
-	return nil
-}
-
-func (t *RestliType) UnderlyingPrimitiveZeroValueLit() *Statement {
-	if t.Primitive != nil {
-		return t.Primitive.zeroValueLit()
-	} else {
-		return Add(t.GoType()).Call(t.UnderlyingPrimitive().zeroValueLit())
-	}
-}
-
 func (t *RestliType) ShouldReference() bool {
 	switch {
-	case t.UnderlyingPrimitive() != nil:
-		// No need to reference primitive types or typerefs, makes it more convenient to call methods
+	case t.Primitive != nil:
+		// No need to reference primitives, makes it more convenient to call methods
 		return false
 	case t.IsMapOrArray():
 		// Maps and arrays are already reference types, no need to take the pointer
 		return false
+	default:
+		// Other types can conditionally be referenced
+		return t.Reference.Resolve().ShouldReference().ShouldUsePointer()
 	}
-	return t.Reference.Resolve().ShouldReference().ShouldUsePointer()
 }
 
 func (t *RestliType) ReferencedType() Code {
