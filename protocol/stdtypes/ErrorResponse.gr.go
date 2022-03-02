@@ -8,7 +8,7 @@ Source file: https://github.com/PapaCharlie/go-restli/blob/master/internal/codeg
 package stdtypes
 
 import (
-	fnv1a "github.com/PapaCharlie/go-restli/fnv1a"
+	gofnv1a "github.com/PapaCharlie/go-fnv1a"
 	equals "github.com/PapaCharlie/go-restli/protocol/equals"
 	restlicodec "github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
@@ -38,11 +38,11 @@ func (e *ErrorResponse) Equals(other *ErrorResponse) bool {
 		equals.ComparablePointer(e.StackTrace, other.StackTrace)
 }
 
-func (e *ErrorResponse) ComputeHash() fnv1a.Hash {
+func (e *ErrorResponse) ComputeHash() gofnv1a.Hash {
 	if e == nil {
-		return fnv1a.ZeroHash()
+		return gofnv1a.ZeroHash()
 	}
-	hash := fnv1a.NewHash()
+	hash := gofnv1a.NewHash()
 
 	if e.Status != nil {
 		hash.AddInt32(*e.Status)

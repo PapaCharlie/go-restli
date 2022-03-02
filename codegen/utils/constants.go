@@ -16,7 +16,7 @@ const (
 	IsUnknown                  = "IsUnknown"
 
 	RootPackage        = "github.com/PapaCharlie/go-restli"
-	HashPackage        = RootPackage + "/fnv1a"
+	HashPackage        = "github.com/PapaCharlie/go-fnv1a"
 	ProtocolPackage    = RootPackage + "/protocol"
 	RestLiCodecPackage = ProtocolPackage + "/restlicodec"
 	BatchKeySetPackage = ProtocolPackage + "/batchkeyset"

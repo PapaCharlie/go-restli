@@ -3,7 +3,7 @@ package stdtypes
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/fnv1a"
+	"github.com/PapaCharlie/go-fnv1a"
 )
 
 // Enum is a class that all generated enums extend. It provides common logic and other utilities.
