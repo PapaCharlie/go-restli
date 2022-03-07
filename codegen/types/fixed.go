@@ -50,9 +50,7 @@ func (f *Fixed) GenerateCode() (def *Statement) {
 		def.Return(Nil())
 	})
 
-	AddUnmarshalerFunc(def, receiver, f.Identifier, FixedShouldUsePointer)
-
-	AddUnmarshalRestli(def, receiver, f.Name, func(def *Group) {
+	AddUnmarshalRestli(def, receiver, f.Identifier, FixedShouldUsePointer, func(def *Group) {
 		data := Id("data")
 		def.Var().Add(data).Index().Byte()
 		def.Add(Reader.Read(FixedUnderlyingType, Reader, data))

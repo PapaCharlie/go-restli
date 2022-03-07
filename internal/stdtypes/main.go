@@ -34,8 +34,7 @@ func main() {
 				Add(resources.ErrorResponse.GenerateEquals()).Line().Line().
 				Add(resources.ErrorResponse.GenerateComputeHash()).Line().Line().
 				Add(resources.ErrorResponse.GenerateMarshalRestLi()).Line().Line().
-				Add(resources.ErrorResponse.GenerateUnmarshalRestLi()).Line().Line().
-				Add(resources.ErrorResponse.GenerateUnmarshalerFunc()).Line().Line(),
+				Add(resources.ErrorResponse.GenerateUnmarshalRestLi()).Line().Line(),
 		},
 	}
 

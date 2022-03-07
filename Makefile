@@ -55,6 +55,7 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate extras.RecordWithAny \
 		--named-schemas-to-generate extras.IncludesUnion \
 		--named-schemas-to-generate extras.ArrayOfFixed \
+		--named-schemas-to-generate extras.ArrayOfUnion \
 		--raw-records extras.Any \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \

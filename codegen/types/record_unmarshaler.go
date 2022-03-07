@@ -5,32 +5,13 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	utils.AddFuncOnReceiver(def, receiver, typeName, utils.UnmarshalRestLi, utils.Yes).
-		Params(Add(Reader).Add(ReaderQual)).
-		Params(Err().Error()).
-		BlockFunc(f).
-		Line().Line()
-
-	data := Id("data")
-	utils.AddFuncOnReceiver(def, receiver, typeName, "UnmarshalJSON", utils.Yes).
-		Params(Add(data).Index().Byte()).
-		Params(Error()).
-		BlockFunc(func(def *Group) {
-			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(data)
-			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
-		}).Line().Line()
-
-	return def
-}
-
-func AddUnmarshalerFunc(def *Statement, receiver string, id utils.Identifier, pointer utils.ShouldUsePointer) *Statement {
+func AddUnmarshalRestli(def *Statement, receiver string, id utils.Identifier, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
 	target := Id(receiver)
 	if pointer.ShouldUsePointer() {
 		target = target.Op("*")
 	}
 
-	return def.Func().Id(id.UnmarshalerFuncName()).
+	def.Func().Id(id.UnmarshalerFuncName()).
 		Params(Add(Reader).Add(ReaderQual)).
 		Params(target.Add(id.Qual()), Err().Error()).
 		BlockFunc(func(def *Group) {
@@ -40,10 +21,23 @@ func AddUnmarshalerFunc(def *Statement, receiver string, id utils.Identifier, po
 			def.Add(Reader.Read(RestliType{Reference: &id}, Reader, Id(receiver)))
 			def.Return(Id(receiver), Err())
 		}).Line().Line()
-}
 
-func (r *Record) GenerateUnmarshalerFunc() *Statement {
-	return AddUnmarshalerFunc(Empty(), r.Receiver(), r.Identifier, RecordShouldUsePointer)
+	utils.AddFuncOnReceiver(def, receiver, id.Name, utils.UnmarshalRestLi, utils.Yes).
+		Params(Add(Reader).Add(ReaderQual)).
+		Params(Err().Error()).
+		BlockFunc(f).
+		Line().Line()
+
+	data := Id("data")
+	utils.AddFuncOnReceiver(def, receiver, id.Name, "UnmarshalJSON", utils.Yes).
+		Params(Add(data).Index().Byte()).
+		Params(Error()).
+		BlockFunc(func(def *Group) {
+			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(data)
+			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
+		}).Line().Line()
+
+	return def
 }
 
 func (r *Record) GenerateUnmarshalRestLi() *Statement {
@@ -74,7 +68,7 @@ func (r *Record) GenerateUnmarshalRestLi() *Statement {
 		requiredFields = Nil()
 	}
 
-	return AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
+	return AddUnmarshalRestli(def, r.Receiver(), r.Identifier, RecordShouldUsePointer, func(def *Group) {
 		r.generateUnmarshaler(def, requiredFields)
 	})
 }

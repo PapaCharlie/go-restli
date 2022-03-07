@@ -115,7 +115,6 @@ func (r *Record) GenerateCode() *Statement {
 		Add(r.GenerateEquals()).Line().Line().
 		Add(r.GenerateComputeHash()).Line().Line().
 		Add(r.GenerateMarshalRestLi()).Line().Line().
-		Add(r.GenerateUnmarshalerFunc()).Line().Line().
 		Add(r.GenerateUnmarshalRestLi()).Line().Line().
 		Add(r.generatePartialUpdateStruct()).Line()
 }

@@ -59,7 +59,6 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 
 	def.Add(record.GenerateComputeHash()).Line().Line().
 		Add(record.GenerateMarshalRestLi()).Line().Line().
-		Add(record.GenerateUnmarshalerFunc()).Line().Line().
 		Add(record.GenerateUnmarshalRestLi()).Line().Line()
 
 	return def
