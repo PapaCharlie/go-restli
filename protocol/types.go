@@ -2,7 +2,17 @@ package protocol
 
 import (
 	"strings"
+
+	"github.com/PapaCharlie/go-fnv1a"
+	"github.com/PapaCharlie/go-restli/protocol/equals"
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
+
+type RestLiObject[T any] interface {
+	equals.Equatable[T]
+	fnv1a.Hashable
+	restlicodec.Marshaler
+}
 
 type ResourcePath interface {
 	RootResource() string

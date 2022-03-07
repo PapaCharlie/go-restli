@@ -7,9 +7,11 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 	"github.com/stretchr/testify/require"
@@ -26,7 +28,7 @@ func TestEncodePrimitives(t *testing.T) {
 	}
 
 	t.Run("json", func(t *testing.T) {
-		testJsonEncoding(t, expected, new(Primitives), `{
+		testJsonEncoding(t, expected, UnmarshalRestLiPrimitives, `{
   "primitiveBytes": "@ABC🕴\u0001",
   "primitiveDouble": 66.5,
   "primitiveFloat": 52.5,
@@ -37,7 +39,7 @@ func TestEncodePrimitives(t *testing.T) {
 	})
 
 	t.Run("ror2", func(t *testing.T) {
-		testRor2Encoding(t, expected, new(Primitives),
+		testRor2Encoding(t, expected, UnmarshalRestLiPrimitives,
 			`(primitiveBytes:@ABC🕴,primitiveDouble:66.5,primitiveFloat:52.5,primitiveInteger:1,primitiveLong:23,primitiveString:a string%2C%28%29%27)`,
 		)
 	})
@@ -50,13 +52,13 @@ func TestEncodeInfinity(t *testing.T) {
 	}
 
 	t.Run("json", func(t *testing.T) {
-		testJsonEncoding(t, expected, new(Optionals), `{
+		testJsonEncoding(t, expected, UnmarshalRestLiOptionals, `{
   "optionalDouble": "-Infinity"
 }`)
 	})
 
 	t.Run("ror2", func(t *testing.T) {
-		testRor2Encoding(t, expected, new(Optionals), `(optionalDouble:-Infinity)`)
+		testRor2Encoding(t, expected, UnmarshalRestLiOptionals, `(optionalDouble:-Infinity)`)
 	})
 }
 
@@ -84,7 +86,7 @@ func TestEncodeComplexTypes(t *testing.T) {
 		},
 		UnionOfComplexTypes: UnionOfComplexTypes{
 			ComplexTypeUnion: UnionOfComplexTypes_ComplexTypeUnion{
-				Fruits: conflictresolution.Fruits_ORANGE.Pointer(),
+				Fruits: testsuite.Fruits_ORANGE.Pointer(),
 			},
 		},
 		UnionOfPrimitives: UnionOfPrimitives{
@@ -94,7 +96,7 @@ func TestEncodeComplexTypes(t *testing.T) {
 		},
 		AnotherUnionOfComplexTypes: UnionOfComplexTypes{
 			ComplexTypeUnion: UnionOfComplexTypes_ComplexTypeUnion{
-				Fruits: conflictresolution.Fruits_APPLE.Pointer(),
+				Fruits: testsuite.Fruits_APPLE.Pointer(),
 			},
 		},
 		UnionOfSameTypes: UnionOfSameTypes{
@@ -102,9 +104,9 @@ func TestEncodeComplexTypes(t *testing.T) {
 				Greeting: &hello,
 			},
 			UnionWithArrayMembers: UnionOfSameTypes_UnionWithArrayMembers{
-				FruitArray: &[]conflictresolution.Fruits{
-					conflictresolution.Fruits_ORANGE,
-					conflictresolution.Fruits_APPLE,
+				FruitArray: &[]testsuite.Fruits{
+					testsuite.Fruits_ORANGE,
+					testsuite.Fruits_APPLE,
 				},
 			},
 			UnionWithMapMembers: UnionOfSameTypes_UnionWithMapMembers{
@@ -116,7 +118,7 @@ func TestEncodeComplexTypes(t *testing.T) {
 	}
 
 	t.Run("json", func(t *testing.T) {
-		testJsonEncoding(t, expected, new(ComplexTypes), `{
+		testJsonEncoding(t, expected, UnmarshalRestLiComplexTypes, `{
   "anotherUnionOfComplexTypes": {
     "complexTypeUnion": {
       "testsuite.Fruits": "APPLE"
@@ -170,7 +172,7 @@ func TestEncodeComplexTypes(t *testing.T) {
 	})
 
 	t.Run("ror2", func(t *testing.T) {
-		testRor2Encoding(t, expected, new(ComplexTypes),
+		testRor2Encoding(t, expected, UnmarshalRestLiComplexTypes,
 			`(anotherUnionOfComplexTypes:(complexTypeUnion:(testsuite.Fruits:APPLE)),`+
 				`arrayOfMaps:(arrayOfMaps:List((one:1),(two:2))),`+
 				`mapOfInts:(mapOfInts:(one:1)),`+
@@ -554,7 +556,7 @@ func TestMapEncoding(t *testing.T) {
 func TestArrayEncoding(t *testing.T) {
 	expected := &Optionals{OptionalArray: &[]int32{1, 2}}
 
-	testRor2Encoding(t, expected, new(Optionals), `(optionalArray:List(1,2))`)
+	testRor2Encoding(t, expected, UnmarshalRestLiOptionals, `(optionalArray:List(1,2))`)
 
 	expected = &Optionals{OptionalArray: &[]int32{}}
 	writer := restlicodec.NewRor2HeaderWriter()
@@ -568,7 +570,7 @@ func TestEmptyStringAndBytes(t *testing.T) {
 		OptionalString: new(string),
 	}
 
-	testRor2Encoding(t, expected, new(Optionals), `(optionalBytes:'',optionalString:'')`)
+	testRor2Encoding(t, expected, UnmarshalRestLiOptionals, `(optionalBytes:'',optionalString:'')`)
 }
 
 func TestRaw(t *testing.T) {
@@ -626,25 +628,19 @@ func TestRaw(t *testing.T) {
 	})
 }
 
-type RestLiObject[T any] interface {
-	restlicodec.Marshaler
-	restlicodec.Unmarshaler
-	Equals(T) bool
-}
-
-func testJsonEncoding[T RestLiObject[T]](t *testing.T, expected, actual T, expectedRawJson string) {
+func testJsonEncoding[T protocol.RestLiObject[T]](t *testing.T, expected T, unmarshaler restlicodec.GenericUnmarshaler[T], expectedRawJson string) {
 	t.Run("encode", func(t *testing.T) {
 		testJsonEquality(t, expected, expectedRawJson, nil, true)
 	})
 
 	t.Run("decode", func(t *testing.T) {
-		decoder := restlicodec.NewJsonReader([]byte(expectedRawJson))
-		require.NoError(t, actual.UnmarshalRestLi(decoder))
+		actual, err := unmarshaler(restlicodec.NewJsonReader([]byte(expectedRawJson)))
+		require.NoError(t, err)
 		requireEqual(t, expected, actual)
 	})
 }
 
-func testJsonEquality[T RestLiObject[T]](t *testing.T, obj T, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
+func testJsonEquality[T protocol.RestLiObject[T]](t *testing.T, obj T, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewPrettyJsonWriterWithExcludedFields(excludedFields)
 	require.NoError(t, obj.MarshalRestLi(writer))
 
@@ -656,19 +652,19 @@ func testJsonEquality[T RestLiObject[T]](t *testing.T, obj T, expectedRawJson st
 	}
 }
 
-func testRor2Encoding[T RestLiObject[T]](t *testing.T, expected, actual T, expectedRawRor2 string) {
+func testRor2Encoding[T protocol.RestLiObject[T]](t *testing.T, expected T, unmarshaler restlicodec.GenericUnmarshaler[T], expectedRawRor2 string) {
 	t.Run("encode", func(t *testing.T) {
 		testRor2Equality(t, expected, expectedRawRor2, nil, true)
 	})
 
 	t.Run("decode", func(t *testing.T) {
-		reader := newRor2Reader(t, expectedRawRor2)
-		require.NoError(t, actual.UnmarshalRestLi(reader))
+		actual, err := unmarshaler(newRor2Reader(t, expectedRawRor2))
+		require.NoError(t, err)
 		requireEqual(t, expected, actual)
 	})
 }
 
-func testRor2Equality[T RestLiObject[T]](t *testing.T, obj T, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
+func testRor2Equality[T protocol.RestLiObject[T]](t *testing.T, obj T, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewRor2HeaderWriterWithExcludedFields(excludedFields)
 	require.NoError(t, obj.MarshalRestLi(writer))
 
@@ -681,7 +677,7 @@ func testRor2Equality[T RestLiObject[T]](t *testing.T, obj T, expectedRawRor2 st
 	}
 }
 
-func requireEqual[T RestLiObject[T]](t *testing.T, expected, actual T) {
+func requireEqual[T protocol.RestLiObject[T]](t *testing.T, expected, actual T) {
 	require.Equal(t, expected, actual)
 	require.True(t, expected.Equals(actual), "%+v and %+v should be equals", expected, actual)
 }
@@ -717,7 +713,7 @@ func TestPathEscape(t *testing.T) {
 
 func TestReadArray(t *testing.T) {
 	r := restlicodec.NewJsonReader([]byte(`["APPLE"]`))
-	fruits, err := restlicodec.ReadArray[conflictresolution.Fruits](r, conflictresolution.UnmarshalFruits)
+	fruits, err := restlicodec.ReadArray[testsuite.Fruits](r, testsuite.UnmarshalRestLiFruits)
 	require.NoError(t, err)
-	require.Equal(t, []conflictresolution.Fruits{conflictresolution.Fruits_APPLE}, fruits)
+	require.Equal(t, []testsuite.Fruits{testsuite.Fruits_APPLE}, fruits)
 }

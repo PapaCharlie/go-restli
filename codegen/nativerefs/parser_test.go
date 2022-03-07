@@ -7,5 +7,5 @@ import (
 )
 
 func TestParseNativeTyperefs(t *testing.T) {
-	require.NoError(t, ParseNativeTyperefs("/Users/pchesnai/code/personal/go-restli/internal/tests/native"))
+	require.NoError(t, FindExternalImplementationsInDirectory("/Users/pchesnai/code/personal/go-restli/internal/tests/native"))
 }

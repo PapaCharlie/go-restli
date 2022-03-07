@@ -24,31 +24,44 @@ func (i *Identifier) GetIdentifier() Identifier {
 	return *i
 }
 
-func (i Identifier) PackagePath() string {
+func (i Identifier) pkg() (string, *Identifier) {
 	if i.Namespace == "" {
 		Logger.Panicf("%+v has no namespace!", i)
 	}
 	if i.Name == "" {
 		Logger.Panicf("%+v has no name!", i)
 	}
-	if strings.HasPrefix(i.Namespace, ProtocolPackage) {
-		return i.Namespace
-	}
-	var p string
-	if TypeRegistry.IsCyclic(i) {
-		p = "conflictResolution"
+	if ex := TypeRegistry.ExternalImplementation(i); ex != nil {
+		return ex.Namespace, ex
 	} else {
-		p = i.Namespace
+		var p string
+		if TypeRegistry.IsCyclic(i) {
+			p = "conflictResolution"
+		} else {
+			p = i.Namespace
+		}
+		return FqcpToPackagePath(p), nil
 	}
-	return FqcpToPackagePath(p)
+}
+
+func (i Identifier) PackagePath() string {
+	pkg, _ := i.pkg()
+	return pkg
 }
 
 func (i Identifier) Qual() *jen.Statement {
-	return jen.Qual(i.PackagePath(), i.Name)
+	pkg, ex := i.pkg()
+	var name string
+	if ex != nil {
+		name = ex.Name
+	} else {
+		name = i.Name
+	}
+	return jen.Qual(pkg, name)
 }
 
 func (i Identifier) UnmarshalerFuncName() string {
-	return "Unmarshal" + i.Name
+	return UnmarshalRestLi + i.Name
 }
 
 func (i Identifier) UnmarshalerFunc() *jen.Statement {

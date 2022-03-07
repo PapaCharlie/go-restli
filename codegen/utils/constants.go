@@ -21,7 +21,8 @@ const (
 	RestLiCodecPackage = ProtocolPackage + "/restlicodec"
 	BatchKeySetPackage = ProtocolPackage + "/batchkeyset"
 	EqualsPackage      = ProtocolPackage + "/equals"
-	StdTypesPackage    = ProtocolPackage + "/stdtypes"
+	StdTypes           = "stdtypes"
+	StdTypesPackage    = ProtocolPackage + "/" + StdTypes
 )
 
 var (

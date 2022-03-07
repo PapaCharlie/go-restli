@@ -91,7 +91,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 		callParams := []Code{RestLiClientReceiver, Ctx, Rp, Id(actionNameConst), params}
 		if returns {
 			f += "WithResults"
-			callParams = append(callParams, types.Reader.UnmarshalerFunc(*a.Return))
+			callParams = append(callParams, types.ReaderUtils.UnmarshalerFunc(*a.Return))
 		}
 
 		def.Return(Qual(utils.ProtocolPackage, f).Call(callParams...))

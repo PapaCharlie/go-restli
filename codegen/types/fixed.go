@@ -26,43 +26,41 @@ func (f *Fixed) ShouldReference() utils.ShouldUsePointer {
 
 func (f *Fixed) GenerateCode() (def *Statement) {
 	def = Empty()
-	utils.AddWordWrappedComment(def, f.Doc).Line()
-	def.Type().Id(f.Name).Index(Lit(f.Size)).Byte().Line().Line()
+	o := NewObjectCodeGenerator(f.Identifier, FixedShouldUsePointer)
 
-	receiver := f.Receiver()
+	o.DeclareType(def, f.Doc, Index(Lit(f.Size)).Byte())
+
 	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.Name, f.Size)
 	slice := Index(Op(":"))
 
-	AddEquals(def, receiver, f.Name, FixedShouldUsePointer, func(other Code, def *Group) {
+	o.Equals(def, func(receiver, other Code, def *Group) {
 		def.Return(Qual("bytes", "Equal").Call(
-			Id(receiver).Add(slice),
+			Add(receiver).Add(slice),
 			Add(other).Add(slice)))
 	})
 
-	AddComputeHash(def, receiver, f.Name, FixedShouldUsePointer, func(h Code, def *Group) {
-		def.Add(hash(h, FixedUnderlyingType, false, Id(receiver).Add(slice)))
+	o.ComputeHash(def, func(receiver, h Code, def *Group) {
+		def.Add(hash(h, FixedUnderlyingType, false, Add(receiver).Add(slice)))
 	})
 
 	utils.AddPointer(def, f.Receiver(), f.Name)
 
-	AddMarshalRestLi(def, receiver, f.Name, FixedShouldUsePointer, func(def *Group) {
-		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Add(slice)))
+	o.MarshalRestLi(def, func(receiver, writer Code, def *Group) {
+		def.Add(WriterUtils.Write(FixedUnderlyingType, writer, Add(receiver).Add(slice)))
 		def.Return(Nil())
 	})
 
-	AddUnmarshalerFunc(def, receiver, f.Identifier, FixedShouldUsePointer)
-
-	AddUnmarshalRestli(def, receiver, f.Name, func(def *Group) {
+	o.UnmarshalRestLi(def, func(receiver, reader Code, def *Group) {
 		data := Id("data")
 		def.Var().Add(data).Index().Byte()
-		def.Add(Reader.Read(FixedUnderlyingType, Reader, data))
+		def.Add(ReaderUtils.Read(FixedUnderlyingType, reader, data))
 		def.Add(utils.IfErrReturn(Err())).Line()
 
 		def.If(Len(data).Op("!=").Lit(f.Size)).BlockFunc(func(def *Group) {
 			def.Return(Qual("fmt", "Errorf").Call(Lit(errorMsg), Len(data)))
 		}).Line()
 
-		def.Copy(Id(receiver).Add(slice), Add(data).Index(Op(":").Lit(f.Size)))
+		def.Copy(Add(receiver).Add(slice), Add(data).Index(Op(":").Lit(f.Size)))
 		def.Return(Nil())
 	})
 

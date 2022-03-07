@@ -221,7 +221,7 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 			} else if t.Record() != nil || t.StandaloneUnion() != nil {
 				def.Add(accessor).Op("=").New(t.GoType())
 				declareReader()
-				def.Add(Reader.Read(*t, Reader, accessor))
+				def.Add(ReaderUtils.Read(*t, Reader, accessor))
 				addPanic()
 			} else {
 				utils.Logger.Panic("Unknown reference type for default value", t.Reference.Resolve())
@@ -234,7 +234,7 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 			}
 			def.Add(accessor).Op("=").New(t.GoType())
 			declareReader()
-			def.Add(Reader.Read(*t, Reader, Op("*").Add(accessor)))
+			def.Add(ReaderUtils.Read(*t, Reader, Op("*").Add(accessor)))
 			addPanic()
 			return
 		case t.Map != nil:
@@ -243,7 +243,7 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 				return
 			}
 			declareReader()
-			def.Add(Reader.Read(*t, Reader, Op("*").Add(accessor)))
+			def.Add(ReaderUtils.Read(*t, Reader, Op("*").Add(accessor)))
 			addPanic()
 			return
 		}

@@ -7,7 +7,7 @@ import (
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 )
 
-type SimpleClient[V, PV restlicodec.Marshaler] struct {
+type SimpleClient[V RestLiObject[V], PV restlicodec.Marshaler] struct {
 	*RestLiClient
 	EntityUnmarshaler restlicodec.GenericUnmarshaler[V]
 

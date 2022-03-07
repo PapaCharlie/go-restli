@@ -5,26 +5,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddEquals(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(other Code, def *Group)) *Statement {
-	other := Id("other")
-	rightHandType := Id(typeName)
-	if pointer.ShouldUsePointer() {
-		rightHandType = Op("*").Add(rightHandType)
-	}
-
-	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.Equals, pointer).
-		Params(Add(other).Add(rightHandType)).Bool().
-		BlockFunc(func(def *Group) {
-			if pointer.ShouldUsePointer() {
-				def.If(Id(receiver).Op("==").Add(other)).Block(Return(True()))
-				def.If(Id(receiver).Op("==").Nil().Op("||").Add(other).Op("==").Nil()).Block(Return(False())).Line()
-			}
-			f(other, def)
-		}).Line().Line()
-}
-
 func (r *Record) GenerateEquals() Code {
-	return AddEquals(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(other Code, def *Group) {
+	return AddEquals(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(_, other Code, def *Group) {
 		if len(r.Fields) == 0 {
 			def.Return(True())
 			return

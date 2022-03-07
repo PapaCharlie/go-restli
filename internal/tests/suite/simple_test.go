@@ -3,7 +3,7 @@ package suite
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleWithPartialUpdate"

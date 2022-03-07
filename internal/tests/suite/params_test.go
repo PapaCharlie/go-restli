@@ -3,6 +3,7 @@ package suite
 import (
 	"testing"
 
+	nativetestsuite "github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params"
@@ -12,7 +13,7 @@ import (
 
 func (s *TestServer) ParamsGetWithQueryparams(t *testing.T, c Client) {
 	long := int64(100)
-	apple := conflictresolution.Fruits_APPLE
+	apple := nativetestsuite.Fruits_APPLE
 	params := &GetParams{
 		Int:         3,
 		String:      "string",

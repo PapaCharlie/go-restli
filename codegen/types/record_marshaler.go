@@ -8,36 +8,16 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddMarshalRestLi(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
-	utils.AddFuncOnReceiver(def, receiver, typeName, utils.MarshalRestLi, pointer).
-		Params(Add(Writer).Add(WriterQual)).
-		Params(Err().Error()).
-		BlockFunc(f).
-		Line().Line()
-
-	utils.AddFuncOnReceiver(def, receiver, typeName, "MarshalJSON", pointer).
-		Params().
-		Params(Id("data").Index().Byte(), Err().Error()).
-		BlockFunc(func(def *Group) {
-			def.Add(Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewCompactJsonWriter").Call()
-			def.Err().Op("=").Id(receiver).Dot(utils.MarshalRestLi).Call(Writer)
-			def.Add(utils.IfErrReturn(Nil(), Err()))
-			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
-		}).Line().Line()
-
-	return def
-}
-
 func (r *Record) GenerateMarshalRestLi() *Statement {
-	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(def *Group) {
-		r.generateMarshaler(def)
+	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(_, writer Code, def *Group) {
+		r.generateMarshaler(writer, def)
 	})
 }
 
-func (r *Record) generateMarshaler(def *Group) {
+func (r *Record) generateMarshaler(writer Code, def *Group) {
 	fields := r.SortedFields()
 
-	def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+	def.Return(WriterUtils.WriteMap(writer, func(keyWriter Code, def *Group) {
 		writeAllFields(def, fields, func(_ int, f Field) Code { return r.fieldAccessor(f) }, keyWriter)
 	}))
 }
@@ -98,7 +78,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType Co
 			}))
 
 			def.Add(utils.IfErrReturn(Lit(""), Err()))
-			def.Return(Writer.Finalize(), Nil())
+			def.Return(WriterUtils.Finalize(Writer), Nil())
 		})
 }
 
@@ -116,7 +96,7 @@ func writeField(def *Group, i int, f Field, fieldAccessor func(i int, f Field) C
 		if f.IsOptionalOrDefault() && f.Type.Reference == nil {
 			accessor = Op("*").Add(accessor)
 		}
-		return Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err())
+		return WriterUtils.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err())
 	}
 
 	if f.IsOptionalOrDefault() {

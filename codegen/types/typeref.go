@@ -12,9 +12,9 @@ const TyperefShouldUsePointer = utils.No
 type NativeTypeRef struct {
 	Type                    PrimitiveType `json:"type"`
 	Ref                     string        `json:"ref"`
-	NativePackage           string        `json:"nativePackage"`
-	NativeIdentifier        string        `json:"nativeIdentifier"`
-	NonReceiverFuncsPackage *string       `json:"nonReceiverFuncsPackage"`
+	Package                 string        `json:"package"`
+	Name                    string        `json:"name"`
+	NonReceiverFuncsPackage *string       `json:"nonReceiverFuncsPackage,omitempty"`
 
 	ShouldReference utils.ShouldUsePointer `json:"-"`
 }
@@ -24,7 +24,7 @@ func (n *NativeTypeRef) IsCustomStruct() bool {
 }
 
 func (n *NativeTypeRef) GoType() *Statement {
-	return Qual(n.NativePackage, n.NativeIdentifier)
+	return Qual(n.Package, n.Name)
 }
 
 type Typeref struct {
@@ -42,7 +42,7 @@ func (r *Typeref) CheckNativeTyperef() {
 	}
 	if r.native.Type.Type != r.Type.Type {
 		log.Panicf("Typeref is defined as a %q, but native typeref \"%s.%s\" is defined as %q",
-			r.Type.Type, r.native.NativePackage, r.native.NativeIdentifier, r.native.Type.Type)
+			r.Type.Type, r.native.Package, r.native.Name, r.native.Type.Type)
 	}
 }
 
@@ -60,16 +60,13 @@ func (r *Typeref) ShouldReference() utils.ShouldUsePointer {
 
 func (r *Typeref) GenerateCode() (def *Statement) {
 	def = Empty()
-
-	utils.AddWordWrappedComment(def, r.Doc).Line()
-
-	receiver := Code(Id(r.Receiver()))
+	o := NewObjectCodeGenerator(r.Identifier, r.ShouldReference())
 
 	var cast func(Code) *Statement
-	typedef := def.Type().Id(r.Name)
+	typedef := Empty()
 	if r.native != nil {
 		cast = func(receiver Code) *Statement {
-			def := Qual(r.native.NativePackage, r.native.NativeIdentifier)
+			def := Qual(r.native.Package, r.native.Name)
 			if r.native.ShouldReference.ShouldUsePointer() {
 				def = Parens(Op("*").Add(def))
 			}
@@ -80,9 +77,9 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		cast = r.Type.Cast
 		typedef.Add(r.Type.GoType())
 	}
-	typedef.Line().Line()
+	o.DeclareType(def, r.Doc, typedef)
 
-	AddEquals(def, r.Receiver(), r.Name, r.ShouldReference(), func(other Code, def *Group) {
+	o.Equals(def, func(receiver, other Code, def *Group) {
 		switch {
 		case r.native != nil && r.native.IsCustomStruct():
 			def.Return(cast(receiver).Dot(utils.Equals).Call(cast(other)))
@@ -95,7 +92,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		}
 	})
 
-	AddCustomComputeHash(def, r.Receiver(), r.Name, r.ShouldReference(), func(def *Group) {
+	o.CustomComputeHash(def, func(receiver Code, def *Group) {
 		if r.ShouldReference().ShouldUsePointer() {
 			def.Add(If(Add(receiver).Op("==").Nil()).Block(Return(utils.ZeroHash)))
 		}
@@ -119,7 +116,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 
 	tmp := Code(Id("tmp"))
 	underlyingType := RestliType{Primitive: r.Type}
-	AddMarshalRestLi(def, r.Receiver(), r.Name, r.ShouldReference(), func(def *Group) {
+	o.MarshalRestLi(def, func(receiver, writer Code, def *Group) {
 		var accessor Code
 		if r.native != nil {
 			accessor = tmp
@@ -133,22 +130,20 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		} else {
 			accessor = cast(receiver)
 		}
-		def.Add(Writer.Write(underlyingType, Writer, accessor))
+		def.Add(WriterUtils.Write(underlyingType, writer, accessor))
 		def.Return(Nil())
 	})
 
-	AddUnmarshalerFunc(def, r.Receiver(), r.Identifier, r.ShouldReference())
-
-	AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
+	o.UnmarshalRestLi(def, func(receiver, reader Code, def *Group) {
 		def.Var().Add(tmp).Add(r.Type.GoType())
-		def.Add(Reader.Read(underlyingType, Reader, tmp))
+		def.Add(ReaderUtils.Read(underlyingType, reader, tmp))
 		def.Add(utils.IfErrReturn(Err())).Line()
 
 		switch {
 		case r.native != nil:
 			var unmarshalRestLiPackage string
 			if r.native.IsCustomStruct() {
-				unmarshalRestLiPackage = r.native.NativePackage
+				unmarshalRestLiPackage = r.native.Package
 			} else {
 				unmarshalRestLiPackage = *r.native.NonReceiverFuncsPackage
 			}

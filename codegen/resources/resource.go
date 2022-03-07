@@ -59,7 +59,7 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 		simpleClientType := Code(Add(SimpleClientQual).Index(List(simpleClientTypes...)))
 		simpleClientDeclaration := Add(simpleClientType).Add(utils.OrderedValues(func(add func(key Code, value Code)) {
 			add(Id(RestLiClient), c)
-			add(Id("EntityUnmarshaler"), types.Reader.UnmarshalerFunc(*r.ResourceSchema))
+			add(Id("EntityUnmarshaler"), types.ReaderUtils.UnmarshalerFunc(*r.ResourceSchema))
 			add(CreateAndReadOnlyFields, r.createAndReadOnlyFields())
 		}))
 
@@ -77,7 +77,7 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 			declareClient(collectionClientType, Add(collectionClientType).
 				Add(utils.OrderedValues(func(add func(key Code, value Code)) {
 					add(Id(SimpleClient), simpleClientDeclaration)
-					add(Id("KeyUnmarshaler"), types.Reader.UnmarshalerFunc(entityKey.Type))
+					add(Id("KeyUnmarshaler"), types.ReaderUtils.UnmarshalerFunc(entityKey.Type))
 					add(ReadOnlyFields, r.readOnlyFields())
 					add(CreateOnlyFields, r.createOnlyFields())
 
@@ -92,9 +92,9 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 					}
 					switch {
 					case entityKey.Type.ComplexKey() != nil:
-						setProvider("Complex", types.Reader.UnmarshalerFunc(entityKey.Type))
+						setProvider("Complex", types.ReaderUtils.UnmarshalerFunc(entityKey.Type))
 					case entityKey.Type.Reference != nil:
-						setProvider("Simple", types.Reader.UnmarshalerFunc(entityKey.Type))
+						setProvider("Simple", types.ReaderUtils.UnmarshalerFunc(entityKey.Type))
 					case entityKey.Type.Primitive.IsBytes():
 						setProvider("Bytes")
 					default:
@@ -192,7 +192,7 @@ func (r *Resource) addResourcePathStruct(def *Statement, structName string, m *M
 				def.Add(types.Writer).Dot("RawPathSegment").Call(Lit(path[:idx]))
 				path = path[idx+len(pattern):]
 
-				def.Add(types.Writer.Write(pk.Type, types.Writer, Id(rp).Dot(pk.Name), Lit(""), Err()))
+				def.Add(types.WriterUtils.Write(pk.Type, types.Writer, Id(rp).Dot(pk.Name), Lit(""), Err()))
 			}
 			def.Line()
 
@@ -200,7 +200,7 @@ func (r *Resource) addResourcePathStruct(def *Statement, structName string, m *M
 				def.Add(types.Writer).Dot("RawPathSegment").Call(Lit(path))
 			}
 
-			def.Return(types.Writer.Finalize(), Nil())
+			def.Return(types.WriterUtils.Finalize(types.Writer), Nil())
 		}).Line().Line()
 
 	utils.AddFuncOnReceiver(def, rp, structName, "RootResource", types.RecordShouldUsePointer).

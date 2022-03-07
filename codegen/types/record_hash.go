@@ -5,26 +5,8 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddComputeHash(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(h Code, def *Group)) *Statement {
-	return AddCustomComputeHash(def, receiver, typeName, pointer, func(def *Group) {
-		if pointer.ShouldUsePointer() {
-			def.Add(If(Id(receiver).Op("==").Nil()).Block(Return(utils.ZeroHash)))
-		}
-		h := Id("hash")
-		def.Add(h).Op(":=").Add(utils.NewHash).Line()
-		f(h, def)
-		def.Return(h)
-	})
-}
-
-func AddCustomComputeHash(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
-	return utils.AddFuncOnReceiver(def, receiver, typeName, utils.ComputeHash, pointer).
-		Params().Params(utils.Hash).
-		BlockFunc(f).Line().Line()
-}
-
 func (r *Record) GenerateComputeHash() Code {
-	return AddComputeHash(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(h Code, def *Group) {
+	return AddComputeHash(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(_, h Code, def *Group) {
 		for _, f := range r.Fields {
 			def.Add(hash(h, f.Type, f.IsOptionalOrDefault(), r.fieldAccessor(f))).Line()
 		}

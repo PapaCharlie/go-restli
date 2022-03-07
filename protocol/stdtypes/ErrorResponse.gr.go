@@ -90,6 +90,12 @@ func (e *ErrorResponse) MarshalJSON() (data []byte, err error) {
 	return []byte(writer.Finalize()), nil
 }
 
+func UnmarshalRestLiErrorResponse(reader restlicodec.Reader) (e *ErrorResponse, err error) {
+	e = new(ErrorResponse)
+	err = e.UnmarshalRestLi(reader)
+	return e, err
+}
+
 func (e *ErrorResponse) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
 	err = reader.ReadRecord(nil, func(reader restlicodec.Reader, field string) (err error) {
 		switch field {
@@ -120,10 +126,4 @@ func (e *ErrorResponse) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
 func (e *ErrorResponse) UnmarshalJSON(data []byte) error {
 	reader := restlicodec.NewJsonReader(data)
 	return e.UnmarshalRestLi(reader)
-}
-
-func UnmarshalErrorResponse(reader restlicodec.Reader) (e *ErrorResponse, err error) {
-	e = new(ErrorResponse)
-	err = e.UnmarshalRestLi(reader)
-	return e, err
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
 
-type CollectionClient[K comparable, V, PartialV restlicodec.Marshaler] struct {
+type CollectionClient[K comparable, V RestLiObject[V], PartialV restlicodec.Marshaler] struct {
 	SimpleClient[V, PartialV]
 	KeyUnmarshaler      restlicodec.GenericUnmarshaler[K]
 	BatchKeySetProvider func() batchkeyset.BatchKeySet[K]
@@ -116,7 +116,7 @@ func (c *CollectionClient[K, V, PV]) Find(
 }
 
 // FindWithMetadata executes a rest.li find request for finders that declare metadata
-func FindWithMetadata[K comparable, V, PV restlicodec.Marshaler, M any](
+func FindWithMetadata[K comparable, V RestLiObject[V], PV restlicodec.Marshaler, M any](
 	c *CollectionClient[K, V, PV],
 	ctx context.Context,
 	rp ResourcePath,

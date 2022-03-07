@@ -5,6 +5,11 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
+var RawRecordIdentifier = utils.Identifier{
+	Name:      "RawRecord",
+	Namespace: utils.StdTypesPackage,
+}
+
 func init() {
 	utils.TypeRegistry.Register(new(RawRecord))
 }
@@ -12,7 +17,7 @@ func init() {
 type RawRecord struct{}
 
 func (r *RawRecord) GetIdentifier() utils.Identifier {
-	return utils.RawRecordContextIdentifier
+	return RawRecordIdentifier
 }
 
 func (r *RawRecord) ShouldReference() utils.ShouldUsePointer {

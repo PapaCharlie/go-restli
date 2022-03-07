@@ -17,14 +17,14 @@ import (
 	"github.com/PapaCharlie/go-restli/codegen/utils"
 )
 
-func FindAllNativeTyperefs(roots ...string) (err error) {
+func FindAllExternalImplementations(roots ...string) (err error) {
 	for _, root := range roots {
 		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil || !d.IsDir() {
 				return err
 			}
 
-			return ParseNativeTyperefs(path)
+			return FindExternalImplementationsInDirectory(path)
 		})
 		if err != nil {
 			return err
@@ -33,7 +33,7 @@ func FindAllNativeTyperefs(roots ...string) (err error) {
 	return nil
 }
 
-func ParseNativeTyperefs(dir string) (err error) {
+func FindExternalImplementationsInDirectory(dir string) (err error) {
 	fset := token.NewFileSet()
 	packages, err := parser.ParseDir(fset, dir, nil, parser.ParseComments)
 	if err != nil {
@@ -52,37 +52,46 @@ func ParseNativeTyperefs(dir string) (err error) {
 		break
 	}
 
-	refs, err := locateAllRefs(pkg)
+	refs, err := locateAllNativeRefs(pkg)
 	if err != nil {
 		return err
 	}
 
 	for _, n := range refs {
-		err = allMethodsDefined(fset, n, dir, pkg)
+		err = allNativeRefMethodsDefined(fset, n, dir, pkg)
 		if err != nil {
 			return err
 		}
 		types.RegisterNativeTyperef(n)
 	}
 
+	manifests, err := locateAllGeneratedTypes(pkg)
+	if err != nil {
+		return err
+	}
+	log.Println(len(manifests))
+
+	for _, m := range manifests {
+		utils.TypeRegistry.RegisterExternalImplementation(m.Identifier, utils.Identifier{
+			Name:      m.Name,
+			Namespace: m.Package,
+		})
+	}
+
 	return nil
 }
 
-func locateAllRefs(pkg *ast.Package) (refs []*types.NativeTypeRef, err error) {
+func locateAllNativeRefs(pkg *ast.Package) (refs []*types.NativeTypeRef, err error) {
 	for _, f := range pkg.Files {
 		for _, group := range f.Comments {
-			var data string
-			_, prefix, found := strings.Cut(group.List[0].Text, "//go:restli_typeref")
-			if found {
-				data = strings.TrimSpace(prefix + group.Text())
-			}
+			_, data, found := strings.Cut(group.Text(), "go-restli:typeref")
 
-			if data == "" {
+			if !found {
 				continue
 			}
 
 			ref := new(types.NativeTypeRef)
-			err = json.Unmarshal([]byte(data), ref)
+			err = json.Unmarshal([]byte(strings.TrimSpace(data)), ref)
 			if err != nil {
 				return nil, err
 			}
@@ -96,7 +105,31 @@ func locateAllRefs(pkg *ast.Package) (refs []*types.NativeTypeRef, err error) {
 	return refs, nil
 }
 
-func allMethodsDefined(fset *token.FileSet, n *types.NativeTypeRef, pkgPath string, pkg *ast.Package) error {
+func locateAllGeneratedTypes(pkg *ast.Package) (manifests []*types.GeneratedTypeManifest, err error) {
+	for _, f := range pkg.Files {
+		for _, group := range f.Comments {
+			_, data, found := strings.Cut(group.Text(), "go-restli:generated")
+
+			if !found {
+				continue
+			}
+
+			manifest := new(types.GeneratedTypeManifest)
+			err = json.Unmarshal([]byte(strings.TrimSpace(data)), manifest)
+			if err != nil {
+				return nil, err
+			}
+
+			// ignore the error, we know it's valid JSON since we were able to deserialize it
+			pretty, _ := json.MarshalIndent(json.RawMessage(data), "", "  ")
+			log.Printf("Found existing implementation for %q: %s", manifest.Identifier, pretty)
+			manifests = append(manifests, manifest)
+		}
+	}
+	return manifests, nil
+}
+
+func allNativeRefMethodsDefined(fset *token.FileSet, n *types.NativeTypeRef, pkgPath string, pkg *ast.Package) error {
 	expectedType, err := locateUnmarshalRestLi(n, pkg, pkgPath, fset)
 	if err != nil {
 		return err
@@ -162,7 +195,7 @@ func allMethodsDefined(fset *token.FileSet, n *types.NativeTypeRef, pkgPath stri
 				if !n.IsCustomStruct() || len(decl.Specs) == 0 {
 					continue
 				}
-				if t, ok := decl.Specs[0].(*ast.TypeSpec); ok && t.Name.Name == n.NativeIdentifier {
+				if t, ok := decl.Specs[0].(*ast.TypeSpec); ok && t.Name.Name == n.Name {
 					typeDeclared = true
 				}
 			}
@@ -184,7 +217,7 @@ func allMethodsDefined(fset *token.FileSet, n *types.NativeTypeRef, pkgPath stri
 		msg := fmt.Sprintf("go-restli: %q defines a typeref binding for %q but does not define the following funcs: %s",
 			pkgPath, n.Ref, funcNames)
 		if n.IsCustomStruct() {
-			t := n.NativeIdentifier
+			t := n.Name
 			if n.ShouldReference.ShouldUsePointer() {
 				t = "*" + t
 			}
@@ -198,7 +231,7 @@ func allMethodsDefined(fset *token.FileSet, n *types.NativeTypeRef, pkgPath stri
 }
 
 func locateUnmarshalRestLi(n *types.NativeTypeRef, pkg *ast.Package, pkgPath string, fset *token.FileSet) (expectedType ast.Expr, err error) {
-	var nonPointerType ast.Expr = &ast.Ident{Name: n.NativeIdentifier}
+	var nonPointerType ast.Expr = &ast.Ident{Name: n.Name}
 	if !n.IsCustomStruct() {
 		nonPointerType = &ast.SelectorExpr{Sel: nonPointerType.(*ast.Ident)}
 	}
@@ -218,8 +251,8 @@ func locateUnmarshalRestLi(n *types.NativeTypeRef, pkg *ast.Package, pkgPath str
 	pointerFunc := unmarshalFunc(pointerType)
 
 	expectedTypes := fmt.Sprintf("expected `func %s(%s) (%s, error)` or `func %s(%s) (*%s, error)`",
-		expectedName, n.Type.Type, n.NativeIdentifier,
-		expectedName, n.Type.Type, n.NativeIdentifier,
+		expectedName, n.Type.Type, n.Name,
+		expectedName, n.Type.Type, n.Name,
 	)
 
 	for _, f := range pkg.Files {

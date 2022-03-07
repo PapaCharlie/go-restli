@@ -286,7 +286,7 @@ func doBatchQuery[K comparable, T any](
 				if isResults {
 					entities[originalKey], err = unmarshaler(valueReader)
 				} else {
-					errors[originalKey], err = stdtypes.UnmarshalErrorResponse(valueReader)
+					errors[originalKey], err = stdtypes.UnmarshalRestLiErrorResponse(valueReader)
 				}
 				return err
 			})

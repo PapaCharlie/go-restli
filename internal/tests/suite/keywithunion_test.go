@@ -3,6 +3,7 @@ package suite
 import (
 	"testing"
 
+	nativetestsuite "github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ func (s *TestServer) KeywithunionGet(t *testing.T, c Client) {
 	id.KeyWithUnion.Union.ComplexKey = &conflictresolution.ComplexKey{
 		Part1: "one",
 		Part2: 2,
-		Part3: conflictresolution.Fruits_APPLE,
+		Part3: nativetestsuite.Fruits_APPLE,
 	}
 
 	res, err := c.Get(id)

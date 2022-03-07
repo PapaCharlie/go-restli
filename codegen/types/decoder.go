@@ -7,41 +7,40 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-type reader struct {
-	Code
-}
+type readerUtils struct{}
 
 var (
-	Reader      = &reader{Id("reader")}
-	ReaderQual  = Qual(utils.RestLiCodecPackage, "Reader")
-	ReaderParam = Add(Reader).Add(ReaderQual)
+	ReaderUtils      = &readerUtils{}
+	ReaderQual  Code = Qual(utils.RestLiCodecPackage, "Reader")
+	Reader      Code = Id("reader")
+	ReaderParam Code = Add(Reader).Add(ReaderQual)
 )
 
-func (d *reader) ReadMap(reader Code, mapReader func(reader, key Code, def *Group)) Code {
+func (d *readerUtils) ReadMap(reader Code, mapReader func(reader, key Code, def *Group)) Code {
 	key := Id("key")
-	return Add(reader).Dot("ReadMap").Call(Func().Params(Add(d).Add(ReaderQual), Add(key).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		mapReader(d, key, def)
+	return Add(reader).Dot("ReadMap").Call(Func().Params(ReaderParam, Add(key).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
+		mapReader(Reader, key, def)
 	}))
 }
 
-func (d *reader) ReadRecord(reader Code, requiredFields Code, mapReader func(reader, key Code, def *Group)) Code {
+func (d *readerUtils) ReadRecord(reader Code, requiredFields Code, mapReader func(reader, key Code, def *Group)) Code {
 	field := Id("field")
-	return Add(reader).Dot("ReadRecord").Call(requiredFields, Func().Params(Add(d).Add(ReaderQual), Add(field).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		mapReader(d, field, def)
+	return Add(reader).Dot("ReadRecord").Call(requiredFields, Func().Params(ReaderParam, Add(field).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
+		mapReader(Reader, field, def)
 	}))
 }
 
-func (d *reader) ReadArray(reader Code, arrayReader func(reader Code, def *Group)) Code {
-	return Add(reader).Dot("ReadArray").Call(Func().Params(Add(d).Add(ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
-		arrayReader(d, def)
+func (d *readerUtils) ReadArray(reader Code, arrayReader func(reader Code, def *Group)) Code {
+	return Add(reader).Dot("ReadArray").Call(Func().Params(ReaderParam).Params(Err().Error()).BlockFunc(func(def *Group) {
+		arrayReader(Reader, def)
 	}))
 }
 
-func (d *reader) Skip(reader Code) *Statement {
+func (d *readerUtils) Skip(reader Code) *Statement {
 	return Add(reader).Dot("Skip").Call()
 }
 
-func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
+func (d *readerUtils) Read(t RestliType, reader, targetAccessor Code) Code {
 	switch {
 	case t.Primitive != nil:
 		return List(targetAccessor, Err()).Op("=").Add(reader).Dot(t.Primitive.ReaderName()).Call()
@@ -55,7 +54,7 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 	}
 }
 
-func (d *reader) UnmarshalerFunc(t RestliType) Code {
+func (d *readerUtils) UnmarshalerFunc(t RestliType) Code {
 	switch {
 	case t.Primitive != nil:
 		return t.Primitive.UnmarshalerFunc()
@@ -63,7 +62,7 @@ func (d *reader) UnmarshalerFunc(t RestliType) Code {
 		return t.Reference.UnmarshalerFunc()
 	case t.IsMapOrArray():
 		return Func().
-			Params(Add(Reader).Add(ReaderQual)).
+			Params(ReaderParam).
 			Params(t.GoType(), Error()).
 			BlockFunc(func(def *Group) {
 				def.Return(d.NestedUnmarshaler(t, Reader))
@@ -74,7 +73,7 @@ func (d *reader) UnmarshalerFunc(t RestliType) Code {
 	}
 }
 
-func (d *reader) NestedUnmarshaler(t RestliType, reader Code) Code {
+func (d *readerUtils) NestedUnmarshaler(t RestliType, reader Code) Code {
 	innerT, word := t.InnerMapOrArray()
 	return Qual(utils.RestLiCodecPackage, "Read"+word).Call(reader, d.UnmarshalerFunc(innerT))
 }

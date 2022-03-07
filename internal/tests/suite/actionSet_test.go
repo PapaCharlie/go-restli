@@ -3,6 +3,7 @@ package suite
 import (
 	"testing"
 
+	nativetestsuite "github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
@@ -81,8 +82,8 @@ func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
 
 func (s *TestServer) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) {
 	union := &testsuite.UnionOfComplexTypes{}
-	union.ComplexTypeUnion.Fruits = new(conflictresolution.Fruits)
-	*union.ComplexTypeUnion.Fruits = conflictresolution.Fruits_APPLE
+	union.ComplexTypeUnion.Fruits = new(nativetestsuite.Fruits)
+	*union.ComplexTypeUnion.Fruits = nativetestsuite.Fruits_APPLE
 
 	res, err := c.EchoComplexTypesUnionAction(&EchoComplexTypesUnionActionParams{ComplexTypesUnion: *union})
 	require.NoError(t, err)

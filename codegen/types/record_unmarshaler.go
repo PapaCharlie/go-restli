@@ -5,43 +5,6 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
-	utils.AddFuncOnReceiver(def, receiver, typeName, utils.UnmarshalRestLi, utils.Yes).
-		Params(Add(Reader).Add(ReaderQual)).
-		Params(Err().Error()).
-		BlockFunc(f).
-		Line().Line()
-
-	data := Id("data")
-	utils.AddFuncOnReceiver(def, receiver, typeName, "UnmarshalJSON", utils.Yes).
-		Params(Add(data).Index().Byte()).
-		Params(Error()).
-		BlockFunc(func(def *Group) {
-			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(data)
-			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
-		}).Line().Line()
-
-	return def
-}
-
-func AddUnmarshalerFunc(def *Statement, receiver string, id utils.Identifier, pointer utils.ShouldUsePointer) *Statement {
-	target := Id(receiver)
-	if pointer.ShouldUsePointer() {
-		target = target.Op("*")
-	}
-
-	return def.Func().Id(id.UnmarshalerFuncName()).
-		Params(Add(Reader).Add(ReaderQual)).
-		Params(target.Add(id.Qual()), Err().Error()).
-		BlockFunc(func(def *Group) {
-			if pointer.ShouldUsePointer() {
-				def.Add(Id(receiver).Op("=").New(id.Qual()))
-			}
-			def.Add(Reader.Read(RestliType{Reference: &id}, Reader, Id(receiver)))
-			def.Return(Id(receiver), Err())
-		}).Line().Line()
-}
-
 func (r *Record) GenerateUnmarshalerFunc() *Statement {
 	return AddUnmarshalerFunc(Empty(), r.Receiver(), r.Identifier, RecordShouldUsePointer)
 }
@@ -74,20 +37,20 @@ func (r *Record) GenerateUnmarshalRestLi() *Statement {
 		requiredFields = Nil()
 	}
 
-	return AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
-		r.generateUnmarshaler(def, requiredFields)
+	return AddUnmarshalRestLi(def, r.Receiver(), r.Name, func(_, reader Code, def *Group) {
+		r.generateUnmarshaler(def, reader, requiredFields)
 	})
 }
 
-func (r *Record) generateUnmarshaler(def *Group, requiredFields Code) {
+func (r *Record) generateUnmarshaler(def *Group, reader, requiredFields Code) {
 	if len(r.Fields) == 0 {
-		def.Return(Reader.ReadMap(Reader, func(reader Code, field Code, def *Group) {
-			def.Return(Reader.Skip(reader))
+		def.Return(ReaderUtils.ReadMap(reader, func(reader Code, field Code, def *Group) {
+			def.Return(ReaderUtils.Skip(reader))
 		}))
 		return
 	}
 
-	def.Err().Op("=").Add(Reader.ReadRecord(Reader, requiredFields, func(reader, field Code, def *Group) {
+	def.Err().Op("=").Add(ReaderUtils.ReadRecord(reader, requiredFields, func(reader, field Code, def *Group) {
 		def.Switch(field).BlockFunc(func(def *Group) {
 			for _, f := range r.Fields {
 				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
@@ -100,11 +63,11 @@ func (r *Record) generateUnmarshaler(def *Group, requiredFields Code) {
 						}
 					}
 
-					def.Add(Reader.Read(f.Type, reader, accessor))
+					def.Add(ReaderUtils.Read(f.Type, reader, accessor))
 				})
 			}
 			def.Default().BlockFunc(func(def *Group) {
-				def.Err().Op("=").Add(Reader.Skip(reader))
+				def.Err().Op("=").Add(ReaderUtils.Skip(reader))
 			})
 		})
 		def.Return(Err())

@@ -3,6 +3,7 @@ package structural
 import (
 	"context"
 
+	"github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	collectionwithannotations "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
 	"github.com/PapaCharlie/go-restli/protocol"
@@ -13,26 +14,26 @@ var _ = collectionwithannotations.Client(new(collectionWithAnnotationsClient))
 
 type collectionWithAnnotationsClient struct{}
 
-func (c *collectionWithAnnotationsClient) Create(*extras.MultiplePrimitiveFields) (*protocol.CreatedEntity[extras.Temperature], error) {
+func (c *collectionWithAnnotationsClient) Create(*extras.MultiplePrimitiveFields) (*protocol.CreatedEntity[testsuite.Temperature], error) {
 	panic(nil)
 }
 
-func (c *collectionWithAnnotationsClient) CreateWithContext(context.Context, *extras.MultiplePrimitiveFields) (*protocol.CreatedEntity[extras.Temperature], error) {
+func (c *collectionWithAnnotationsClient) CreateWithContext(context.Context, *extras.MultiplePrimitiveFields) (*protocol.CreatedEntity[testsuite.Temperature], error) {
 	panic(nil)
 }
 
-func (c *collectionWithAnnotationsClient) Update(extras.Temperature, *extras.MultiplePrimitiveFields) error {
+func (c *collectionWithAnnotationsClient) Update(testsuite.Temperature, *extras.MultiplePrimitiveFields) error {
 	panic(nil)
 }
 
-func (c *collectionWithAnnotationsClient) UpdateWithContext(context.Context, extras.Temperature, *extras.MultiplePrimitiveFields) error {
+func (c *collectionWithAnnotationsClient) UpdateWithContext(context.Context, testsuite.Temperature, *extras.MultiplePrimitiveFields) error {
 	panic(nil)
 }
 
-func (c *collectionWithAnnotationsClient) PartialUpdate(extras.Temperature, *extras.MultiplePrimitiveFields_PartialUpdate) error {
+func (c *collectionWithAnnotationsClient) PartialUpdate(testsuite.Temperature, *extras.MultiplePrimitiveFields_PartialUpdate) error {
 	panic(nil)
 }
 
-func (c *collectionWithAnnotationsClient) PartialUpdateWithContext(context.Context, extras.Temperature, *extras.MultiplePrimitiveFields_PartialUpdate) error {
+func (c *collectionWithAnnotationsClient) PartialUpdateWithContext(context.Context, testsuite.Temperature, *extras.MultiplePrimitiveFields_PartialUpdate) error {
 	panic(nil)
 }

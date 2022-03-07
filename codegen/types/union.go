@@ -26,22 +26,21 @@ func (u *StandaloneUnion) ShouldReference() utils.ShouldUsePointer {
 
 func (u *StandaloneUnion) GenerateCode() *Statement {
 	def := Empty()
+	o := NewObjectCodeGeneratorWithCustomReceiver(u.Identifier, UnionShouldUsePointer, unionReceiver)
 
-	utils.AddWordWrappedComment(def, u.Doc).Line().
-		Type().Id(u.Name).
-		Add(u.Union.GoType()).
-		Line().Line()
+	o.DeclareType(def, u.Doc, u.Union.GoType())
 
-	AddEquals(def, unionReceiver, u.Name, UnionShouldUsePointer, func(other Code, def *Group) {
+	o.Equals(def, func(receiver, other Code, def *Group) {
 		for _, m := range u.Union.Members {
-			def.If(Op("!").Add(equalsCondition(m.Type, true, Id(unionReceiver).Dot(m.name()), Add(other).Dot(m.name())))).Block(Return(False()))
+			def.If(Op("!").Add(equalsCondition(m.Type, true, Add(receiver).Dot(m.name()), Add(other).Dot(m.name())))).
+				Block(Return(False()))
 		}
 		def.Return(True())
 	})
 
-	AddComputeHash(def, unionReceiver, u.Name, UnionShouldUsePointer, func(h Code, def *Group) {
+	o.ComputeHash(def, func(receiver, h Code, def *Group) {
 		for _, m := range u.Union.Members {
-			def.Add(hash(h, m.Type, true, Id(unionReceiver).Dot(m.name()))).Line()
+			def.Add(hash(h, m.Type, true, Add(receiver).Dot(m.name()))).Line()
 		}
 	})
 
@@ -52,21 +51,21 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 			u.Union.validateUnionFields(def, unionReceiver, u.Name)
 		}).Line().Line()
 
-	AddMarshalRestLi(def, unionReceiver, u.Name, UnionShouldUsePointer, func(def *Group) {
-		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+	o.MarshalRestLi(def, func(receiver, writer Code, def *Group) {
+		def.Return(WriterUtils.WriteMap(writer, func(keyWriter Code, def *Group) {
 			u.Union.validateAllMembers(def, unionReceiver, u.Name, func(def *Group, m UnionMember) {
-				fieldAccessor := Id(unionReceiver).Dot(m.name())
+				accessor := Add(receiver).Dot(m.name())
 				if m.Type.Reference == nil {
-					fieldAccessor = Op("*").Add(fieldAccessor)
+					accessor = Op("*").Add(accessor)
 				}
-				def.Add(Writer.Write(m.Type, Add(keyWriter).Call(Lit(m.Alias)), fieldAccessor, Err()))
+				def.Add(WriterUtils.Write(m.Type, Add(keyWriter).Call(Lit(m.Alias)), accessor, Err()))
 			})
 			def.Return(Nil())
 		}))
 	})
 
-	AddUnmarshalRestli(def, unionReceiver, u.Name, func(def *Group) {
-		u.Union.decode(def, unionReceiver, u.Name)
+	AddUnmarshalRestLi(def, unionReceiver, u.Name, func(receiver, reader Code, def *Group) {
+		u.Union.decode(def, reader, u.Name)
 	})
 
 	return def
@@ -103,13 +102,13 @@ func (u *UnionType) validateUnionFields(def *Group, receiver string, typeName st
 	def.Return(Nil())
 }
 
-func (u *UnionType) decode(def *Group, receiver string, typeName string) {
+func (u *UnionType) decode(def *Group, reader Code, typeName string) {
 	wasSet := Id("wasSet")
 	def.Add(wasSet).Op(":=").False()
 
 	errorMessage := u.errorMessage(typeName)
 
-	decode := Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
+	decode := ReaderUtils.ReadMap(reader, func(reader, key Code, def *Group) {
 		def.If(wasSet).Block(
 			Return(errorMessage),
 		).Else().Block(
@@ -117,15 +116,15 @@ func (u *UnionType) decode(def *Group, receiver string, typeName string) {
 		)
 		def.Switch(key).BlockFunc(func(def *Group) {
 			for _, m := range u.Members {
-				fieldAccessor := Id(receiver).Dot(m.name())
+				accessor := Id(unionReceiver).Dot(m.name())
 				def.Case(Lit(m.Alias)).BlockFunc(func(def *Group) {
-					def.Add(fieldAccessor).Op("=").New(m.Type.GoType())
+					def.Add(accessor).Op("=").New(m.Type.GoType())
 
 					if m.Type.Reference == nil {
-						fieldAccessor = Op("*").Add(fieldAccessor)
+						accessor = Op("*").Add(accessor)
 					}
 
-					def.Add(Reader.Read(m.Type, reader, fieldAccessor))
+					def.Add(ReaderUtils.Read(m.Type, reader, accessor))
 				})
 			}
 		})

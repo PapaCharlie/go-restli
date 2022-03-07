@@ -18,18 +18,53 @@ type ComplexType interface {
 var TypeRegistry = make(typeRegistry)
 
 type registeredType struct {
-	Type     ComplexType
-	IsCyclic bool
+	Type               ComplexType
+	IsCyclic           bool
+	ExternalIdentifier *Identifier
+}
+
+func (t *registeredType) innerTypes() IdentifierSet {
+	if t.ExternalIdentifier != nil {
+		return IdentifierSet{}
+	} else {
+		return t.Type.InnerTypes()
+	}
 }
 
 type typeRegistry map[Identifier]*registeredType
 
 func (reg typeRegistry) Register(t ComplexType) {
 	id := t.GetIdentifier()
-	if _, ok := reg[id]; ok {
-		Logger.Panicf("Cannot register type %s twice!", id)
+	if r, ok := reg[id]; ok {
+		if r.Type != nil {
+			Logger.Panicf("Cannot register type %s twice!", id)
+		}
+		r.Type = t
+	} else {
+		reg[id] = &registeredType{Type: t}
 	}
-	reg[id] = &registeredType{Type: t}
+	// Automatically register standard structs
+	if strings.HasPrefix(t.GetIdentifier().Namespace, StdTypesPackage) {
+		reg.RegisterExternalImplementation(id, id)
+	}
+}
+
+func (reg typeRegistry) RegisterExternalImplementation(internal, external Identifier) {
+	log.Printf("Registering external implementation for %q: %q", internal, external)
+	if r, ok := reg[internal]; ok {
+		if r.ExternalIdentifier != nil {
+			Logger.Panicf("Cannot register external implementation twice! (%q is implemented by %+v and %+v)",
+				internal, r.ExternalIdentifier, external)
+		} else {
+			r.ExternalIdentifier = &external
+		}
+	} else {
+		reg[internal] = &registeredType{ExternalIdentifier: &external}
+	}
+}
+
+func (reg typeRegistry) ExternalImplementation(id Identifier) *Identifier {
+	return reg.get(id).ExternalIdentifier
 }
 
 func (reg typeRegistry) get(id Identifier) *registeredType {
@@ -50,13 +85,13 @@ func (reg typeRegistry) IsCyclic(id Identifier) bool {
 
 func (reg typeRegistry) GenerateTypeCode() (files []*CodeFile) {
 	for id, t := range reg {
-		if id == PagingContextIdentifier || id == RawRecordContextIdentifier {
+		if t.ExternalIdentifier != nil {
 			continue
 		}
 		files = append(files, &CodeFile{
 			SourceFile:  t.Type.GetSourceFile(),
-			PackagePath: t.Type.GetIdentifier().PackagePath(),
-			Filename:    t.Type.GetIdentifier().Name,
+			PackagePath: id.PackagePath(),
+			Filename:    id.Name,
 			Code:        t.Type.GenerateCode(),
 		})
 	}
@@ -74,7 +109,7 @@ func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
 	}
 
 	newPath := path.Add(nextNode)
-	for c := range reg.get(nextNode).Type.InnerTypes() {
+	for c := range reg.get(nextNode).innerTypes() {
 		if !reg.IsCyclic(c) {
 			if p := reg.FindCycle(c, newPath); len(p) > 0 {
 				return p
@@ -88,7 +123,7 @@ func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
 func (reg typeRegistry) FlagCyclic(id Identifier) {
 	node := reg.get(id)
 	node.IsCyclic = true
-	for c := range node.Type.InnerTypes() {
+	for c := range node.innerTypes() {
 		if !reg.IsCyclic(c) {
 			reg.FlagCyclic(c)
 		}
@@ -122,7 +157,7 @@ func (reg typeRegistry) FindAllDependents(id Identifier) IdentifierSet {
 	for added {
 		added = false
 		for id, c := range reg {
-			for inner := range c.Type.InnerTypes() {
+			for inner := range c.innerTypes() {
 				if dependents.Get(inner) {
 					if !dependents.Get(id) {
 						dependents.Add(id)
@@ -165,14 +200,4 @@ func (p Path) IntroducesCycle(nextNode Identifier) Path {
 		}
 	}
 	return nil
-}
-
-var PagingContextIdentifier = Identifier{
-	Name:      "PagingContext",
-	Namespace: StdTypesPackage,
-}
-
-var RawRecordContextIdentifier = Identifier{
-	Name:      "RawRecord",
-	Namespace: StdTypesPackage,
 }

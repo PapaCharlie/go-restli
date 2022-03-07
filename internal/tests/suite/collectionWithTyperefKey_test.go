@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
@@ -12,10 +13,10 @@ import (
 )
 
 func (s *TestServer) CollectionWithTyperefKeyBatchGetWithParams(t *testing.T, c Client) {
-	keys := []extras.Temperature{1, 3}
+	keys := []testsuite.Temperature{1, 3}
 	res, err := c.BatchGet(keys, &BatchGetParams{Test: "foo"})
 	require.NoError(t, err)
-	expected := make(map[extras.Temperature]*extras.SinglePrimitiveField)
+	expected := make(map[testsuite.Temperature]*extras.SinglePrimitiveField)
 	for _, k := range keys {
 		expected[k] = &extras.SinglePrimitiveField{String: fmt.Sprint(k)}
 	}

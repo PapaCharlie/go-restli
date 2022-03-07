@@ -5,12 +5,14 @@ import (
 	"github.com/PapaCharlie/go-restli/codegen/utils"
 )
 
+var ErrorResponseIdentifier = utils.Identifier{
+	Namespace: utils.StdTypesPackage,
+	Name:      "ErrorResponse",
+}
+
 // ErrorResponse is manually parsed from https://github.com/linkedin/rest.li/blob/master/restli-common/src/main/pegasus/com/linkedin/restli/common/ErrorResponse.pdl
 var ErrorResponse = &types.Record{
-	NamedType: types.NamedType{Identifier: utils.Identifier{
-		Namespace: utils.StdTypesPackage,
-		Name:      "ErrorResponse",
-	}},
+	NamedType: types.NamedType{Identifier: ErrorResponseIdentifier},
 	Fields: []types.Field{
 		{
 			Type:       types.RestliType{Primitive: &types.Int32Primitive},
@@ -37,4 +39,8 @@ var ErrorResponse = &types.Record{
 			IsOptional: true,
 		},
 	},
+}
+
+func init() {
+	utils.TypeRegistry.Register(ErrorResponse)
 }

@@ -7,32 +7,32 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-type writer struct {
-	Code
-}
+type writerUtils struct{}
 
 var (
-	KeyWriter       = Code(Id("keyWriter"))
-	ItemWriter      = Code(Id("itemWriter"))
-	Writer          = &writer{Id("writer")}
-	WriterQual Code = Qual(utils.RestLiCodecPackage, "Writer")
+	KeyWriter        = Code(Id("keyWriter"))
+	ItemWriter       = Code(Id("itemWriter"))
+	WriterUtils      = &writerUtils{}
+	WriterQual  Code = Qual(utils.RestLiCodecPackage, "Writer")
+	Writer      Code = Id("writer")
+	WriterParam Code = Add(Writer).Add(WriterQual)
 )
 
-func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
+func (e *writerUtils) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
 	keyWriterFunc := Add(KeyWriter).Func().Params(String()).Add(WriterQual)
 	return Add(writerAccessor).Dot("WriteMap").Call(Func().Params(keyWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
 		writer(KeyWriter, def)
 	}))
 }
 
-func (e *writer) WriteArray(writerAccessor Code, writer func(itemWriter Code, def *Group)) Code {
+func (e *writerUtils) WriteArray(writerAccessor Code, writer func(itemWriter Code, def *Group)) Code {
 	itemWriterFunc := Add(ItemWriter).Func().Params().Add(WriterQual)
 	return Add(writerAccessor).Dot("WriteArray").Call(Func().Params(itemWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
 		writer(ItemWriter, def)
 	}))
 }
 
-func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, returnOnError ...Code) Code {
+func (e *writerUtils) Write(t RestliType, writerAccessor, sourceAccessor Code, returnOnError ...Code) Code {
 	switch {
 	case t.Primitive != nil:
 		return Add(writerAccessor).Dot(t.Primitive.WriterName()).Call(sourceAccessor)
@@ -50,7 +50,7 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 	}
 }
 
-func (e *writer) MarshalerFunc(t RestliType) Code {
+func (e *writerUtils) MarshalerFunc(t RestliType) Code {
 	switch {
 	case t.Primitive != nil:
 		return t.Primitive.MarshalerFunc()
@@ -59,7 +59,7 @@ func (e *writer) MarshalerFunc(t RestliType) Code {
 	case t.IsMapOrArray():
 		v := Id("t")
 		return Func().
-			Params(Add(v).Add(t.GoType()), Add(Writer).Add(WriterQual)).Error().
+			Params(Add(v).Add(t.GoType()), WriterParam).Error().
 			Block(Return(e.NestedMarshaler(t, Writer, v)))
 	default:
 		log.Panicf("Illegal restli type: %+v", t)
@@ -67,7 +67,7 @@ func (e *writer) MarshalerFunc(t RestliType) Code {
 	}
 }
 
-func (e *writer) NestedMarshaler(t RestliType, writerAccessor, sourceAccessor Code) Code {
+func (e *writerUtils) NestedMarshaler(t RestliType, writerAccessor, sourceAccessor Code) Code {
 	innerT, word := t.InnerMapOrArray()
 	writeFunc := func(variant string) *Statement {
 		return Qual(utils.RestLiCodecPackage, "Write"+variant+word)
@@ -83,10 +83,10 @@ func (e *writer) NestedMarshaler(t RestliType, writerAccessor, sourceAccessor Co
 	}
 }
 
-func (e *writer) Finalize() Code {
-	return Add(e).Dot("Finalize").Call()
+func (e *writerUtils) Finalize(writerAccessor Code) Code {
+	return Add(writerAccessor).Dot("Finalize").Call()
 }
 
-func (e *writer) IsKeyExcluded(writerAccessor, key Code) Code {
+func (e *writerUtils) IsKeyExcluded(writerAccessor, key Code) Code {
 	return Add(writerAccessor).Dot("IsKeyExcluded").Call(key)
 }

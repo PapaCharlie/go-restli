@@ -45,7 +45,7 @@ func (f *CodeFile) Write(outputDir string, writeInPackageDirs bool) (err error) 
 			err = errors.Errorf("go-restli: Could not generate model: %+v", e)
 		}
 	}()
-	file := NewFilePath(f.PackagePath)
+	file := NewFilePathName(f.PackagePath, strings.ToLower(filepath.Base(f.PackagePath)))
 
 	header := bytes.NewBuffer(nil)
 	err = HeaderTemplate.Execute(header, f)

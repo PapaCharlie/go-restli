@@ -91,7 +91,7 @@ func (s *TestServer) CollectionGet(t *testing.T, c *Client) {
 	id := int64(1)
 	res, err := c.Get(id)
 	require.NoError(t, err)
-	require.Equal(t, &conflictresolution.Message{Id: &id, Message: "test message"}, res, "Invalid response from server")
+	require.Equal(t, &conflictResolution.Message{Id: &id, Message: "test message"}, res, "Invalid response from server")
 }
 ```
 Once you have written your tests, just run `make` in the root directory and all the tests will be run.

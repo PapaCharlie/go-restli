@@ -5,20 +5,25 @@ import (
 	"github.com/PapaCharlie/go-restli/codegen/utils"
 )
 
+var PagingContextIdentifier = utils.Identifier{
+	Name:      "PagingContext",
+	Namespace: utils.StdTypesPackage,
+}
+
 var PagingContext = &types.Record{
-	NamedType: types.NamedType{Identifier: utils.PagingContextIdentifier},
+	NamedType: types.NamedType{Identifier: PagingContextIdentifier},
 	Fields: []types.Field{
 		{
 			Type:         types.RestliType{Primitive: &types.Int32Primitive},
 			Name:         "start",
 			IsOptional:   true,
-			IncludedFrom: &utils.PagingContextIdentifier,
+			IncludedFrom: &PagingContextIdentifier,
 		},
 		{
 			Type:         types.RestliType{Primitive: &types.Int32Primitive},
 			Name:         "count",
 			IsOptional:   true,
-			IncludedFrom: &utils.PagingContextIdentifier,
+			IncludedFrom: &PagingContextIdentifier,
 		},
 	},
 }
@@ -28,6 +33,6 @@ func init() {
 }
 
 func addPagingContextFields(record *types.Record) {
-	record.IncludedRecords = append([]utils.Identifier{utils.PagingContextIdentifier}, record.IncludedRecords...)
+	record.IncludedRecords = append([]utils.Identifier{PagingContextIdentifier}, record.IncludedRecords...)
 	record.Fields = append(record.Fields, PagingContext.Fields...)
 }

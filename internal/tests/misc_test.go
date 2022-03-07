@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/native"
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	nativetestsuite "github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	"github.com/PapaCharlie/go-restli/protocol/equals"
@@ -19,7 +18,7 @@ func TestInclude(t *testing.T) {
 		PrimitiveField: testsuite.PrimitiveField{Integer: int32(1)},
 		F1:             4.27,
 	}
-	testJsonEncoding(t, expected, new(testsuite.Include), `{
+	testJsonEncoding(t, expected, testsuite.UnmarshalRestLiInclude, `{
   "f1": 4.27,
   "integer": 1
 }`)
@@ -36,7 +35,7 @@ func TestDefaults(t *testing.T) {
 	require.Equal(t, float64(66.5), *d.DefaultDouble)
 	require.Equal(t, []byte("@ABC"), *d.DefaultBytes)
 	require.Equal(t, string("default string"), *d.DefaultString)
-	require.Equal(t, conflictresolution.Fruits_APPLE, *d.DefaultEnum)
+	require.Equal(t, nativetestsuite.Fruits_APPLE, *d.DefaultEnum)
 	require.Equal(t, testsuite.Fixed5{1, 2, 3, 4, 5}, *d.DefaultFixed)
 	require.Equal(t, testsuite.PrimitiveField{Integer: 10}, *d.DefaultRecord)
 	require.Equal(t, []int32{1, 3, 5}, *d.DefaultArray)
@@ -64,10 +63,10 @@ func TestEquals(t *testing.T) {
 			{true, true, false},
 			{true, true, false},
 			{false, false, true},
-		}, []conflictresolution.Fruits{
-			conflictresolution.Fruits_APPLE,
-			conflictresolution.Fruits_APPLE,
-			conflictresolution.Fruits_ORANGE,
+		}, []nativetestsuite.Fruits{
+			nativetestsuite.Fruits_APPLE,
+			nativetestsuite.Fruits_APPLE,
+			nativetestsuite.Fruits_ORANGE,
 		})
 	})
 
@@ -101,7 +100,7 @@ func TestEquals(t *testing.T) {
 	})
 
 	t.Run("record", func(t *testing.T) {
-		t1, t2, t3 := extras.Temperature(native.Temp(1)), extras.Temperature(native.Temp(1)), extras.Temperature(native.Temp(2))
+		var t1, t2, t3 nativetestsuite.Temperature = 1, 1, 2
 		testEquality(t, [][]bool{
 			{true, false, false, false, false},
 			{false, true, true, true, false},

@@ -3,6 +3,7 @@ package suite
 import (
 	"testing"
 
+	"github.com/PapaCharlie/go-restli/internal/tests/native/testsuite"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ func (s *TestServer) ComplexkeyGet(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
+			Part3: testsuite.Fruits_APPLE,
 		},
 	}
 	res, err := c.Get(id)
@@ -31,7 +32,7 @@ func (s *TestServer) ComplexkeyUpdate(t *testing.T, c Client) {
 	key := conflictresolution.ComplexKey{
 		Part1: "one",
 		Part2: 2,
-		Part3: conflictresolution.Fruits_APPLE,
+		Part3: testsuite.Fruits_APPLE,
 	}
 	id := &Complexkey_ComplexKey{
 		Params:     newKeyParams("param1", 5),
@@ -53,7 +54,7 @@ func (s *TestServer) ComplexkeyDelete(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
+			Part3: testsuite.Fruits_APPLE,
 		},
 	}
 	err := c.Delete(id)
@@ -64,7 +65,7 @@ func (s *TestServer) ComplexkeyCreate(t *testing.T, c Client) {
 	expectedKey := conflictresolution.ComplexKey{
 		Part1: "one",
 		Part2: 2,
-		Part3: conflictresolution.Fruits_APPLE,
+		Part3: testsuite.Fruits_APPLE,
 	}
 	_, err := c.Create(&conflictresolution.LargeRecord{
 		Key: expectedKey,
@@ -83,7 +84,7 @@ func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
+			Part3: testsuite.Fruits_APPLE,
 		},
 	}
 	keyPatch := &conflictresolution.ComplexKey_PartialUpdate{
@@ -102,7 +103,7 @@ func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
+			Part3: testsuite.Fruits_APPLE,
 		},
 	}
 	k2 := &Complexkey_ComplexKey{
@@ -110,7 +111,7 @@ func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "two",
 			Part2: 7,
-			Part3: conflictresolution.Fruits_ORANGE,
+			Part3: testsuite.Fruits_ORANGE,
 		},
 	}
 	res, err := c.BatchDelete([]*Complexkey_ComplexKey{k1, k2})
@@ -131,7 +132,7 @@ func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
+			Part3: testsuite.Fruits_APPLE,
 		},
 	}
 	k2 := &Complexkey_ComplexKey{
@@ -139,7 +140,7 @@ func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "two",
 			Part2: 7,
-			Part3: conflictresolution.Fruits_ORANGE,
+			Part3: testsuite.Fruits_ORANGE,
 		},
 	}
 	res, err := c.BatchGet([]*Complexkey_ComplexKey{k1, k2})
@@ -167,7 +168,7 @@ var specialCharsKey = &Complexkey_ComplexKey{
 	ComplexKey: conflictresolution.ComplexKey{
 		Part1: "key" + specialChars,
 		Part2: 2,
-		Part3: conflictresolution.Fruits_APPLE,
+		Part3: testsuite.Fruits_APPLE,
 	},
 }
 
@@ -182,7 +183,7 @@ func (s *TestServer) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) 
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "two",
 			Part2: 7,
-			Part3: conflictresolution.Fruits_ORANGE,
+			Part3: testsuite.Fruits_ORANGE,
 		},
 	}
 	res, err := c.BatchGet([]*Complexkey_ComplexKey{specialCharsKey, k})
@@ -199,7 +200,7 @@ func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "one",
 			Part2: 2,
-			Part3: conflictresolution.Fruits_APPLE,
+			Part3: testsuite.Fruits_APPLE,
 		},
 	}
 	k2 := &Complexkey_ComplexKey{
@@ -207,7 +208,7 @@ func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
 		ComplexKey: conflictresolution.ComplexKey{
 			Part1: "two",
 			Part2: 7,
-			Part3: conflictresolution.Fruits_ORANGE,
+			Part3: testsuite.Fruits_ORANGE,
 		},
 	}
 	updates := map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{
@@ -242,7 +243,7 @@ func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
 			Key: conflictresolution.ComplexKey{
 				Part1: "one",
 				Part2: 2,
-				Part3: conflictresolution.Fruits_APPLE,
+				Part3: testsuite.Fruits_APPLE,
 			},
 			Message: conflictresolution.Message{
 				Message: "test message",
@@ -252,7 +253,7 @@ func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
 			Key: conflictresolution.ComplexKey{
 				Part1: "two",
 				Part2: 7,
-				Part3: conflictresolution.Fruits_ORANGE,
+				Part3: testsuite.Fruits_ORANGE,
 			},
 			Message: conflictresolution.Message{
 				Message: "another message",

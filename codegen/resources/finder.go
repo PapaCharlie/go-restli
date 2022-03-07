@@ -70,7 +70,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 				Ctx,
 				Rp,
 				QueryParams,
-				types.Reader.UnmarshalerFunc(*f.Metadata),
+				types.ReaderUtils.UnmarshalerFunc(*f.Metadata),
 			))
 		} else {
 			def.Return(Id(ClientReceiver).Dot("Find").Call(Ctx, Rp, QueryParams))

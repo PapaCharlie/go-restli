@@ -30,8 +30,8 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		utils.AddWordWrappedComment(def, comment).Line()
 		def.Type().Id(r.PartialUpdateStructName()).Struct().Line()
 
-		return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
-			def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+		return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(_, writer Code, def *Group) {
+			def.Return(WriterUtils.WriteMap(writer, func(keyWriter Code, def *Group) {
 				def.Return(Nil())
 			}))
 		})
@@ -67,13 +67,13 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	deleteAccessorF := func(f Field) *Statement { return Add(deleteAccessor).Dot(f.FieldName()) }
 	setAccessorF := func(f Field) *Statement { return Add(setAccessor).Dot(f.FieldName()) }
 
-	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
+	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(_, writer Code, def *Group) {
 		checker := Id("checker")
 		def.Add(checker).Op(":=").Qual(utils.ProtocolPackage, "PartialUpdateFieldChecker").Values(Dict{
 			Id("RecordType"): Lit(r.Identifier.String()),
 		})
 
-		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+		def.Return(WriterUtils.WriteMap(writer, func(keyWriter Code, def *Group) {
 			for _, f := range r.Fields {
 				var d Code
 				if f.IsOptionalOrDefault() {
@@ -90,7 +90,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 				}
 
 				def.If(Err().Op("=").Add(checker).Dot("CheckField").Call(
-					Writer,
+					writer,
 					Lit(f.Name),
 					d,
 					setAccessorF(f).Op("!=").Nil(),
@@ -116,7 +116,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 					def.Line()
 					accessor := r.rawFieldAccessor(f)
 					def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-						def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
+						def.Add(WriterUtils.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
 					})
 				}
 			}
@@ -145,20 +145,19 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 	sortFields(fields)
 
 	def := Empty()
-	structName := r.PartialUpdateStructName() + "_" + DeleteFields
-	def.Type().Id(structName).StructFunc(func(def *Group) {
+	def.Type().Id(r.PartialUpdateDeleteFieldsStructName()).StructFunc(func(def *Group) {
 		for _, f := range deletableFields {
 			def.Id(f.FieldName()).Bool()
 		}
 	}).Line().Line()
 
-	return AddMarshalRestLi(def, r.Receiver(), structName, RecordShouldUsePointer, func(def *Group) {
-		def.Return(Writer.WriteArray(Writer, func(itemWriter Code, def *Group) {
+	return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), RecordShouldUsePointer, func(_, writer Code, def *Group) {
+		def.Return(WriterUtils.WriteArray(writer, func(itemWriter Code, def *Group) {
 			deleteType := RestliType{Primitive: &StringPrimitive}
 
 			for _, f := range fields {
 				def.If(r.rawFieldAccessor(f)).Block(
-					Writer.Write(deleteType, Add(itemWriter).Call(), Lit(f.Name)),
+					WriterUtils.Write(deleteType, Add(itemWriter).Call(), Lit(f.Name)),
 				)
 			}
 			def.Add(Return(Nil()))
@@ -177,15 +176,15 @@ func (r *Record) generatePartialUpdateSetFieldsStruct() *Statement {
 		}
 	}).Line().Line()
 
-	return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateSetFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
-		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+	return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateSetFieldsStructName(), RecordShouldUsePointer, func(_, writer Code, def *Group) {
+		def.Return(WriterUtils.WriteMap(writer, func(keyWriter Code, def *Group) {
 			for _, f := range fields {
 				accessor := r.rawFieldAccessor(f)
 				def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
 					if f.Type.Reference == nil {
 						accessor = Op("*").Add(accessor)
 					}
-					def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
+					def.Add(WriterUtils.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
 				})
 				def.Line()
 			}

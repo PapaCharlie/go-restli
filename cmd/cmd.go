@@ -182,7 +182,7 @@ func ReadSpec(args []string) ([]byte, error) {
 }
 
 func GenerateCode(specBytes []byte, outputDir string, nativeTyperefDirs []string) (err error) {
-	err = nativerefs.FindAllNativeTyperefs(nativeTyperefDirs...)
+	err = nativerefs.FindAllExternalImplementations(nativeTyperefDirs...)
 	if err != nil {
 		return err
 	}

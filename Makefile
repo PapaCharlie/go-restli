@@ -60,6 +60,11 @@ generate-restli: clean $(JARGO)
 		--native-refs internal/tests/native \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go run -tags=jar . \
+		--output-dir internal/tests/native \
+		--resolver-path $(TEST_SUITE)/schemas \
+		--package-prefix github.com/PapaCharlie/go-restli/internal/tests/native \
+		--named-schemas-to-generate testsuite.Fruits
+	go run -tags=jar . \
 		--output-dir $(TESTDATA)/generated \
 		--resolver-path $(TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX) \
@@ -68,6 +73,7 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate testsuite.Include \
 		--named-schemas-to-generate testsuite.Defaults \
 		--named-schemas-to-generate testsuite.RecordWithTyperefField \
+		--native-refs internal/tests/native \
 		$(TEST_SUITE)/restspecs/*
 
 run-testsuite:
