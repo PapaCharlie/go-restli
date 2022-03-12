@@ -10,7 +10,7 @@ import (
 
 func AddMarshalRestLi(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
 	utils.AddFuncOnReceiver(def, receiver, typeName, utils.MarshalRestLi, pointer).
-		Params(Add(Writer).Add(WriterQual)).
+		Params(WriterParam).
 		Params(Err().Error()).
 		BlockFunc(f).
 		Line().Line()
@@ -42,11 +42,11 @@ func (r *Record) generateMarshaler(def *Group) {
 	}))
 }
 
-func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType Code) *Statement {
+func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType *RestliType) *Statement {
 	receiver := r.Receiver()
 	var params []Code
 	if batchKeyType != nil {
-		params = []Code{Add(utils.BatchKeySet).Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(batchKeyType)}
+		params = []Code{Add(utils.BatchKeySet).Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(batchKeyType.GoType())}
 	}
 
 	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams, RecordShouldUsePointer).
@@ -85,13 +85,13 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType Co
 							def.Add(utils.IfErrReturn(Err()))
 						}).Line()
 					} else {
-						writeField(def, i, f, func(i int, f Field) Code {
-							if i == qIndex {
-								return Lit(*finderName)
-							} else {
-								return r.fieldAccessor(f)
-							}
-						}, paramNameWriter)
+						var accessor Code
+						if i == qIndex {
+							accessor = Lit(*finderName)
+						} else {
+							accessor = r.fieldAccessor(f)
+						}
+						writeField(def, f, accessor, paramNameWriter)
 					}
 				}
 				def.Return(Nil())
@@ -104,14 +104,12 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType Co
 
 func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
 	for i, f := range fields {
-		writeField(def, i, f, fieldAccessor, keyWriter)
+		writeField(def, f, fieldAccessor(i, f), keyWriter)
 	}
 	def.Return(Nil())
 }
 
-func writeField(def *Group, i int, f Field, fieldAccessor func(i int, f Field) Code, keyWriter Code) {
-	accessor := fieldAccessor(i, f)
-
+func writeField(def *Group, f Field, accessor Code, keyWriter Code) {
 	serialize := func() Code {
 		if f.IsOptionalOrDefault() && f.Type.Reference == nil {
 			accessor = Op("*").Add(accessor)

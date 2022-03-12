@@ -21,7 +21,7 @@ var (
 	Float64Primitive = PrimitiveType{Type: "float64", newInstance: func() interface{} { return new(float64) }}
 	BoolPrimitive    = PrimitiveType{Type: "bool", newInstance: func() interface{} { return new(bool) }}
 	StringPrimitive  = PrimitiveType{Type: "string", newInstance: func() interface{} { return new(string) }}
-	BytesPrimitive   = PrimitiveType{Type: "bytes", newInstance: func() interface{} { return new([]byte) }}
+	BytesPrimitive   = PrimitiveType{Type: "bytes"}
 )
 
 var PrimitiveTypes = []PrimitiveType{
@@ -73,7 +73,7 @@ func (p *PrimitiveType) GoType() *Statement {
 }
 
 func (p *PrimitiveType) MarshalerFunc() *Statement {
-	return Add(WriterQual).Dot(p.WriterName())
+	return Qual(utils.RestLiCodecPackage, p.WriterName())
 }
 
 func (p *PrimitiveType) UnmarshalerFunc() *Statement {
@@ -106,14 +106,6 @@ func (p *PrimitiveType) getLit(rawJson string) *Statement {
 	}
 }
 
-func (p *PrimitiveType) zeroValueLit() *Statement {
-	if p.IsBytes() {
-		return Nil()
-	} else {
-		return Lit(reflect.ValueOf(p.newInstance()).Elem().Interface())
-	}
-}
-
 func (p *PrimitiveType) exportedName() string {
 	return utils.ExportedIdentifier(p.Type)
 }
@@ -132,18 +124,4 @@ func (p *PrimitiveType) HasherName() string {
 
 func (p *PrimitiveType) HasherQual() Code {
 	return Add(utils.Hash).Dot(p.HasherName())
-}
-
-func (p *PrimitiveType) NewPrimitiveMarshaler(accessor Code) Code {
-	return Qual(utils.RestLiCodecPackage, "MarshalerFunc").Call(Func().Params(Add(Writer).Add(WriterQual)).Error().BlockFunc(func(def *Group) {
-		def.Add(Writer.Write(RestliType{Primitive: p}, Writer, accessor))
-		def.Return(Nil())
-	}))
-}
-
-func (p *PrimitiveType) NewPrimitiveUnmarshaler(accessor Code) Code {
-	return Qual(utils.RestLiCodecPackage, "UnmarshalerFunc").Call(Func().Params(Add(Reader).Add(ReaderQual)).Params(Err().Error()).BlockFunc(func(def *Group) {
-		def.Add(Reader.Read(RestliType{Primitive: p}, Reader, accessor))
-		def.Return(Err())
-	}))
 }

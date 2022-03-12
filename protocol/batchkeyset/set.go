@@ -8,20 +8,20 @@ import (
 
 const EntityIDsField = "ids"
 
-type batchKeySet interface {
+type batchKeySet[T any] interface {
 	encodeKeys() ([]string, error)
+	AddKey(T) error
 }
 
 type BatchKeySet[T any] interface {
-	batchKeySet
-	AddKey(T) error
-	LocateOriginalKey(keyReader restlicodec.Reader) (originalKey T, err error)
-	MarshalKey(writer restlicodec.Writer, t T) error
+	batchKeySet[T]
+	LocateOriginalKey(key T) (originalKey T, found bool)
+	LocateOriginalKeyFromReader(keyReader restlicodec.Reader) (originalKey T, err error)
 	Encode(paramNameWriter func(string) restlicodec.Writer) error
 	EncodeQueryParams() (params string, err error)
 }
 
-func generateRawQuery(set batchKeySet) (string, error) {
+func generateRawQuery[T any](set batchKeySet[T]) (string, error) {
 	writer := restlicodec.NewRestLiQueryParamsWriter()
 	err := writer.WriteParams(func(paramNameWriter func(key string) restlicodec.Writer) error {
 		return encode(set, paramNameWriter)
@@ -32,7 +32,7 @@ func generateRawQuery(set batchKeySet) (string, error) {
 	return writer.Finalize(), nil
 }
 
-func encode(set batchKeySet, paramNameWriter func(string) restlicodec.Writer) (err error) {
+func encode[T any](set batchKeySet[T], paramNameWriter func(string) restlicodec.Writer) (err error) {
 	encodedKeys, err := set.encodeKeys()
 	if err != nil {
 		return err

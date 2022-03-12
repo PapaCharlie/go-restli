@@ -20,6 +20,7 @@ const rootTest = "TestGoRestli"
 
 func main() {
 	skippedTests := make(map[string]map[string]bool)
+	deliberatelySkippedTests := make(map[string]int)
 
 	decoder := json.NewDecoder(os.Stdin)
 	for decoder.More() {
@@ -29,20 +30,29 @@ func main() {
 			panic(err)
 		}
 
+		var resource, operation string
+		if e.Package == suite && strings.HasPrefix(e.Test, rootTest) {
+			resource, operation, _ = strings.Cut(strings.TrimPrefix(e.Test, rootTest+"/"), "/")
+			if operation != "" {
+				if skippedTests[resource] == nil {
+					skippedTests[resource] = make(map[string]bool)
+				}
+			}
+		}
+
 		switch e.Action {
 		case "output":
+			if operation != "" && strings.Contains(e.Output, "GORESTLI_SKIPPED") {
+				deliberatelySkippedTests[resource]++
+				skippedTests[resource][operation] = true
+			}
 			fmt.Print(e.Output)
 		case "skip", "pass", "fail":
-			if e.Package != suite || !strings.HasPrefix(e.Test, rootTest) {
+			if operation == "" || !strings.Contains(operation, "/") {
 				continue
 			}
-			nameSegments := strings.Split(e.Test, "/")
-			if len(nameSegments) < 3 {
+			if _, ok := skippedTests[resource][operation]; ok {
 				continue
-			}
-			resource, operation := nameSegments[1], nameSegments[2]
-			if skippedTests[resource] == nil {
-				skippedTests[resource] = make(map[string]bool)
 			}
 			skippedTests[resource][operation] = e.Action == "skip"
 		}
@@ -68,6 +78,7 @@ func main() {
 				skipped++
 			}
 		}
+		skipped -= float64(deliberatelySkippedTests[r])
 		fmt.Printf("%s:%s %3.0f%%\n", r, strings.Repeat(" ", longestResource-len(r)), 100*(1-skipped/float64(len(operations))))
 	}
 	fmt.Print("\n\n")

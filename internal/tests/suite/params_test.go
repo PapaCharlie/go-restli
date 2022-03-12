@@ -6,11 +6,12 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params_test"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
-func (s *TestServer) ParamsGetWithQueryparams(t *testing.T, c Client) {
+func (o *Operation) ParamsGetWithQueryparams(t *testing.T, c Client) func(*testing.T) *MockResource {
 	long := int64(100)
 	apple := conflictresolution.Fruits_APPLE
 	params := &GetParams{
@@ -42,23 +43,19 @@ func (s *TestServer) ParamsGetWithQueryparams(t *testing.T, c Client) {
 		},
 		UrlTyperef: "http://rest.li",
 	}
+	expected := newMessage(1, "test message")
 
-	var m *conflictresolution.Message
-	var err error
+	m, err := c.Get(long, params)
+	require.NoError(t, err)
+	require.Equal(t, expected, m)
 
-	// The test server expects queries to match exactly (unlike json POST bodies which are matched structurally) because
-	// it also serves to test the encoding of certain complex characters. The problem is that because one of the query
-	// parameters is a map and map iteration ordering is nondeterministic by design, sometimes the queries don't match.
-	// In this case, the server responds with a specific HTTP code that can be used to simply retry the request and
-	// query encoding a number of times in an effort to reduce this test's flakiness.
-	for i := 0; i < 10; i++ {
-		m, err = c.Get(100, params)
-		if e, ok := err.(*protocol.RestLiError); ok && e.Response.StatusCode == MismatchedQueriesStatus {
-			continue
-		} else {
-			break
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGet: func(ctx *protocol.RequestContext, paramsId int64, queryParams *GetParams) (entity *conflictresolution.Message, err error) {
+				require.Equal(t, long, paramsId)
+				require.Equal(t, queryParams, params)
+				return expected, nil
+			},
 		}
 	}
-	require.NoError(t, err)
-	require.Equal(t, newMessage(1, "test message"), m)
 }

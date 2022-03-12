@@ -20,7 +20,7 @@ import io.papacharlie.gorestli.json.ComplexKey;
 import io.papacharlie.gorestli.json.Enum;
 import io.papacharlie.gorestli.json.Fixed;
 import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
-import io.papacharlie.gorestli.json.Method.PathKey;
+import io.papacharlie.gorestli.json.PathKey;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;

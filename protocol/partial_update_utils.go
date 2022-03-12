@@ -2,6 +2,12 @@ package protocol
 
 import "github.com/PapaCharlie/go-restli/protocol/restlicodec"
 
+const (
+	PatchField = "patch"
+)
+
+var RequiredPatchRecordFields = restlicodec.RequiredFields{PatchField}
+
 type PartialUpdateFieldChecker struct {
 	RecordType string
 	HasDeletes bool
@@ -9,7 +15,7 @@ type PartialUpdateFieldChecker struct {
 }
 
 func (c *PartialUpdateFieldChecker) CheckField(
-	writer restlicodec.Writer,
+	checker restlicodec.KeyChecker,
 	fieldName string,
 	isDeleteSet bool,
 	isSetSet bool,
@@ -19,7 +25,7 @@ func (c *PartialUpdateFieldChecker) CheckField(
 		return nil
 	}
 
-	if writer.IsKeyExcluded(fieldName) {
+	if checker.IsKeyExcluded(fieldName) {
 		return &IllegalPartialUpdateError{
 			Message:    "Cannot delete/update/partial update read-only or create-ony",
 			Field:      fieldName,

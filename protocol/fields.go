@@ -1,25 +1,33 @@
 package protocol
 
-import "github.com/PapaCharlie/go-restli/protocol/restlicodec"
+import (
+	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
+	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+)
 
 const (
 	elementsField = "elements"
 	valueField    = "value"
 	statusField   = "status"
+	statusesField = "statuses"
 	resultsField  = "results"
+	errorField    = "error"
 	errorsField   = "errors"
 	idField       = "id"
-	entityField   = "entity"
+	locationField = "location"
 	pagingField   = "paging"
-	totalField    = "total"
 	metadataField = "metadata"
+	entityField   = "entity"
+	entitiesField = "entities"
 )
 
 var (
 	elementsRequiredResponseFields              = restlicodec.RequiredFields{elementsField}
+	entitiesRequiredResponseFields              = restlicodec.RequiredFields{entitiesField}
+	entityIdsRequiredResponseFields             = restlicodec.RequiredFields{batchkeyset.EntityIDsField}
 	actionRequiredResponseFields                = restlicodec.RequiredFields{valueField}
 	batchEntityUpdateResponseRequiredFields     = restlicodec.RequiredFields{statusField}
-	batchRequestResponseRequiredFields          = restlicodec.RequiredFields{resultsField}
+	batchResponseRequiredFields                 = restlicodec.RequiredFields{resultsField}
 	batchCreateResponseRequiredFields           = restlicodec.RequiredFields{statusField}
 	batchCreateWithReturnResponseRequiredFields = restlicodec.RequiredFields{statusField, entityField}
 )

@@ -4,11 +4,15 @@ import (
 	"crypto/md5"
 	"testing"
 
+	"github.com/PapaCharlie/go-restli/fnv1a"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
+	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/PapaCharlie/go-restli/protocol/equals"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,29 +21,54 @@ func TestInclude(t *testing.T) {
 		PrimitiveField: testsuite.PrimitiveField{Integer: int32(1)},
 		F1:             4.27,
 	}
-	testJsonEncoding(t, expected, new(testsuite.Include), `{
+	testEncoding(t, expected, `{
   "f1": 4.27,
   "integer": 1
-}`)
+}`, `(f1:4.27,integer:1)`)
 }
 
 // TestDefaults tests that default values are loaded correctly (see
 // rest.li-test-suite/client-testsuite/schemas/testsuite/Defaults.pdsc) for the default values used here
 func TestDefaults(t *testing.T) {
-	five := int32(5)
+	expected := &testsuite.Defaults{
+		DefaultInteger: protocol.Int32Pointer(1),
+		DefaultLong:    protocol.Int64Pointer(23),
+		DefaultFloat:   protocol.Float32Pointer(52.5),
+		DefaultDouble:  protocol.Float64Pointer(66.5),
+		DefaultBytes:   protocol.BytesPointer([]byte("@ABC")),
+		DefaultString:  protocol.StringPointer("default string"),
+		DefaultEnum:    conflictresolution.Fruits_APPLE.Pointer(),
+		DefaultFixed:   testsuite.Fixed5{1, 2, 3, 4, 5}.Pointer(),
+		DefaultRecord:  &testsuite.PrimitiveField{Integer: 10},
+		DefaultArray:   &[]int32{1, 3, 5},
+		DefaultMap:     &map[string]int32{"a": 1, "b": 2},
+		DefaultUnion:   &testsuite.Defaults_DefaultUnion{Int: protocol.Int32Pointer(5)},
+	}
 	d := testsuite.NewDefaultsWithDefaultValues()
-	require.Equal(t, int32(1), *d.DefaultInteger)
-	require.Equal(t, int64(23), *d.DefaultLong)
-	require.Equal(t, float32(52.5), *d.DefaultFloat)
-	require.Equal(t, float64(66.5), *d.DefaultDouble)
-	require.Equal(t, []byte("@ABC"), *d.DefaultBytes)
-	require.Equal(t, string("default string"), *d.DefaultString)
-	require.Equal(t, conflictresolution.Fruits_APPLE, *d.DefaultEnum)
-	require.Equal(t, testsuite.Fixed5{1, 2, 3, 4, 5}, *d.DefaultFixed)
-	require.Equal(t, testsuite.PrimitiveField{Integer: 10}, *d.DefaultRecord)
-	require.Equal(t, []int32{1, 3, 5}, *d.DefaultArray)
-	require.Equal(t, map[string]int32{"a": 1, "b": 2}, *d.DefaultMap)
-	require.Equal(t, testsuite.Defaults_DefaultUnion{Int: &five}, *d.DefaultUnion)
+	require.Equal(t, expected, d)
+	// flex the Equals code a little
+	require.True(t, expected.Equals(d))
+
+	moreExpected := &extras.MoreDefaults{
+		DefaultRecord:  extras.DefaultTyperef{Foo: extras.Temperature(42).Pointer()},
+		EmptyArray:     new([]string),
+		EmptyMap:       &map[string]string{},
+		DefaultBoolean: protocol.BoolPointer(true),
+	}
+	moreD := extras.NewMoreDefaultsWithDefaultValues()
+	require.Equal(t, moreExpected, moreD)
+	// flex the Equals code some more
+	require.True(t, moreExpected.Equals(moreD))
+}
+
+func TestEnum(t *testing.T) {
+	_, err := conflictresolution.GetFruitsFromString("BANANA")
+	require.IsType(t, new(protocol.UnknownEnumValue), err)
+	const illegal = conflictresolution.Fruits(42)
+	err = illegal.MarshalRestLi(restlicodec.NoopWriter)
+	require.IsType(t, new(protocol.IllegalEnumConstant), err)
+	require.True(t, illegal.ComputeHash().Equals(fnv1a.ZeroHash()))
+	require.False(t, illegal.Equals(illegal))
 }
 
 func testEquality[T equals.Equatable[T]](t *testing.T, tests [][]bool, data []T) {
@@ -119,9 +148,7 @@ func TestEquals(t *testing.T) {
 func TestReadInterface(t *testing.T) {
 	t.Run("ror2", func(t *testing.T) {
 		read := func(t *testing.T, s string) interface{} {
-			reader, err := restlicodec.NewRor2Reader(s)
-			require.NoError(t, err)
-
+			reader := newRor2Reader(t, s)
 			i, err := reader.ReadInterface()
 			require.NoError(t, err)
 
@@ -157,8 +184,7 @@ func TestReadInterface(t *testing.T) {
 
 	t.Run("json", func(t *testing.T) {
 		read := func(t *testing.T, s string) interface{} {
-			reader := restlicodec.NewJsonReader([]byte(s))
-
+			reader := newJsonReader(t, s)
 			i, err := reader.ReadInterface()
 			require.NoError(t, err)
 
@@ -206,4 +232,74 @@ func TestReadInterface(t *testing.T) {
 func TestMD5Hex(t *testing.T) {
 	m := extras.MD5(md5.Sum([]byte("abc")))
 	require.Equal(t, "900150983cd24fb0d6963f7d28e17f72", m.Hex())
+}
+
+func TestQueryParamsReader(t *testing.T) {
+	q, err := restlicodec.ParseQueryParams("b=()&c=(string:foo)")
+	require.NoError(t, err)
+
+	c := new(extras.SinglePrimitiveField)
+	err = q.ReadRecord(restlicodec.RequiredFields{"a", "b", "c"}, func(reader restlicodec.Reader, field string) (err error) {
+		if field == "c" {
+			return c.UnmarshalRestLi(reader)
+		} else {
+			return new(extras.SinglePrimitiveField).UnmarshalRestLi(reader)
+		}
+	})
+	require.Equal(t, &restlicodec.MissingRequiredFieldsError{Fields: []string{"a", "b.string"}}, err)
+	require.Equal(t, &extras.SinglePrimitiveField{String: "foo"}, c)
+}
+
+func TestEmbeddedPagingContext(t *testing.T) {
+	var start, count int32
+	start = 10
+	count = 20
+	tests := []struct {
+		name     string
+		params   collectionwithtyperefkey.FindBySearchParams
+		expected string
+	}{
+		{
+			name: "empty context",
+			params: collectionwithtyperefkey.FindBySearchParams{
+				Keyword: "foo",
+			},
+			expected: "keyword=foo&q=search",
+		},
+		{
+			name: "start only",
+			params: collectionwithtyperefkey.FindBySearchParams{
+				PagingContext: stdtypes.PagingContext{
+					Start: &start,
+				},
+				Keyword: "foo",
+			},
+			expected: "keyword=foo&q=search&start=10",
+		},
+		{
+			name: "count only",
+			params: collectionwithtyperefkey.FindBySearchParams{
+				PagingContext: stdtypes.PagingContext{
+					Count: &count,
+				},
+				Keyword: "foo",
+			},
+			expected: "count=20&keyword=foo&q=search",
+		},
+		{
+			name: "full context",
+			params: collectionwithtyperefkey.FindBySearchParams{
+				PagingContext: stdtypes.NewPagingContext(start, count),
+				Keyword:       "foo",
+			},
+			expected: "count=20&keyword=foo&q=search&start=10",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := test.params.EncodeQueryParams()
+			require.NoError(t, err)
+			require.Equal(t, test.expected, actual)
+		})
+	}
 }

@@ -5,7 +5,6 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.typerefs.collectionTyperef
@@ -13,11 +12,11 @@ var _ = complexkey.Client(new(complexKeyClient))
 
 type complexKeyClient struct{}
 
-func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (*protocol.CreatedEntity[*complexkey.Complexkey_ComplexKey], error) {
+func (c *complexKeyClient) Create(*conflictresolution.LargeRecord) (*complexkey.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) CreateWithContext(context.Context, *conflictresolution.LargeRecord) (*protocol.CreatedEntity[*complexkey.Complexkey_ComplexKey], error) {
+func (c *complexKeyClient) CreateWithContext(context.Context, *conflictresolution.LargeRecord) (*complexkey.CreatedEntity, error) {
 	panic(nil)
 }
 
@@ -53,34 +52,34 @@ func (c *complexKeyClient) DeleteWithContext(context.Context, *complexkey.Comple
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchCreate([]*conflictresolution.LargeRecord) ([]*protocol.CreatedEntity[*complexkey.Complexkey_ComplexKey], error) {
+func (c *complexKeyClient) BatchCreate([]*conflictresolution.LargeRecord) ([]*complexkey.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchCreateWithContext(context.Context, []*conflictresolution.LargeRecord) ([]*protocol.CreatedEntity[*complexkey.Complexkey_ComplexKey], error) {
+func (c *complexKeyClient) BatchCreateWithContext(context.Context, []*conflictresolution.LargeRecord) ([]*complexkey.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchDelete([]*complexkey.Complexkey_ComplexKey) (map[*complexkey.Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse, error) {
+func (c *complexKeyClient) BatchGet([]*complexkey.Complexkey_ComplexKey) (*complexkey.BatchEntities, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchDeleteWithContext(context.Context, []*complexkey.Complexkey_ComplexKey) (map[*complexkey.Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse, error) {
+func (c *complexKeyClient) BatchGetWithContext(context.Context, []*complexkey.Complexkey_ComplexKey) (*complexkey.BatchEntities, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchGet([]*complexkey.Complexkey_ComplexKey) (map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord, error) {
+func (c *complexKeyClient) BatchUpdate(map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord) (*complexkey.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchGetWithContext(context.Context, []*complexkey.Complexkey_ComplexKey) (map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord, error) {
+func (c *complexKeyClient) BatchUpdateWithContext(context.Context, map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord) (*complexkey.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchUpdate(map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord) (map[*complexkey.Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse, error) {
+func (c *complexKeyClient) BatchDelete([]*complexkey.Complexkey_ComplexKey) (*complexkey.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *complexKeyClient) BatchUpdateWithContext(context.Context, map[*complexkey.Complexkey_ComplexKey]*conflictresolution.LargeRecord) (map[*complexkey.Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse, error) {
+func (c *complexKeyClient) BatchDeleteWithContext(context.Context, []*complexkey.Complexkey_ComplexKey) (*complexkey.BatchResponse, error) {
 	panic(nil)
 }

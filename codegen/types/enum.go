@@ -24,7 +24,7 @@ func (e *Enum) ShouldReference() utils.ShouldUsePointer {
 func (e *Enum) GenerateCode() (def *Statement) {
 	def = Empty()
 	utils.AddWordWrappedComment(def, e.Doc).Line()
-	def.Type().Id(e.Name).Add(utils.Enum).Line()
+	def.Type().Id(e.Name).Int32().Line()
 
 	unknownEnum := Code(Id("_" + e.SymbolIdentifier("unknown")))
 
@@ -57,20 +57,23 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		def.List(val, ok).Op(":=").Id(strings).Index(Id(receiver))
 	}
 
-	cast := func(c Code) *Statement {
-		return Add(utils.Enum).Call(c)
-	}
-
-	utils.AddFuncOnReceiver(def, receiver, e.Name, utils.IsUnknown, EnumShouldUsePointer).Params().Bool().BlockFunc(func(def *Group) {
-		def.Return(cast(Id(receiver)).Dot(utils.IsUnknown).Call())
+	const isValid = "IsValid"
+	utils.AddFuncOnReceiver(def, receiver, e.Name, isValid, EnumShouldUsePointer).Params().Bool().BlockFunc(func(def *Group) {
+		def.Return(Lit(0).Op("<").Id(receiver).Op("&&").Id(receiver).Op("<=").Lit(len(e.Symbols)))
 	}).Line().Line()
 
 	AddEquals(def, receiver, e.Name, EnumShouldUsePointer, func(other Code, def *Group) {
-		def.Return(cast(Id(receiver)).Dot(utils.Equals).Call(cast(other)))
+		def.If(Id(receiver).Dot(isValid).Call().Op("&&").Add(other).Dot(isValid).Call()).
+			Block(Return(Id(receiver).Op("==").Add(other))).
+			Else().
+			Block(Return(False()))
 	})
 
 	AddCustomComputeHash(def, receiver, e.Name, EnumShouldUsePointer, func(def *Group) {
-		def.Return(cast(Id(receiver)).Dot(utils.ComputeHash).Call())
+		def.If(Id(receiver).Dot(isValid).Call()).
+			Block(Return(Qual(utils.HashPackage, "HashInt32").Call(Int32().Call(Id(receiver))))).
+			Else().
+			Block(Return(utils.ZeroHash))
 	})
 
 	def.Func().Id("All" + e.Name + "Values").Params().Index().Id(e.Name).BlockFunc(func(def *Group) {
@@ -85,10 +88,11 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		BlockFunc(func(def *Group) {
 			def.List(Id(receiver), ok).Op(":=").Id(values).Index(val)
 			def.If(Op("!").Add(ok)).BlockFunc(func(def *Group) {
-				def.Err().Op("=").Op("&").Add(utils.UnknownEnumValue).Values(Dict{
-					Id("Enum"):  Lit(e.Identifier.String()),
-					Id("Value"): val,
-				})
+				def.Err().Op("=").Op("&").Add(utils.UnknownEnumValue).Add(utils.OrderedValues(
+					func(add func(key Code, value Code)) {
+						add(Id("Enum"), Lit(e.Identifier.String()))
+						add(Id("Value"), val)
+					}))
 			})
 			def.Return(Id(receiver), Err())
 		}).Line().Line()
@@ -106,16 +110,15 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	AddMarshalRestLi(def, receiver, e.Name, EnumShouldUsePointer, func(def *Group) {
 		getEnumString(def)
 		def.If(Op("!").Add(ok)).Block(
-			Return(Op("&").Add(utils.IllegalEnumConstant).Values(Dict{
-				Id("Enum"):     Lit(e.Identifier.String()),
-				Id("Constant"): Int().Call(Id(receiver)),
-			})),
-		)
+			Return(Op("&").Add(utils.IllegalEnumConstant).Add(utils.OrderedValues(func(add func(key Code, value Code)) {
+				add(Id("Enum"), Lit(e.Identifier.String()))
+				add(Id("Constant"), Int().Call(Id(receiver)))
+			}))))
 		def.List(Writer).Dot("WriteString").Call(val)
 		def.Return(Nil())
 	})
 
-	AddUnmarshalRestli(def, receiver, e.Identifier, EnumShouldUsePointer, func(def *Group) {
+	AddUnmarshalRestli(def, receiver, e.Name, func(def *Group) {
 		value := Id("value")
 		def.Var().Add(value).String()
 		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, Reader, value))
@@ -129,20 +132,8 @@ func (e *Enum) GenerateCode() (def *Statement) {
 	return def
 }
 
-func (e *Enum) UnmarshalerFunc() *Statement {
-	return Qual(e.PackagePath(), e.unmarshalerFuncName())
-}
-
-func (e *Enum) unmarshalerFuncName() string {
-	return "Unmarshal" + e.Name
-}
-
 func (e *Enum) SymbolIdentifier(symbol string) string {
 	return utils.ExportedIdentifier(e.Name + "_" + symbol)
-}
-
-func (e *Enum) zeroValueLit() *Statement {
-	return e.Qual().Call(Lit(0))
 }
 
 func (e *Enum) isValidSymbol(v string) bool {

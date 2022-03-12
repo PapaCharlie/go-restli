@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey_test"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
-
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 )
 
-func (s *TestServer) ComplexkeyGet(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyGet(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := &Complexkey_ComplexKey{
 		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -19,15 +19,25 @@ func (s *TestServer) ComplexkeyGet(t *testing.T, c Client) {
 			Part3: conflictresolution.Fruits_APPLE,
 		},
 	}
-	res, err := c.Get(id)
-	require.NoError(t, err)
-	require.Equal(t, &conflictresolution.LargeRecord{
+	expected := &conflictresolution.LargeRecord{
 		Message: conflictresolution.Message{Message: "test message"},
 		Key:     id.ComplexKey,
-	}, res)
+	}
+	res, err := c.Get(id)
+	require.NoError(t, err)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGet: func(ctx *protocol.RequestContext, complexkeyId *Complexkey_ComplexKey) (entity *conflictresolution.LargeRecord, err error) {
+				require.Equal(t, id, complexkeyId)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyUpdate(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	key := conflictresolution.ComplexKey{
 		Part1: "one",
 		Part2: 2,
@@ -45,9 +55,19 @@ func (s *TestServer) ComplexkeyUpdate(t *testing.T, c Client) {
 	}
 	err := c.Update(id, record)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockUpdate: func(ctx *protocol.RequestContext, complexkeyId *Complexkey_ComplexKey, entity *conflictresolution.LargeRecord) (err error) {
+				require.Equal(t, id, complexkeyId)
+				require.Equal(t, record, entity)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyDelete(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyDelete(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := &Complexkey_ComplexKey{
 		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -58,26 +78,47 @@ func (s *TestServer) ComplexkeyDelete(t *testing.T, c Client) {
 	}
 	err := c.Delete(id)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockDelete: func(ctx *protocol.RequestContext, complexkeyId *Complexkey_ComplexKey) (err error) {
+				require.Equal(t, id, complexkeyId)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyCreate(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyCreate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	expectedKey := conflictresolution.ComplexKey{
 		Part1: "one",
 		Part2: 2,
 		Part3: conflictresolution.Fruits_APPLE,
 	}
-	_, err := c.Create(&conflictresolution.LargeRecord{
+	create := &conflictresolution.LargeRecord{
 		Key: expectedKey,
 		Message: conflictresolution.Message{
 			Message: "test message",
 		},
-	})
+	}
+	_, err := c.Create(create)
 	require.IsType(t, new(protocol.CreateResponseHasNoEntityHeaderError), err)
 	// TODO: Merge https://github.com/linkedin/rest.li-test-suite/pull/6 and actually test the contents of the key
 	// require.Equal(t, expectedKey, actualKey.ComplexKey)
+	return func(t *testing.T) *MockResource {
+		// TODO: ^ see above
+		t.SkipNow()
+		return nil
+		// return &MockResource{
+		// 	MockCreate: func(ctx *protocol.RequestContext, entity *conflictresolution.LargeRecord) (createdEntity *protocol.CreatedEntity[*Complexkey_ComplexKey], err error) {
+		// 		require.Equal(t, create, entity)
+		// 		return &protocol.CreatedEntity[*Complexkey_ComplexKey]{Id: &Complexkey_ComplexKey{ComplexKey: expectedKey}}, nil
+		// 	},
+		// }
+	}
 }
 
-func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyPartialUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := &Complexkey_ComplexKey{
 		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -91,12 +132,22 @@ func (s *TestServer) ComplexkeyPartialUpdate(t *testing.T, c Client) {
 			Part1: protocol.StringPointer("newpart1"),
 		},
 	}
-
-	err := c.PartialUpdate(id, &conflictresolution.LargeRecord_PartialUpdate{Key: keyPatch})
+	update := &conflictresolution.LargeRecord_PartialUpdate{Key: keyPatch}
+	err := c.PartialUpdate(id, update)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockPartialUpdate: func(ctx *protocol.RequestContext, complexkeyId *Complexkey_ComplexKey, entity *conflictresolution.LargeRecord_PartialUpdate) (err error) {
+				require.Equal(t, id, complexkeyId)
+				require.Equal(t, entity, update)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyBatchDelete(t *testing.T, c Client) func(*testing.T) *MockResource {
 	k1 := &Complexkey_ComplexKey{
 		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -113,19 +164,40 @@ func (s *TestServer) ComplexkeyBatchDelete(t *testing.T, c Client) {
 			Part3: conflictresolution.Fruits_ORANGE,
 		},
 	}
-	res, err := c.BatchDelete([]*Complexkey_ComplexKey{k1, k2})
+	delete := []*Complexkey_ComplexKey{k1, k2}
+	res, err := c.BatchDelete(delete)
 	require.NoError(t, err)
-	require.Equal(t, map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
-		k1: {
-			Status: 204,
+
+	expected := &BatchResponse{
+		Results: map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+			k1: {
+				Status: 204,
+			},
+			k2: {
+				Status: 204,
+			},
 		},
-		k2: {
-			Status: 204,
-		},
-	}, res)
+	}
+	requiredBatchResponseEquals(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchDelete: func(ctx *protocol.RequestContext, keys []*Complexkey_ComplexKey) (results *BatchResponse, err error) {
+				require.Equal(t, delete, keys)
+				results = &BatchResponse{
+					Results: map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{},
+				}
+				for _, k := range keys {
+					// Explicitly don't set the status to check if the default status kicks in
+					results.Results[&Complexkey_ComplexKey{ComplexKey: k.ComplexKey}] = new(protocol.BatchEntityUpdateResponse)
+				}
+				return results, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyBatchGet(t *testing.T, c Client) func(*testing.T) *MockResource {
 	k1 := &Complexkey_ComplexKey{
 		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -142,22 +214,41 @@ func (s *TestServer) ComplexkeyBatchGet(t *testing.T, c Client) {
 			Part3: conflictresolution.Fruits_ORANGE,
 		},
 	}
-	res, err := c.BatchGet([]*Complexkey_ComplexKey{k1, k2})
+	get := []*Complexkey_ComplexKey{k1, k2}
+	res, err := c.BatchGet(get)
 	require.NoError(t, err)
-	require.Equal(t, map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{
-		k1: {
-			Key: k1.ComplexKey,
-			Message: conflictresolution.Message{
-				Message: "test message",
+
+	expected := &BatchEntities{
+		Results: map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{
+			k1: {
+				Key: k1.ComplexKey,
+				Message: conflictresolution.Message{
+					Message: "test message",
+				},
+			},
+			k2: {
+				Key: k2.ComplexKey,
+				Message: conflictresolution.Message{
+					Message: "test message",
+				},
 			},
 		},
-		k2: {
-			Key: k2.ComplexKey,
-			Message: conflictresolution.Message{
-				Message: "test message",
+	}
+	requiredBatchResponseEquals(t, expected, res)
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchGet: func(ctx *protocol.RequestContext, keys []*Complexkey_ComplexKey) (results *BatchEntities, err error) {
+				require.Equal(t, get, keys)
+				results = &BatchEntities{
+					Results: map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{},
+				}
+				for k, v := range expected.Results {
+					results.Results[&Complexkey_ComplexKey{ComplexKey: k.ComplexKey}] = v
+				}
+				return results, nil
 			},
-		},
-	}, res)
+		}
+	}
 }
 
 const specialChars = `!*'();:@&=+$,/?#[].~`
@@ -171,12 +262,28 @@ var specialCharsKey = &Complexkey_ComplexKey{
 	},
 }
 
-func (s *TestServer) ComplexkeyGetWithSpecialChars(t *testing.T, c Client) {
-	_, err := c.Get(specialCharsKey)
+func (o *Operation) ComplexkeyGetWithSpecialChars(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expected := &conflictresolution.LargeRecord{
+		Key: specialCharsKey.ComplexKey,
+		Message: conflictresolution.Message{
+			Message: "test message",
+		},
+	}
+	res, err := c.Get(specialCharsKey)
 	require.NoError(t, err)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGet: func(ctx *protocol.RequestContext, complexkeyId *Complexkey_ComplexKey) (entity *conflictresolution.LargeRecord, err error) {
+				require.Equal(t, specialCharsKey, complexkeyId)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) func(*testing.T) *MockResource {
 	k := &Complexkey_ComplexKey{
 		Params: newKeyParams("param2", 11),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -186,14 +293,40 @@ func (s *TestServer) ComplexkeyBatchGetWithSpecialChars(t *testing.T, c Client) 
 		},
 	}
 	res, err := c.BatchGet([]*Complexkey_ComplexKey{specialCharsKey, k})
+	expected := &BatchEntities{
+		Results: map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord{
+			specialCharsKey: {
+				Key: specialCharsKey.ComplexKey,
+				Message: conflictresolution.Message{
+					Message: "test message",
+				},
+			},
+			k: {
+				Key: k.ComplexKey,
+				Message: conflictresolution.Message{
+					Message: "test message",
+				},
+			},
+		},
+	}
 	require.NoError(t, err)
-	_, ok := res[specialCharsKey]
-	require.True(t, ok)
-	_, ok = res[k]
-	require.True(t, ok)
+	requiredBatchResponseEquals(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchGet: func(ctx *protocol.RequestContext, keys []*Complexkey_ComplexKey) (results *BatchEntities, err error) {
+				require.Equal(t, []*Complexkey_ComplexKey{specialCharsKey, k}, keys)
+				results = protocol.NewBatchResponse[*Complexkey_ComplexKey, *conflictresolution.LargeRecord]()
+				for k, v := range expected.Results {
+					results.Results[&Complexkey_ComplexKey{ComplexKey: k.ComplexKey}] = v
+				}
+				return results, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyBatchUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	k1 := &Complexkey_ComplexKey{
 		Params: newKeyParams("param1", 5),
 		ComplexKey: conflictresolution.ComplexKey{
@@ -226,17 +359,33 @@ func (s *TestServer) ComplexkeyBatchUpdate(t *testing.T, c Client) {
 	}
 	res, err := c.BatchUpdate(updates)
 	require.NoError(t, err)
-	require.Equal(t, map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
-		k1: {
-			Status: 204,
-		},
-		k2: {
-			Status: 204,
+	requiredBatchResponseEquals(t, &BatchResponse{
+		Results: map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+			k1: {
+				Status: 204,
+			},
+			k2: {
+				Status: 204,
+			},
 		},
 	}, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchUpdate: func(ctx *protocol.RequestContext, entities map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord) (results *BatchResponse, err error) {
+				requireComplexKeyMapEquals(t, updates, entities)
+				return &BatchResponse{
+					Results: map[*Complexkey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+						&Complexkey_ComplexKey{ComplexKey: k1.ComplexKey}: {},
+						&Complexkey_ComplexKey{ComplexKey: k2.ComplexKey}: {},
+					},
+				}, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
+func (o *Operation) ComplexkeyBatchCreate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	create := []*conflictresolution.LargeRecord{
 		{
 			Key: conflictresolution.ComplexKey{
@@ -261,7 +410,7 @@ func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
 	}
 	res, err := c.BatchCreate(create)
 	require.NoError(t, err)
-	require.Equal(t, []*protocol.CreatedEntity[*Complexkey_ComplexKey]{
+	require.Equal(t, []*CreatedEntity{
 		{
 			Status: 201,
 		},
@@ -269,4 +418,9 @@ func (s *TestServer) ComplexkeyBatchCreate(t *testing.T, c Client) {
 			Status: 201,
 		},
 	}, res)
+
+	return func(t *testing.T) *MockResource {
+		deliberateSkip(t, "Cannot return empty key from batch create (merge https://github.com/linkedin/rest.li-test-suite/pull/6 to fix)")
+		return nil
+	}
 }

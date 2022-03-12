@@ -11,6 +11,7 @@ import (
 
 var restMethodFuncNames = map[protocol.RestLiMethod]string{
 	protocol.Method_get:            "Get",
+	protocol.Method_get_all:        "GetAll",
 	protocol.Method_create:         "Create",
 	protocol.Method_delete:         "Delete",
 	protocol.Method_update:         "Update",
@@ -23,18 +24,37 @@ var restMethodFuncNames = map[protocol.RestLiMethod]string{
 	protocol.Method_batch_partial_update: "BatchPartialUpdate",
 }
 
-var batchMethods = map[protocol.RestLiMethod]bool{
+var batchQueryParamMethods = map[protocol.RestLiMethod]bool{
 	protocol.Method_batch_get:            true,
-	protocol.Method_batch_create:         true,
 	protocol.Method_batch_delete:         true,
+	protocol.Method_batch_update:         true,
+	protocol.Method_batch_partial_update: true,
+}
+
+var takesReadOnlyFields = map[protocol.RestLiMethod]bool{
+	protocol.Method_create:       true,
+	protocol.Method_batch_create: true,
+}
+
+var takesCreateAndReadOnlyFields = map[protocol.RestLiMethod]bool{
+	protocol.Method_update:               true,
+	protocol.Method_partial_update:       true,
 	protocol.Method_batch_update:         true,
 	protocol.Method_batch_partial_update: true,
 }
 
 type RestMethod struct{ methodImplementation }
 
-func (r *RestMethod) IsSupported() bool {
-	return r.generator() != nil
+func (r *RestMethod) EntityType() *Statement {
+	return r.Resource.ResourceSchema.ReferencedType()
+}
+
+func (r *RestMethod) PartialEntityUpdateType() *Statement {
+	return Op("*").Add(r.Resource.ResourceSchema.Record().PartialUpdateStruct())
+}
+
+func (r *RestMethod) EntityKeyType() *Statement {
+	return r.Resource.LastSegment().PathKey.GoType()
 }
 
 func (r *RestMethod) FuncName() string {
@@ -59,17 +79,17 @@ func (r *RestMethod) FuncParamNames() (params []Code) {
 func (r *RestMethod) FuncParamTypes() (params []Code) {
 	switch r.restLiMethod() {
 	case protocol.Method_create, protocol.Method_update:
-		params = append(params, r.Resource.ResourceSchema.ReferencedType())
+		params = append(params, r.EntityType())
 	case protocol.Method_partial_update:
-		params = append(params, Op("*").Add(r.Resource.ResourceSchema.Record().PartialUpdateStruct()))
+		params = append(params, r.PartialEntityUpdateType())
 	case protocol.Method_batch_create:
-		params = append(params, Index().Add(r.Return.ReferencedType()))
+		params = append(params, Index().Add(r.EntityType()))
 	case protocol.Method_batch_delete, protocol.Method_batch_get:
-		params = append(params, Index().Add(r.EntityPathKey.Type.ReferencedType()))
+		params = append(params, Index().Add(r.EntityKeyType()))
 	case protocol.Method_batch_update:
-		params = append(params, Map(r.EntityPathKey.Type.ReferencedType()).Add(r.Return.ReferencedType()))
+		params = append(params, Map(r.EntityKeyType()).Add(r.EntityType()))
 	case protocol.Method_batch_partial_update:
-		params = append(params, Map(r.EntityPathKey.Type.ReferencedType()).Add(Op("*").Add(r.Resource.ResourceSchema.Record().PartialUpdateStruct())))
+		params = append(params, Map(r.EntityKeyType()).Add(r.PartialEntityUpdateType()))
 	}
 	if len(r.Params) > 0 {
 		params = append(params, Op("*").Qual(r.Resource.PackagePath(), r.queryParamsStructName()))
@@ -80,24 +100,46 @@ func (r *RestMethod) FuncParamTypes() (params []Code) {
 func (r *RestMethod) NonErrorFuncReturnParam() Code {
 	switch r.restLiMethod() {
 	case protocol.Method_get:
-		return Add(Entity).Add(r.Return.ReferencedType())
+		return Add(Entity).Add(r.EntityType())
+	case protocol.Method_get_all:
+		return Add(Results).Op("*").Add(r.Resource.LocalType(Elements))
 	case protocol.Method_create, protocol.Method_batch_create:
-		var returns Code
+		returns := Op("*")
 		if r.ReturnEntity {
-			returns = Qual(utils.ProtocolPackage, "CreatedAndReturnedEntity").Index(List(r.EntityPathKey.Type.ReferencedType(), r.Return.ReferencedType()))
+			returns.Add(r.Resource.LocalType(CreatedAndReturnedEntity))
 		} else {
-			returns = Qual(utils.ProtocolPackage, "CreatedEntity").Index(r.EntityPathKey.Type.ReferencedType())
+			returns.Add(r.Resource.LocalType(CreatedEntity))
 		}
 		if r.restLiMethod() == protocol.Method_batch_create {
-			returns = Add(CreatedEntities).Index().Op("*").Add(returns)
+			return Id("createdEntities").Index().Add(returns)
 		} else {
-			returns = Add(CreatedEntity).Op("*").Add(returns)
+			return Id("createdEntity").Add(returns)
 		}
-		return returns
 	case protocol.Method_batch_get:
-		return Add(Entities).Add(Map(r.EntityPathKey.Type.ReferencedType()).Add(r.Return.ReferencedType()))
+		return Add(Results).Op("*").Add(r.Resource.LocalType(BatchEntities))
 	case protocol.Method_batch_delete, protocol.Method_batch_update, protocol.Method_batch_partial_update:
-		return Add(Statuses).Add(Map(r.EntityPathKey.Type.ReferencedType()).Op("*").Add(BatchEntityUpdateResponse))
+		return Add(Results).Op("*").Add(r.Resource.LocalType(BatchResponse))
+	default:
+		return nil
+	}
+}
+
+func (r *RestMethod) GenericParams() Code {
+	switch r.restLiMethod() {
+	case protocol.Method_get, protocol.Method_update, protocol.Method_get_all:
+		return r.EntityType()
+	case protocol.Method_partial_update:
+		return r.PartialEntityUpdateType()
+	case protocol.Method_create, protocol.Method_batch_create:
+		if r.ReturnEntity {
+			return List(r.EntityKeyType(), r.EntityType())
+		} else {
+			return r.EntityKeyType()
+		}
+	case protocol.Method_batch_get:
+		return List(r.EntityKeyType(), r.EntityType())
+	case protocol.Method_batch_delete, protocol.Method_batch_update, protocol.Method_batch_partial_update:
+		return r.EntityKeyType()
 	default:
 		return nil
 	}
@@ -111,41 +153,66 @@ func (r *RestMethod) restLiMethod() protocol.RestLiMethod {
 	return method
 }
 
-func (r *RestMethod) isBatch() bool {
-	return batchMethods[r.restLiMethod()]
+func (r *RestMethod) usesBatchQueryParams() bool {
+	return batchQueryParamMethods[r.restLiMethod()]
 }
 
 func (r *RestMethod) queryParamsStructName() string {
 	return restMethodFuncNames[r.restLiMethod()] + "Params"
 }
 
-func (r *RestMethod) generator() func(*Group) {
-	return func(def *Group) {
-		params := r.FuncParamNames()
+func (r *RestMethod) clientMethodGenerator(def *Group) {
+	params := r.FuncParamNames()
 
-		if len(r.Params) == 0 {
-			params = append(params, Nil())
-		} else {
-			def.If(Add(QueryParams).Op("==").Nil()).Block(Return(Nil(), Qual(utils.ProtocolPackage, "NilQueryParams")))
-		}
-
-		receiver := Id(ClientReceiver)
-		if r.GetResource().IsCollection {
-			receiver.Dot(CollectionClient)
-		} else {
-			receiver.Dot(SimpleClient)
-		}
-
-		f := r.FuncName()
-		if r.ReturnEntity {
-			f += "WithReturnEntity"
-		}
-
-		declareRpStruct(r, def)
-		def.Return(Add(receiver).Dot(f).Call(
-			append([]Code{Ctx, Rp}, params...)...,
-		))
+	if len(r.Params) == 0 {
+		params = append(params, Nil())
+	} else {
+		def.If(Add(QueryParams).Op("==").Nil()).Block(Return(Nil(), Qual(utils.ProtocolPackage, "NilQueryParams")))
 	}
+
+	f := r.FuncName()
+	if r.ReturnEntity {
+		f += "WithReturnEntity"
+	}
+
+	if takesReadOnlyFields[r.restLiMethod()] {
+		params = append(params, r.Resource.readOnlyFields())
+	} else if takesCreateAndReadOnlyFields[r.restLiMethod()] {
+		params = append(params, r.Resource.createAndReadOnlyFields())
+	}
+
+	call := Qual(utils.ProtocolPackage, f)
+	if p := r.GenericParams(); p != nil {
+		call.Index(p)
+	}
+
+	declareRpStruct(r, def)
+	def.Return(call.Call(
+		append([]Code{RestLiClientReceiver, Ctx, Rp}, params...)...,
+	))
+}
+
+func (r *RestMethod) RegisterMethod(server, resource, segments Code) Code {
+	name := "Register" + r.FuncName()
+	if r.ReturnEntity {
+		name += "WithReturnEntity"
+	}
+
+	return Qual(utils.ProtocolPackage, name).CallFunc(func(def *Group) {
+		def.Add(server)
+		def.Add(segments)
+
+		if takesReadOnlyFields[r.restLiMethod()] {
+			def.Add(r.Resource.readOnlyFields())
+		} else if takesCreateAndReadOnlyFields[r.restLiMethod()] {
+			def.Add(r.Resource.createAndReadOnlyFields())
+		}
+
+		def.Line().Func().Params(registerParams(r)...).Params(methodReturnParams(r)...).
+			BlockFunc(func(def *Group) {
+				def.Return(resource).Dot(r.FuncName()).Call(splatRpAndParams(r)...)
+			})
+	})
 }
 
 // https://linkedin.github.io/rest.li/user_guide/restli_server#resource-methods
@@ -167,15 +234,18 @@ func (r *RestMethod) GenerateCode() *utils.CodeFile {
 			addPagingContextFields(p)
 		}
 		c.Code.Add(p.GenerateStruct()).Line().Line()
-		var batchKeyType Code
-		if r.isBatch() {
-			batchKeyType = r.EntityPathKey.Type.GoType()
+		var batchKeyType *types.RestliType
+		if r.usesBatchQueryParams() {
+			batchKeyType = &r.Resource.LastSegment().PathKey.Type
 		}
-		c.Code.Add(p.GenerateQueryParamMarshaler(nil, batchKeyType)).Line().Line()
+		c.Code.
+			Add(p.GenerateQueryParamMarshaler(nil, batchKeyType)).Line().Line().
+			Add(p.GenerateQueryParamUnmarshaler(batchKeyType)).Line().Line().
+			Add(p.GeneratePopulateDefaultValues()).Line().Line()
 	}
 
 	r.Resource.addClientFuncDeclarations(c.Code, ClientType, r, func(def *Group) {
-		r.generator()(def)
+		r.clientMethodGenerator(def)
 	})
 
 	return c

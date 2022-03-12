@@ -5,6 +5,9 @@
       "restspec": "restspecs/extras.collectionWithTyperefKey.restspec.json",
       "operations": [
         {
+          "name": "collectionWithTyperefKey-batch-create-with-params"
+        },
+        {
           "name": "collectionWithTyperefKey-batch-get-with-params"
         },
         {

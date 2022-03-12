@@ -17,8 +17,12 @@ GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
 TESTDATA := internal/tests/testdata
 TEST_SUITE := $(TESTDATA)/rest.li-test-suite/client-testsuite
 EXTRA_TEST_SUITE := $(TESTDATA)/extra-test-suite
+COVERPKG = -coverpkg=github.com/PapaCharlie/go-restli/...
+COVERPROFILE = -coverprofile=internal/tests/coverage
+GENERATOR_TEST_ARGS = $(COVERPKG) -count=1 -v -tags=jar -args --
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/testdata/generated
-PACKAGES := ./codegen/* ./d2 ./protocol
+PACKAGES := ./codegen/... ./d2/... ./protocol/...
+TOTALCOV := ./internal/tests/coverage/total.cov
 
 build: generate test integration-test
 	rm -rf bin
@@ -34,15 +38,15 @@ generate:
 	go run ./internal/stdtypes
 
 test: generate imports
-	go test $(PACKAGES)
+	go test -count=1 $(COVERPKG) $(COVERPROFILE)/protocol.cov $(PACKAGES)
 
 imports:
-	goimports -w main.go $(PACKAGES)
+	goimports -w main.go ./codegen ./d2 ./protocol
 
 integration-test: generate-restli run-testsuite
 
 generate-restli: clean $(JARGO)
-	go run -tags=jar . \
+	go test . $(COVERPROFILE)/extras_generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated_extras \
 		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX)_extras \
@@ -52,13 +56,14 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate extras.DefaultTyperef \
 		--named-schemas-to-generate extras.IPAddress \
 		--named-schemas-to-generate extras.RecordArray \
+		--named-schemas-to-generate extras.MoreDefaults \
 		--named-schemas-to-generate extras.RecordWithAny \
 		--named-schemas-to-generate extras.IncludesUnion \
 		--named-schemas-to-generate extras.ArrayOfFixed \
 		--named-schemas-to-generate extras.ArrayOfUnion \
 		--raw-records extras.Any \
 		$(EXTRA_TEST_SUITE)/restspecs/*
-	go run -tags=jar . \
+	go test . $(COVERPROFILE)/generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated \
 		--resolver-path $(TEST_SUITE)/schemas \
 		--package-prefix $(PACKAGE_PREFIX) \
@@ -70,8 +75,16 @@ generate-restli: clean $(JARGO)
 		$(TEST_SUITE)/restspecs/*
 
 run-testsuite:
-	go test -count=1 ./internal/tests/...
-	go test -json ./internal/tests/suite | go run ./internal/tests/parser
+	go test $(COVERPKG) $(COVERPROFILE)/suite.cov -count=1 ./internal/tests/...
+	go test -json ./internal/tests/suite | go run ./internal/tests/coverage
+	rm -f $(TOTALCOV)
+	gocovmerge ./internal/tests/coverage/*.cov | grep -v .gr.go > $(TOTALCOV)
+
+coverage:
+	go tool cover -html ./internal/tests/coverage/total.cov
+
+install-gocovmerge:
+	go install github.com/wadey/gocovmerge@latest
 
 generate-tests:
 	cd internal/tests/suite && go run ./generator

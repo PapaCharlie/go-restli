@@ -2,78 +2,37 @@ package types
 
 import (
 	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddUnmarshalRestli(def *Statement, receiver string, id utils.Identifier, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
-	target := Id(receiver)
-	if pointer.ShouldUsePointer() {
-		target = target.Op("*")
-	}
-
-	def.Func().Id(id.UnmarshalerFuncName()).
-		Params(Add(Reader).Add(ReaderQual)).
-		Params(target.Add(id.Qual()), Err().Error()).
-		BlockFunc(func(def *Group) {
-			if pointer.ShouldUsePointer() {
-				def.Add(Id(receiver).Op("=").New(id.Qual()))
-			}
-			def.Add(Reader.Read(RestliType{Reference: &id}, Reader, Id(receiver)))
-			def.Return(Id(receiver), Err())
-		}).Line().Line()
-
-	utils.AddFuncOnReceiver(def, receiver, id.Name, utils.UnmarshalRestLi, utils.Yes).
-		Params(Add(Reader).Add(ReaderQual)).
+func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+	utils.AddFuncOnReceiver(def, receiver, typeName, utils.UnmarshalRestLi, utils.Yes).
+		Params(ReaderParam).
 		Params(Err().Error()).
 		BlockFunc(f).
 		Line().Line()
 
 	data := Id("data")
-	utils.AddFuncOnReceiver(def, receiver, id.Name, "UnmarshalJSON", utils.Yes).
+	const unmarshalJSON = "UnmarshalJSON"
+	utils.AddFuncOnReceiver(def, receiver, typeName, unmarshalJSON, utils.Yes).
 		Params(Add(data).Index().Byte()).
 		Params(Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(data)
-			def.Return(Id(receiver).Dot(utils.UnmarshalRestLi).Call(Reader))
+			def.Return(Qual(utils.RestLiCodecPackage, unmarshalJSON).Call(data, Id(receiver)))
 		}).Line().Line()
 
 	return def
 }
 
 func (r *Record) GenerateUnmarshalRestLi() *Statement {
-	def := Empty()
-
-	hasRequiredFields := false
-	for _, f := range r.Fields {
-		if !f.IsOptionalOrDefault() {
-			hasRequiredFields = true
-			break
-		}
-	}
-
-	var requiredFields Code
-	if hasRequiredFields {
-		requiredFields = Code(Id("_" + r.Name + "RequiredFields"))
-		def.Var().Add(requiredFields).Op("=").Add(utils.RequiredFields).ValuesFunc(func(def *Group) {
-			if len(r.Fields) > 0 {
-				for _, f := range r.Fields {
-					if !f.IsOptionalOrDefault() {
-						def.Line().Lit(f.Name)
-					}
-				}
-				def.Line()
-			}
-		}).Line().Line()
-	} else {
-		requiredFields = Nil()
-	}
-
-	return AddUnmarshalRestli(def, r.Receiver(), r.Identifier, RecordShouldUsePointer, func(def *Group) {
-		r.generateUnmarshaler(def, requiredFields)
+	requiredFields, def := r.generateRequiredFields(nil)
+	return AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
+		r.generateUnmarshaler(def, requiredFields, nil)
 	})
 }
 
-func (r *Record) generateUnmarshaler(def *Group, requiredFields Code) {
+func (r *Record) generateUnmarshaler(def *Group, requiredFields Code, batchKeyType *RestliType) {
 	if len(r.Fields) == 0 {
 		def.Return(Reader.ReadMap(Reader, func(reader Code, field Code, def *Group) {
 			def.Return(Reader.Skip(reader))
@@ -81,8 +40,14 @@ func (r *Record) generateUnmarshaler(def *Group, requiredFields Code) {
 		return
 	}
 
+	ids := Code(Id(batchkeyset.EntityIDsField))
 	def.Err().Op("=").Add(Reader.ReadRecord(Reader, requiredFields, func(reader, field Code, def *Group) {
 		def.Switch(field).BlockFunc(func(def *Group) {
+			if batchKeyType != nil {
+				def.Case(Lit(batchkeyset.EntityIDsField)).BlockFunc(func(def *Group) {
+					def.Add(Reader.Read(RestliType{Array: batchKeyType}, reader, ids))
+				})
+			}
 			for _, f := range r.Fields {
 				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
 					accessor := r.fieldAccessor(f)
@@ -103,32 +68,67 @@ func (r *Record) generateUnmarshaler(def *Group, requiredFields Code) {
 		})
 		def.Return(Err())
 	}))
-	def.Add(utils.IfErrReturn(Err())).Line()
+	if batchKeyType != nil {
+		def.Add(utils.IfErrReturn(Nil(), Err())).Line()
+	} else {
+		def.Add(utils.IfErrReturn(Err())).Line()
+	}
 
 	if r.hasDefaultValue() {
 		def.Id(r.Receiver()).Dot(utils.PopulateLocalDefaultValues).Call()
 	}
 
-	def.Return(Nil())
+	if batchKeyType != nil {
+		def.Return(ids, Err())
+	} else {
+		def.Return(Err())
+	}
 }
 
-// TODO
-// func (r *Record) generateQueryParamsUnmarhsaler(def *Group, finderName *string) {
-// 	fields := r.SortedFields()
-// 	qIndex := -1
-// 	if finderName != nil {
-// 		qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= FinderNameParam })
-// 		fields = append(fields[:qIndex], append([]Field{{
-// 			Name:       FinderNameParam,
-// 			IsOptional: false,
-// 			Type:       RestliType{Primitive: &StringPrimitive},
-// 		}}, fields[qIndex:]...)...)
-// 	}
-//
-// 	finderNameVar := Id("finderName")
-// 	if finderName != nil {
-// 		def.Var().Add(finderNameVar).String()
-// 		def.Line()
-// 	}
-//
-// }
+func (r *Record) GenerateQueryParamUnmarshaler(batchKeyType *RestliType) Code {
+	requiredFields, def := r.generateRequiredFields(batchKeyType)
+	ids := Code(Id(batchkeyset.EntityIDsField))
+
+	var params []Code
+	if batchKeyType != nil {
+		params = append(params, Add(ids).Index().Add(batchKeyType.GoType()))
+	}
+	params = append(params, Err().Error())
+
+	return utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, "DecodeQueryParams", RecordShouldUsePointer).
+		Params(Add(Reader).Qual(utils.RestLiCodecPackage, "QueryParamsReader")).
+		Params(params...).
+		BlockFunc(func(def *Group) {
+			r.generateUnmarshaler(def, requiredFields, batchKeyType)
+		})
+}
+
+func (r *Record) generateRequiredFields(batchKeyType *RestliType) (requiredFields Code, def *Statement) {
+	hasRequiredFields := batchKeyType != nil
+	for _, f := range r.Fields {
+		if !f.IsOptionalOrDefault() {
+			hasRequiredFields = true
+			break
+		}
+	}
+
+	if hasRequiredFields {
+		requiredFields = Code(Id("_" + r.Name + "RequiredFields"))
+		def = Var().Add(requiredFields).Op("=").Add(utils.RequiredFields).ValuesFunc(func(def *Group) {
+			for _, f := range r.Fields {
+				if !f.IsOptionalOrDefault() {
+					def.Line().Lit(f.Name)
+				}
+			}
+			if batchKeyType != nil {
+				def.Line().Lit(batchkeyset.EntityIDsField)
+			}
+			def.Line()
+		}).Line().Line()
+	} else {
+		requiredFields = Nil()
+		def = Empty()
+	}
+
+	return requiredFields, def
+}

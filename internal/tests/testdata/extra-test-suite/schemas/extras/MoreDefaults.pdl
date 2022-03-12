@@ -1,0 +1,8 @@
+namespace extras
+
+record MoreDefaults {
+  defaultRecord: DefaultTyperef
+  emptyArray: array[string] = []
+  emptyMap: map[string, string] = {}
+  defaultBoolean: boolean = true
+}

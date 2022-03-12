@@ -6,21 +6,55 @@ import (
 	"strings"
 )
 
+type KeyChecker interface {
+	IsKeyExcluded(string) bool
+}
+
 type deserializationScopeSegment struct {
 	segment string
 	isArray bool
 }
 
 type missingFieldsTracker struct {
-	currentScope []deserializationScopeSegment
-	fields       []string
+	excludedFields PathSpec
+	scopeToIgnore  int
+	currentScope   []deserializationScopeSegment
+	missingFields  []string
 }
 
-func (t *missingFieldsTracker) enterMapScope(key string) {
+type ExcludedFieldError string
+
+func (e ExcludedFieldError) Error() string {
+	return fmt.Sprintf("go-restli: Received read-only or create-only field at: %s", string(e))
+}
+
+func (t *missingFieldsTracker) IsKeyExcluded(key string) bool {
+	excluded := t.enterMapScope(key) != nil
+	t.exitScope()
+	return excluded
+}
+
+func (t *missingFieldsTracker) enterMapScope(key string) error {
 	t.currentScope = append(t.currentScope, deserializationScopeSegment{
 		segment: key,
 		isArray: false,
 	})
+	if len(t.currentScope) <= t.scopeToIgnore {
+		return nil
+	}
+	excluded := genericMatches(t.excludedFields, t.currentScope[t.scopeToIgnore:], func(t deserializationScopeSegment) string {
+		if t.isArray {
+			return WildCard
+		} else {
+			return t.segment
+		}
+	})
+	if excluded {
+		return ExcludedFieldError(t.scopeString())
+	} else {
+		return nil
+	}
+
 }
 
 func (t *missingFieldsTracker) enterArrayScope(index int) {
@@ -59,20 +93,25 @@ func (t *missingFieldsTracker) wrapDeserializationError(err error) error {
 	}
 }
 
-func (t *missingFieldsTracker) RecordMissingRequiredFields(fields map[string]struct{}) {
+func (t *missingFieldsTracker) recordMissingRequiredFields(fields map[string]struct{}) {
 	scope := t.scopeString()
 	if len(scope) > 0 {
 		scope += "."
 	}
 	for f := range fields {
-		t.fields = append(t.fields, scope+f)
+		// Required fields that are excluded (e.g. read-only fields during a Create call) should not cause a
+		// MissingRequiredFieldsError
+		if t.IsKeyExcluded(f) {
+			continue
+		}
+		t.missingFields = append(t.missingFields, scope+f)
 	}
 }
 
-func (t *missingFieldsTracker) CheckMissingFields() error {
-	if len(t.fields) != 0 {
-		sort.Strings(t.fields)
-		return &MissingRequiredFieldsError{Fields: t.fields}
+func (t *missingFieldsTracker) checkMissingFields() error {
+	if len(t.missingFields) != 0 {
+		sort.Strings(t.missingFields)
+		return &MissingRequiredFieldsError{Fields: t.missingFields}
 	} else {
 		return nil
 	}

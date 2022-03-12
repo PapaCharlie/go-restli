@@ -26,16 +26,25 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 			"themselves be partially updated.",
 		r.PartialUpdateStructName(), r.Name)
 
-	if len(r.Fields) == 0 {
-		utils.AddWordWrappedComment(def, comment).Line()
-		def.Type().Id(r.PartialUpdateStructName()).Struct().Line()
-
-		return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
-			def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-				def.Return(Nil())
-			}))
-		})
-	}
+	isEmpty := len(r.Fields) == 0
+	// if  == 0 {
+	// 	utils.AddWordWrappedComment(def, comment).Line()
+	// 	def.Type().Id(r.PartialUpdateStructName()).Struct().Line()
+	//
+	// 	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
+	// 		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+	// 			def.Return(Nil())
+	// 		}))
+	// 	})
+	//
+	// 	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
+	// 		def.Return(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
+	// 			def.Return(Reader.Skip(reader))
+	// 		}))
+	// 	})
+	//
+	// 	return def
+	// }
 
 	fields := r.SortedFields()
 
@@ -49,15 +58,17 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	utils.AddWordWrappedComment(def, comment).Line()
 
 	def.Type().Id(r.PartialUpdateStructName()).StructFunc(func(def *Group) {
-		if deletableFieldsStruct != nil {
-			def.Id(DeleteFields).Id(r.PartialUpdateDeleteFieldsStructName())
-		}
+		if !isEmpty {
+			if deletableFieldsStruct != nil {
+				def.Id(DeleteFields).Id(r.PartialUpdateDeleteFieldsStructName())
+			}
 
-		def.Id(SetFields).Id(r.PartialUpdateSetFieldsStructName())
+			def.Id(SetFields).Id(r.PartialUpdateSetFieldsStructName())
 
-		for _, f := range r.Fields {
-			if record := f.Type.Record(); record != nil {
-				def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct())
+			for _, f := range r.Fields {
+				if record := f.Type.Record(); record != nil {
+					def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct())
+				}
 			}
 		}
 	}).Line().Line()
@@ -67,63 +78,140 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	deleteAccessorF := func(f Field) *Statement { return Add(deleteAccessor).Dot(f.FieldName()) }
 	setAccessorF := func(f Field) *Statement { return Add(setAccessor).Dot(f.FieldName()) }
 
-	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
-		checker := Id("checker")
+	checker := Code(Id("checker"))
+	checkAllFields := func(def *Group, keyChecker Code) {
 		def.Add(checker).Op(":=").Qual(utils.ProtocolPackage, "PartialUpdateFieldChecker").Values(Dict{
 			Id("RecordType"): Lit(r.Identifier.String()),
 		})
-
-		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-			for _, f := range r.Fields {
-				var d Code
-				if f.IsOptionalOrDefault() {
-					d = deleteAccessorF(f)
-				} else {
-					d = False()
-				}
-
-				var p Code
-				if f.Type.Record() != nil {
-					p = r.rawFieldAccessor(f).Op("!=").Nil()
-				} else {
-					p = False()
-				}
-
-				def.If(Err().Op("=").Add(checker).Dot("CheckField").Call(
-					Writer,
-					Lit(f.Name),
-					d,
-					setAccessorF(f).Op("!=").Nil(),
-					p,
-				), Err().Op("!=").Nil()).Block(Return(Err()))
+		for _, f := range r.Fields {
+			var d Code
+			if f.IsOptionalOrDefault() {
+				d = deleteAccessorF(f)
+			} else {
+				d = False()
 			}
-			def.Line()
 
-			if deletableFieldsStruct != nil {
-				def.If(Add(checker).Dot("HasDeletes")).BlockFunc(func(def *Group) {
-					def.Err().Op("=").Add(deleteAccessor).Dot(utils.MarshalRestLi).Call(Add(keyWriter).Call(Lit("$delete")))
+			var p Code
+			if f.Type.Record() != nil {
+				p = r.rawFieldAccessor(f).Op("!=").Nil()
+			} else {
+				p = False()
+			}
+
+			def.If(Err().Op("=").Add(checker).Dot("CheckField").Call(
+				keyChecker,
+				Lit(f.Name),
+				d,
+				setAccessorF(f).Op("!=").Nil(),
+				p,
+			), Err().Op("!=").Nil()).Block(Return(Err()))
+		}
+	}
+
+	patch := Qual(utils.ProtocolPackage, "PatchField")
+
+	const marshalPatch = "MarshalRestLiPatch"
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), marshalPatch, utils.Yes).
+		Params(WriterParam).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+				if isEmpty {
+					def.Return(Nil())
+					return
+				}
+				checkAllFields(def, Writer)
+				marshal := func(def *Group, source Code, name string) {
+					def.Err().Op("=").Add(source).Dot(utils.MarshalRestLi).Call(Add(keyWriter).Call(Lit(name)))
 					def.Add(utils.IfErrReturn(Err()))
-				}).Line()
-			}
-
-			def.If(Add(checker).Dot("HasSets")).BlockFunc(func(def *Group) {
-				def.Err().Op("=").Add(setAccessor).Dot(utils.MarshalRestLi).Call(Add(keyWriter).Call(Lit("$set")))
-				def.Add(utils.IfErrReturn(Err()))
-			}).Line()
-
-			for _, f := range fields {
-				if f.Type.Record() != nil {
-					def.Line()
-					accessor := r.rawFieldAccessor(f)
-					def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-						def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-					})
 				}
+				if deletableFieldsStruct != nil {
+					def.If(Add(checker).Dot("HasDeletes")).BlockFunc(func(def *Group) {
+						marshal(def, deleteAccessor, "$delete")
+					}).Line()
+				}
+
+				def.If(Add(checker).Dot("HasSets")).BlockFunc(func(def *Group) {
+					marshal(def, setAccessor, "$set")
+				}).Line()
+
+				for _, f := range fields {
+					if f.Type.Record() != nil {
+						def.Line()
+						accessor := r.rawFieldAccessor(f)
+						def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
+							def.Err().Op("=").Add(accessor).Dot(marshalPatch).Call(Add(keyWriter).Call(Lit(f.Name)))
+							def.Add(utils.IfErrReturn(Err()))
+						})
+					}
+				}
+				def.Line()
+
+				def.Return(Nil())
+			}))
+		}).Line().Line()
+	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
+		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
+			def.Return(Id(r.Receiver()).Dot(marshalPatch).Call(Add(keyWriter).Call(patch).Dot("SetScope").Call()))
+		}))
+	})
+
+	const unmarshalPatch = "UnmarshalRestLiPatch"
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), unmarshalPatch, utils.Yes).
+		Params(ReaderParam).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			if isEmpty {
+				def.Return(Add(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
+					def.Return(Reader.Skip(reader))
+				})))
+				return
 			}
-			def.Line()
+
+			def.Err().Op("=").Add(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
+				def.Switch(key).BlockFunc(func(def *Group) {
+					unmarshal := func(def *Group, accessor Code) {
+						def.Err().Op("=").Add(accessor).Dot(utils.UnmarshalRestLi).Call(reader)
+					}
+					if deletableFieldsStruct != nil {
+						def.Case(Lit("$delete")).BlockFunc(func(def *Group) {
+							unmarshal(def, deleteAccessor)
+						})
+					}
+					def.Case(Lit("$set")).BlockFunc(func(def *Group) {
+						unmarshal(def, setAccessor)
+					})
+
+					for _, f := range fields {
+						if rec := f.Type.Record(); rec != nil {
+							accessor := r.rawFieldAccessor(f)
+							def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
+								def.Add(accessor).Op("=").New(rec.PartialUpdateStruct())
+								def.Err().Op("=").Add(accessor).Dot(unmarshalPatch).Call(reader)
+							})
+						}
+					}
+
+					def.Default().BlockFunc(func(def *Group) {
+						def.Err().Op("=").Add(Reader.Skip(reader))
+					})
+				})
+				def.Return(Err())
+			}))
+			def.Add(utils.IfErrReturn(Err()))
+
+			checkAllFields(def, Reader)
 
 			def.Return(Nil())
-		}))
+		}).Line().Line()
+	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
+		def.Return(Add(Reader.ReadRecord(Reader, Qual(utils.ProtocolPackage, "RequiredPatchRecordFields"), func(reader, key Code, def *Group) {
+			def.If(Add(key).Op("==").Add(patch)).Block(
+				Return(Id(r.Receiver()).Dot(unmarshalPatch).Call(reader)),
+			).Else().Block(
+				Return(Reader.Skip(reader)),
+			)
+		})))
 	})
 
 	return def
@@ -145,17 +233,15 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 	sortFields(fields)
 
 	def := Empty()
-	structName := r.PartialUpdateStructName() + "_" + DeleteFields
-	def.Type().Id(structName).StructFunc(func(def *Group) {
+	def.Type().Id(r.PartialUpdateDeleteFieldsStructName()).StructFunc(func(def *Group) {
 		for _, f := range deletableFields {
 			def.Id(f.FieldName()).Bool()
 		}
 	}).Line().Line()
 
-	return AddMarshalRestLi(def, r.Receiver(), structName, RecordShouldUsePointer, func(def *Group) {
+	deleteType := RestliType{Primitive: &StringPrimitive}
+	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
 		def.Return(Writer.WriteArray(Writer, func(itemWriter Code, def *Group) {
-			deleteType := RestliType{Primitive: &StringPrimitive}
-
 			for _, f := range fields {
 				def.If(r.rawFieldAccessor(f)).Block(
 					Writer.Write(deleteType, Add(itemWriter).Call(), Lit(f.Name)),
@@ -164,32 +250,53 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 			def.Add(Return(Nil()))
 		}))
 	})
+
+	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), func(def *Group) {
+		field := Id("field")
+		def.Var().Add(field).String()
+
+		def.Return(Reader.ReadArray(Reader, func(itemReader Code, def *Group) {
+			def.Add(Reader.Read(deleteType, itemReader, field))
+			def.Add(utils.IfErrReturn(Err())).Line()
+
+			def.Switch(field).BlockFunc(func(def *Group) {
+				for _, f := range r.Fields {
+					if !f.IsOptionalOrDefault() {
+						continue
+					}
+					def.Case(Lit(f.Name)).Block(r.rawFieldAccessor(f).Op("=").True())
+				}
+			})
+			def.Add(Return(Nil()))
+		}))
+	})
+
+	return def
 }
 
 func (r *Record) generatePartialUpdateSetFieldsStruct() *Statement {
-	def := Empty()
+	setRecord := &Record{
+		NamedType: NamedType{
+			Identifier: utils.Identifier{
+				Namespace: r.Namespace,
+				Name:      r.PartialUpdateSetFieldsStructName(),
+			},
+			SourceFile: r.SourceFile,
+			Doc:        "",
+		},
+	}
 
-	fields := r.SortedFields()
+	for _, f := range r.Fields {
+		setRecord.Fields = append(setRecord.Fields, Field{
+			Type:       f.Type,
+			Name:       f.Name,
+			Doc:        f.Name,
+			IsOptional: true,
+		})
+	}
 
-	def.Type().Id(r.PartialUpdateSetFieldsStructName()).StructFunc(func(def *Group) {
-		for _, f := range r.Fields {
-			def.Id(f.FieldName()).Add(Op("*").Add(f.Type.GoType()))
-		}
-	}).Line().Line()
-
-	return AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateSetFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
-		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-			for _, f := range fields {
-				accessor := r.rawFieldAccessor(f)
-				def.If(Add(accessor).Op("!=").Nil()).BlockFunc(func(def *Group) {
-					if f.Type.Reference == nil {
-						accessor = Op("*").Add(accessor)
-					}
-					def.Add(Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err()))
-				})
-				def.Line()
-			}
-			def.Return(Nil())
-		}))
-	}).Line()
+	return Empty().
+		Add(setRecord.GenerateStruct()).Line().Line().
+		Add(setRecord.GenerateMarshalRestLi()).Line().Line().
+		Add(setRecord.GenerateUnmarshalRestLi()).Line().Line()
 }

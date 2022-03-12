@@ -7,8 +7,9 @@ import com.linkedin.restli.restspec.FinderSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestMethodSchema;
 import com.linkedin.restli.restspec.SimpleSchema;
-import io.papacharlie.gorestli.json.Method.PathKey;
+import io.papacharlie.gorestli.json.PathKey;
 import io.papacharlie.gorestli.json.Resource;
+import io.papacharlie.gorestli.json.ResourcePathSegment;
 import io.papacharlie.gorestli.json.RestliType;
 import java.io.File;
 import java.util.Collections;
@@ -19,53 +20,54 @@ import java.util.Set;
 
 public class ResourceParser {
   private final ResourceSchema _schema;
-  private final String _rootResourceName;
   private final TypeParser _typeParser;
   private final List<String> _namespaceChain;
-  private final List<PathKey> _pathKeys;
-  private final PathKey _entityPathKey;
+  private final List<ResourcePathSegment> _resourcePathSegments;
   private final File _resourceFile;
   private final MethodParser _methodParser;
 
-  private ResourceParser(ResourceSchema schema, File resourceFile, String rootResourceName, TypeParser typeParser,
-      List<String> namespaceChain, List<PathKey> pathKeys) {
+  private ResourceParser(ResourceSchema schema, File resourceFile, TypeParser typeParser, List<String> namespaceChain,
+      List<ResourcePathSegment> resourcePathSegments) {
     _schema = schema;
     _resourceFile = resourceFile;
-    _rootResourceName = rootResourceName;
     _typeParser = typeParser;
     _namespaceChain = Utils.append(namespaceChain, schema.getName());
-    _pathKeys = pathKeys;
 
+    PathKey key;
     if (_schema.getCollection() != null) {
-      _entityPathKey =
-          _typeParser.collectionPathKey(_schema.getName(), namespace(), _schema.getCollection(), _resourceFile);
+      key = _typeParser.collectionPathKey(_schema.getName(), namespace(), _schema.getCollection(), _resourceFile);
     } else {
-      _entityPathKey = null;
+      key = null;
     }
-    _methodParser = new MethodParser(_typeParser, _schema, _pathKeys, _entityPathKey);
+    _resourcePathSegments = Utils.append(resourcePathSegments, new ResourcePathSegment(schema.getName(), key));
+
+    _methodParser = new MethodParser(_typeParser, _schema);
   }
 
   private ResourceParser(ResourceParser parent, ResourceSchema subResource) {
     this(
         subResource,
         parent._resourceFile,
-        parent._rootResourceName,
         parent._typeParser,
         parent._namespaceChain,
-        parent._entityPathKey == null ? parent._pathKeys : Utils.append(parent._pathKeys, parent._entityPathKey));
+        parent._resourcePathSegments);
   }
 
   public ResourceParser(ResourceSchema schema, File resourceFile, TypeParser typeParser) {
     this(
         schema,
         resourceFile,
-        schema.getName(),
         typeParser,
         Collections.singletonList(schema.getNamespace()),
         Collections.emptyList());
   }
 
   public Set<Resource> parse() {
+    // Skip parsing association resources and all subresources
+    if (_schema.hasAssociation()) {
+      return Collections.emptySet();
+    }
+
     Resource resource = newResource();
 
     Set<Resource> resourcesAndSubResources = new HashSet<>();
@@ -113,11 +115,10 @@ public class ResourceParser {
         namespace(),
         _schema.getDoc(),
         _resourceFile.getAbsolutePath(),
-        _rootResourceName,
         resourceType,
         readOnlyFields,
         createOnlyFields,
-        _schema.hasCollection()
+        _resourcePathSegments
     );
   }
 

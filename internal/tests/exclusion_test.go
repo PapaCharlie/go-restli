@@ -96,31 +96,40 @@ func TestExcludeOnPartialUpdate(t *testing.T) {
 		"key/part1",
 	)
 
-	excluded := &conflictresolution.LargeRecord_PartialUpdate{
+	roundTrip := func(name string, obj *conflictresolution.LargeRecord_PartialUpdate) {
+		t.Run(name, func(t *testing.T) {
+			require.Error(t, obj.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
+			w := restlicodec.NewCompactJsonWriter()
+			require.NoError(t, obj.MarshalRestLi(w))
+
+			r, err := restlicodec.NewJsonReaderWithExcludedFields([]byte(w.Finalize()), readOnlyFields, 1)
+			require.NoError(t, err)
+			require.Error(t, new(conflictresolution.LargeRecord_PartialUpdate).UnmarshalRestLi(r))
+		})
+	}
+
+	roundTrip("Illegal delete", &conflictresolution.LargeRecord_PartialUpdate{
 		Delete_Fields: conflictresolution.LargeRecord_PartialUpdate_Delete_Fields{
 			OptionalArray: true,
 		},
-	}
-	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
+	})
 
-	excluded = &conflictresolution.LargeRecord_PartialUpdate{
+	roundTrip("Illegal set", &conflictresolution.LargeRecord_PartialUpdate{
 		Set_Fields: conflictresolution.LargeRecord_PartialUpdate_Set_Fields{
 			OptionalArray: new([]int32),
 		},
-	}
-	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
+	})
 
-	excluded = &conflictresolution.LargeRecord_PartialUpdate{
+	excluded := &conflictresolution.LargeRecord_PartialUpdate{
 		Key: &conflictresolution.ComplexKey_PartialUpdate{},
 	}
 	require.NoError(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
 
-	excluded = &conflictresolution.LargeRecord_PartialUpdate{
+	roundTrip("Illegal update", &conflictresolution.LargeRecord_PartialUpdate{
 		Key: &conflictresolution.ComplexKey_PartialUpdate{
 			Set_Fields: conflictresolution.ComplexKey_PartialUpdate_Set_Fields{
 				Part1: protocol.StringPointer(""),
 			},
 		},
-	}
-	require.Error(t, excluded.MarshalRestLi(restlicodec.NewCompactJsonWriterWithExcludedFields(readOnlyFields)))
+	})
 }

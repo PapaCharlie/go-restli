@@ -5,22 +5,34 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity_test"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
-func (s *TestServer) CollectionReturnEntityCreate(t *testing.T, c Client) {
-	e, err := c.Create(&conflictresolution.Message{
+func (o *Operation) CollectionReturnEntityCreate(t *testing.T, c Client) func(t *testing.T) *MockResource {
+	key := &conflictresolution.Message{
 		Message: "test message",
-	})
-	require.NoError(t, err)
-	require.Equal(t, &protocol.CreatedAndReturnedEntity[int64, *conflictresolution.Message]{
-		CreatedEntity: protocol.CreatedEntity[int64]{
+	}
+	expected := &CreatedAndReturnedEntity{
+		CreatedEntity: CreatedEntity{
 			Id:     1,
 			Status: 201,
 		},
 		Entity: &conflictresolution.Message{
 			Message: "test message",
 		},
-	}, e)
+	}
+	e, err := c.Create(key)
+	require.NoError(t, err)
+	require.Equal(t, expected, e)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockCreate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedAndReturnedEntity, err error) {
+				require.Equal(t, key, entity)
+				return expected, nil
+			},
+		}
+	}
 }

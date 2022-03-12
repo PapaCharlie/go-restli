@@ -49,7 +49,7 @@ func (reg typeRegistry) IsCyclic(id Identifier) bool {
 
 func (reg typeRegistry) GenerateTypeCode() (files []*CodeFile) {
 	for id, t := range reg {
-		if id == PagingContextIdentifier || id == RawRecordContextIdentifier {
+		if strings.HasPrefix(id.Namespace, RootPackage) {
 			continue
 		}
 		files = append(files, &CodeFile{
@@ -113,25 +113,6 @@ func (reg typeRegistry) FlagCyclicDependencies() {
 			}
 		}
 	}
-}
-
-func (reg typeRegistry) FindAllDependents(id Identifier) IdentifierSet {
-	dependents := NewIdentifierSet(id)
-	added := true
-	for added {
-		added = false
-		for id, c := range reg {
-			for inner := range c.Type.InnerTypes() {
-				if dependents.Get(inner) {
-					if !dependents.Get(id) {
-						dependents.Add(id)
-						added = true
-					}
-				}
-			}
-		}
-	}
-	return dependents
 }
 
 type Path []Identifier

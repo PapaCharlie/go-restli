@@ -74,6 +74,10 @@ func (u *ror2Writer) writeEmptyArray() {
 	u.writeArrayEnd()
 }
 
+func (u *ror2Writer) WriteInt(v int) {
+	u.Writer.Int(v)
+}
+
 func (u *ror2Writer) WriteInt32(v int32) {
 	u.Writer.Int32(v)
 }
@@ -88,11 +92,11 @@ func (u *ror2Writer) WriteFloat32(v float32) {
 
 func (u *ror2Writer) WriteFloat64(v float64) {
 	switch {
-	case math.IsInf(v, 1):
+	case v > math.MaxFloat64:
 		u.Writer.RawString("Infinity")
-	case math.IsInf(v, -1):
+	case v < -math.MaxFloat64:
 		u.Writer.RawString("-Infinity")
-	case math.IsNaN(v):
+	case v != v:
 		u.Writer.RawString("NaN")
 	default:
 		u.Writer.Float64(v)

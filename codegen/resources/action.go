@@ -10,10 +10,6 @@ import (
 
 type Action struct{ methodImplementation }
 
-func (a *Action) IsSupported() bool {
-	return true
-}
-
 func (a *Action) FuncName() string {
 	return utils.ExportedIdentifier(a.Name + "Action")
 }
@@ -46,13 +42,6 @@ func (a *Action) paramsStructType() string {
 	return a.FuncName() + "Params"
 }
 
-func (m *Method) actionFuncReturnParams(def *Group) {
-	if m.Return != nil {
-		def.Add(m.Return.ReferencedType())
-	}
-	def.Error()
-}
-
 func (a *Action) GenerateCode() *utils.CodeFile {
 	actionName := a.Name + "Action"
 	c := a.Resource.NewCodeFile(actionName)
@@ -72,8 +61,9 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 			},
 			Fields: a.Params,
 		}
-		c.Code.Add(record.GenerateStruct()).Line()
-		c.Code.Add(record.GenerateMarshalRestLi()).Line()
+		c.Code.Add(record.GenerateStruct()).Line().
+			Add(record.GenerateMarshalRestLi()).Line().
+			Add(record.GenerateUnmarshalRestLi()).Line()
 	}
 
 	a.Resource.addClientFuncDeclarations(c.Code, ClientType, a, func(def *Group) {
@@ -84,7 +74,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 		if hasParams {
 			params = ActionParams
 		} else {
-			params = Qual(utils.StdTypesPackage, "EmptyRecord").Values()
+			params = Add(EmptyRecord).Values()
 		}
 
 		f := "DoActionRequest"
@@ -98,4 +88,26 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 	})
 
 	return c
+}
+
+func (a *Action) RegisterMethod(server, resource, segments Code) Code {
+	name := "RegisterAction"
+	if a.Return != nil {
+		name += "WithResults"
+	}
+
+	return Qual(utils.ProtocolPackage, name).CallFunc(func(def *Group) {
+		def.Add(server)
+		def.Add(segments)
+		def.Lit(a.Name)
+
+		if a.Return != nil {
+			def.Line().Add(types.Writer.MarshalerFunc(*a.Return))
+		}
+
+		def.Line().Func().Params(registerParams(a)...).Params(methodReturnParams(a)...).BlockFunc(func(def *Group) {
+			def.Return(resource).Dot(a.FuncName()).Call(splatRpAndParams(a)...)
+		})
+
+	})
 }

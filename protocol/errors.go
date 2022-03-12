@@ -2,13 +2,10 @@ package protocol
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
 	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
 
@@ -22,43 +19,6 @@ type RestLiError struct {
 	// of the response is fully read into ResponseBody then closed
 	Response     *http.Response `json:"-"`
 	ResponseBody []byte         `json:"-"`
-}
-
-func (r *RestLiError) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		io.WriteString(s, r.Error())
-		if r.StackTrace != nil {
-			io.WriteString(s, "\n"+*r.StackTrace)
-		}
-	case 's':
-		io.WriteString(s, r.Error())
-	}
-}
-
-func (r *RestLiError) Error() string {
-	b := strings.Builder{}
-	b.WriteString("RestLiError(status: ")
-
-	if r.Status != nil {
-		b.WriteString(strconv.Itoa(int(*r.Status)))
-	} else {
-		b.WriteString("UNKNOWN")
-	}
-
-	if r.ExceptionClass != nil {
-		b.WriteString(", exceptionClass: ")
-		b.WriteString(*r.ExceptionClass)
-	}
-
-	if r.Message != nil {
-		b.WriteString(", message: ")
-		b.WriteString(*r.Message)
-	}
-
-	b.WriteString(")")
-
-	return b.String()
 }
 
 // UnexpectedStatusCodeError is returned by the Do* methods when the target rest.li service responded with non-2xx code
@@ -94,7 +54,7 @@ func IsErrorResponse(res *http.Response) error {
 			ResponseBody: body,
 			Response:     res,
 		}
-		restLiError.DeserializationError = restLiError.UnmarshalRestLi(restlicodec.NewJsonReader(body))
+		restLiError.DeserializationError = restLiError.UnmarshalJSON(body)
 		if restLiError.Status == nil {
 			restLiError.Status = Int32Pointer(int32(res.StatusCode))
 		}
@@ -150,18 +110,22 @@ func (c *IllegalPartialUpdateError) Error() string {
 	return fmt.Sprintf("go-restli: %s field %q of %q", c.Message, c.Field, c.RecordType)
 }
 
-// BatchRequestResponseError is returned by all the batch methods, and represents the keys on which the operation
-// failed.
-type BatchRequestResponseError[K comparable] map[K]*stdtypes.ErrorResponse
+var NilQueryParams = fmt.Errorf("go-restli: Query params cannot be nil")
 
-func (b BatchRequestResponseError[K]) Error() string {
-	prettyErrors := make(map[string]string, len(b))
-	for k, v := range b {
-		w := restlicodec.NewCompactJsonWriter()
-		_ = v.MarshalRestLi(w)
-		prettyErrors[fmt.Sprintf("%+v", k)] = w.Finalize()
-	}
-	return fmt.Sprintf("go-restli: Not all batch operations successful: %+v", prettyErrors)
+type IllegalEnumConstant struct {
+	Enum     string
+	Constant int
 }
 
-var NilQueryParams = fmt.Errorf("go-restli: Query params cannot be nil")
+func (i *IllegalEnumConstant) Error() string {
+	return fmt.Sprintf("go-restli: Illegal constant for %q enum: %d", i.Enum, i.Constant)
+}
+
+type UnknownEnumValue struct {
+	Enum  string
+	Value string
+}
+
+func (u *UnknownEnumValue) Error() string {
+	return fmt.Sprintf("go-restli: Unknown enum value for %q: %q", u.Enum, u.Value)
+}

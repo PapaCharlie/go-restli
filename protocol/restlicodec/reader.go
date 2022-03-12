@@ -2,11 +2,51 @@ package restlicodec
 
 import (
 	"fmt"
+	"log"
+	"reflect"
 )
 
 // Unmarshaler is the interface that should be implemented by objects that can be deserialized from JSON and ROR2
 type Unmarshaler interface {
 	UnmarshalRestLi(Reader) error
+}
+
+// UnmarshalRestLi calls the corresponding PrimitiveReader method if T is a Primitive (or an int). If T implements
+// Unmarshaler, reflection is used to initialize a new pointer to T, then Unmarshaler.UnmarshalRestLi is called on the
+// new pointer. If *T implements Unmarshaler then Unmarshaler.UnmarshalRestLi is called directly on a pointer to a
+// 0-value of T. Otherwise, this function panics.
+func UnmarshalRestLi[T any](reader Reader) (t T, err error) {
+	if _, ok := any(t).(Unmarshaler); ok {
+		t = reflect.New(reflect.TypeOf(t).Elem()).Interface().(T)
+		return t, any(t).(Unmarshaler).UnmarshalRestLi(reader)
+	}
+	if u, ok := any(&t).(Unmarshaler); ok {
+		return t, u.UnmarshalRestLi(reader)
+	}
+	cast := func(v any, err error) (T, error) {
+		return v.(T), err
+	}
+	switch any(t).(type) {
+	case int:
+		return cast(reader.ReadInt())
+	case int32:
+		return cast(reader.ReadInt32())
+	case int64:
+		return cast(reader.ReadInt64())
+	case float32:
+		return cast(reader.ReadFloat32())
+	case float64:
+		return cast(reader.ReadFloat64())
+	case bool:
+		return cast(reader.ReadBool())
+	case string:
+		return cast(reader.ReadString())
+	case []byte:
+		return cast(reader.ReadBytes())
+	default:
+		log.Panicf("Unknown primitive type: %s", reflect.TypeOf(t))
+		return t, nil
+	}
 }
 
 // The UnmarshalerFunc type is an adapter to allow the use of ordinary functions as unmarshalers, useful for inlining
@@ -41,6 +81,7 @@ type (
 type Reader interface {
 	fmt.Stringer
 	PrimitiveReader
+	KeyChecker
 	// ReadMap tells the Reader that it should expect a map/object as its next input. If it is not (e.g. it is an array
 	// or a primitive) it will return an error.
 	// Note that not using the inner Reader passed to the MapReader may result in undefined behavior.
@@ -68,13 +109,13 @@ type Reader interface {
 type rawReader interface {
 	ReadMap(mapReader MapReader) error
 
-	AtInputStart() bool
-	RecordMissingRequiredFields(missingRequiredFields map[string]struct{})
-	CheckMissingFields() error
+	atInputStart() bool
+	recordMissingRequiredFields(missingRequiredFields map[string]struct{})
+	checkMissingFields() error
 }
 
 func readRecord(reader rawReader, requiredFields RequiredFields, mapReader MapReader) (err error) {
-	atInputStart := reader.AtInputStart()
+	atInputStart := reader.atInputStart()
 	requiredFieldsRemaining := requiredFields.toMap()
 
 	err = reader.ReadMap(func(reader Reader, field string) (err error) {
@@ -90,10 +131,10 @@ func readRecord(reader rawReader, requiredFields RequiredFields, mapReader MapRe
 		return err
 	}
 
-	reader.RecordMissingRequiredFields(requiredFieldsRemaining)
+	reader.recordMissingRequiredFields(requiredFieldsRemaining)
 
 	if atInputStart {
-		return reader.CheckMissingFields()
+		return reader.checkMissingFields()
 	} else {
 		return nil
 	}
@@ -147,4 +188,16 @@ func (rf RequiredFields) toMap() map[string]struct{} {
 		fields[f] = struct{}{}
 	}
 	return fields
+}
+
+func readBytes(s string, err error) ([]byte, error) {
+	if err != nil {
+		return nil, err
+	}
+
+	if s == "" {
+		return nil, nil
+	} else {
+		return []byte(s), nil
+	}
 }

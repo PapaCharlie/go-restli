@@ -64,11 +64,21 @@ func validateRor2Input(data string) error {
 // that if this function does not return an error, it does _not_ mean subsequent calls to the Read* functions will not
 // return an error
 func NewRor2Reader(data string) (Reader, error) {
+	return NewRor2ReaderWithExcludedFields(data, nil, 0)
+}
+
+// NewRor2ReaderWithExcludedFields is the same as NewRor2Reader excepts it will return an error if it reads a field that
+// is excluded based on the given excluded fields.
+func NewRor2ReaderWithExcludedFields(data string, excludedField PathSpec, leadingScopeToIgnore int) (Reader, error) {
 	err := validateRor2Input(data)
 	if err != nil {
 		return nil, err
 	}
 	return &ror2Reader{
+		missingFieldsTracker: missingFieldsTracker{
+			excludedFields: excludedField,
+			scopeToIgnore:  leadingScopeToIgnore,
+		},
 		decoder: url.PathUnescape,
 		data:    []byte(data),
 	}, nil
@@ -120,7 +130,10 @@ loop:
 			u.pos++
 			break loop
 		default:
-			u.enterMapScope(fieldName)
+			err = u.enterMapScope(fieldName)
+			if err != nil {
+				return err
+			}
 			err = mapReader(u, fieldName)
 			if err != nil {
 				return err
@@ -378,26 +391,25 @@ func (u *ror2Reader) ReadBool() (v bool, err error) {
 }
 
 func (u *ror2Reader) ReadString() (v string, err error) {
-	bytes, err := u.ReadBytes()
-	return string(bytes), err
-}
-
-func (u *ror2Reader) ReadBytes() (v []byte, err error) {
 	startPos, err := u.unsafeReadPrimitiveFieldValue()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	s := string(u.data[startPos:u.pos])
 	if len(s) == 0 {
-		return nil, u.errorf("invalid empty element at %d: %q", startPos, string(u.data))
+		return "", u.errorf("invalid empty element at %d: %q", startPos, string(u.data))
 	}
 	if s == emptyString {
-		return nil, nil
+		return "", nil
 	}
 	var decoded string
 	decoded, err = u.decoder(s)
-	return []byte(decoded), u.wrapDeserializationError(err)
+	return decoded, u.wrapDeserializationError(err)
+}
+
+func (u *ror2Reader) ReadBytes() (v []byte, err error) {
+	return readBytes(u.ReadString())
 }
 
 func (u *ror2Reader) errorf(format string, args ...interface{}) error {
@@ -407,7 +419,7 @@ func (u *ror2Reader) errorf(format string, args ...interface{}) error {
 	}
 }
 
-func (u *ror2Reader) AtInputStart() bool {
+func (u *ror2Reader) atInputStart() bool {
 	return u.pos == 0
 }
 

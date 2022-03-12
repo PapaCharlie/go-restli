@@ -64,10 +64,3 @@ func (p *PagingContext) EncodeQueryParams() (rawQuery string, err error) {
 	}
 	return writer.Finalize(), nil
 }
-
-func NewPagingContext(start, count int32) PagingContext {
-	return PagingContext{
-		Count: &count,
-		Start: &start,
-	}
-}

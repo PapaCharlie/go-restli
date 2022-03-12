@@ -2,6 +2,8 @@ package restlicodec
 
 import (
 	"io"
+	"log"
+	"reflect"
 	"sort"
 )
 
@@ -10,12 +12,32 @@ type Marshaler interface {
 	MarshalRestLi(Writer) error
 }
 
-// The MarshalerFunc type is an adapter to allow the use of ordinary functions as marshalers, useful for inlining
-// marshalers instead of defining new types
-type MarshalerFunc func(Writer) error
-
-func (m MarshalerFunc) MarshalRestLi(writer Writer) error {
-	return m(writer)
+// MarshalRestLi calls the corresponding PrimitiveWriter method if T is a Primitive (or an int), and directly calls
+// Marshaler.MarshalRestLi if T is a Marshaler. Otherwise, this function panics.
+func MarshalRestLi[T any](t T, writer Writer) (err error) {
+	switch v := any(t).(type) {
+	case Marshaler:
+		return v.MarshalRestLi(writer)
+	case int:
+		writer.WriteInt(v)
+	case int32:
+		writer.WriteInt32(v)
+	case int64:
+		writer.WriteInt64(v)
+	case float32:
+		writer.WriteFloat32(v)
+	case float64:
+		writer.WriteFloat64(v)
+	case bool:
+		writer.WriteBool(v)
+	case string:
+		writer.WriteString(v)
+	case []byte:
+		writer.WriteBytes(v)
+	default:
+		log.Panicf("Unknown primitive type: %s", reflect.TypeOf(v))
+	}
+	return nil
 }
 
 // Closer provides methods for the underlying Writer to release its buffer and return the constructed objects to the
@@ -36,6 +58,7 @@ type Closer interface {
 // PrimitiveWriter provides the set of functions needed to write the supported rest.li primitives to the backing buffer,
 // according to the rest.li serialization spec: https://linkedin.github.io/rest.li/how_data_is_serialized_for_transport.
 type PrimitiveWriter interface {
+	WriteInt(v int)
 	WriteInt32(v int32)
 	WriteInt64(v int64)
 	WriteFloat32(v float32)
@@ -52,11 +75,18 @@ type WriteCloser interface {
 }
 
 type (
+	// The MarshalerFunc type is an adapter to allow the use of ordinary functions as marshalers, useful for inlining
+	// marshalers instead of defining new types
+	MarshalerFunc                   func(Writer) error
 	PrimitiveMarshaler[T Primitive] func(writer Writer, t T)
 	GenericMarshaler[T any]         func(t T, writer Writer) error
 	ArrayWriter                     func(itemWriter func() Writer) (err error)
 	MapWriter                       func(keyWriter func(key string) Writer) (err error)
 )
+
+func (m MarshalerFunc) MarshalRestLi(writer Writer) error {
+	return m(writer)
+}
 
 // Writer is the interface implemented by all serialization mechanisms supported by rest.li. See the New*Writer
 // functions provided in package for all the supported serialization mechanisms.
@@ -161,7 +191,7 @@ func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
 			writer = sub
 			sub.scope[len(sub.scope)-1] = key
 		} else {
-			writer = noopWriter
+			writer = NoopWriter
 		}
 		return writer
 	})
@@ -259,27 +289,39 @@ func WriteArray[T any](writer Writer, array []T, marshaler GenericMarshaler[T]) 
 	})
 }
 
-func WritePrimitiveArray[T Primitive](writer Writer, array []T, marshaler PrimitiveMarshaler[T]) error {
-	return WriteArray(writer, array, func(t T, writer Writer) error {
-		marshaler(writer, t)
-		return nil
-	})
+func WriteMap[V any](writer Writer, entries map[string]V, marshaler GenericMarshaler[V]) (err error) {
+	return WriteGenericMap(writer, entries, func(s string) (string, error) { return s, nil }, marshaler)
 }
 
-func WriteObjectArray[T Marshaler](writer Writer, array []T) error {
-	return WriteArray(writer, array, T.MarshalRestLi)
-}
-
-func WriteMap[T any](writer Writer, entries map[string]T, marshaler GenericMarshaler[T]) (err error) {
+func WriteGenericMap[K comparable, V any](
+	writer Writer,
+	entries map[K]V,
+	keyMarshaler func(K) (string, error),
+	valueMarshaler GenericMarshaler[V],
+) (err error) {
 	return writer.WriteMap(func(keyWriter func(key string) Writer) (err error) {
-		sortedKeys := make([]string, 0, len(entries))
-		for k := range entries {
-			sortedKeys = append(sortedKeys, k)
+		if len(entries) == 0 {
+			return nil
 		}
-		sort.Strings(sortedKeys)
+		sortedEntries := make([]struct {
+			key   string
+			value V
+		}, len(entries))
+		i := 0
+		for k, v := range entries {
+			sortedEntries[i].key, err = keyMarshaler(k)
+			if err != nil {
+				return err
+			}
+			sortedEntries[i].value = v
+			i++
+		}
+		sort.Slice(sortedEntries, func(i, j int) bool {
+			return sortedEntries[i].key < sortedEntries[j].key
+		})
 
-		for _, k := range sortedKeys {
-			err = marshaler(entries[k], keyWriter(k))
+		for _, e := range sortedEntries {
+			err = valueMarshaler(e.value, keyWriter(e.key))
 			if err != nil {
 				return err
 			}
@@ -288,13 +330,37 @@ func WriteMap[T any](writer Writer, entries map[string]T, marshaler GenericMarsh
 	})
 }
 
-func WritePrimitiveMap[T Primitive](writer Writer, entries map[string]T, marshaler PrimitiveMarshaler[T]) error {
-	return WriteMap(writer, entries, func(t T, writer Writer) error {
-		marshaler(writer, t)
-		return nil
-	})
+func WriteInt32(v int32, w Writer) error {
+	w.WriteInt32(v)
+	return nil
 }
 
-func WriteObjectMap[T Marshaler](writer Writer, entries map[string]T) error {
-	return WriteMap(writer, entries, T.MarshalRestLi)
+func WriteInt64(v int64, w Writer) error {
+	w.WriteInt64(v)
+	return nil
+}
+
+func WriteFloat32(v float32, w Writer) error {
+	w.WriteFloat32(v)
+	return nil
+}
+
+func WriteFloat64(v float64, w Writer) error {
+	w.WriteFloat64(v)
+	return nil
+}
+
+func WriteBool(v bool, w Writer) error {
+	w.WriteBool(v)
+	return nil
+}
+
+func WriteString(v string, w Writer) error {
+	w.WriteString(v)
+	return nil
+}
+
+func WriteBytes(v []byte, w Writer) error {
+	w.WriteBytes(v)
+	return nil
 }

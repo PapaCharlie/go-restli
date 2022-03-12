@@ -6,36 +6,74 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet_test"
+	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
-func (s *TestServer) ActionsetEcho(t *testing.T, c Client) {
+func (o *Operation) ActionsetEcho(t *testing.T, c Client) func(*testing.T) *MockResource {
 	input := "Is anybody out there?"
 	output, err := c.EchoAction(&EchoActionParams{Input: input})
 	require.NoError(t, err)
 	require.Equal(t, input, output, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoAction: func(ctx *protocol.RequestContext, actionParams *EchoActionParams) (actionResult string, err error) {
+				require.Equal(t, input, actionParams.Input)
+				return actionParams.Input, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetReturnInt(t *testing.T, c Client) {
+func (o *Operation) ActionsetReturnInt(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expected := int32(42)
 	res, err := c.ReturnIntAction()
 	require.NoError(t, err)
-	require.Equal(t, int32(42), res, "Invalid response from server")
+	require.Equal(t, expected, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockReturnIntAction: func(ctx *protocol.RequestContext) (actionResult int32, err error) {
+				return 42, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetReturnBool(t *testing.T, c Client) {
+func (o *Operation) ActionsetReturnBool(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expected := true
 	res, err := c.ReturnBoolAction()
 	require.NoError(t, err)
-	require.Equal(t, true, res, "Invalid response from server")
+	require.Equal(t, expected, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockReturnBoolAction: func(ctx *protocol.RequestContext) (actionResult bool, err error) {
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoMessage(t *testing.T, c Client) {
+func (o *Operation) ActionsetEchoMessage(t *testing.T, c Client) func(*testing.T) *MockResource {
 	message := conflictresolution.Message{Message: "test message"}
 	res, err := c.EchoMessageAction(&EchoMessageActionParams{Message: message})
 	require.NoError(t, err)
 	require.Equal(t, &message, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoMessageAction: func(ctx *protocol.RequestContext, actionParams *EchoMessageActionParams) (actionResult *conflictresolution.Message, err error) {
+				require.Equal(t, message, actionParams.Message)
+				return &message, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoMessageArray(t *testing.T, c Client) {
+func (o *Operation) ActionsetEchoMessageArray(t *testing.T, c Client) func(*testing.T) *MockResource {
 	messageArray := []*conflictresolution.Message{
 		{Message: "test message"},
 		{Message: "another message"},
@@ -43,16 +81,34 @@ func (s *TestServer) ActionsetEchoMessageArray(t *testing.T, c Client) {
 	res, err := c.EchoMessageArrayAction(&EchoMessageArrayActionParams{Messages: messageArray})
 	require.NoError(t, err)
 	require.Equal(t, messageArray, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoMessageArrayAction: func(ctx *protocol.RequestContext, actionParams *EchoMessageArrayActionParams) (actionResult []*conflictresolution.Message, err error) {
+				require.Equal(t, messageArray, actionParams.Messages)
+				return messageArray, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoStringArray(t *testing.T, c Client) {
+func (o *Operation) ActionsetEchoStringArray(t *testing.T, c Client) func(*testing.T) *MockResource {
 	stringArray := []string{"string one", "string two"}
 	res, err := c.EchoStringArrayAction(&EchoStringArrayActionParams{Strings: stringArray})
 	require.NoError(t, err)
 	require.Equal(t, stringArray, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoStringArrayAction: func(ctx *protocol.RequestContext, actionParams *EchoStringArrayActionParams) (actionResult []string, err error) {
+				require.Equal(t, stringArray, actionParams.Strings)
+				return stringArray, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoStringMap(t *testing.T, c Client) {
+func (o *Operation) ActionsetEchoStringMap(t *testing.T, c Client) func(*testing.T) *MockResource {
 	stringMap := map[string]string{
 		"one": "string one",
 		"two": "string two",
@@ -60,61 +116,125 @@ func (s *TestServer) ActionsetEchoStringMap(t *testing.T, c Client) {
 	res, err := c.EchoStringMapAction(&EchoStringMapActionParams{Strings: stringMap})
 	require.NoError(t, err)
 	require.Equal(t, stringMap, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoStringMapAction: func(ctx *protocol.RequestContext, actionParams *EchoStringMapActionParams) (actionResult map[string]string, err error) {
+				require.Equal(t, stringMap, actionParams.Strings)
+				return stringMap, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoTyperefUrl(t *testing.T, c Client) {
+func (o *Operation) ActionsetEchoTyperefUrl(t *testing.T, c Client) func(*testing.T) *MockResource {
 	urlTyperef := testsuite.Url("http://rest.li")
 	res, err := c.EchoTyperefUrlAction(&EchoTyperefUrlActionParams{UrlTyperef: urlTyperef})
 	require.NoError(t, err)
 	require.Equal(t, urlTyperef, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoTyperefUrlAction: func(_ *protocol.RequestContext, actionParams *EchoTyperefUrlActionParams) (actionResult testsuite.Url, err error) {
+				require.Equal(t, urlTyperef, actionParams.UrlTyperef)
+				return urlTyperef, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) {
-	var union testsuite.UnionOfPrimitives
-	union.PrimitivesUnion.Long = new(int64)
-	*union.PrimitivesUnion.Long = 100
-
-	res, err := c.EchoPrimitiveUnionAction(&EchoPrimitiveUnionActionParams{PrimitiveUnion: union})
+func (o *Operation) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) func(*testing.T) *MockResource {
+	union := &testsuite.UnionOfPrimitives{
+		PrimitivesUnion: testsuite.UnionOfPrimitives_PrimitivesUnion{Long: protocol.Int64Pointer(100)},
+	}
+	res, err := c.EchoPrimitiveUnionAction(&EchoPrimitiveUnionActionParams{PrimitiveUnion: *union})
 	require.NoError(t, err)
-	require.Equal(t, &union, res, "Invalid response from server")
+	require.Equal(t, union, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoPrimitiveUnionAction: func(ctx *protocol.RequestContext, actionParams *EchoPrimitiveUnionActionParams) (actionResult *testsuite.UnionOfPrimitives, err error) {
+				require.Equal(t, *union, actionParams.PrimitiveUnion)
+				return union, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) {
-	union := &testsuite.UnionOfComplexTypes{}
-	union.ComplexTypeUnion.Fruits = new(conflictresolution.Fruits)
-	*union.ComplexTypeUnion.Fruits = conflictresolution.Fruits_APPLE
-
+func (o *Operation) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) func(*testing.T) *MockResource {
+	union := &testsuite.UnionOfComplexTypes{
+		ComplexTypeUnion: testsuite.UnionOfComplexTypes_ComplexTypeUnion{
+			Fruits: conflictresolution.Fruits_APPLE.Pointer(),
+		},
+	}
 	res, err := c.EchoComplexTypesUnionAction(&EchoComplexTypesUnionActionParams{ComplexTypesUnion: *union})
 	require.NoError(t, err)
-	require.Equal(t, *union, *res, "Invalid response from server")
+	require.Equal(t, union, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEchoComplexTypesUnionAction: func(_ *protocol.RequestContext, actionParams *EchoComplexTypesUnionActionParams) (actionResult *testsuite.UnionOfComplexTypes, err error) {
+				require.Equal(t, *union, actionParams.ComplexTypesUnion)
+				return union, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetEmptyResponse(t *testing.T, c Client) {
-	err := c.EmptyResponseAction(&EmptyResponseActionParams{
+func (o *Operation) ActionsetEmptyResponse(t *testing.T, c Client) func(*testing.T) *MockResource {
+	params := &EmptyResponseActionParams{
 		Message1: conflictresolution.Message{Message: "test message"},
 		Message2: conflictresolution.Message{Message: "another message"},
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, c.EmptyResponseAction(params))
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockEmptyResponseAction: func(_ *protocol.RequestContext, actionParams *EmptyResponseActionParams) (err error) {
+				require.Equal(t, params, actionParams)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetMultipleInputs(t *testing.T, c Client) {
-	optionalString := "optional string"
-	res, err := c.MultipleInputsAction(&MultipleInputsActionParams{
+func (o *Operation) ActionsetMultipleInputs(t *testing.T, c Client) func(*testing.T) *MockResource {
+	params := &MultipleInputsActionParams{
 		String:         "string",
 		Message:        conflictresolution.Message{Message: "test message"},
 		UrlTyperef:     "http://rest.li",
-		OptionalString: &optionalString,
-	})
+		OptionalString: protocol.StringPointer("optional string"),
+	}
+	res, err := c.MultipleInputsAction(params)
 	require.NoError(t, err)
 	require.True(t, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockMultipleInputsAction: func(ctx *protocol.RequestContext, actionParams *MultipleInputsActionParams) (actionResult bool, err error) {
+				require.Equal(t, params, actionParams)
+				return true, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) ActionsetMultipleInputsNoOptional(t *testing.T, c Client) {
-	res, err := c.MultipleInputsAction(&MultipleInputsActionParams{
+func (o *Operation) ActionsetMultipleInputsNoOptional(t *testing.T, c Client) func(*testing.T) *MockResource {
+	params := &MultipleInputsActionParams{
 		String:     "string",
 		Message:    conflictresolution.Message{Message: "test message"},
 		UrlTyperef: "http//rest.li",
-	})
+	}
+	res, err := c.MultipleInputsAction(params)
 	require.NoError(t, err)
 	require.True(t, res, "Invalid response from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockMultipleInputsAction: func(_ *protocol.RequestContext, actionParams *MultipleInputsActionParams) (actionResult bool, err error) {
+				require.Equal(t, params, actionParams)
+				return true, nil
+			},
+		}
+	}
 }

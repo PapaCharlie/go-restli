@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -59,7 +60,7 @@ type RestLiClient struct {
 	StrictResponseDeserialization bool
 }
 
-func (c *RestLiClient) FormatQueryUrl(rp ResourcePath, query QueryParams) (*url.URL, error) {
+func (c *RestLiClient) FormatQueryUrl(rp ResourcePath, query QueryParamsEncoder) (*url.URL, error) {
 	path, err := rp.ResourcePath()
 	if err != nil {
 		return nil, err
@@ -112,60 +113,84 @@ func SetRestLiHeaders(req *http.Request, method RestLiMethod) {
 	req.Header.Set(RestLiHeader_Method, method.String())
 }
 
-// NewGetRequest creates a GET http.Request and sets the expected rest.li headers
-func NewGetRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), http.NoBody)
+func newRequest(
+	c *RestLiClient,
+	ctx context.Context,
+	rp ResourcePath,
+	query QueryParamsEncoder,
+	httpMethod string,
+	method RestLiMethod,
+	body io.Reader,
+) (*http.Request, error) {
+	u, err := c.FormatQueryUrl(rp, query)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, httpMethod, u.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
 	SetRestLiHeaders(req, method)
+	return req, nil
+}
+
+// NewGetRequest creates a GET http.Request and sets the expected rest.li headers
+func NewGetRequest(
+	c *RestLiClient,
+	ctx context.Context,
+	rp ResourcePath,
+	query QueryParamsEncoder,
+	method RestLiMethod,
+) (*http.Request, error) {
+	req, err := newRequest(c, ctx, rp, query, http.MethodGet, method, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
 	SetJsonAcceptHeader(req)
 
 	return req, nil
 }
 
 // NewDeleteRequest creates a DELETE http.Request and sets the expected rest.li headers
-func NewDeleteRequest(ctx context.Context, url *url.URL, method RestLiMethod) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url.String(), http.NoBody)
+func NewDeleteRequest(
+	c *RestLiClient,
+	ctx context.Context,
+	rp ResourcePath,
+	query QueryParamsEncoder,
+	method RestLiMethod,
+) (*http.Request, error) {
+	req, err := newRequest(c, ctx, rp, query, http.MethodDelete, method, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
 
-	SetRestLiHeaders(req, method)
 	SetJsonAcceptHeader(req)
 
 	return req, nil
 }
 
-func CreateRequest(
+func NewCreateRequest(
+	c *RestLiClient,
 	ctx context.Context,
-	url *url.URL,
+	rp ResourcePath,
+	query QueryParamsEncoder,
 	method RestLiMethod,
 	create restlicodec.Marshaler,
 	readOnlyFields restlicodec.PathSpec,
 ) (*http.Request, error) {
-	return NewJsonRequest(ctx, url, http.MethodPost, method, create, readOnlyFields)
-}
-
-func BatchCreateRequest[T restlicodec.Marshaler](
-	ctx context.Context,
-	url *url.URL,
-	create []T,
-	readOnlyFields restlicodec.PathSpec,
-) (*http.Request, error) {
-	return CreateRequest(ctx, url, Method_batch_create, restlicodec.MarshalerFunc(func(writer restlicodec.Writer) error {
-		return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) (err error) {
-			return restlicodec.WriteObjectArray(keyWriter(elementsField), create)
-		})
-	}), readOnlyFields)
+	return NewJsonRequest(c, ctx, rp, query, http.MethodPost, method, create, readOnlyFields)
 }
 
 // NewJsonRequest creates an http.Request with the given HTTP method and rest.li method, and populates the body of the
 // request with the given restlicodec.Marshaler contents (see RawJsonRequest)
 func NewJsonRequest(
+	c *RestLiClient,
 	ctx context.Context,
-	url *url.URL,
+	rp ResourcePath,
+	query QueryParamsEncoder,
 	httpMethod string,
 	restLiMethod RestLiMethod,
 	contents restlicodec.Marshaler,
@@ -178,13 +203,11 @@ func NewJsonRequest(
 	}
 
 	size := writer.Size()
-
-	req, err := http.NewRequestWithContext(ctx, httpMethod, url.String(), writer.ReadCloser())
+	req, err := newRequest(c, ctx, rp, query, httpMethod, restLiMethod, writer.ReadCloser())
 	if err != nil {
 		return nil, err
 	}
 
-	SetRestLiHeaders(req, restLiMethod)
 	SetJsonAcceptHeader(req)
 	SetJsonContentTypeHeader(req)
 
@@ -223,7 +246,11 @@ func DoAndUnmarshal[V any](
 		return v, res, err
 	}
 
-	v, err = unmarshaler(restlicodec.NewJsonReader(data))
+	r, err := restlicodec.NewJsonReader(data)
+	if err != nil {
+		return v, res, err
+	}
+	v, err = unmarshaler(r)
 	if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.StrictResponseDeserialization {
 		err = nil
 	}
@@ -232,7 +259,7 @@ func DoAndUnmarshal[V any](
 
 // DoAndIgnore calls Do and drops the response's body. The response body will always be read to EOF and closed, to
 // ensure the connection can be reused.
-func (c *RestLiClient) DoAndIgnore(req *http.Request) (*http.Response, error) {
+func DoAndIgnore(c *RestLiClient, req *http.Request) (*http.Response, error) {
 	_, res, err := c.do(req)
 	return res, err
 }

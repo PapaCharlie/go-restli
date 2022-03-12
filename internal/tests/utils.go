@@ -12,13 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Must(req *http.Request, err error) *http.Request {
-	if err != nil {
-		log.Panicln(err)
-	}
-	return req
-}
-
 func ReadRequestFromFile(filename string) (*http.Request, []byte, error) {
 	reqBytes, err := ioutil.ReadFile(filename)
 	if err != nil {

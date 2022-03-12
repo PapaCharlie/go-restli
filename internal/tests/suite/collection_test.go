@@ -1,79 +1,171 @@
 package suite
 
 import (
+	"net/http"
 	"testing"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
-	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
+	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
+	subcollectiontest "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection_test"
 	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple"
+	colletionSubSimpletest "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple_test"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection_test"
 	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 	"github.com/stretchr/testify/require"
 )
 
-func (s *TestServer) CollectionCreate(t *testing.T, c Client) {
-	id, err := c.Create(&conflictresolution.Message{
+func (o *Operation) CollectionCreate(t *testing.T, c Client) func(*testing.T) *MockResource {
+	message := &conflictresolution.Message{
 		Message: "test message",
-	})
-	require.NoError(t, err)
-	require.Equal(t, &protocol.CreatedEntity[int64]{
+	}
+	returned := &CreatedEntity{
 		Id:     1,
 		Status: 201,
-	}, id)
+	}
+	id, err := c.Create(message)
+	require.NoError(t, err)
+	require.Equal(t, returned, id)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockCreate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedEntity, err error) {
+				require.Equal(t, message, entity)
+				return returned, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionCreate500(t *testing.T, c Client) {
-	id, err := c.Create(newMessage(3, "internal error test"))
+func (o *Operation) CollectionCreate500(t *testing.T, c Client) func(*testing.T) *MockResource {
+	message := newMessage(3, "internal error test")
+	id, err := c.Create(message)
 	require.Errorf(t, err, "Did not receive an error from the server (got %+v)", id)
 	require.Equal(t, err.(*protocol.RestLiError).Response.StatusCode, 500)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockCreate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedEntity, err error) {
+				require.Equal(t, message, entity)
+				return nil, &stdtypes.ErrorResponse{
+					Status: protocol.Int32Pointer(http.StatusInternalServerError),
+				}
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionCreateErrorDetails(t *testing.T, c Client) {
-	id, err := c.Create(newMessage(3, "error details test"))
+func (o *Operation) CollectionCreateErrorDetails(t *testing.T, c Client) func(*testing.T) *MockResource {
+	message := newMessage(3, "error details test")
+	id, err := c.Create(message)
 	require.Errorf(t, err, "Did not receive an error from the server (got %+v)", id)
 	require.Equal(t, err.(*protocol.RestLiError).Response.StatusCode, 400)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockCreate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedEntity, err error) {
+				require.Equal(t, message, entity)
+				return nil, &stdtypes.ErrorResponse{Status: protocol.Int32Pointer(http.StatusBadRequest)}
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionGet(t *testing.T, c Client) {
+func (o *Operation) CollectionGet(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := int64(1)
+	expected := newMessage(id, "test message")
 	res, err := c.Get(id)
 	require.NoError(t, err)
-	require.Equal(t, newMessage(id, "test message"), res)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGet: func(ctx *protocol.RequestContext, collectionId int64) (entity *conflictresolution.Message, err error) {
+				require.Equal(t, id, collectionId)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionUpdate(t *testing.T, c Client) {
+func (o *Operation) CollectionUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := int64(1)
-	err := c.Update(id, newMessage(id, "updated message"))
+	expected := newMessage(id, "updated message")
+	err := c.Update(id, expected)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockUpdate: func(ctx *protocol.RequestContext, collectionId int64, entity *conflictresolution.Message) (err error) {
+				require.Equal(t, id, collectionId)
+				require.Equal(t, expected, entity)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionDelete(t *testing.T, c Client) {
+func (o *Operation) CollectionDelete(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := int64(1)
 	err := c.Delete(id)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockDelete: func(ctx *protocol.RequestContext, collectionId int64) (err error) {
+				require.Equal(t, id, collectionId)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionGet404(t *testing.T, c Client) {
-	m, err := c.Get(2)
-	require.Errorf(t, err, "Did not receive an error from the server (got %+v)", m)
+func (o *Operation) CollectionGet404(t *testing.T, c Client) func(*testing.T) *MockResource {
+	id := int64(2)
+	_, err := c.Get(id)
+	require.Error(t, err)
 	require.Equal(t, 404, err.(*protocol.RestLiError).Response.StatusCode, "Unexpected status code from server")
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGet: func(ctx *protocol.RequestContext, collectionId int64) (entity *conflictresolution.Message, err error) {
+				return nil, &stdtypes.ErrorResponse{
+					Status: protocol.Int32Pointer(http.StatusNotFound),
+				}
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionUpdate400(t *testing.T, _ Client) {
+func (o *Operation) CollectionUpdate400(t *testing.T, _ Client) func(*testing.T) *MockResource {
 	t.Log("It is impossible to craft the request required using the generated code because it would require a field " +
 		"to be deliberately missing. This can be chalked up as a win for the generated code's safety.")
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockUpdate: func(ctx *protocol.RequestContext, collectionId int64, entity *conflictresolution.Message) (err error) {
+				id := int64(1)
+				require.Equal(t, id, collectionId)
+				require.Equal(t, &conflictresolution.Message{Id: &id}, entity)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
+func (o *Operation) CollectionSearchFinder(t *testing.T, c Client) func(*testing.T) *MockResource {
 	params := &FindBySearchParams{Keyword: "message"}
-	expectedMessages := &protocol.FinderResultsWithMetadata[*conflictresolution.Message, *testsuite.Optionals]{
-		FinderResults: protocol.FinderResults[*conflictresolution.Message]{
-			Results: []*conflictresolution.Message{
+	expectedMessages := &FindBySearchElements{
+		Elements: protocol.Elements[*conflictresolution.Message]{
+			Elements: []*conflictresolution.Message{
 				newMessage(1, "test message"),
 				newMessage(2, "another message"),
 			},
-			Total: protocol.IntPointer(2),
+			Paging: &stdtypes.CollectionMedata{
+				Count: 10,
+				Total: protocol.Int32Pointer(2),
+			},
 		},
 		Metadata: &testsuite.Optionals{
 			OptionalLong:   protocol.Int64Pointer(5),
@@ -84,28 +176,72 @@ func (s *TestServer) CollectionSearchFinder(t *testing.T, c Client) {
 	res, err := c.FindBySearch(params)
 	require.NoError(t, err)
 	require.Equal(t, expectedMessages, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockFindBySearch: func(ctx *protocol.RequestContext, queryParams *FindBySearchParams) (results *FindBySearchElements, err error) {
+				require.Equal(t, params, queryParams)
+				return expectedMessages, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionPartialUpdate(t *testing.T, c Client) {
+func (o *Operation) CollectionPartialUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	id := int64(1)
-	patch := new(conflictresolution.Message_PartialUpdate)
-	message := "partial updated message"
-	patch.Set_Fields.Message = &message
+	patch := &conflictresolution.Message_PartialUpdate{
+		Set_Fields: conflictresolution.Message_PartialUpdate_Set_Fields{
+			Message: protocol.StringPointer("partial updated message"),
+		},
+	}
 	err := c.PartialUpdate(id, patch)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockPartialUpdate: func(ctx *protocol.RequestContext, collectionId int64, entity *conflictresolution.Message_PartialUpdate) (err error) {
+				require.Equal(t, id, collectionId)
+				require.Equal(t, patch, entity)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) SubCollectionOfCollectionGet(t *testing.T, _ Client) {
-	id := int64(100)
-	res, err := colletionSubCollection.NewClient(s.client).Get(1, id)
+func (o *Operation) SubCollectionOfCollectionGet(t *testing.T, c subcollection.Client) func(*testing.T) *subcollectiontest.MockResource {
+	id := int64(1)
+	subId := int64(100)
+	expected := newMessage(subId, "sub collection message")
+	res, err := c.Get(id, subId)
 	require.NoError(t, err)
-	require.Equal(t, newMessage(id, "sub collection message"), res)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *subcollectiontest.MockResource {
+		return &subcollectiontest.MockResource{
+			MockGet: func(ctx *protocol.RequestContext, collectionId int64, subcollectionId int64) (entity *conflictresolution.Message, err error) {
+				require.Equal(t, id, collectionId)
+				require.Equal(t, subId, subcollectionId)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) SubSimpleOfCollectionGet(t *testing.T, _ Client) {
-	res, err := colletionSubSimple.NewClient(s.client).Get(1)
+func (o *Operation) SubSimpleOfCollectionGet(t *testing.T, c colletionSubSimple.Client) func(*testing.T) *colletionSubSimpletest.MockResource {
+	id := int64(1)
+	expected := &conflictresolution.Message{Message: "sub simple message"}
+	res, err := c.Get(id)
 	require.NoError(t, err)
-	require.Equal(t, &conflictresolution.Message{Message: "sub simple message"}, res, "Invalid response from server")
+	require.Equal(t, expected, res, "Invalid response from server")
+
+	return func(t *testing.T) *colletionSubSimpletest.MockResource {
+		return &colletionSubSimpletest.MockResource{
+			MockGet: func(ctx *protocol.RequestContext, collectionId int64) (entity *conflictresolution.Message, err error) {
+				require.Equal(t, id, collectionId)
+				return expected, nil
+			},
+		}
+	}
 }
 
 func newMessage(id int64, message string) *conflictresolution.Message {
@@ -115,40 +251,65 @@ func newMessage(id int64, message string) *conflictresolution.Message {
 	}
 }
 
-func (s *TestServer) CollectionBatchDelete(t *testing.T, c Client) {
-	keys := []int64{1, 3}
-	res, err := c.BatchDelete(keys)
+func (o *Operation) CollectionBatchDelete(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expectedKeys := []int64{1, 3}
+	expected := &BatchResponse{
+		Results: map[int64]*protocol.BatchEntityUpdateResponse{
+			expectedKeys[0]: {
+				Status: 204,
+			},
+			expectedKeys[1]: {
+				Status: 404,
+			},
+		},
+	}
+	res, err := c.BatchDelete(expectedKeys)
 	require.NoError(t, err)
-	require.Equal(t, map[int64]*protocol.BatchEntityUpdateResponse{
-		keys[0]: {
-			Status: 204,
-		},
-		keys[1]: {
-			Status: 404,
-		},
-	}, res)
+	requiredBatchResponseEquals(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchDelete: func(ctx *protocol.RequestContext, keys []int64) (results *BatchResponse, err error) {
+				require.Equal(t, expectedKeys, keys)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionBatchGet(t *testing.T, c Client) {
-	keys := []int64{1, 3}
-	two := int64(2)
-	res, err := c.BatchGet(keys)
+func (o *Operation) CollectionBatchGet(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expectedKeys := []int64{1, 3}
+	expected := &BatchEntities{
+		Errors: map[int64]*stdtypes.ErrorResponse{},
+		Results: map[int64]*conflictresolution.Message{
+			expectedKeys[0]: {
+				Id:      &expectedKeys[0],
+				Message: "test message",
+			},
+			expectedKeys[1]: {
+				Id:      protocol.Int64Pointer(2),
+				Message: "another message",
+			},
+		},
+		Statuses: map[int64]int{},
+	}
+	actual, err := c.BatchGet(expectedKeys)
 	require.NoError(t, err)
-	require.Equal(t, map[int64]*conflictresolution.Message{
-		keys[0]: {
-			Id:      &keys[0],
-			Message: "test message",
-		},
-		keys[1]: {
-			Id:      &two,
-			Message: "another message",
-		},
-	}, res)
+	requiredBatchResponseEquals(t, expected, actual)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchGet: func(ctx *protocol.RequestContext, keys []int64) (results *BatchEntities, err error) {
+				require.Equal(t, expectedKeys, keys)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
+func (o *Operation) CollectionBatchUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	keys := []int64{1, 3}
-	res, err := c.BatchUpdate(map[int64]*conflictresolution.Message{
+	update := map[int64]*conflictresolution.Message{
 		keys[0]: {
 			Id:      &keys[0],
 			Message: "updated message",
@@ -157,26 +318,39 @@ func (s *TestServer) CollectionBatchUpdate(t *testing.T, c Client) {
 			Id:      &keys[1],
 			Message: "inserted message",
 		},
-	})
+	}
+	expected := &BatchResponse{
+		Results: map[int64]*protocol.BatchEntityUpdateResponse{
+			keys[0]: {
+				Status: 204,
+			},
+			keys[1]: {
+				Status: 201,
+			},
+		},
+	}
+	actual, err := c.BatchUpdate(update)
 	require.NoError(t, err)
-	require.Equal(t, map[int64]*protocol.BatchEntityUpdateResponse{
-		keys[0]: {
-			Status: 204,
-		},
-		keys[1]: {
-			Status: 201,
-		},
-	}, res)
+	requiredBatchResponseEquals(t, expected, actual)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchUpdate: func(ctx *protocol.RequestContext, entities map[int64]*conflictresolution.Message) (results *BatchResponse, err error) {
+				require.Equal(t, update, entities)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionBatchUpdateErrors(t *testing.T, _ Client) {
+func (o *Operation) CollectionBatchUpdateErrors(t *testing.T, _ Client) {
 	t.Log("It's impossible to produce the desired update for the same reason CollectionUpdate400 is skipped. Parsing " +
 		"batch response errors is tested in SimpleComplexKeyBatchUpdateWithErrors")
 }
 
-func (s *TestServer) CollectionBatchPartialUpdate(t *testing.T, c Client) {
+func (o *Operation) CollectionBatchPartialUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
 	keys := []int64{1, 3}
-	res, err := c.BatchPartialUpdate(map[int64]*conflictresolution.Message_PartialUpdate{
+	partial := map[int64]*conflictresolution.Message_PartialUpdate{
 		keys[0]: {
 			Set_Fields: conflictresolution.Message_PartialUpdate_Set_Fields{
 				Message: protocol.StringPointer("partial updated message"),
@@ -187,36 +361,63 @@ func (s *TestServer) CollectionBatchPartialUpdate(t *testing.T, c Client) {
 				Message: protocol.StringPointer("another partial message"),
 			},
 		},
-	})
+	}
+	expected := &BatchResponse{
+		Results: map[int64]*protocol.BatchEntityUpdateResponse{
+			keys[0]: {
+				Status: 204,
+			},
+			keys[1]: {
+				Status: 204,
+			},
+		},
+	}
+	actual, err := c.BatchPartialUpdate(partial)
 	require.NoError(t, err)
-	require.Equal(t, map[int64]*protocol.BatchEntityUpdateResponse{
-		keys[0]: {
-			Status: 204,
-		},
-		keys[1]: {
-			Status: 204,
-		},
-	}, res)
+	requiredBatchResponseEquals(t, expected, actual)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchPartialUpdate: func(ctx *protocol.RequestContext, entities map[int64]*conflictresolution.Message_PartialUpdate) (results *BatchResponse, err error) {
+				require.Equal(t, partial, entities)
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) CollectionBatchCreate(t *testing.T, c Client) {
-	res, err := c.BatchCreate([]*conflictresolution.Message{
+func (o *Operation) CollectionBatchCreate(t *testing.T, c Client) func(*testing.T) *MockResource {
+	create := []*conflictresolution.Message{
 		{
 			Message: "test message",
 		},
 		{
 			Message: "another message",
 		},
-	})
+	}
+	expected := []*CreatedEntity{
+		{
+			Location: protocol.StringPointer("/collection/1"),
+			Id:       1,
+			Status:   201,
+		},
+		{
+			Location: protocol.StringPointer("/collection/3"),
+			Id:       3,
+			Status:   201,
+		},
+	}
+
+	res, err := c.BatchCreate(create)
 	require.NoError(t, err)
-	require.Equal(t, []*protocol.CreatedEntity[int64]{
-		{
-			Id:     1,
-			Status: 201,
-		},
-		{
-			Id:     3,
-			Status: 201,
-		},
-	}, res)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockBatchCreate: func(ctx *protocol.RequestContext, entities []*conflictresolution.Message) (createdEntities []*CreatedEntity, err error) {
+				require.Equal(t, create, entities)
+				return expected, nil
+			},
+		}
+	}
 }

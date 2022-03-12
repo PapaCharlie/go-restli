@@ -16,6 +16,15 @@
     ],
     "methods": [
       {
+        "method": "batch_create",
+        "parameters": [
+          {
+            "name": "test",
+            "type": "string"
+          }
+        ]
+      },
+      {
         "method": "batch_get",
         "parameters": [
           {
@@ -29,6 +38,10 @@
       },
       {
         "method": "get"
+      },
+      {
+        "method": "get_all",
+        "pagingSupported": true
       }
     ],
     "finders": [

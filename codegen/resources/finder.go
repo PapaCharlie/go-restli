@@ -10,10 +10,6 @@ import (
 
 type Finder struct{ methodImplementation }
 
-func (f *Finder) IsSupported() bool {
-	return true
-}
-
 func (f *Finder) FuncName() string {
 	return FindBy + utils.ExportedIdentifier(f.Name)
 }
@@ -27,13 +23,17 @@ func (f *Finder) FuncParamTypes() []Code {
 }
 
 func (f *Finder) NonErrorFuncReturnParam() Code {
-	results := Id("results").Op("*")
+	results := Add(Results).Op("*")
 	if f.Metadata != nil {
-		results.Qual(utils.ProtocolPackage, "FinderResultsWithMetadata").Index(List(f.Return.ReferencedType(), f.Metadata.ReferencedType()))
+		results.Add(f.Resource.LocalType(f.returnTypeAliasName()))
 	} else {
-		results.Qual(utils.ProtocolPackage, "FinderResults").Index(f.Return.ReferencedType())
+		results.Add(f.Resource.LocalType(Elements))
 	}
 	return results
+}
+
+func (f *Finder) returnTypeAliasName() string {
+	return f.FuncName() + "Elements"
 }
 
 func (f *Finder) paramsStructType() string {
@@ -42,8 +42,6 @@ func (f *Finder) paramsStructType() string {
 
 func (f *Finder) GenerateCode() *utils.CodeFile {
 	c := f.Resource.NewCodeFile("findBy" + utils.ExportedIdentifier(f.Name))
-
-	c.Code.Const().Id(utils.ExportedIdentifier(FindBy + utils.ExportedIdentifier(f.Name))).Op("=").Lit(f.Name).Line()
 
 	params := &types.Record{
 		NamedType: types.NamedType{
@@ -58,24 +56,50 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 	if f.PagingSupported {
 		addPagingContextFields(params)
 	}
-	c.Code.Add(params.GenerateStruct()).Line().Line()
-	c.Code.Add(params.GenerateQueryParamMarshaler(&f.Name, nil)).Line().Line()
+	c.Code.Add(params.GenerateStruct()).Line().Line().
+		Add(params.GenerateQueryParamMarshaler(&f.Name, nil)).Line().Line().
+		Add(params.GenerateQueryParamUnmarshaler(nil)).Line().Line().
+		Add(params.GeneratePopulateDefaultValues()).Line().Line()
+
+	if f.Metadata != nil {
+		c.Code.Type().Id(f.returnTypeAliasName()).Op("=").
+			Add(ElementsWithMetadata).Index(List(f.Return.ReferencedType(), f.Metadata.ReferencedType())).Line().Line()
+	}
 
 	f.Resource.addClientFuncDeclarations(c.Code, ClientType, f, func(def *Group) {
 		declareRpStruct(f, def)
 
+		name := "Find"
+		genericParams := []Code{f.Return.ReferencedType()}
 		if f.Metadata != nil {
-			def.Return(Qual(utils.ProtocolPackage, "FindWithMetadata").Call(
-				Op("&").Id(ClientReceiver).Dot(CollectionClient),
-				Ctx,
-				Rp,
-				QueryParams,
-				types.Reader.UnmarshalerFunc(*f.Metadata),
-			))
-		} else {
-			def.Return(Id(ClientReceiver).Dot("Find").Call(Ctx, Rp, QueryParams))
+			name += "WithMetadata"
+			genericParams = append(genericParams, f.Metadata.ReferencedType())
 		}
+
+		def.Return(Qual(utils.ProtocolPackage, name).Index(List(genericParams...)).Call(
+			RestLiClientReceiver,
+			Ctx,
+			Rp,
+			QueryParams,
+		))
 	})
 
 	return c
+}
+
+func (f *Finder) RegisterMethod(server, resource, segments Code) Code {
+	name := "RegisterFinder"
+	if f.Metadata != nil {
+		name += "WithMetadata"
+	}
+
+	return Qual(utils.ProtocolPackage, name).Call(
+		Add(server), Add(segments), Lit(f.Name),
+		Line().Func().
+			Params(registerParams(f)...).
+			Params(methodReturnParams(f)...).
+			BlockFunc(func(def *Group) {
+				def.Return(resource).Dot(f.FuncName()).Call(splatRpAndParams(f)...)
+			}),
+	)
 }

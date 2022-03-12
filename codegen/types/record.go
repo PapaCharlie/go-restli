@@ -111,7 +111,7 @@ func sortFields(fields []Field) {
 func (r *Record) GenerateCode() *Statement {
 	return Empty().
 		Add(r.GenerateStruct()).Line().Line().
-		Add(r.generateDefaultValuesCode()).Line().Line().
+		Add(r.GeneratePopulateDefaultValues()).Line().Line().
 		Add(r.GenerateEquals()).Line().Line().
 		Add(r.GenerateComputeHash()).Line().Line().
 		Add(r.GenerateMarshalRestLi()).Line().Line().
@@ -143,7 +143,7 @@ func (r *Record) GenerateStruct() *Statement {
 		})
 }
 
-func (r *Record) generateDefaultValuesCode() Code {
+func (r *Record) GeneratePopulateDefaultValues() Code {
 	if !r.hasDefaultValue() {
 		return Empty()
 	}
@@ -186,12 +186,12 @@ func (r *Record) generateDefaultValuesCode() Code {
 
 func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *RestliType) {
 	def.If(Add(accessor).Op("==").Nil()).BlockFunc(func(def *Group) {
-		declareReader := func() {
-			def.Var().Err().Error()
-			def.Add(Reader).Op(":=").Add(utils.NewJsonReader).Call(Index().Byte().Call(Lit(rawJson)))
-		}
 		addPanic := func() {
 			def.If(Err().Op("!=").Nil()).Block(Qual("log", "Panicln").Call(Lit("Illegal default value"), Err()))
+		}
+		declareReader := func() {
+			def.List(Reader, Err()).Op(":=").Add(utils.NewJsonReader).Call(Index().Byte().Call(Lit(rawJson)))
+			addPanic()
 		}
 		switch {
 		// Special case for primitives, instead of parsing them from JSON every time, we can leave them as literals
@@ -226,12 +226,10 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 				utils.Logger.Panic("Unknown reference type for default value", t.Reference.Resolve())
 			}
 		case t.Array != nil:
-			// If the default value for an array is the empty array, we can leave it as nil since that will behave
-			// identically to an empty slice
+			def.Add(accessor).Op("=").New(t.GoType())
 			if emptyArrayRegex.MatchString(rawJson) {
 				return
 			}
-			def.Add(accessor).Op("=").New(t.GoType())
 			declareReader()
 			def.Add(Reader.Read(*t, Reader, Op("*").Add(accessor)))
 			addPanic()

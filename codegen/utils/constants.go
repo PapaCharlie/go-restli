@@ -13,7 +13,6 @@ const (
 	ComplexKeyParamsField      = "Params"
 	ComplexKeyParams           = "$params"
 	FinderNameParam            = "q"
-	IsUnknown                  = "IsUnknown"
 
 	RootPackage        = "github.com/PapaCharlie/go-restli"
 	HashPackage        = RootPackage + "/fnv1a"
@@ -34,7 +33,6 @@ var (
 	NewHash  = Code(Qual(HashPackage, "NewHash").Call())
 	ZeroHash = Code(Qual(HashPackage, "ZeroHash").Call())
 
-	Enum                = Code(Qual(StdTypesPackage, "Enum"))
-	IllegalEnumConstant = Code(Qual(StdTypesPackage, "IllegalEnumConstant"))
-	UnknownEnumValue    = Code(Qual(StdTypesPackage, "UnknownEnumValue"))
+	IllegalEnumConstant = Code(Qual(ProtocolPackage, "IllegalEnumConstant"))
+	UnknownEnumValue    = Code(Qual(ProtocolPackage, "UnknownEnumValue"))
 )

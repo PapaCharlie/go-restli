@@ -4,70 +4,53 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
 	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
 )
-
-type CollectionClient[K comparable, V, PartialV restlicodec.Marshaler] struct {
-	SimpleClient[V, PartialV]
-	KeyUnmarshaler      restlicodec.GenericUnmarshaler[K]
-	BatchKeySetProvider func() batchkeyset.BatchKeySet[K]
-
-	ReadOnlyFields   restlicodec.PathSpec
-	CreateOnlyFields restlicodec.PathSpec
-}
-
-func (c *CollectionClient[K, V, PV]) NewCreateRequest(
-	ctx context.Context,
-	rp ResourcePath,
-	query QueryParams,
-	method RestLiMethod,
-	create restlicodec.Marshaler,
-) (*http.Request, error) {
-	return c.NewJsonRequest(ctx, rp, query, http.MethodPost, method, create, c.ReadOnlyFields)
-}
 
 // Create executes a rest.li create request with the given object. The X-RestLi-Id header field will be parsed into id
 // (though a CreateResponseHasNoEntityHeaderError will be returned if the header is not set). The response body will
 // always be ignored.
-func (c *CollectionClient[K, V, PV]) Create(
+func Create[K any, V restlicodec.Marshaler](
+	c *RestLiClient,
 	ctx context.Context,
 	rp ResourcePath,
 	create V,
-	query QueryParams,
+	query QueryParamsEncoder,
+	readOnlyFields restlicodec.PathSpec,
 ) (*CreatedEntity[K], error) {
-	req, err := c.NewCreateRequest(ctx, rp, query, Method_create, create)
+	req, err := NewCreateRequest(c, ctx, rp, query, Method_create, create, readOnlyFields)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := c.RestLiClient.DoAndIgnore(req)
+	res, err := DoAndIgnore(c, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return c.unmarshalReturnEntityKey(res)
+	return unmarshalReturnEntityKey[K](c, res)
 }
 
 // CreateWithReturnEntity is like CollectionClient.Create, except it parses the returned entity from the response.
-func (c *CollectionClient[K, V, PV]) CreateWithReturnEntity(
+func CreateWithReturnEntity[K any, V restlicodec.Marshaler](
+	c *RestLiClient,
 	ctx context.Context,
 	rp ResourcePath,
 	create V,
-	query QueryParams,
+	query QueryParamsEncoder,
+	readOnlyFields restlicodec.PathSpec,
 ) (*CreatedAndReturnedEntity[K, V], error) {
-	req, err := c.NewCreateRequest(ctx, rp, query, Method_create, create)
+	req, err := NewCreateRequest(c, ctx, rp, query, Method_create, create, readOnlyFields)
 	if err != nil {
 		return nil, err
 	}
 
-	v, res, err := DoAndUnmarshal(c.RestLiClient, req, c.EntityUnmarshaler)
+	v, res, err := DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[V])
 	if err != nil {
 		return nil, err
 	}
 
-	k, err := c.unmarshalReturnEntityKey(res)
+	k, err := unmarshalReturnEntityKey[K](c, res)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +60,7 @@ func (c *CollectionClient[K, V, PV]) CreateWithReturnEntity(
 	}, nil
 }
 
-func (c *CollectionClient[K, V, PV]) unmarshalReturnEntityKey(res *http.Response) (result *CreatedEntity[K], err error) {
+func unmarshalReturnEntityKey[K any](c *RestLiClient, res *http.Response) (result *CreatedEntity[K], err error) {
 	if h := res.Header.Get(RestLiHeader_ID); len(h) > 0 {
 		var reader restlicodec.Reader
 		reader, err = restlicodec.NewRor2Reader(h)
@@ -86,8 +69,8 @@ func (c *CollectionClient[K, V, PV]) unmarshalReturnEntityKey(res *http.Response
 		}
 
 		var k K
-		k, err = c.KeyUnmarshaler(reader)
-		if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.RestLiClient.StrictResponseDeserialization {
+		k, err = restlicodec.UnmarshalRestLi[K](reader)
+		if _, mfe := err.(*restlicodec.MissingRequiredFieldsError); mfe && !c.StrictResponseDeserialization {
 			err = nil
 		}
 		if err != nil {
@@ -102,81 +85,17 @@ func (c *CollectionClient[K, V, PV]) unmarshalReturnEntityKey(res *http.Response
 	}
 }
 
-// Find executes a rest.li find request
-func (c *CollectionClient[K, V, PV]) Find(
+func GetAll[V restlicodec.Marshaler](
+	c *RestLiClient,
 	ctx context.Context,
 	rp ResourcePath,
-	query QueryParams,
-) (*FinderResults[V], error) {
-	results, err := FindWithMetadata[K, V, PV, stdtypes.EmptyRecord](c, ctx, rp, query, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &results.FinderResults, nil
-}
-
-// FindWithMetadata executes a rest.li find request for finders that declare metadata
-func FindWithMetadata[K comparable, V, PV restlicodec.Marshaler, M any](
-	c *CollectionClient[K, V, PV],
-	ctx context.Context,
-	rp ResourcePath,
-	query QueryParams,
-	metadataUnmarshaler restlicodec.GenericUnmarshaler[M],
-) (results *FinderResultsWithMetadata[V, M], err error) {
-	u, err := c.FormatQueryUrl(rp, query)
+	query QueryParamsEncoder,
+) (results *Elements[V], err error) {
+	req, err := NewGetRequest(c, ctx, rp, query, Method_get_all)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := NewGetRequest(ctx, u, Method_finder)
-	if err != nil {
-		return nil, err
-	}
-
-	results, _, err = DoAndUnmarshal(c.RestLiClient, req, func(reader restlicodec.Reader) (results *FinderResultsWithMetadata[V, M], err error) {
-		results = new(FinderResultsWithMetadata[V, M])
-		err = reader.ReadRecord(elementsRequiredResponseFields, func(reader restlicodec.Reader, field string) (err error) {
-			switch field {
-			case elementsField:
-				results.Results, err = restlicodec.ReadArray(reader, c.EntityUnmarshaler)
-				return err
-			case metadataField:
-				if metadataUnmarshaler != nil {
-					results.Metadata, err = metadataUnmarshaler(reader)
-					return err
-				} else {
-					return reader.Skip()
-				}
-			case pagingField:
-				return reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
-					if key == totalField {
-						var t int
-						t, err = reader.ReadInt()
-						if err != nil {
-							return err
-						}
-						results.Total = &t
-					} else {
-						err = reader.Skip()
-					}
-					return nil
-				})
-			default:
-				return reader.Skip()
-			}
-		})
-		return results, err
-	})
-
+	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*Elements[V]])
 	return results, err
-}
-
-type FinderResults[T any] struct {
-	Results []T
-	Total   *int
-}
-
-type FinderResultsWithMetadata[T, M any] struct {
-	FinderResults[T]
-	Metadata M
 }

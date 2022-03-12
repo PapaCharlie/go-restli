@@ -5,33 +5,50 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleWithPartialUpdate"
+	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple_test"
 	"github.com/PapaCharlie/go-restli/protocol"
 	"github.com/stretchr/testify/require"
 )
 
-func (s *TestServer) SimpleGet(t *testing.T, c Client) {
+func (o *Operation) SimpleGet(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expected := &conflictresolution.Message{Message: "test message"}
 	res, err := c.Get()
 	require.NoError(t, err)
-	require.Equal(t, "test message", res.Message, "Invalid response from server")
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGet: func(ctx *protocol.RequestContext) (entity *conflictresolution.Message, err error) {
+				return expected, nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) SimpleUpdate(t *testing.T, c Client) {
-	err := c.Update(&conflictresolution.Message{Message: "updated message"})
+func (o *Operation) SimpleUpdate(t *testing.T, c Client) func(*testing.T) *MockResource {
+	expected := &conflictresolution.Message{Message: "updated message"}
+	err := c.Update(expected)
 	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockUpdate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (err error) {
+				require.Equal(t, expected, entity)
+				return nil
+			},
+		}
+	}
 }
 
-func (s *TestServer) SimpleDelete(t *testing.T, c Client) {
+func (o *Operation) SimpleDelete(t *testing.T, c Client) func(*testing.T) *MockResource {
 	err := c.Delete()
 	require.NoError(t, err)
-}
 
-func (s *TestServer) SimplePartialUpdate(t *testing.T, c simplewithpartialupdate.Client) {
-	err := c.PartialUpdate(&extras.SinglePrimitiveField_PartialUpdate{
-		Set_Fields: extras.SinglePrimitiveField_PartialUpdate_Set_Fields{
-			String: protocol.StringPointer("updated string"),
-		},
-	})
-	require.NoError(t, err)
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockDelete: func(ctx *protocol.RequestContext) (err error) {
+				return nil
+			},
+		}
+	}
 }

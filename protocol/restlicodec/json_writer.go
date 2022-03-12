@@ -66,6 +66,10 @@ func (c *compactJsonWriter) writeEmptyArray() {
 	c.writeArrayEnd()
 }
 
+func (c *compactJsonWriter) WriteInt(v int) {
+	c.Writer.Int(v)
+}
+
 func (c *compactJsonWriter) WriteInt32(v int32) {
 	c.Writer.Int32(v)
 }
@@ -80,11 +84,11 @@ func (c *compactJsonWriter) WriteFloat32(v float32) {
 
 func (c *compactJsonWriter) WriteFloat64(v float64) {
 	switch {
-	case math.IsInf(v, 1):
+	case v > math.MaxFloat64:
 		c.Writer.String("Infinity")
-	case math.IsInf(v, -1):
+	case v < -math.MaxFloat64:
 		c.Writer.String("-Infinity")
-	case math.IsNaN(v):
+	case v != v:
 		c.Writer.String("NaN")
 	default:
 		c.Writer.Float64(v)

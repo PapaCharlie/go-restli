@@ -26,10 +26,31 @@ func NewPathSpec(directives ...string) (p PathSpec) {
 }
 
 func (p PathSpec) Matches(path []string) bool {
+	return genericMatches(p, path, func(s string) string { return s })
+}
+
+// func (p PathSpec) PrefixAll(prefix string) PathSpec {
+// 	spec := NewPathSpec(prefix)
+// 	child := spec
+// 	for {
+// 		for k, v := range child {
+// 			if len(v) == 0 {
+// 				child[k] = p
+// 				return spec
+// 			} else {
+// 				child = v
+// 				break
+// 			}
+// 		}
+// 	}
+// }
+
+func genericMatches[T any](p PathSpec, path []T, extract func(t T) string) bool {
 	if len(p) == 0 {
 		return false
 	}
-	if path[0] == "$set" {
+	p0 := extract(path[0])
+	if p0 == "$set" || p0 == "$delete" {
 		if len(path) == 1 {
 			return false
 		} else {
@@ -47,9 +68,9 @@ func (p PathSpec) Matches(path []string) bool {
 			if len(path) == 1 {
 				return false
 			} else {
-				return spec.Matches(path[1:])
+				return genericMatches(spec, path[1:], extract)
 			}
 		}
 	}
-	return matches(WildCard) || matches(path[0])
+	return matches(WildCard) || matches(p0)
 }

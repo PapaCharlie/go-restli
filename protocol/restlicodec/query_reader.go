@@ -3,73 +3,79 @@ package restlicodec
 import (
 	"fmt"
 	"net/url"
+	"reflect"
+	"strings"
 )
 
-type RestLiQueryParamsReader interface {
-	ReadParams(paramsReader MapReader) error
+type QueryParamsReader map[string]*ror2QueryReader
+
+type QueryParamsDecoder interface {
+	DecodeQueryParams(reader QueryParamsReader) error
 }
 
-type queryParamsReader struct {
-	pos  int
-	data string
+func UnmarshalQueryParamsDecoder[T QueryParamsDecoder](query string) (t T, err error) {
+	reader, err := ParseQueryParams(query)
+	if err != nil {
+		return t, fmt.Errorf("go-restli: Illegal query params: %w", err)
+	}
+
+	v := reflect.New(reflect.TypeOf(t).Elem())
+	t = v.Interface().(T)
+	return t, t.DecodeQueryParams(reader)
 }
 
-func NewRestLiQueryParamsReader(rawQuery string) RestLiQueryParamsReader {
-	return &queryParamsReader{data: rawQuery}
+type ror2QueryReader struct{ *ror2Reader }
+
+func (q *ror2QueryReader) ReadRecord(requiredFields RequiredFields, recordReader MapReader) error {
+	return readRecord(q, requiredFields, recordReader)
 }
 
-func (r *queryParamsReader) ReadParams(paramsReader MapReader) (err error) {
-	for {
-		fieldName, err := r.readFieldName()
+func (q *ror2QueryReader) atInputStart() bool {
+	return false
+}
+
+func (q QueryParamsReader) ReadRecord(requiredFields RequiredFields, recordReader MapReader) (err error) {
+	tracker := missingFieldsTracker{}
+	requiredFieldsRemaining := requiredFields.toMap()
+
+	for k, v := range q {
+		err = recordReader(v, k)
 		if err != nil {
 			return err
 		}
-		if fieldName == "" {
-			break
+		delete(requiredFieldsRemaining, k)
+
+		tracker.missingFields = append(tracker.missingFields, v.missingFields...)
+	}
+
+	tracker.recordMissingRequiredFields(requiredFieldsRemaining)
+	return tracker.checkMissingFields()
+}
+
+func ParseQueryParams(query string) (QueryParamsReader, error) {
+	m := make(QueryParamsReader)
+	for query != "" {
+		var key string
+		key, query, _ = strings.Cut(query, "&")
+		if key == "" {
+			continue
 		}
-		data := r.readField()
-		err = validateRor2Input(data)
+
+		key, value, _ := strings.Cut(key, "=")
+
+		err := validateRor2Input(value)
 		if err != nil {
-			return err
+			return m, err
 		}
-		reader := &ror2Reader{
+
+		m[key] = &ror2QueryReader{&ror2Reader{
+			missingFieldsTracker: missingFieldsTracker{
+				currentScope: []deserializationScopeSegment{{segment: key}},
+			},
 			decoder: url.QueryUnescape,
-			data:    []byte(data),
-		}
-		err = paramsReader(reader, fieldName)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *queryParamsReader) readFieldName() (string, error) {
-	startPos := r.pos
-	for ; r.pos < len(r.data); r.pos++ {
-		if r.data[r.pos] == '=' {
-			name := r.data[startPos:r.pos]
-			r.pos++
-			return name, nil
-		}
-	}
-	if startPos == r.pos {
-		return "", nil
-	} else {
-		return "", fmt.Errorf("illegal query has incorrect field delimiter: %q", r.data)
-	}
-}
-
-func (r *queryParamsReader) readField() string {
-	startPos := r.pos
-
-	for ; r.pos < len(r.data); r.pos++ {
-		if r.data[r.pos] == '&' {
-			break
-		}
+			data:    []byte(value),
+		}}
 	}
 
-	field := r.data[startPos:r.pos]
-	r.pos++
-	return field
+	return m, nil
 }

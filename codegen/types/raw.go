@@ -30,7 +30,3 @@ func (r *RawRecord) InnerTypes() utils.IdentifierSet {
 func (r *RawRecord) GenerateCode() (def *Statement) {
 	return Empty()
 }
-
-func (r *RawRecord) UnmarshalerFunc() *Statement {
-	return r.GetIdentifier().UnmarshalerFunc()
-}

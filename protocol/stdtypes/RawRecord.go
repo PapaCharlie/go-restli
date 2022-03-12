@@ -23,7 +23,7 @@ func (r RawRecord) ComputeHash() fnv1a.Hash {
 
 // Equals for a RawRecord always returns false, unless it is being compared with itself
 func (r RawRecord) Equals(other RawRecord) bool {
-	return &r == &other
+	return reflect.ValueOf(r).Pointer() == reflect.ValueOf(other).Pointer()
 }
 
 func (r RawRecord) MarshalRestLi(writer restlicodec.Writer) error {
@@ -49,7 +49,11 @@ func (r *RawRecord) UnmarshalTo(obj restlicodec.Unmarshaler) error {
 		return err
 	}
 
-	return obj.UnmarshalRestLi(restlicodec.NewJsonReader([]byte(w.Finalize())))
+	reader, err := restlicodec.NewJsonReader([]byte(w.Finalize()))
+	if err != nil {
+		return err
+	}
+	return obj.UnmarshalRestLi(reader)
 }
 
 func writeInterface(value interface{}, writer restlicodec.Writer) error {

@@ -1,10 +1,8 @@
 package io.papacharlie.gorestli;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.restspec.ActionSchema;
-import com.linkedin.restli.restspec.CollectionSchema;
 import com.linkedin.restli.restspec.FinderSchema;
 import com.linkedin.restli.restspec.ParameterSchema;
 import com.linkedin.restli.restspec.ParameterSchemaArray;
@@ -12,7 +10,6 @@ import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestMethodSchema;
 import io.papacharlie.gorestli.json.Method;
 import io.papacharlie.gorestli.json.Method.MethodType;
-import io.papacharlie.gorestli.json.Method.PathKey;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
 import java.util.ArrayList;
@@ -42,12 +39,8 @@ public class MethodParser {
   private final ResourceSchema _resource;
   private final RestliType _resourceSchema;
   private final String _path;
-  private final List<PathKey> _pathKeys;
-  private final String _entityPath;
-  private final PathKey _entityPathKey;
 
-  public MethodParser(TypeParser typeParser, ResourceSchema resource, List<PathKey> parentPathKeys,
-      PathKey entityPathKey) {
+  public MethodParser(TypeParser typeParser, ResourceSchema resource) {
     _typeParser = typeParser;
     _resource = resource;
     if (_resource.getSchema() != null) {
@@ -56,15 +49,6 @@ public class MethodParser {
       _resourceSchema = null;
     }
     _path = resource.getPath();
-    _pathKeys = parentPathKeys;
-    if (resource.getCollection() != null && entityPathKey != null) {
-      CollectionSchema collectionSchema = resource.getCollection();
-      _entityPath = collectionSchema.getEntity().getPath();
-      _entityPathKey = entityPathKey;
-    } else {
-      _entityPath = null;
-      _entityPathKey = null;
-    }
   }
 
   public Method newActionMethod(ActionSchema action, boolean isActionOnEntity) {
@@ -128,17 +112,6 @@ public class MethodParser {
     method._name = name;
     method._methodType = methodType;
     method._onEntity = onEntity;
-    method._entityPathKey = _entityPathKey;
-
-    if (onEntity) {
-      Preconditions.checkNotNull(_entityPathKey);
-      method._path = _entityPath;
-      method._pathKeys = Utils.append(_pathKeys, _entityPathKey);
-    } else {
-      method._path = _path;
-      method._pathKeys = _pathKeys;
-    }
-
     return method;
   }
 }

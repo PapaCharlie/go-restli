@@ -13,35 +13,42 @@ const (
 	FindBy      = "FindBy"
 
 	RestLiClient        = "RestLiClient"
-	SimpleClient        = "SimpleClient"
-	CollectionClient    = "CollectionClient"
 	ClientReceiver      = "c"
 	ClientType          = "client"
 	ClientInterfaceType = "Client"
+
+	ResourceInterfaceType = "Resource"
+
+	CreatedEntity            = "CreatedEntity"
+	CreatedAndReturnedEntity = "CreatedAndReturnedEntity"
+	Elements                 = "Elements"
+	BatchEntities            = "BatchEntities"
+	BatchResponse            = "BatchResponse"
 )
 
 var (
 	RestLiClientQual     = Code(Qual(utils.ProtocolPackage, RestLiClient))
-	SimpleClientQual     = Code(Qual(utils.ProtocolPackage, SimpleClient))
-	CollectionClientQual = Code(Qual(utils.ProtocolPackage, CollectionClient))
 	RestLiClientReceiver = Code(Id(ClientReceiver).Dot(RestLiClient))
 	Context              = Code(Qual("context", "Context"))
+	RequestContext       = Code(Op("*").Qual(utils.ProtocolPackage, "RequestContext"))
+	RequestContextParam  = Code(Add(Ctx).Add(RequestContext))
+	ElementsWithMetadata = Code(Qual(utils.ProtocolPackage, "ElementsWithMetadata"))
 
 	Rp              = Code(Id("rp"))
 	Ctx             = Code(Id("ctx"))
 	Entity          = Code(Id("entity"))
 	Entities        = Code(Id("entities"))
-	CreatedEntity   = Code(Id("createdEntity"))
+	Results         = Code(Id("results"))
 	CreatedEntities = Code(Id("createdEntities"))
-	Statuses        = Code(Id("statuses"))
 	Keys            = Code(Id("keys"))
 	QueryParams     = Code(Id("queryParams"))
 	ActionParams    = Code(Id("actionParams"))
+	EmptyRecord     = Code(Qual(utils.StdTypesPackage, "EmptyRecord"))
 
 	NoExcludedFields        = Code(Qual(utils.RestLiCodecPackage, "NoExcludedFields"))
 	ReadOnlyFields          = Code(Id("ReadOnlyFields"))
 	CreateOnlyFields        = Code(Id("CreateOnlyFields"))
 	CreateAndReadOnlyFields = Code(Id("CreateAndReadOnlyFields"))
 
-	BatchEntityUpdateResponse = Code(Qual(utils.ProtocolPackage, "BatchEntityUpdateResponse"))
+	BatchEntityUpdateResponse = Code(Op("*").Qual(utils.ProtocolPackage, "BatchEntityUpdateResponse"))
 )

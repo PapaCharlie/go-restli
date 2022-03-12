@@ -29,7 +29,7 @@ type Manifest struct {
 type WireProtocolTestData struct {
 	Name        string
 	PackagePath string
-	Operations  []Operation
+	Operations  []*Operation
 }
 
 type Operation struct {
@@ -42,9 +42,9 @@ type Operation struct {
 
 func (d *WireProtocolTestData) UnmarshalJSON(data []byte) error {
 	testData := &struct {
-		Name       string      `json:"name"`
-		Restspec   string      `json:"restspec"`
-		Operations []Operation `json:"operations"`
+		Name       string       `json:"name"`
+		Restspec   string       `json:"restspec"`
+		Operations []*Operation `json:"operations"`
 	}{}
 	err := json.Unmarshal(data, testData)
 	if err != nil {
@@ -70,12 +70,12 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 
 	o.Name = operation.Name
 
-	o.Request, o.RequestBytes, err = tests.ReadRequestFromFile(filepath.Join(testSuite, "requests-v2", o.Name + ".req"))
+	o.Request, o.RequestBytes, err = tests.ReadRequestFromFile(filepath.Join(testSuite, "requests-v2", o.Name+".req"))
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	o.Response, o.ResponseBytes, err = tests.ReadResponseFromFile(filepath.Join(testSuite, "responses-v2", o.Name + ".res"), o.Request)
+	o.Response, o.ResponseBytes, err = tests.ReadResponseFromFile(filepath.Join(testSuite, "responses-v2", o.Name+".res"), o.Request)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -102,7 +102,13 @@ func ReadManifest() *Manifest {
 		}
 		aggregateManifest.JsonTestData = append(aggregateManifest.JsonTestData, m.JsonTestData...)
 		aggregateManifest.SchemaTestData = append(aggregateManifest.SchemaTestData, m.SchemaTestData...)
-		aggregateManifest.WireProtocolTestData = append(aggregateManifest.WireProtocolTestData, m.WireProtocolTestData...)
+		for _, wd := range m.WireProtocolTestData {
+			// Association resources will likely never be supported so skip loading them altogether
+			if wd.Name == "association" || wd.Name == "associationTyperef" {
+				continue
+			}
+			aggregateManifest.WireProtocolTestData = append(aggregateManifest.WireProtocolTestData, wd)
+		}
 	}
 	return &aggregateManifest
 }

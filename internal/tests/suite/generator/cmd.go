@@ -18,12 +18,7 @@ const (
 )
 
 func main() {
-	server := new(suite.TestServer)
 	for _, wd := range suite.ReadManifest().WireProtocolTestData {
-		if wd.GetClient(server) == nil {
-			// don't generate tests for unsupported resource types
-			continue
-		}
 		var testFileContents string
 
 		testFilename := wd.Name + "_test.go"
@@ -63,7 +58,7 @@ import (
 		for _, o := range wd.Operations {
 			if !strings.Contains(testFileContents, o.TestMethodName()) {
 				_, err = fmt.Fprintf(f, `
-func (s *TestServer) %s(t *testing.T, c Client) {
+func (o *Operation) %s(t *testing.T, c Client) {
 	t.SkipNow()
 }
 `, o.TestMethodName())

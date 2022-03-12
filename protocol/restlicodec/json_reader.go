@@ -1,6 +1,9 @@
 package restlicodec
 
 import (
+	"bytes"
+	"errors"
+
 	"github.com/mailru/easyjson/jlexer"
 )
 
@@ -9,8 +12,34 @@ type jsonReader struct {
 	lexer jlexer.Lexer
 }
 
-func NewJsonReader(data []byte) Reader {
-	return &jsonReader{lexer: jlexer.Lexer{Data: data}}
+var (
+	null     = []byte(`null`)
+	NullJSON = errors.New("go-restli: `null` JSON")
+)
+
+func UnmarshalJSON(data []byte, obj Unmarshaler) error {
+	reader, err := NewJsonReader(data)
+	if err != nil {
+		return err
+	}
+	return obj.UnmarshalRestLi(reader)
+}
+
+func NewJsonReader(data []byte) (Reader, error) {
+	return NewJsonReaderWithExcludedFields(data, nil, 0)
+}
+
+func NewJsonReaderWithExcludedFields(data []byte, excludedFields PathSpec, leadingScopeToIgnore int) (Reader, error) {
+	if len(data) == 0 || bytes.Equal(data, null) {
+		return nil, NullJSON
+	}
+	return &jsonReader{
+		missingFieldsTracker: missingFieldsTracker{
+			excludedFields: excludedFields,
+			scopeToIgnore:  leadingScopeToIgnore,
+		},
+		lexer: jlexer.Lexer{Data: data},
+	}, nil
 }
 
 func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
@@ -26,6 +55,7 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 	j.lexer.Delim('{')
 	for !j.lexer.IsDelim('}') {
 		fieldName := j.lexer.UnsafeFieldName(false)
+
 		j.lexer.WantColon()
 		if j.lexer.IsNull() {
 			j.lexer.Skip()
@@ -33,7 +63,10 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 			continue
 		}
 
-		j.enterMapScope(fieldName)
+		err = j.enterMapScope(fieldName)
+		if err != nil {
+			return err
+		}
 		err = mapReader(j, fieldName)
 		if err != nil {
 			return err
@@ -90,6 +123,10 @@ func (j *jsonReader) ReadRawBytes() ([]byte, error) {
 	return j.lexer.Raw(), j.checkError()
 }
 
+func (j *jsonReader) IsNull() (bool, error) {
+	return j.lexer.IsNull(), j.checkError()
+}
+
 func (j *jsonReader) ReadInt() (int, error) {
 	return j.lexer.Int(), j.checkError()
 }
@@ -124,14 +161,14 @@ func (j *jsonReader) ReadString() (string, error) {
 }
 
 func (j *jsonReader) ReadBytes() ([]byte, error) {
-	return []byte(j.lexer.String()), j.checkError()
+	return readBytes(j.ReadString())
 }
 
 func (j *jsonReader) checkError() error {
 	return j.wrapDeserializationError(j.lexer.Error())
 }
 
-func (j *jsonReader) AtInputStart() bool {
+func (j *jsonReader) atInputStart() bool {
 	return j.lexer.IsStart()
 }
 

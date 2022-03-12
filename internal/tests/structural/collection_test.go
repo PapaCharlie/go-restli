@@ -4,23 +4,21 @@ import (
 	"context"
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
 	colletionSubCollection "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subcollection"
 	colletionSubSimple "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple"
-	"github.com/PapaCharlie/go-restli/protocol"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR testsuite.collection
 var _ = collection.Client(new(collectionClient))
 
-type collectionClient int
+type collectionClient struct{}
 
-func (c *collectionClient) Create(*conflictresolution.Message) (*protocol.CreatedEntity[int64], error) {
+func (c *collectionClient) Create(*conflictresolution.Message) (*collection.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) CreateWithContext(context.Context, *conflictresolution.Message) (*protocol.CreatedEntity[int64], error) {
+func (c *collectionClient) CreateWithContext(context.Context, *conflictresolution.Message) (*collection.CreatedEntity, error) {
 	panic(nil)
 }
 
@@ -56,51 +54,51 @@ func (c *collectionClient) DeleteWithContext(context.Context, int64) error {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchCreate([]*conflictresolution.Message) ([]*protocol.CreatedEntity[int64], error) {
+func (c *collectionClient) BatchCreate([]*conflictresolution.Message) ([]*collection.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchCreateWithContext(context.Context, []*conflictresolution.Message) ([]*protocol.CreatedEntity[int64], error) {
+func (c *collectionClient) BatchCreateWithContext(context.Context, []*conflictresolution.Message) ([]*collection.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchDelete([]int64) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+func (c *collectionClient) BatchGet([]int64) (*collection.BatchEntities, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchDeleteWithContext(context.Context, []int64) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+func (c *collectionClient) BatchGetWithContext(context.Context, []int64) (*collection.BatchEntities, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchGet([]int64) (map[int64]*conflictresolution.Message, error) {
+func (c *collectionClient) BatchUpdate(map[int64]*conflictresolution.Message) (*collection.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchGetWithContext(context.Context, []int64) (map[int64]*conflictresolution.Message, error) {
+func (c *collectionClient) BatchUpdateWithContext(context.Context, map[int64]*conflictresolution.Message) (*collection.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchUpdate(map[int64]*conflictresolution.Message) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+func (c *collectionClient) BatchPartialUpdate(map[int64]*conflictresolution.Message_PartialUpdate) (*collection.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchUpdateWithContext(context.Context, map[int64]*conflictresolution.Message) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+func (c *collectionClient) BatchPartialUpdateWithContext(context.Context, map[int64]*conflictresolution.Message_PartialUpdate) (*collection.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchPartialUpdate(map[int64]*conflictresolution.Message_PartialUpdate) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+func (c *collectionClient) BatchDelete([]int64) (*collection.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) BatchPartialUpdateWithContext(context.Context, map[int64]*conflictresolution.Message_PartialUpdate) (map[int64]*protocol.BatchEntityUpdateResponse, error) {
+func (c *collectionClient) BatchDeleteWithContext(context.Context, []int64) (*collection.BatchResponse, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) (*protocol.FinderResultsWithMetadata[*conflictresolution.Message, *testsuite.Optionals], error) {
+func (c *collectionClient) FindBySearch(*collection.FindBySearchParams) (*collection.FindBySearchElements, error) {
 	panic(nil)
 }
 
-func (c *collectionClient) FindBySearchWithContext(context.Context, *collection.FindBySearchParams) (*protocol.FinderResultsWithMetadata[*conflictresolution.Message, *testsuite.Optionals], error) {
+func (c *collectionClient) FindBySearchWithContext(context.Context, *collection.FindBySearchParams) (*collection.FindBySearchElements, error) {
 	panic(nil)
 }
 

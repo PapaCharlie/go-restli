@@ -11,8 +11,6 @@ import (
 type genericBatchKeySet[T any] struct {
 	originalKeys map[fnv1a.HashMapKey][]T
 	keyCount     int
-	marshaler    restlicodec.GenericMarshaler[T]
-	unmarshaler  restlicodec.GenericUnmarshaler[T]
 	hash         func(T) fnv1a.Hash
 	equals       func(left, right T) bool
 }
@@ -34,28 +32,28 @@ func (s *genericBatchKeySet[T]) AddKey(t T) error {
 	return nil
 }
 
-func (s *genericBatchKeySet[T]) LocateOriginalKey(keyReader restlicodec.Reader) (originalKey T, err error) {
-	returnedKey, err := s.unmarshaler(keyReader)
+func (s *genericBatchKeySet[T]) LocateOriginalKey(key T) (originalKey T, found bool) {
+	for _, k := range s.originalKeys[s.hash(key).MapKey()] {
+		if s.equals(k, key) {
+			found = true
+			originalKey = k
+			break
+		}
+	}
+	return originalKey, found
+}
+
+func (s *genericBatchKeySet[T]) LocateOriginalKeyFromReader(keyReader restlicodec.Reader) (originalKey T, err error) {
+	key, err := restlicodec.UnmarshalRestLi[T](keyReader)
 	if err != nil {
 		return originalKey, err
 	}
 
-	found := false
-	for _, key := range s.originalKeys[s.hash(returnedKey).MapKey()] {
-		if s.equals(returnedKey, key) {
-			found = true
-			originalKey = key
-			break
-		}
-	}
+	originalKey, found := s.LocateOriginalKey(key)
 	if !found {
 		err = fmt.Errorf("go-restli: Unknown key returned by batch method: %q", keyReader)
 	}
 	return originalKey, err
-}
-
-func (s *genericBatchKeySet[T]) MarshalKey(writer restlicodec.Writer, t T) error {
-	return s.marshaler(t, writer)
 }
 
 func (s *genericBatchKeySet[T]) encodeKeys() ([]string, error) {
@@ -63,7 +61,7 @@ func (s *genericBatchKeySet[T]) encodeKeys() ([]string, error) {
 	for _, keys := range s.originalKeys {
 		for _, k := range keys {
 			w := restlicodec.NewRestLiQueryParamsWriter()
-			err := s.marshaler(k, w)
+			err := restlicodec.MarshalRestLi(k, w)
 			if err != nil {
 				return nil, err
 			}
@@ -74,11 +72,11 @@ func (s *genericBatchKeySet[T]) encodeKeys() ([]string, error) {
 }
 
 func (s *genericBatchKeySet[T]) Encode(paramNameWriter func(string) restlicodec.Writer) error {
-	return encode(s, paramNameWriter)
+	return encode[T](s, paramNameWriter)
 }
 
 func (s *genericBatchKeySet[T]) EncodeQueryParams() (params string, err error) {
-	return generateRawQuery(s)
+	return generateRawQuery[T](s)
 }
 
 type ComplexKey[T any] interface {
@@ -87,11 +85,9 @@ type ComplexKey[T any] interface {
 	ComplexKeyEquals(other T) bool
 }
 
-func NewComplexKeySet[T ComplexKey[T]](unmarshaler restlicodec.GenericUnmarshaler[T]) BatchKeySet[T] {
+func NewComplexKeySet[T ComplexKey[T]]() BatchKeySet[T] {
 	return &genericBatchKeySet[T]{
 		originalKeys: map[fnv1a.HashMapKey][]T{},
-		marshaler:    T.MarshalRestLi,
-		unmarshaler:  unmarshaler,
 		hash:         T.ComputeComplexKeyHash,
 		equals:       T.ComplexKeyEquals,
 	}
@@ -103,11 +99,9 @@ type SimpleKey[T any] interface {
 	equals.Equatable[T]
 }
 
-func NewSimpleKeySet[T SimpleKey[T]](unmarshaler restlicodec.GenericUnmarshaler[T]) BatchKeySet[T] {
+func NewSimpleKeySet[T SimpleKey[T]]() BatchKeySet[T] {
 	return &genericBatchKeySet[T]{
 		originalKeys: map[fnv1a.HashMapKey][]T{},
-		marshaler:    T.MarshalRestLi,
-		unmarshaler:  unmarshaler,
 		hash:         T.ComputeHash,
 		equals:       T.Equals,
 	}
@@ -116,12 +110,41 @@ func NewSimpleKeySet[T SimpleKey[T]](unmarshaler restlicodec.GenericUnmarshaler[
 func NewBytesKeySet() BatchKeySet[[]byte] {
 	return &genericBatchKeySet[[]byte]{
 		originalKeys: map[fnv1a.HashMapKey][][]byte{},
-		marshaler: func(v []byte, writer restlicodec.Writer) error {
-			writer.WriteBytes(v)
-			return nil
-		},
-		unmarshaler: restlicodec.Reader.ReadBytes,
-		hash:        fnv1a.HashBytes,
-		equals:      equals.Bytes,
+		hash:         fnv1a.HashBytes,
+		equals:       equals.Bytes,
 	}
+}
+
+func NewBatchKeySet[K any]() BatchKeySet[K] {
+	var t K
+	var set any
+	switch any(t).(type) {
+	case ComplexKey[K]:
+		set = &genericBatchKeySet[K]{
+			originalKeys: map[fnv1a.HashMapKey][]K{},
+			hash:         func(t K) fnv1a.Hash { return any(t).(ComplexKey[K]).ComputeComplexKeyHash() },
+			equals:       func(left, right K) bool { return any(left).(ComplexKey[K]).ComplexKeyEquals(right) },
+		}
+	case SimpleKey[K]:
+		set = &genericBatchKeySet[K]{
+			originalKeys: map[fnv1a.HashMapKey][]K{},
+			hash:         func(t K) fnv1a.Hash { return any(t).(SimpleKey[K]).ComputeHash() },
+			equals:       func(left, right K) bool { return any(left).(SimpleKey[K]).Equals(right) },
+		}
+	case []byte:
+		set = NewBytesKeySet()
+	case int32:
+		set = NewPrimitiveKeySet[int32]()
+	case int64:
+		set = NewPrimitiveKeySet[int64]()
+	case float32:
+		set = NewPrimitiveKeySet[float32]()
+	case float64:
+		set = NewPrimitiveKeySet[float64]()
+	case bool:
+		set = NewPrimitiveKeySet[bool]()
+	case string:
+		set = NewPrimitiveKeySet[string]()
+	}
+	return set.(BatchKeySet[K])
 }

@@ -48,7 +48,7 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		def.Return(Nil())
 	})
 
-	AddUnmarshalRestli(def, r.Receiver(), r.Identifier, TyperefShouldUsePointer, func(def *Group) {
+	AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
 		tmp := Id("tmp")
 		def.Var().Add(tmp).Add(r.Type.GoType())
 		def.Add(Reader.Read(underlyingType, Reader, tmp))
