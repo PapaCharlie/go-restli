@@ -81,15 +81,13 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 	if r.ResourceSchema != nil {
 		resource.Code.Type().DefsFunc(func(def *Group) {
 			entityType := r.ResourceSchema.ReferencedType()
-			def.Id(Elements).Op("=").Qual(utils.ProtocolPackage, Elements).Index(entityType)
+			def.Id(Elements).Op("=").Qual(utils.RestLiDataPackage, Elements).Index(entityType)
 			if r.LastSegment().PathKey != nil {
 				keyType := r.LastSegment().PathKey.Type.ReferencedType()
-				def.Id(CreatedEntity).Op("=").Qual(utils.ProtocolPackage, CreatedEntity).Index(keyType)
-				def.Id(CreatedAndReturnedEntity).Op("=").Qual(utils.ProtocolPackage, CreatedAndReturnedEntity).Index(List(keyType, entityType))
-				// def.Id("CreatedEntities").Op("=").Qual(utils.ProtocolPackage, "CreatedEntities").Index(keyType)
-				// def.Id("CreatedAndReturnedEntities").Op("=").Qual(utils.ProtocolPackage, "CreatedAndReturnedEntities").Index(List(keyType, entityType))
+				def.Id(CreatedEntity).Op("=").Qual(utils.RestLiDataPackage, CreatedEntity).Index(keyType)
+				def.Id(CreatedAndReturnedEntity).Op("=").Qual(utils.RestLiDataPackage, CreatedAndReturnedEntity).Index(List(keyType, entityType))
 
-				batchResponse := Qual(utils.ProtocolPackage, BatchResponse)
+				batchResponse := Qual(utils.RestLiDataPackage, BatchResponse)
 				def.Id(BatchEntities).Op("=").Add(batchResponse).Index(List(keyType, entityType))
 				def.Id(BatchResponse).Op("=").Add(batchResponse).Index(List(keyType, BatchEntityUpdateResponse))
 			}
@@ -145,13 +143,13 @@ func (r *Resource) generateResourceCode() Code {
 
 	var server, resource Code = Id("server"), Id("resource")
 	def.Func().Id("RegisterResource").
-		Params(Add(server).Qual(utils.ProtocolPackage, "Server"), Add(resource).Id(ResourceInterfaceType)).
+		Params(Add(server).Qual(utils.RestLiPackage, "Server"), Add(resource).Id(ResourceInterfaceType)).
 		BlockFunc(func(def *Group) {
 			segments := Code(Id("segments"))
-			def.Add(segments).Op(":=").Index().Qual(utils.ProtocolPackage, "ResourcePathSegment").
+			def.Add(segments).Op(":=").Index().Qual(utils.RestLiPackage, "ResourcePathSegment").
 				ValuesFunc(func(def *Group) {
 					for _, rps := range r.ResourcePathSegments {
-						def.Line().Qual(utils.ProtocolPackage, "NewResourcePathSegment").Call(Lit(rps.ResourceName), Lit(rps.PathKey != nil))
+						def.Line().Qual(utils.RestLiPackage, "NewResourcePathSegment").Call(Lit(rps.ResourceName), Lit(rps.PathKey != nil))
 					}
 					def.Line()
 				})

@@ -6,7 +6,7 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collectionReturnEntity_test"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,7 +29,7 @@ func (o *Operation) CollectionReturnEntityCreate(t *testing.T, c Client) func(t 
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockCreate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedAndReturnedEntity, err error) {
+			MockCreate: func(ctx *restli.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedAndReturnedEntity, err error) {
 				require.Equal(t, key, entity)
 				return expected, nil
 			},

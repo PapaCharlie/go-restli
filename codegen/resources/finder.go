@@ -76,7 +76,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 			genericParams = append(genericParams, f.Metadata.ReferencedType())
 		}
 
-		def.Return(Qual(utils.ProtocolPackage, name).Index(List(genericParams...)).Call(
+		def.Return(Qual(utils.RestLiPackage, name).Index(List(genericParams...)).Call(
 			RestLiClientReceiver,
 			Ctx,
 			Rp,
@@ -93,7 +93,7 @@ func (f *Finder) RegisterMethod(server, resource, segments Code) Code {
 		name += "WithMetadata"
 	}
 
-	return Qual(utils.ProtocolPackage, name).Call(
+	return Qual(utils.RestLiPackage, name).Call(
 		Add(server), Add(segments), Lit(f.Name),
 		Line().Func().
 			Params(registerParams(f)...).

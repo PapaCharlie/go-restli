@@ -7,7 +7,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations_test"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,14 +21,14 @@ func (o *Operation) CollectionWithAnnotationsPartialUpdate(t *testing.T, c Clien
 	id := extras.Temperature(1)
 	update := &extras.MultiplePrimitiveFields_PartialUpdate{
 		Set_Fields: extras.MultiplePrimitiveFields_PartialUpdate_Set_Fields{
-			Field3: protocol.StringPointer("trois"),
+			Field3: restli.StringPointer("trois"),
 		},
 	}
 	require.NoError(t, c.PartialUpdate(id, update))
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockPartialUpdate: func(ctx *protocol.RequestContext, key extras.Temperature, entity *extras.MultiplePrimitiveFields_PartialUpdate) (err error) {
+			MockPartialUpdate: func(ctx *restli.RequestContext, key extras.Temperature, entity *extras.MultiplePrimitiveFields_PartialUpdate) (err error) {
 				require.Equal(t, id, key)
 				require.Equal(t, update, entity)
 				return nil
@@ -48,7 +48,7 @@ func (o *Operation) CollectionWithAnnotationsCreate(t *testing.T, c Client) func
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockCreate: func(ctx *protocol.RequestContext, entity *extras.MultiplePrimitiveFields) (createdEntity *CreatedEntity, err error) {
+			MockCreate: func(ctx *restli.RequestContext, entity *extras.MultiplePrimitiveFields) (createdEntity *CreatedEntity, err error) {
 				require.Equal(t, &extras.MultiplePrimitiveFields{
 					Field1: "", // field1 is a read-only field so it's not supposed to be populated
 					Field2: multiplePrimitiveFields.Field2,

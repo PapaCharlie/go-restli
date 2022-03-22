@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/PapaCharlie/go-restli/codegen/utils"
-	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
+	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -24,6 +24,12 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, pointer utils.S
 			def.Add(utils.IfErrReturn(Nil(), Err()))
 			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
 		}).Line().Line()
+
+	if pointer.ShouldUsePointer() {
+		utils.AddFuncOnReceiver(def, receiver, typeName, "NewInstance", pointer).Params().Op("*").Id(typeName).Block(
+			Return(New(Id(typeName))),
+		).Line().Line()
+	}
 
 	return def
 }

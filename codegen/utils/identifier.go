@@ -31,7 +31,7 @@ func (i Identifier) PackagePath() string {
 	if i.Name == "" {
 		Logger.Panicf("%+v has no name!", i)
 	}
-	if strings.HasPrefix(i.Namespace, ProtocolPackage) {
+	if strings.HasPrefix(i.Namespace, RestLiPackage) {
 		return i.Namespace
 	}
 	var p string

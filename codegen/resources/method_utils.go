@@ -84,7 +84,7 @@ func methodParams(m MethodImplementation, ctx context) (params []Code) {
 	case clientContext:
 		params = append(params, Add(Ctx).Add(Context))
 	case resourceContext:
-		params = append(params, Add(Ctx).Op("*").Qual(utils.ProtocolPackage, "RequestContext"))
+		params = append(params, Add(Ctx).Op("*").Qual(utils.RestLiPackage, "RequestContext"))
 	}
 	for i, name := range names {
 		params = append(params, Add(name).Add(types[i]))
@@ -127,7 +127,7 @@ func registerParams(m MethodImplementation) []Code {
 	if len(m.GetMethod().Params) == 0 {
 		p := Id("_")
 		if rM, ok := m.(*RestMethod); ok && rM.usesBatchQueryParams() {
-			p.Op("*").Qual(utils.ProtocolPackage, "SliceBatchQueryParams").Index(rM.EntityKeyType())
+			p.Op("*").Qual(utils.RestLiPackage, "SliceBatchQueryParams").Index(rM.EntityKeyType())
 		} else {
 			p.Add(EmptyRecord)
 		}

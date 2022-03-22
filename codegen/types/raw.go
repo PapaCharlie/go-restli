@@ -20,7 +20,7 @@ func (r *RawRecord) ShouldReference() utils.ShouldUsePointer {
 }
 
 func (r *RawRecord) GetSourceFile() string {
-	return "https://github.com/PapaCharlie/go-restli/blob/master/protocol/RawRecord.go"
+	return "https://github.com/PapaCharlie/go-restli/blob/master/restli/RawRecord.go"
 }
 
 func (r *RawRecord) InnerTypes() utils.IdentifierSet {

@@ -149,10 +149,10 @@ func (p Path) IntroducesCycle(nextNode Identifier) Path {
 
 var PagingContextIdentifier = Identifier{
 	Name:      "PagingContext",
-	Namespace: StdTypesPackage,
+	Namespace: RestLiDataPackage,
 }
 
 var RawRecordContextIdentifier = Identifier{
 	Name:      "RawRecord",
-	Namespace: StdTypesPackage,
+	Namespace: RestLiDataPackage,
 }

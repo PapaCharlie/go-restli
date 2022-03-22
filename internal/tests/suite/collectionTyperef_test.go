@@ -5,7 +5,7 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/typerefs/collectionTyperef"
@@ -21,7 +21,7 @@ func (o *Operation) CollectionTyperefGet(t *testing.T, c Client) func(*testing.T
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockGet: func(ctx *protocol.RequestContext, collectionTyperefId testsuite.Url) (entity *conflictresolution.Message, err error) {
+			MockGet: func(ctx *restli.RequestContext, collectionTyperefId testsuite.Url) (entity *conflictresolution.Message, err error) {
 				require.Equal(t, collectionTyperefId, id)
 				return expected, nil
 			},

@@ -9,10 +9,10 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
-	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/equals"
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
+	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restli/equals"
+	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,18 +31,18 @@ func TestInclude(t *testing.T) {
 // rest.li-test-suite/client-testsuite/schemas/testsuite/Defaults.pdsc) for the default values used here
 func TestDefaults(t *testing.T) {
 	expected := &testsuite.Defaults{
-		DefaultInteger: protocol.Int32Pointer(1),
-		DefaultLong:    protocol.Int64Pointer(23),
-		DefaultFloat:   protocol.Float32Pointer(52.5),
-		DefaultDouble:  protocol.Float64Pointer(66.5),
-		DefaultBytes:   protocol.BytesPointer([]byte("@ABC")),
-		DefaultString:  protocol.StringPointer("default string"),
+		DefaultInteger: restli.Int32Pointer(1),
+		DefaultLong:    restli.Int64Pointer(23),
+		DefaultFloat:   restli.Float32Pointer(52.5),
+		DefaultDouble:  restli.Float64Pointer(66.5),
+		DefaultBytes:   restli.BytesPointer([]byte("@ABC")),
+		DefaultString:  restli.StringPointer("default string"),
 		DefaultEnum:    conflictresolution.Fruits_APPLE.Pointer(),
 		DefaultFixed:   testsuite.Fixed5{1, 2, 3, 4, 5}.Pointer(),
 		DefaultRecord:  &testsuite.PrimitiveField{Integer: 10},
 		DefaultArray:   &[]int32{1, 3, 5},
 		DefaultMap:     &map[string]int32{"a": 1, "b": 2},
-		DefaultUnion:   &testsuite.Defaults_DefaultUnion{Int: protocol.Int32Pointer(5)},
+		DefaultUnion:   &testsuite.Defaults_DefaultUnion{Int: restli.Int32Pointer(5)},
 	}
 	d := testsuite.NewDefaultsWithDefaultValues()
 	require.Equal(t, expected, d)
@@ -53,7 +53,7 @@ func TestDefaults(t *testing.T) {
 		DefaultRecord:  extras.DefaultTyperef{Foo: extras.Temperature(42).Pointer()},
 		EmptyArray:     new([]string),
 		EmptyMap:       &map[string]string{},
-		DefaultBoolean: protocol.BoolPointer(true),
+		DefaultBoolean: restli.BoolPointer(true),
 	}
 	moreD := extras.NewMoreDefaultsWithDefaultValues()
 	require.Equal(t, moreExpected, moreD)
@@ -63,10 +63,10 @@ func TestDefaults(t *testing.T) {
 
 func TestEnum(t *testing.T) {
 	_, err := conflictresolution.GetFruitsFromString("BANANA")
-	require.IsType(t, new(protocol.UnknownEnumValue), err)
+	require.IsType(t, new(restli.UnknownEnumValue), err)
 	const illegal = conflictresolution.Fruits(42)
 	err = illegal.MarshalRestLi(restlicodec.NoopWriter)
-	require.IsType(t, new(protocol.IllegalEnumConstant), err)
+	require.IsType(t, new(restli.IllegalEnumConstant), err)
 	require.True(t, illegal.ComputeHash().Equals(fnv1a.ZeroHash()))
 	require.False(t, illegal.Equals(illegal))
 }
@@ -269,7 +269,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "start only",
 			params: collectionwithtyperefkey.FindBySearchParams{
-				PagingContext: stdtypes.PagingContext{
+				PagingContext: restlidata.PagingContext{
 					Start: &start,
 				},
 				Keyword: "foo",
@@ -279,7 +279,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "count only",
 			params: collectionwithtyperefkey.FindBySearchParams{
-				PagingContext: stdtypes.PagingContext{
+				PagingContext: restlidata.PagingContext{
 					Count: &count,
 				},
 				Keyword: "foo",
@@ -289,7 +289,7 @@ func TestEmbeddedPagingContext(t *testing.T) {
 		{
 			name: "full context",
 			params: collectionwithtyperefkey.FindBySearchParams{
-				PagingContext: stdtypes.NewPagingContext(start, count),
+				PagingContext: restlidata.NewPagingContext(start, count),
 				Keyword:       "foo",
 			},
 			expected: "count=20&keyword=foo&q=search&start=10",

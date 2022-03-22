@@ -7,7 +7,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/params_test"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,7 +51,7 @@ func (o *Operation) ParamsGetWithQueryparams(t *testing.T, c Client) func(*testi
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockGet: func(ctx *protocol.RequestContext, paramsId int64, queryParams *GetParams) (entity *conflictresolution.Message, err error) {
+			MockGet: func(ctx *restli.RequestContext, paramsId int64, queryParams *GetParams) (entity *conflictresolution.Message, err error) {
 				require.Equal(t, long, paramsId)
 				require.Equal(t, queryParams, params)
 				return expected, nil

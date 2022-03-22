@@ -21,7 +21,7 @@ COVERPKG = -coverpkg=github.com/PapaCharlie/go-restli/...
 COVERPROFILE = -coverprofile=internal/tests/coverage
 GENERATOR_TEST_ARGS = $(COVERPKG) -count=1 -v -tags=jar -args --
 PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/testdata/generated
-PACKAGES := ./codegen/... ./d2/... ./protocol/...
+PACKAGES := ./codegen ./d2 $(wildcard ./restli*)
 TOTALCOV := ./internal/tests/coverage/total.cov
 
 build: generate test integration-test
@@ -34,14 +34,14 @@ bin/go-restli_%:
 	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
 generate:
-	go generate $(PACKAGES)
-	go run ./internal/stdtypes
+	go generate $(foreach p,$(PACKAGES),$p/...)
+	go run ./internal/restlidata
 
 test: generate imports
-	go test -count=1 $(COVERPKG) $(COVERPROFILE)/protocol.cov $(PACKAGES)
+	go test -count=1 $(COVERPKG) $(COVERPROFILE)/protocol.cov $(foreach p,$(PACKAGES),$p/...)
 
 imports:
-	goimports -w main.go ./codegen ./d2 ./protocol
+	goimports -w main.go $(PACKAGES)
 
 integration-test: generate-restli run-testsuite
 
@@ -79,6 +79,10 @@ run-testsuite:
 	go test -json ./internal/tests/suite | go run ./internal/tests/coverage
 	rm -f $(TOTALCOV)
 	gocovmerge ./internal/tests/coverage/*.cov | grep -v .gr.go > $(TOTALCOV)
+
+bench:
+	go test -bench=. ./restlicodec
+
 
 coverage:
 	go tool cover -html ./internal/tests/coverage/total.cov

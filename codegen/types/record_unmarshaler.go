@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/PapaCharlie/go-restli/codegen/utils"
-	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
+	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	. "github.com/dave/jennifer/jen"
 )
 

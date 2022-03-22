@@ -12,7 +12,7 @@ const (
 	WithContext = "WithContext"
 	FindBy      = "FindBy"
 
-	RestLiClient        = "RestLiClient"
+	RestLiClient        = "Client"
 	ClientReceiver      = "c"
 	ClientType          = "client"
 	ClientInterfaceType = "Client"
@@ -27,12 +27,14 @@ const (
 )
 
 var (
-	RestLiClientQual     = Code(Qual(utils.ProtocolPackage, RestLiClient))
-	RestLiClientReceiver = Code(Id(ClientReceiver).Dot(RestLiClient))
-	Context              = Code(Qual("context", "Context"))
-	RequestContext       = Code(Op("*").Qual(utils.ProtocolPackage, "RequestContext"))
-	RequestContextParam  = Code(Add(Ctx).Add(RequestContext))
-	ElementsWithMetadata = Code(Qual(utils.ProtocolPackage, "ElementsWithMetadata"))
+	RestLiClientQual          = Code(Qual(utils.RestLiPackage, RestLiClient))
+	RestLiClientReceiver      = Code(Id(ClientReceiver).Dot(RestLiClient))
+	Context                   = Code(Qual("context", "Context"))
+	RequestContext            = Code(Op("*").Qual(utils.RestLiPackage, "RequestContext"))
+	RequestContextParam       = Code(Add(Ctx).Add(RequestContext))
+	ElementsWithMetadata      = Code(Qual(utils.RestLiDataPackage, "ElementsWithMetadata"))
+	BatchEntityUpdateResponse = Code(Op("*").Qual(utils.RestLiDataPackage, "BatchEntityUpdateResponse"))
+	EmptyRecord               = Code(Qual(utils.RestLiDataPackage, "EmptyRecord"))
 
 	Rp              = Code(Id("rp"))
 	Ctx             = Code(Id("ctx"))
@@ -43,12 +45,9 @@ var (
 	Keys            = Code(Id("keys"))
 	QueryParams     = Code(Id("queryParams"))
 	ActionParams    = Code(Id("actionParams"))
-	EmptyRecord     = Code(Qual(utils.StdTypesPackage, "EmptyRecord"))
 
 	NoExcludedFields        = Code(Qual(utils.RestLiCodecPackage, "NoExcludedFields"))
 	ReadOnlyFields          = Code(Id("ReadOnlyFields"))
 	CreateOnlyFields        = Code(Id("CreateOnlyFields"))
 	CreateAndReadOnlyFields = Code(Id("CreateAndReadOnlyFields"))
-
-	BatchEntityUpdateResponse = Code(Op("*").Qual(utils.ProtocolPackage, "BatchEntityUpdateResponse"))
 )

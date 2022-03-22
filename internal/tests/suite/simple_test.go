@@ -6,7 +6,7 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple_test"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +18,7 @@ func (o *Operation) SimpleGet(t *testing.T, c Client) func(*testing.T) *MockReso
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockGet: func(ctx *protocol.RequestContext) (entity *conflictresolution.Message, err error) {
+			MockGet: func(ctx *restli.RequestContext) (entity *conflictresolution.Message, err error) {
 				return expected, nil
 			},
 		}
@@ -32,7 +32,7 @@ func (o *Operation) SimpleUpdate(t *testing.T, c Client) func(*testing.T) *MockR
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockUpdate: func(ctx *protocol.RequestContext, entity *conflictresolution.Message) (err error) {
+			MockUpdate: func(ctx *restli.RequestContext, entity *conflictresolution.Message) (err error) {
 				require.Equal(t, expected, entity)
 				return nil
 			},
@@ -46,7 +46,7 @@ func (o *Operation) SimpleDelete(t *testing.T, c Client) func(*testing.T) *MockR
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockDelete: func(ctx *protocol.RequestContext) (err error) {
+			MockDelete: func(ctx *restli.RequestContext) (err error) {
 				return nil
 			},
 		}

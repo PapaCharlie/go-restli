@@ -6,8 +6,8 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey_test"
-	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
+	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +42,7 @@ func (o *Operation) SimpleComplexKeyBatchCreate(t *testing.T, c Client) func(*te
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchCreate: func(ctx *protocol.RequestContext, entities []*extras.SinglePrimitiveField) (createdEntities []*CreatedAndReturnedEntity, err error) {
+			MockBatchCreate: func(ctx *restli.RequestContext, entities []*extras.SinglePrimitiveField) (createdEntities []*CreatedAndReturnedEntity, err error) {
 				require.Equal(t, create, entities)
 				return expected, nil
 			},
@@ -71,25 +71,21 @@ func (o *Operation) SimpleComplexKeyBatchGet(t *testing.T, c Client) func(*testi
 	}
 	res, err := c.BatchGet(ids)
 	require.NoError(t, err)
-	expected := &BatchEntities{
-		Results: make(map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField),
-	}
+	expected := new(BatchEntities)
 	for _, k := range ids {
-		expected.Results[k] = &k.SinglePrimitiveField
+		expected.AddResult(k, &k.SinglePrimitiveField)
 	}
 	requiredBatchResponseEquals(t, expected, res)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchGet: func(ctx *protocol.RequestContext, keys []*SimpleComplexKey_ComplexKey) (results *BatchEntities, err error) {
+			MockBatchGet: func(ctx *restli.RequestContext, keys []*SimpleComplexKey_ComplexKey) (results *BatchEntities, err error) {
 				require.Equal(t, ids, keys)
 
-				results = &BatchEntities{
-					Results: make(map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField),
-				}
+				results = new(BatchEntities)
 				for _, k := range ids {
 					kCopy := &SimpleComplexKey_ComplexKey{SinglePrimitiveField: k.SinglePrimitiveField}
-					results.Results[kCopy] = &kCopy.SinglePrimitiveField
+					results.AddResult(kCopy, &kCopy.SinglePrimitiveField)
 				}
 
 				return results, nil
@@ -108,7 +104,7 @@ func (o *Operation) SimpleComplexKeyGet(t *testing.T, c Client) func(*testing.T)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockGet: func(ctx *protocol.RequestContext, key *SimpleComplexKey_ComplexKey) (entity *extras.SinglePrimitiveField, err error) {
+			MockGet: func(ctx *restli.RequestContext, key *SimpleComplexKey_ComplexKey) (entity *extras.SinglePrimitiveField, err error) {
 				require.Equal(t, expected, key)
 				return &expected.SinglePrimitiveField, nil
 			},
@@ -140,21 +136,21 @@ func (o *Operation) SimpleComplexKeyBatchUpdateWithErrors(t *testing.T, c Client
 		keys[2]: &keys[2].SinglePrimitiveField,
 	}
 	expected := &BatchResponse{
-		Results: map[*SimpleComplexKey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+		Results: map[*SimpleComplexKey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
 			keys[1]: {Status: 204},
 		},
-		Errors: map[*SimpleComplexKey_ComplexKey]*stdtypes.ErrorResponse{
+		Errors: map[*SimpleComplexKey_ComplexKey]*restlidata.ErrorResponse{
 			keys[0]: {
-				Status:         protocol.Int32Pointer(400),
-				Message:        protocol.StringPointer("message"),
-				ExceptionClass: protocol.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
-				StackTrace:     protocol.StringPointer("trace"),
+				Status:         restli.Int32Pointer(400),
+				Message:        restli.StringPointer("message"),
+				ExceptionClass: restli.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
+				StackTrace:     restli.StringPointer("trace"),
 			},
 			keys[2]: {
-				Status:         protocol.Int32Pointer(500),
+				Status:         restli.Int32Pointer(500),
 				Message:        nil,
-				ExceptionClass: protocol.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
-				StackTrace:     protocol.StringPointer("trace"),
+				ExceptionClass: restli.StringPointer("com.linkedin.restli.server.RestLiServiceException"),
+				StackTrace:     restli.StringPointer("trace"),
 			},
 		},
 	}
@@ -165,7 +161,7 @@ func (o *Operation) SimpleComplexKeyBatchUpdateWithErrors(t *testing.T, c Client
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchUpdate: func(ctx *protocol.RequestContext, entities map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField) (results *BatchResponse, err error) {
+			MockBatchUpdate: func(ctx *restli.RequestContext, entities map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField) (results *BatchResponse, err error) {
 				requireComplexKeyMapEquals(t, ids, entities)
 				return expected, nil
 			},
@@ -195,18 +191,18 @@ func (o *Operation) SimpleComplexKeyBatchPartialUpdate(t *testing.T, c Client) f
 	partialUpdate := map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField_PartialUpdate{
 		keys[0]: {
 			Set_Fields: extras.SinglePrimitiveField_PartialUpdate_Set_Fields{
-				String: protocol.StringPointer("partial updated message"),
+				String: restli.StringPointer("partial updated message"),
 			},
 		},
 		keys[1]: {
 			Set_Fields: extras.SinglePrimitiveField_PartialUpdate_Set_Fields{
-				String: protocol.StringPointer("another partial message"),
+				String: restli.StringPointer("another partial message"),
 			},
 		},
 	}
 
 	expected := &BatchResponse{
-		Results: map[*SimpleComplexKey_ComplexKey]*protocol.BatchEntityUpdateResponse{
+		Results: map[*SimpleComplexKey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
 			keys[0]: {Status: 204},
 			keys[1]: {Status: 205},
 		},
@@ -219,7 +215,7 @@ func (o *Operation) SimpleComplexKeyBatchPartialUpdate(t *testing.T, c Client) f
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchPartialUpdate: func(ctx *protocol.RequestContext, entities map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField_PartialUpdate) (results *BatchResponse, err error) {
+			MockBatchPartialUpdate: func(ctx *restli.RequestContext, entities map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField_PartialUpdate) (results *BatchResponse, err error) {
 				requireComplexKeyMapEquals(t, partialUpdate, entities)
 				return expected, nil
 			},

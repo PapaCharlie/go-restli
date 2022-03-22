@@ -7,7 +7,7 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet_test"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +19,7 @@ func (o *Operation) ActionsetEcho(t *testing.T, c Client) func(*testing.T) *Mock
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoAction: func(ctx *protocol.RequestContext, actionParams *EchoActionParams) (actionResult string, err error) {
+			MockEchoAction: func(ctx *restli.RequestContext, actionParams *EchoActionParams) (actionResult string, err error) {
 				require.Equal(t, input, actionParams.Input)
 				return actionParams.Input, nil
 			},
@@ -35,7 +35,7 @@ func (o *Operation) ActionsetReturnInt(t *testing.T, c Client) func(*testing.T) 
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockReturnIntAction: func(ctx *protocol.RequestContext) (actionResult int32, err error) {
+			MockReturnIntAction: func(ctx *restli.RequestContext) (actionResult int32, err error) {
 				return 42, nil
 			},
 		}
@@ -50,7 +50,7 @@ func (o *Operation) ActionsetReturnBool(t *testing.T, c Client) func(*testing.T)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockReturnBoolAction: func(ctx *protocol.RequestContext) (actionResult bool, err error) {
+			MockReturnBoolAction: func(ctx *restli.RequestContext) (actionResult bool, err error) {
 				return expected, nil
 			},
 		}
@@ -65,7 +65,7 @@ func (o *Operation) ActionsetEchoMessage(t *testing.T, c Client) func(*testing.T
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoMessageAction: func(ctx *protocol.RequestContext, actionParams *EchoMessageActionParams) (actionResult *conflictresolution.Message, err error) {
+			MockEchoMessageAction: func(ctx *restli.RequestContext, actionParams *EchoMessageActionParams) (actionResult *conflictresolution.Message, err error) {
 				require.Equal(t, message, actionParams.Message)
 				return &message, nil
 			},
@@ -84,7 +84,7 @@ func (o *Operation) ActionsetEchoMessageArray(t *testing.T, c Client) func(*test
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoMessageArrayAction: func(ctx *protocol.RequestContext, actionParams *EchoMessageArrayActionParams) (actionResult []*conflictresolution.Message, err error) {
+			MockEchoMessageArrayAction: func(ctx *restli.RequestContext, actionParams *EchoMessageArrayActionParams) (actionResult []*conflictresolution.Message, err error) {
 				require.Equal(t, messageArray, actionParams.Messages)
 				return messageArray, nil
 			},
@@ -100,7 +100,7 @@ func (o *Operation) ActionsetEchoStringArray(t *testing.T, c Client) func(*testi
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoStringArrayAction: func(ctx *protocol.RequestContext, actionParams *EchoStringArrayActionParams) (actionResult []string, err error) {
+			MockEchoStringArrayAction: func(ctx *restli.RequestContext, actionParams *EchoStringArrayActionParams) (actionResult []string, err error) {
 				require.Equal(t, stringArray, actionParams.Strings)
 				return stringArray, nil
 			},
@@ -119,7 +119,7 @@ func (o *Operation) ActionsetEchoStringMap(t *testing.T, c Client) func(*testing
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoStringMapAction: func(ctx *protocol.RequestContext, actionParams *EchoStringMapActionParams) (actionResult map[string]string, err error) {
+			MockEchoStringMapAction: func(ctx *restli.RequestContext, actionParams *EchoStringMapActionParams) (actionResult map[string]string, err error) {
 				require.Equal(t, stringMap, actionParams.Strings)
 				return stringMap, nil
 			},
@@ -135,7 +135,7 @@ func (o *Operation) ActionsetEchoTyperefUrl(t *testing.T, c Client) func(*testin
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoTyperefUrlAction: func(_ *protocol.RequestContext, actionParams *EchoTyperefUrlActionParams) (actionResult testsuite.Url, err error) {
+			MockEchoTyperefUrlAction: func(_ *restli.RequestContext, actionParams *EchoTyperefUrlActionParams) (actionResult testsuite.Url, err error) {
 				require.Equal(t, urlTyperef, actionParams.UrlTyperef)
 				return urlTyperef, nil
 			},
@@ -145,7 +145,7 @@ func (o *Operation) ActionsetEchoTyperefUrl(t *testing.T, c Client) func(*testin
 
 func (o *Operation) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) func(*testing.T) *MockResource {
 	union := &testsuite.UnionOfPrimitives{
-		PrimitivesUnion: testsuite.UnionOfPrimitives_PrimitivesUnion{Long: protocol.Int64Pointer(100)},
+		PrimitivesUnion: testsuite.UnionOfPrimitives_PrimitivesUnion{Long: restli.Int64Pointer(100)},
 	}
 	res, err := c.EchoPrimitiveUnionAction(&EchoPrimitiveUnionActionParams{PrimitiveUnion: *union})
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func (o *Operation) ActionsetEchoPrimitiveUnion(t *testing.T, c Client) func(*te
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoPrimitiveUnionAction: func(ctx *protocol.RequestContext, actionParams *EchoPrimitiveUnionActionParams) (actionResult *testsuite.UnionOfPrimitives, err error) {
+			MockEchoPrimitiveUnionAction: func(ctx *restli.RequestContext, actionParams *EchoPrimitiveUnionActionParams) (actionResult *testsuite.UnionOfPrimitives, err error) {
 				require.Equal(t, *union, actionParams.PrimitiveUnion)
 				return union, nil
 			},
@@ -173,7 +173,7 @@ func (o *Operation) ActionsetEchoComplexTypesUnion(t *testing.T, c Client) func(
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEchoComplexTypesUnionAction: func(_ *protocol.RequestContext, actionParams *EchoComplexTypesUnionActionParams) (actionResult *testsuite.UnionOfComplexTypes, err error) {
+			MockEchoComplexTypesUnionAction: func(_ *restli.RequestContext, actionParams *EchoComplexTypesUnionActionParams) (actionResult *testsuite.UnionOfComplexTypes, err error) {
 				require.Equal(t, *union, actionParams.ComplexTypesUnion)
 				return union, nil
 			},
@@ -190,7 +190,7 @@ func (o *Operation) ActionsetEmptyResponse(t *testing.T, c Client) func(*testing
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockEmptyResponseAction: func(_ *protocol.RequestContext, actionParams *EmptyResponseActionParams) (err error) {
+			MockEmptyResponseAction: func(_ *restli.RequestContext, actionParams *EmptyResponseActionParams) (err error) {
 				require.Equal(t, params, actionParams)
 				return nil
 			},
@@ -203,7 +203,7 @@ func (o *Operation) ActionsetMultipleInputs(t *testing.T, c Client) func(*testin
 		String:         "string",
 		Message:        conflictresolution.Message{Message: "test message"},
 		UrlTyperef:     "http://rest.li",
-		OptionalString: protocol.StringPointer("optional string"),
+		OptionalString: restli.StringPointer("optional string"),
 	}
 	res, err := c.MultipleInputsAction(params)
 	require.NoError(t, err)
@@ -211,7 +211,7 @@ func (o *Operation) ActionsetMultipleInputs(t *testing.T, c Client) func(*testin
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockMultipleInputsAction: func(ctx *protocol.RequestContext, actionParams *MultipleInputsActionParams) (actionResult bool, err error) {
+			MockMultipleInputsAction: func(ctx *restli.RequestContext, actionParams *MultipleInputsActionParams) (actionResult bool, err error) {
 				require.Equal(t, params, actionParams)
 				return true, nil
 			},
@@ -231,7 +231,7 @@ func (o *Operation) ActionsetMultipleInputsNoOptional(t *testing.T, c Client) fu
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockMultipleInputsAction: func(_ *protocol.RequestContext, actionParams *MultipleInputsActionParams) (actionResult bool, err error) {
+			MockMultipleInputsAction: func(_ *restli.RequestContext, actionParams *MultipleInputsActionParams) (actionResult bool, err error) {
 				require.Equal(t, params, actionParams)
 				return true, nil
 			},

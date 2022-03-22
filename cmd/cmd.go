@@ -57,7 +57,7 @@ specs.`)
 		cmd.Flags().StringArrayVarP(&params.NamedDataSchemasToGenerate, "named-schemas-to-generate", "n", nil,
 			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
 		cmd.Flags().StringArrayVar(&params.RawRecords, "raw-records", nil,
-			"These records will be interpreted as `protocol.RawRecord`s instead of their actual underlying type.")
+			"These records will be interpreted as `restli.RawRecord`s instead of their actual underlying type.")
 
 		cmd.Args = func(_ *cobra.Command, args []string) error {
 			params.RestSpecPaths = args

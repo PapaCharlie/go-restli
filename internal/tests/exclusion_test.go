@@ -6,8 +6,8 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restlicodec"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,7 +128,7 @@ func TestExcludeOnPartialUpdate(t *testing.T) {
 	roundTrip("Illegal update", &conflictresolution.LargeRecord_PartialUpdate{
 		Key: &conflictresolution.ComplexKey_PartialUpdate{
 			Set_Fields: conflictresolution.ComplexKey_PartialUpdate_Set_Fields{
-				Part1: protocol.StringPointer(""),
+				Part1: restli.StringPointer(""),
 			},
 		},
 	})

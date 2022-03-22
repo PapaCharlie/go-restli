@@ -27,9 +27,10 @@ import (
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	simplecomplexkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	simplewithpartialupdate "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleWithPartialUpdate"
-	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/batchkeyset"
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
+	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
+	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,7 +78,7 @@ func TestGoRestli(t *testing.T) {
 				if resource.IsNil() {
 					t.SkipNow()
 				}
-				server := protocol.NewServer()
+				server := restli.NewServer()
 				o.getResource().register.Call([]reflect.Value{reflect.ValueOf(server), resource})
 
 				res := httptest.NewRecorder()
@@ -97,7 +98,7 @@ func requireMapEquals[K comparable, V any](t *testing.T, left, right map[K]V) {
 	require.Equal(t, left, right)
 }
 
-func requiredBatchResponseEquals[K comparable, V restlicodec.Marshaler](t *testing.T, left, right *protocol.BatchResponse[K, V]) {
+func requiredBatchResponseEquals[K comparable, V restlicodec.Marshaler](t *testing.T, left, right *restlidata.BatchResponse[K, V]) {
 	requireMapEquals(t, left.Statuses, right.Statuses)
 	requireMapEquals(t, left.Results, right.Results)
 	requireMapEquals(t, left.Errors, right.Errors)
@@ -147,7 +148,7 @@ func (o *Operation) getResource() *supportedResource {
 }
 
 func (o *Operation) newClient(t *testing.T, strictResponseDeserialization bool) reflect.Value {
-	c := &protocol.RestLiClient{
+	c := &restli.Client{
 		Client: &http.Client{
 			Transport: roundTripper(func(req *http.Request) (*http.Response, error) {
 				compareRequests(t, o, req)
@@ -155,7 +156,7 @@ func (o *Operation) newClient(t *testing.T, strictResponseDeserialization bool) 
 				return o.Response, nil
 			}),
 		},
-		HostnameResolver:              &protocol.SimpleHostnameResolver{Hostname: &url.URL{}},
+		HostnameResolver:              &restli.SimpleHostnameResolver{Hostname: &url.URL{}},
 		StrictResponseDeserialization: strictResponseDeserialization,
 	}
 
@@ -259,7 +260,7 @@ func compareRequests(t *testing.T, left *Operation, right *http.Request) {
 		rightHeaders.Del(k)
 	}
 	// go-restli always sends the method header so ignore it if the expected response doesn't have it
-	rightHeaders.Del(protocol.RestLiHeader_Method)
+	rightHeaders.Del(restli.MethodHeader)
 	if len(rightHeaders) != 0 {
 		t.Fatalf("Unexpected headers:\n%s", niceHeaders(rightHeaders))
 	}
@@ -327,7 +328,7 @@ func compareResponses(t *testing.T, left *Operation, right *http.Response) {
 	)
 
 	// It's not super important that the error responses match
-	if strings.ToLower(left.Response.Header.Get(protocol.RestLiHeader_ErrorResponse)) == "true" {
+	if strings.ToLower(left.Response.Header.Get(restli.ErrorResponseHeader)) == "true" {
 		return
 	}
 

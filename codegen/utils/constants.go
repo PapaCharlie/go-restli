@@ -16,11 +16,11 @@ const (
 
 	RootPackage        = "github.com/PapaCharlie/go-restli"
 	HashPackage        = RootPackage + "/fnv1a"
-	ProtocolPackage    = RootPackage + "/protocol"
-	RestLiCodecPackage = ProtocolPackage + "/restlicodec"
-	BatchKeySetPackage = ProtocolPackage + "/batchkeyset"
-	EqualsPackage      = ProtocolPackage + "/equals"
-	StdTypesPackage    = ProtocolPackage + "/stdtypes"
+	RestLiPackage      = RootPackage + "/restli"
+	RestLiCodecPackage = RootPackage + "/restlicodec"
+	RestLiDataPackage  = RootPackage + "/restlidata"
+	BatchKeySetPackage = RestLiPackage + "/batchkeyset"
+	EqualsPackage      = RestLiPackage + "/equals"
 )
 
 var (
@@ -33,6 +33,6 @@ var (
 	NewHash  = Code(Qual(HashPackage, "NewHash").Call())
 	ZeroHash = Code(Qual(HashPackage, "ZeroHash").Call())
 
-	IllegalEnumConstant = Code(Qual(ProtocolPackage, "IllegalEnumConstant"))
-	UnknownEnumValue    = Code(Qual(ProtocolPackage, "UnknownEnumValue"))
+	IllegalEnumConstant = Code(Qual(RestLiPackage, "IllegalEnumConstant"))
+	UnknownEnumValue    = Code(Qual(RestLiPackage, "UnknownEnumValue"))
 )

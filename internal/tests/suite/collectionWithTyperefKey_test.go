@@ -8,9 +8,9 @@ import (
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey_test"
-	"github.com/PapaCharlie/go-restli/protocol"
-	"github.com/PapaCharlie/go-restli/protocol/restlicodec"
-	"github.com/PapaCharlie/go-restli/protocol/stdtypes"
+	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +31,7 @@ func (o *Operation) CollectionWithTyperefKeyBatchCreateWithParams(t *testing.T, 
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchCreate: func(ctx *protocol.RequestContext, entities []*extras.SinglePrimitiveField, queryParams *BatchCreateParams) (createdEntities []*CreatedEntity, err error) {
+			MockBatchCreate: func(ctx *restli.RequestContext, entities []*extras.SinglePrimitiveField, queryParams *BatchCreateParams) (createdEntities []*CreatedEntity, err error) {
 				require.Equal(t, create, entities)
 				require.Equal(t, params, queryParams)
 				return []*CreatedEntity{{Id: 1}}, nil
@@ -55,7 +55,7 @@ func (o *Operation) CollectionWithTyperefKeyBatchGetWithParams(t *testing.T, c C
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchGet: func(ctx *protocol.RequestContext, keys []extras.Temperature, queryParams *BatchGetParams) (results *BatchEntities, err error) {
+			MockBatchGet: func(ctx *restli.RequestContext, keys []extras.Temperature, queryParams *BatchGetParams) (results *BatchEntities, err error) {
 				require.Equal(t, expectedKeys, keys)
 				require.Equal(t, expectedParams, queryParams)
 				return expectedEntities, nil
@@ -73,7 +73,7 @@ func (o *Operation) CollectionWithTyperefKeyGet(t *testing.T, c Client) func(*te
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockGet: func(ctx *protocol.RequestContext, key extras.Temperature) (entity *extras.SinglePrimitiveField, err error) {
+			MockGet: func(ctx *restli.RequestContext, key extras.Temperature) (entity *extras.SinglePrimitiveField, err error) {
 				require.Equal(t, k, key)
 				return expected, nil
 			},
@@ -100,11 +100,11 @@ func (o *Operation) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T, 
 
 func (o *Operation) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T, c Client) func(*testing.T) *MockResource {
 	params := &FindBySearchParams{
-		PagingContext: stdtypes.NewPagingContext(0, 10),
+		PagingContext: restlidata.NewPagingContext(0, 10),
 		Keyword:       "test",
 	}
 	expected := &Elements{
-		Paging: &stdtypes.CollectionMedata{Total: protocol.Int32Pointer(42)},
+		Paging: &restlidata.CollectionMedata{Total: restli.Int32Pointer(42)},
 	}
 	results, err := c.FindBySearch(params)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func (o *Operation) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T, 
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockFindBySearch: func(ctx *protocol.RequestContext, queryParams *FindBySearchParams) (results *Elements, err error) {
+			MockFindBySearch: func(ctx *restli.RequestContext, queryParams *FindBySearchParams) (results *Elements, err error) {
 				require.Equal(t, params, queryParams)
 				return expected, nil
 			},
@@ -122,7 +122,7 @@ func (o *Operation) CollectionWithTyperefKeyFindWithPagingContext(t *testing.T, 
 
 func (o *Operation) CollectionWithTyperefKeyFindWithPagingContextNoTotal(t *testing.T, c Client) func(*testing.T) *MockResource {
 	params := &FindBySearchParams{
-		PagingContext: stdtypes.NewPagingContext(0, 10),
+		PagingContext: restlidata.NewPagingContext(0, 10),
 		Keyword:       "test",
 	}
 	expected := &Elements{}
@@ -132,7 +132,7 @@ func (o *Operation) CollectionWithTyperefKeyFindWithPagingContextNoTotal(t *test
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockFindBySearch: func(ctx *protocol.RequestContext, queryParams *FindBySearchParams) (results *Elements, err error) {
+			MockFindBySearch: func(ctx *restli.RequestContext, queryParams *FindBySearchParams) (results *Elements, err error) {
 				require.Equal(t, params, queryParams)
 				return expected, nil
 			},

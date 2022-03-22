@@ -5,7 +5,7 @@ import (
 
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/protocol"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion"
@@ -32,7 +32,7 @@ func (o *Operation) KeywithunionGet(t *testing.T, c Client) func(*testing.T) *Mo
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockGet: func(ctx *protocol.RequestContext, keywithunionId *Keywithunion_ComplexKey) (entity *conflictresolution.LargeRecord, err error) {
+			MockGet: func(ctx *restli.RequestContext, keywithunionId *Keywithunion_ComplexKey) (entity *conflictresolution.LargeRecord, err error) {
 				require.Equal(t, id, keywithunionId)
 				return expected, nil
 			},
