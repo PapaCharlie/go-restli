@@ -7,14 +7,21 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/PapaCharlie/go-restli/fnv1a"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restli/equals"
 	"github.com/PapaCharlie/go-restli/restlicodec"
 	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
+
+type Object[T any] interface {
+	equals.Comparable[T]
+	fnv1a.Hashable
+	restlicodec.Marshaler
+}
 
 func reflectionRoundTrip[V any](t *testing.T, v V, expectedJson string) {
 	t.Run("marshal", func(t *testing.T) {
@@ -722,7 +729,7 @@ func TestRaw(t *testing.T) {
 	})
 }
 
-func testEncoding[T restli.Object[T]](t *testing.T, expected T, expectedRawJson, expectedRawRor2 string) {
+func testEncoding[T Object[T]](t *testing.T, expected T, expectedRawJson, expectedRawRor2 string) {
 	t.Run("json", func(t *testing.T) {
 		t.Run("encode", func(t *testing.T) {
 			testJsonEquality(t, expected, expectedRawJson, nil, true)
@@ -748,7 +755,7 @@ func testEncoding[T restli.Object[T]](t *testing.T, expected T, expectedRawJson,
 	})
 }
 
-func testJsonEquality[T restli.Object[T]](t *testing.T, obj T, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
+func testJsonEquality[T Object[T]](t *testing.T, obj T, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewPrettyJsonWriterWithExcludedFields(excludedFields)
 	require.NoError(t, restlicodec.MarshalRestLi[T](obj, writer))
 
@@ -760,7 +767,7 @@ func testJsonEquality[T restli.Object[T]](t *testing.T, obj T, expectedRawJson s
 	}
 }
 
-func testRor2Equality[T restli.Object[T]](t *testing.T, obj T, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
+func testRor2Equality[T Object[T]](t *testing.T, obj T, expectedRawRor2 string, excludedFields restlicodec.PathSpec, equal bool) {
 	writer := restlicodec.NewRor2HeaderWriterWithExcludedFields(excludedFields)
 	require.NoError(t, restlicodec.MarshalRestLi[T](obj, writer))
 
@@ -773,7 +780,7 @@ func testRor2Equality[T restli.Object[T]](t *testing.T, obj T, expectedRawRor2 s
 	}
 }
 
-func requireEqual[T restli.Object[T]](t *testing.T, expected, actual T) {
+func requireEqual[T Object[T]](t *testing.T, expected, actual T) {
 	require.True(t, expected.Equals(actual), "%+v and %+v should be equals", expected, actual)
 	require.Equal(t, expected, actual)
 }

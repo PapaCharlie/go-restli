@@ -6,7 +6,19 @@ import (
 	. "github.com/dave/jennifer/jen"
 )
 
-func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *Group)) *Statement {
+const NewInstance = "NewInstance"
+
+func AddNewInstance(def *Statement, receiver, typeName string) {
+	utils.AddFuncOnReceiver(def, receiver, typeName, NewInstance, utils.Yes).Params().Op("*").Id(typeName).Block(
+		Return(New(Id(typeName))),
+	).Line().Line()
+}
+
+func AddUnmarshalRestli(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
+	if pointer.ShouldUsePointer() {
+		AddNewInstance(def, receiver, typeName)
+	}
+
 	utils.AddFuncOnReceiver(def, receiver, typeName, utils.UnmarshalRestLi, utils.Yes).
 		Params(ReaderParam).
 		Params(Err().Error()).
@@ -27,7 +39,7 @@ func AddUnmarshalRestli(def *Statement, receiver, typeName string, f func(def *G
 
 func (r *Record) GenerateUnmarshalRestLi() *Statement {
 	requiredFields, def := r.generateRequiredFields(nil)
-	return AddUnmarshalRestli(def, r.Receiver(), r.Name, func(def *Group) {
+	return AddUnmarshalRestli(def, r.Receiver(), r.Name, RecordShouldUsePointer, func(def *Group) {
 		r.generateUnmarshaler(def, requiredFields, nil)
 	})
 }
@@ -94,6 +106,8 @@ func (r *Record) GenerateQueryParamUnmarshaler(batchKeyType *RestliType) Code {
 		params = append(params, Add(ids).Index().Add(batchKeyType.GoType()))
 	}
 	params = append(params, Err().Error())
+
+	AddNewInstance(def, r.Receiver(), r.Name)
 
 	return utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, "DecodeQueryParams", RecordShouldUsePointer).
 		Params(Add(Reader).Qual(utils.RestLiCodecPackage, "QueryParamsReader")).

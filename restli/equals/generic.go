@@ -1,6 +1,6 @@
 package equals
 
-type Equatable[T any] interface {
+type Comparable[T any] interface {
 	Equals(T) bool
 }
 

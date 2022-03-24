@@ -350,7 +350,7 @@ func (p *pathNode) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	handle(p, res, req)
 }
 
-func registerMethod[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder](
+func registerMethod[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP]](
 	s Server,
 	segments []ResourcePathSegment,
 	method Method,
@@ -392,7 +392,7 @@ func registerMethod[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecode
 	}
 }
 
-func registerMethodWithNoBody[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder](
+func registerMethodWithNoBody[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP]](
 	s Server,
 	segments []ResourcePathSegment,
 	method Method,
@@ -412,7 +412,7 @@ func registerMethodWithNoBody[RP ResourcePathUnmarshaler, QP restlicodec.QueryPa
 		})
 }
 
-func registerMethodWithBody[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V any](
+func registerMethodWithBody[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V any](
 	s Server,
 	segments []ResourcePathSegment,
 	method Method,

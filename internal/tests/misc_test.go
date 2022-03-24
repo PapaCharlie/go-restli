@@ -71,7 +71,7 @@ func TestEnum(t *testing.T) {
 	require.False(t, illegal.Equals(illegal))
 }
 
-func testEquality[T equals.Equatable[T]](t *testing.T, tests [][]bool, data []T) {
+func testEquality[T equals.Comparable[T]](t *testing.T, tests [][]bool, data []T) {
 	for i, row := range tests {
 		for j, expected := range row {
 			a, b := data[i], data[j]

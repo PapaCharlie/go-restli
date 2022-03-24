@@ -76,7 +76,7 @@ func newActionRequest(
 	return NewJsonRequest(c, ctx, rp, query, http.MethodPost, Method_action, params, nil)
 }
 
-func RegisterAction[RP ResourcePathUnmarshaler, P any](
+func RegisterAction[RP ResourcePathUnmarshaler[RP], P any](
 	s Server,
 	segments []ResourcePathSegment,
 	name string,
@@ -88,7 +88,7 @@ func RegisterAction[RP ResourcePathUnmarshaler, P any](
 		})
 }
 
-func RegisterActionWithResults[RP ResourcePathUnmarshaler, P, R any](
+func RegisterActionWithResults[RP ResourcePathUnmarshaler[RP], P, R any](
 	s Server,
 	segments []ResourcePathSegment,
 	name string,
@@ -101,7 +101,7 @@ func RegisterActionWithResults[RP ResourcePathUnmarshaler, P, R any](
 		})
 }
 
-func registerAction[RP ResourcePathUnmarshaler, P, R any](
+func registerAction[RP ResourcePathUnmarshaler[RP], P, R any](
 	s Server,
 	segments []ResourcePathSegment,
 	name string,

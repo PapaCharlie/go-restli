@@ -8,7 +8,7 @@ import (
 	"github.com/PapaCharlie/go-restli/restlidata"
 )
 
-func RegisterCreate[K any, RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterCreate[K any, RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readOnlyFields restlicodec.PathSpec,
@@ -48,7 +48,7 @@ func writeIdHeaders[K any](ctx *RequestContext, id K) (err error) {
 	return nil
 }
 
-func RegisterCreateWithReturnEntity[K any, RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterCreateWithReturnEntity[K any, RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readOnlyFields restlicodec.PathSpec,
@@ -76,7 +76,7 @@ func RegisterCreateWithReturnEntity[K any, RP ResourcePathUnmarshaler, QP restli
 		})
 }
 
-func RegisterBatchCreate[K any, RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterBatchCreate[K any, RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readOnlyFields restlicodec.PathSpec,
@@ -95,7 +95,7 @@ func RegisterBatchCreate[K any, RP ResourcePathUnmarshaler, QP restlicodec.Query
 	)
 }
 
-func RegisterBatchCreateWithReturnEntity[K any, RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterBatchCreateWithReturnEntity[K any, RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readOnlyFields restlicodec.PathSpec,
@@ -114,7 +114,7 @@ func RegisterBatchCreateWithReturnEntity[K any, RP ResourcePathUnmarshaler, QP r
 	)
 }
 
-func RegisterGet[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterGet[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	get func(*RequestContext, RP, QP) (V, error),
@@ -125,18 +125,18 @@ func RegisterGet[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, 
 		})
 }
 
-func RegisterBatchGet[K comparable, RP ResourcePathUnmarshaler, QP batchQueryParamsDecoder[K], V restlicodec.Marshaler](
+func RegisterBatchGet[K comparable, RP ResourcePathUnmarshaler[RP], QP batchQueryParamsDecoder[K, QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	batchGet func(*RequestContext, RP, []K, QP) (*restlidata.BatchResponse[K, V], error),
 ) {
 	registerMethodWithNoBody(s, segments, Method_batch_get,
-		func(ctx *RequestContext, rp RP, qp *WrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
+		func(ctx *RequestContext, rp RP, qp *wrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
 			return batchGet(ctx, rp, qp.keys, qp.qp)
 		})
 }
 
-func RegisterGetAll[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterGetAll[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	getAll func(*RequestContext, RP, QP) (*restlidata.Elements[V], error),
@@ -147,7 +147,7 @@ func RegisterGetAll[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecode
 		})
 }
 
-func RegisterDelete[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder](
+func RegisterDelete[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP]](
 	s Server,
 	segments []ResourcePathSegment,
 	deleteF func(*RequestContext, RP, QP) error,
@@ -159,18 +159,18 @@ func RegisterDelete[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecode
 		})
 }
 
-func RegisterBatchDelete[K comparable, RP ResourcePathUnmarshaler, QP batchQueryParamsDecoder[K]](
+func RegisterBatchDelete[K comparable, RP ResourcePathUnmarshaler[RP], QP batchQueryParamsDecoder[K, QP]](
 	s Server,
 	segments []ResourcePathSegment,
 	batchDelete func(*RequestContext, RP, []K, QP) (*restlidata.BatchResponse[K, *restlidata.BatchEntityUpdateResponse], error),
 ) {
 	registerMethodWithNoBody(s, segments, Method_batch_delete,
-		func(ctx *RequestContext, rp RP, qp *WrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
+		func(ctx *RequestContext, rp RP, qp *wrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
 			return batchDelete(ctx, rp, qp.keys, qp.qp)
 		})
 }
 
-func RegisterUpdate[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterUpdate[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readAndCreateOnlyFields restlicodec.PathSpec,
@@ -184,7 +184,7 @@ func RegisterUpdate[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecode
 		})
 }
 
-func RegisterBatchUpdate[K comparable, RP ResourcePathUnmarshaler, QP batchQueryParamsDecoder[K], V restlicodec.Marshaler](
+func RegisterBatchUpdate[K comparable, RP ResourcePathUnmarshaler[RP], QP batchQueryParamsDecoder[K, QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readAndCreateOnlyFields restlicodec.PathSpec,
@@ -195,12 +195,12 @@ func RegisterBatchUpdate[K comparable, RP ResourcePathUnmarshaler, QP batchQuery
 			entities = make(map[K]V)
 			return entities, batchEntities[K, V](entities).UnmarshalRestLi(reader)
 		},
-		func(ctx *RequestContext, rp RP, v map[K]V, qp *WrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
+		func(ctx *RequestContext, rp RP, v map[K]V, qp *wrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
 			return batchUpdate(ctx, rp, v, qp.qp)
 		})
 }
 
-func RegisterPartialUpdate[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterPartialUpdate[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	excludedFields restlicodec.PathSpec,
@@ -214,7 +214,7 @@ func RegisterPartialUpdate[RP ResourcePathUnmarshaler, QP restlicodec.QueryParam
 		})
 }
 
-func RegisterBatchPartialUpdate[K comparable, RP ResourcePathUnmarshaler, QP batchQueryParamsDecoder[K], V restlicodec.Marshaler](
+func RegisterBatchPartialUpdate[K comparable, RP ResourcePathUnmarshaler[RP], QP batchQueryParamsDecoder[K, QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	readAndCreateOnlyFields restlicodec.PathSpec,
@@ -225,7 +225,7 @@ func RegisterBatchPartialUpdate[K comparable, RP ResourcePathUnmarshaler, QP bat
 			entities = make(map[K]V)
 			return entities, batchEntities[K, V](entities).UnmarshalRestLi(reader)
 		},
-		func(ctx *RequestContext, rp RP, v map[K]V, qp *WrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
+		func(ctx *RequestContext, rp RP, v map[K]V, qp *wrappedBatchQueryParamsDecoder[K, QP]) (responseBody restlicodec.Marshaler, err error) {
 			return batchPartialUpdate(ctx, rp, v, qp.qp)
 		})
 }

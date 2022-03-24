@@ -8,6 +8,10 @@ import (
 
 type EmptyRecord struct{}
 
+func (e EmptyRecord) NewInstance() EmptyRecord {
+	return e
+}
+
 func (e EmptyRecord) DecodeQueryParams(restlicodec.QueryParamsReader) error {
 	return nil
 }

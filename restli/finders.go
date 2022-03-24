@@ -41,7 +41,7 @@ func FindWithMetadata[V, M restlicodec.Marshaler](
 	return results, nil
 }
 
-func RegisterFinder[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V restlicodec.Marshaler](
+func RegisterFinder[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	name string,
@@ -53,7 +53,7 @@ func RegisterFinder[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecode
 		})
 }
 
-func RegisterFinderWithMetadata[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder, V, M restlicodec.Marshaler](
+func RegisterFinderWithMetadata[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V, M restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	name string,
@@ -65,7 +65,7 @@ func RegisterFinderWithMetadata[RP ResourcePathUnmarshaler, QP restlicodec.Query
 		})
 }
 
-func registerFinder[RP ResourcePathUnmarshaler, QP restlicodec.QueryParamsDecoder](
+func registerFinder[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP]](
 	s Server,
 	segments []ResourcePathSegment,
 	name string,

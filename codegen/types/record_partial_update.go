@@ -27,25 +27,6 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		r.PartialUpdateStructName(), r.Name)
 
 	isEmpty := len(r.Fields) == 0
-	// if  == 0 {
-	// 	utils.AddWordWrappedComment(def, comment).Line()
-	// 	def.Type().Id(r.PartialUpdateStructName()).Struct().Line()
-	//
-	// 	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
-	// 		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-	// 			def.Return(Nil())
-	// 		}))
-	// 	})
-	//
-	// 	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
-	// 		def.Return(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
-	// 			def.Return(Reader.Skip(reader))
-	// 		}))
-	// 	})
-	//
-	// 	return def
-	// }
-
 	fields := r.SortedFields()
 
 	deletableFieldsStruct := r.generatePartialUpdateDeleteFieldsStruct()
@@ -204,7 +185,8 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 
 			def.Return(Nil())
 		}).Line().Line()
-	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), func(def *Group) {
+
+	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
 		def.Return(Add(Reader.ReadRecord(Reader, Qual(utils.RestLiPackage, "RequiredPatchRecordFields"), func(reader, key Code, def *Group) {
 			def.If(Add(key).Op("==").Add(patch)).Block(
 				Return(Id(r.Receiver()).Dot(unmarshalPatch).Call(reader)),
@@ -251,7 +233,7 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 		}))
 	})
 
-	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), func(def *Group) {
+	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
 		field := Id("field")
 		def.Var().Add(field).String()
 

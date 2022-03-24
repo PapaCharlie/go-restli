@@ -3,7 +3,6 @@ package restli
 import (
 	"context"
 	"net/http"
-	"reflect"
 
 	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	"github.com/PapaCharlie/go-restli/restlicodec"
@@ -20,13 +19,18 @@ type batchQueryParamsEncoder[T any] interface {
 	EncodeQueryParams(set batchkeyset.BatchKeySet[T]) (string, error)
 }
 
-type batchQueryParamsDecoder[T any] interface {
+type batchQueryParamsDecoder[T, QP any] interface {
+	NewInstance() QP
 	DecodeQueryParams(reader restlicodec.QueryParamsReader) ([]T, error)
 }
 
 type SliceBatchQueryParams[T any] struct{}
 
 var entityIdsRequiredResponseFields = restlicodec.RequiredFields{batchkeyset.EntityIDsField}
+
+func (s *SliceBatchQueryParams[T]) NewInstance() *SliceBatchQueryParams[T] {
+	return new(SliceBatchQueryParams[T])
+}
 
 func (s *SliceBatchQueryParams[T]) DecodeQueryParams(reader restlicodec.QueryParamsReader) (ids []T, err error) {
 	err = reader.ReadRecord(entityIdsRequiredResponseFields, func(reader restlicodec.Reader, field string) (err error) {
@@ -40,14 +44,17 @@ func (s *SliceBatchQueryParams[T]) DecodeQueryParams(reader restlicodec.QueryPar
 	return ids, err
 }
 
-type WrappedBatchQueryParamsDecoder[T any, QP batchQueryParamsDecoder[T]] struct {
+type wrappedBatchQueryParamsDecoder[T any, QP batchQueryParamsDecoder[T, QP]] struct {
 	keys []T
 	qp   QP
 }
 
-func (b *WrappedBatchQueryParamsDecoder[T, QP]) DecodeQueryParams(reader restlicodec.QueryParamsReader) (err error) {
-	v := reflect.New(reflect.TypeOf(b.qp).Elem())
-	b.qp = v.Interface().(QP)
+func (b *wrappedBatchQueryParamsDecoder[T, QP]) NewInstance() *wrappedBatchQueryParamsDecoder[T, QP] {
+	return new(wrappedBatchQueryParamsDecoder[T, QP])
+}
+
+func (b *wrappedBatchQueryParamsDecoder[T, QP]) DecodeQueryParams(reader restlicodec.QueryParamsReader) (err error) {
+	b.qp = b.qp.NewInstance()
 	b.keys, err = b.qp.DecodeQueryParams(reader)
 	return err
 }
@@ -63,7 +70,7 @@ func batchQueryParams[T any](set batchkeyset.BatchKeySet[T], query batchQueryPar
 }
 
 // BatchCreate executes a batch_create with the given slice of entities
-func BatchCreate[K comparable, V Object[V]](
+func BatchCreate[K comparable, V restlicodec.Marshaler](
 	c *Client,
 	ctx context.Context,
 	rp ResourcePath,
@@ -74,7 +81,7 @@ func BatchCreate[K comparable, V Object[V]](
 	return batchCreate[K, V, *restlidata.CreatedEntity[K]](c, ctx, rp, entities, query, readOnlyFields)
 }
 
-func BatchCreateWithReturnEntity[K comparable, V Object[V]](
+func BatchCreateWithReturnEntity[K comparable, V restlicodec.Marshaler](
 	c *Client,
 	ctx context.Context,
 	rp ResourcePath,
@@ -85,7 +92,7 @@ func BatchCreateWithReturnEntity[K comparable, V Object[V]](
 	return batchCreate[K, V, *restlidata.CreatedAndReturnedEntity[K, V]](c, ctx, rp, entities, query, readOnlyFields)
 }
 
-func batchCreate[K comparable, V Object[V], R restlicodec.Marshaler](
+func batchCreate[K comparable, V restlicodec.Marshaler, R restlicodec.Marshaler](
 	c *Client,
 	ctx context.Context,
 	rp ResourcePath,

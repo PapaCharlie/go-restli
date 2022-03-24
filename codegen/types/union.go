@@ -65,7 +65,7 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		}))
 	})
 
-	AddUnmarshalRestli(def, unionReceiver, u.Name, func(def *Group) {
+	AddUnmarshalRestli(def, unionReceiver, u.Name, UnionShouldUsePointer, func(def *Group) {
 		u.Union.decode(def, unionReceiver, u.Name)
 	})
 

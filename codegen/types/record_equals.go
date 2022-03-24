@@ -47,15 +47,19 @@ func equalsCondition(t RestliType, isPointer bool, left, right Code) Code {
 	switch {
 	case t.Primitive != nil:
 		var prefix, pointer string
-		if t.Primitive.IsBytes() {
-			prefix = "Bytes"
+		if !t.Primitive.IsBytes() && !isPointer {
+			condition = Add(left).Op("==").Add(right)
 		} else {
-			prefix = "Comparable"
+			if t.Primitive.IsBytes() {
+				prefix = "Bytes"
+			} else {
+				prefix = "Comparable"
+			}
+			if isPointer {
+				pointer = "Pointer"
+			}
+			condition = equalsFunc(prefix+pointer).Call(left, right)
 		}
-		if isPointer {
-			pointer = "Pointer"
-		}
-		condition = equalsFunc(prefix+pointer).Call(left, right)
 	case t.Reference != nil && !t.ShouldReference(): // enums and typerefs
 		if isPointer {
 			condition = equalsFunc("ObjectPointer").Call(left, right)

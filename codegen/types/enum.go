@@ -118,7 +118,7 @@ func (e *Enum) GenerateCode() (def *Statement) {
 		def.Return(Nil())
 	})
 
-	AddUnmarshalRestli(def, receiver, e.Name, func(def *Group) {
+	AddUnmarshalRestli(def, receiver, e.Name, EnumShouldUsePointer, func(def *Group) {
 		value := Id("value")
 		def.Var().Add(value).String()
 		def.Add(Reader.Read(RestliType{Primitive: &StringPrimitive}, Reader, value))

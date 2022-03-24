@@ -1,30 +1,30 @@
 package equals
 
-func ObjectPointer[T Equatable[T]](left, right *T) bool {
+func ObjectPointer[T Comparable[T]](left, right *T) bool {
 	return GenericPointer(left, right, func(left, right T) bool {
 		return left.Equals(right)
 	})
 }
 
-func ObjectArray[T Equatable[T]](left, right []T) bool {
+func ObjectArray[T Comparable[T]](left, right []T) bool {
 	return GenericArray(left, right, func(left, right T) bool {
 		return left.Equals(right)
 	})
 }
 
-func ObjectMap[T Equatable[T]](left, right map[string]T) bool {
+func ObjectMap[T Comparable[T]](left, right map[string]T) bool {
 	return GenericMap(left, right, func(left, right T) bool {
 		return left.Equals(right)
 	})
 }
 
-func ObjectArrayPointer[T Equatable[T]](left, right *[]T) bool {
+func ObjectArrayPointer[T Comparable[T]](left, right *[]T) bool {
 	return GenericArrayPointer(left, right, func(left, right T) bool {
 		return left.Equals(right)
 	})
 }
 
-func ObjectMapPointer[T Equatable[T]](left, right *map[string]T) bool {
+func ObjectMapPointer[T Comparable[T]](left, right *map[string]T) bool {
 	return GenericMapPointer(left, right, func(left, right T) bool {
 		return left.Equals(right)
 	})

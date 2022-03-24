@@ -1,32 +1,23 @@
 package restli
 
 import (
-	"reflect"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/fnv1a"
-	"github.com/PapaCharlie/go-restli/restli/equals"
 	"github.com/PapaCharlie/go-restli/restlicodec"
 )
-
-type Object[T any] interface {
-	equals.Equatable[T]
-	fnv1a.Hashable
-	restlicodec.Marshaler
-}
 
 type ResourcePath interface {
 	RootResource() string
 	ResourcePath() (path string, err error)
 }
 
-type ResourcePathUnmarshaler interface {
+type ResourcePathUnmarshaler[T any] interface {
+	NewInstance() T
 	UnmarshalResourcePath(segments []restlicodec.Reader) error
 }
 
-func UnmarshalResourcePath[T ResourcePathUnmarshaler](segments []restlicodec.Reader) (t T, err error) {
-	v := reflect.New(reflect.TypeOf(t).Elem())
-	t = v.Interface().(T)
+func UnmarshalResourcePath[T ResourcePathUnmarshaler[T]](segments []restlicodec.Reader) (t T, err error) {
+	t = t.NewInstance()
 	return t, t.UnmarshalResourcePath(segments)
 }
 

@@ -3,24 +3,23 @@ package restlicodec
 import (
 	"fmt"
 	"net/url"
-	"reflect"
 	"strings"
 )
 
 type QueryParamsReader map[string]*ror2QueryReader
 
-type QueryParamsDecoder interface {
+type QueryParamsDecoder[T any] interface {
+	NewInstance() T
 	DecodeQueryParams(reader QueryParamsReader) error
 }
 
-func UnmarshalQueryParamsDecoder[T QueryParamsDecoder](query string) (t T, err error) {
+func UnmarshalQueryParamsDecoder[T QueryParamsDecoder[T]](query string) (t T, err error) {
 	reader, err := ParseQueryParams(query)
 	if err != nil {
 		return t, fmt.Errorf("go-restli: Illegal query params: %w", err)
 	}
 
-	v := reflect.New(reflect.TypeOf(t).Elem())
-	t = v.Interface().(T)
+	t = t.NewInstance()
 	return t, t.DecodeQueryParams(reader)
 }
 

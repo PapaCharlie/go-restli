@@ -1,9 +1,5 @@
 package equals
 
-func Comparable[T comparable](left, right T) bool {
-	return left == right
-}
-
 func ComparablePointer[T comparable](left, right *T) bool {
 	return GenericPointer(left, right, func(left, right T) bool {
 		return left == right

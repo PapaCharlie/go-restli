@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"log"
 	"sort"
 
 	"github.com/PapaCharlie/go-restli/codegen/types"
@@ -60,18 +61,15 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 			if len(r.ReadOnlyFields) > 0 {
 				def.Add(ReadOnlyFields).Op("=").Add(newPathSpec(r.ReadOnlyFields))
 			}
-			if len(r.CreateOnlyFields) > 0 {
-				def.Add(CreateOnlyFields).Op("=").Add(newPathSpec(r.CreateOnlyFields))
-			}
 
 			var createAndReadOnlyFields []string
 			inserted := make(map[string]bool)
-			for _, d := range append(append([]string(nil), r.ReadOnlyFields...), r.CreateOnlyFields...) {
-				if _, ok := inserted[d]; ok {
-					continue
+			for _, field := range append(append([]string(nil), r.ReadOnlyFields...), r.CreateOnlyFields...) {
+				if _, ok := inserted[field]; ok {
+					log.Panicf("%q is declared both as read only and create only", field)
 				}
-				inserted[d] = true
-				createAndReadOnlyFields = append(createAndReadOnlyFields, d)
+				inserted[field] = true
+				createAndReadOnlyFields = append(createAndReadOnlyFields, field)
 			}
 			sort.Strings(createAndReadOnlyFields)
 			def.Add(CreateAndReadOnlyFields).Op("=").Add(newPathSpec(createAndReadOnlyFields)).Line().Line()
@@ -186,6 +184,8 @@ func (r *Resource) addResourcePathStructs(def *Statement, onEntity bool) {
 	}).Line().Line()
 
 	const rp = "rp"
+	types.AddNewInstance(def, rp, structName)
+
 	utils.AddFuncOnReceiver(def, rp, structName, "ResourcePath", types.RecordShouldUsePointer).
 		Params().
 		Params(Id("path").String(), Err().Error()).

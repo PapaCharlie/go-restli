@@ -25,12 +25,6 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, pointer utils.S
 			def.Return(Index().Byte().Call(Add(Writer.Finalize())), Nil())
 		}).Line().Line()
 
-	if pointer.ShouldUsePointer() {
-		utils.AddFuncOnReceiver(def, receiver, typeName, "NewInstance", pointer).Params().Op("*").Id(typeName).Block(
-			Return(New(Id(typeName))),
-		).Line().Line()
-	}
-
 	return def
 }
 

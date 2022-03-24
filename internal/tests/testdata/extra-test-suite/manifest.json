@@ -51,9 +51,6 @@
         },
         {
           "name": "collectionWithAnnotations-create"
-        },
-        {
-          "name": "collectionWithAnnotations-update"
         }
       ]
     },

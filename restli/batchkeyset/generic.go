@@ -96,7 +96,7 @@ func NewComplexKeySet[T ComplexKey[T]]() BatchKeySet[T] {
 type SimpleKey[T any] interface {
 	restlicodec.Marshaler
 	fnv1a.Hashable
-	equals.Equatable[T]
+	equals.Comparable[T]
 }
 
 func NewSimpleKeySet[T SimpleKey[T]]() BatchKeySet[T] {

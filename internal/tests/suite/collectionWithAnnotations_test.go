@@ -59,11 +59,3 @@ func (o *Operation) CollectionWithAnnotationsCreate(t *testing.T, c Client) func
 		}
 	}
 }
-
-func (o *Operation) CollectionWithAnnotationsUpdate(t *testing.T, _ Client) func(t *testing.T) *MockResource {
-	deliberateSkip(t, "Skipped because testing for field exclusion is done elsewhere")
-	return func(t *testing.T) *MockResource {
-		deliberateSkip(t, "Skipped because go-restli's server automatically rejects incoming update requests with excluded fields")
-		return nil
-	}
-}
