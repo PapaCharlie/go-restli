@@ -139,3 +139,20 @@ func (o *Operation) CollectionWithTyperefKeyFindWithPagingContextNoTotal(t *test
 		}
 	}
 }
+
+func (o *Operation) CollectionWithTyperefKeyActionOnEntity(t *testing.T, c Client) func(*testing.T) *MockResource {
+	id := extras.Temperature(64)
+	params := &OnEntityActionParams{Input: "Action on entity"}
+	require.NoError(t, c.OnEntityAction(id, params))
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockOnEntityAction: func(ctx *restli.RequestContext, key extras.Temperature, actionParams *OnEntityActionParams) (err error) {
+				require.Equal(t, id, key)
+				require.Equal(t, params, actionParams)
+
+				return nil
+			},
+		}
+	}
+}

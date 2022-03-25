@@ -426,3 +426,14 @@ func (u *ror2Reader) atInputStart() bool {
 func (u *ror2Reader) String() string {
 	return string(u.data)
 }
+
+func (u *ror2Reader) Clone() Reader {
+	return &ror2Reader{
+		missingFieldsTracker: missingFieldsTracker{
+			excludedFields: u.excludedFields,
+			scopeToIgnore:  u.scopeToIgnore,
+		},
+		decoder: url.PathUnescape,
+		data:    u.data,
+	}
+}

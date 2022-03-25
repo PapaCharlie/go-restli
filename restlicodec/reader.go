@@ -111,6 +111,9 @@ type Reader interface {
 
 	// Skip skips the next primitive/array/map completely.
 	Skip() error
+
+	// Clone returns a new Reader pointing to the same underlying data, but rewound to the start of the input
+	Clone() Reader
 }
 
 type rawReader interface {

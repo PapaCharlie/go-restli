@@ -157,15 +157,13 @@ func (o *Operation) CollectionUpdate400(t *testing.T, _ Client) func(*testing.T)
 func (o *Operation) CollectionSearchFinder(t *testing.T, c Client) func(*testing.T) *MockResource {
 	params := &FindBySearchParams{Keyword: "message"}
 	expectedMessages := &FindBySearchElements{
-		Elements: restlidata.Elements[*conflictresolution.Message]{
-			Elements: []*conflictresolution.Message{
-				newMessage(1, "test message"),
-				newMessage(2, "another message"),
-			},
-			Paging: &restlidata.CollectionMedata{
-				Count: 10,
-				Total: restli.Int32Pointer(2),
-			},
+		Elements: []*conflictresolution.Message{
+			newMessage(1, "test message"),
+			newMessage(2, "another message"),
+		},
+		Paging: &restlidata.CollectionMedata{
+			Count: 10,
+			Total: restli.Int32Pointer(2),
 		},
 		Metadata: &testsuite.Optionals{
 			OptionalLong:   restli.Int64Pointer(5),

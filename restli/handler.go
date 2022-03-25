@@ -1,6 +1,7 @@
 package restli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -20,8 +21,15 @@ type handler func(
 	body []byte,
 ) (responseBody restlicodec.Marshaler, err error)
 
+type rootNode struct {
+	*pathNode
+	prefix  string
+	filters []Filter
+}
+
 type pathNode struct {
 	ResourcePathSegment
+	rootNode *rootNode
 	methods  map[Method]handler
 	finders  map[string]handler
 	actions  map[string]handler
@@ -47,6 +55,7 @@ func copyCloneableMap[K comparable, V interface{ clone() V }](m map[K]V) map[K]V
 func (p *pathNode) clone() *pathNode {
 	return &pathNode{
 		ResourcePathSegment: p.ResourcePathSegment,
+		rootNode:            p.rootNode,
 		methods:             copyMap(p.methods),
 		finders:             copyMap(p.finders),
 		actions:             copyMap(p.actions),
@@ -54,26 +63,56 @@ func (p *pathNode) clone() *pathNode {
 	}
 }
 
-func handle(rootNode *pathNode, res http.ResponseWriter, req *http.Request) {
+func (r *rootNode) Handler() http.Handler {
+	deepCopy := &rootNode{
+		prefix:  r.prefix,
+		filters: append([]Filter(nil), r.filters...),
+	}
+	p := new(pathNode)
+	*p = *r.pathNode
+	p.rootNode = deepCopy
+	deepCopy.pathNode = p.clone()
+	return deepCopy
+}
+
+func (r *rootNode) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	path := req.URL.RawPath
 	if path == "" {
 		path = req.URL.Path
 	}
-	path = strings.Trim(path, "/")
 
-	segments := strings.Split(path, "/")
-	if len(segments) == 0 || rootNode.subNodes[segments[0]] == nil {
+	if !strings.HasPrefix(path, r.prefix) {
 		http.NotFound(res, req)
 		return
 	}
 
-	sub := rootNode.subNodes[segments[0]]
+	path = strings.TrimPrefix(path, r.prefix)
+
+	segments := strings.Split(path, "/")
+	if len(segments) == 0 || r.subNodes[segments[0]] == nil {
+		http.NotFound(res, req)
+		return
+	}
+
+	sub := r.subNodes[segments[0]]
 	ctx := &RequestContext{
 		Request:         req,
 		ResponseHeaders: res.Header(),
 		ResponseStatus:  http.StatusOK,
 	}
-	responseBody, err := sub.receive(ctx, nil, segments)
+
+	res.Header().Set(ProtocolVersionHeader, ProtocolVersion)
+
+	responseBody, err := sub.receive(ctx, nil, nil, segments)
+	if err == nil {
+		for i := len(r.filters) - 1; i >= 0; i-- {
+			err = r.filters[i].PostRequest(ctx.Request.Context(), res.Header())
+			if err != nil {
+				break
+			}
+		}
+	}
+
 	if errRes, ok := err.(*restlidata.ErrorResponse); ok {
 		res.Header().Set(ErrorResponseHeader, "true")
 		responseBody = errRes
@@ -89,8 +128,6 @@ func handle(rootNode *pathNode, res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	res.Header().Set(ProtocolVersionHeader, ProtocolVersion)
 
 	if responseBody != nil {
 		w := restlicodec.NewCompactJsonWriter()
@@ -114,9 +151,11 @@ func handle(rootNode *pathNode, res http.ResponseWriter, req *http.Request) {
 
 func (p *pathNode) receive(
 	ctx *RequestContext,
-	keySegments []restlicodec.Reader,
+	pathSegments []ResourcePathSegment,
+	entitySegments []restlicodec.Reader,
 	remainingSegments []string,
 ) (responseBody restlicodec.Marshaler, err error) {
+	pathSegments = append(pathSegments, p.ResourcePathSegment)
 	hasEntity := false
 	if len(remainingSegments) >= 1 {
 		if p.isCollection && len(remainingSegments) > 1 {
@@ -126,7 +165,7 @@ func (p *pathNode) receive(
 				return newErrorResponsef(err, http.StatusNotFound, "Invalid path segment %q: %s", remainingSegments[1])
 			}
 			hasEntity = true
-			keySegments = append(keySegments, r)
+			entitySegments = append(entitySegments, r)
 
 			remainingSegments = remainingSegments[2:]
 		} else {
@@ -135,7 +174,7 @@ func (p *pathNode) receive(
 		if len(remainingSegments) != 0 {
 			subResource := remainingSegments[0]
 			if sub, ok := p.subNodes[subResource]; ok {
-				return sub.receive(ctx, keySegments, remainingSegments)
+				return sub.receive(ctx, pathSegments, entitySegments, remainingSegments)
 			} else {
 				return newErrorResponsef(nil, http.StatusNotFound, "Unknown sub resource: %q", subResource)
 			}
@@ -205,8 +244,8 @@ func (p *pathNode) receive(
 			if !hasEntity {
 				return newErrorResponsef(nil, http.StatusBadRequest, "No entity provided for %q method", restLiMethod)
 			}
-		case Method_finder, Method_create, Method_batch_get, Method_batch_create, Method_batch_delete, Method_batch_update,
-			Method_batch_partial_update, Method_get_all:
+		case Method_finder, Method_create, Method_batch_get, Method_batch_create, Method_batch_delete,
+			Method_batch_update, Method_batch_partial_update, Method_get_all:
 			if hasEntity {
 				return newErrorResponsef(nil, http.StatusBadRequest, "Cannot provide an entity for %q", restLiMethod)
 			}
@@ -231,17 +270,23 @@ func (p *pathNode) receive(
 		}
 	}
 
+	newCtx := context.WithValue(ctx.Request.Context(), methodCtxKey{}, restLiMethod)
+	newCtx = context.WithValue(newCtx, resourcePathSegmentsCtxKey{}, pathSegments)
+	newCtx = context.WithValue(newCtx, entitySegmentsCtxKey{}, entitySegments)
+
 	var h handler
 	if restLiMethod == Method_finder {
 		h = p.finders[finder]
 		if h == nil {
 			return newErrorResponsef(nil, http.StatusBadRequest, "Finder %q not defined on %q", finder, p.name)
 		}
+		newCtx = context.WithValue(newCtx, finderNameCtxKey{}, finder)
 	} else if restLiMethod == Method_action {
 		h = p.actions[action]
 		if h == nil {
 			return newErrorResponsef(nil, http.StatusBadRequest, "Action %q not defined on %q", action, p.name)
 		}
+		newCtx = context.WithValue(newCtx, actionNameCtxKey{}, action)
 	} else {
 		h = p.methods[restLiMethod]
 		if h == nil {
@@ -265,7 +310,51 @@ func (p *pathNode) receive(
 		return nil, err
 	}
 
-	return h(ctx, keySegments, body)
+	ctx.Request = ctx.Request.WithContext(newCtx)
+	for _, f := range p.rootNode.filters {
+		newCtx, err = f.PreRequest(ctx.Request)
+		if err != nil {
+			return nil, err
+		}
+		if newCtx != nil {
+			ctx.Request = ctx.Request.WithContext(newCtx)
+		}
+	}
+
+	return h(ctx, entitySegments, body)
+}
+
+type (
+	methodCtxKey               struct{}
+	resourcePathSegmentsCtxKey struct{}
+	entitySegmentsCtxKey       struct{}
+	finderNameCtxKey           struct{}
+	actionNameCtxKey           struct{}
+)
+
+func GetMethodFromContext(ctx context.Context) Method {
+	return ctx.Value(methodCtxKey{}).(Method)
+}
+
+func GetResourcePathSegmentsFromContext(ctx context.Context) []ResourcePathSegment {
+	return ctx.Value(resourcePathSegmentsCtxKey{}).([]ResourcePathSegment)
+}
+
+func GetEntitySegmentsFromContext(ctx context.Context) []restlicodec.Reader {
+	segments := ctx.Value(entitySegmentsCtxKey{}).([]restlicodec.Reader)
+	clonedSegments := make([]restlicodec.Reader, len(segments))
+	for i, r := range segments {
+		clonedSegments[i] = r.Clone()
+	}
+	return clonedSegments
+}
+
+func GetFinderNameFromContext(ctx context.Context) string {
+	return ctx.Value(finderNameCtxKey{}).(string)
+}
+
+func GetActionNameFromContext(ctx context.Context) string {
+	return ctx.Value(actionNameCtxKey{}).(string)
 }
 
 func newErrorResponsef(cause error, status int, format string, a ...any) (restlicodec.Marshaler, error) {
@@ -277,19 +366,26 @@ func newErrorResponsef(cause error, status int, format string, a ...any) (restli
 	}
 	return nil, &restlidata.ErrorResponse{
 		Status:  Int32Pointer(int32(status)),
-		Message: StringPointer(fmt.Sprintf(format, a...)),
+		Message: StringPointerf(format, a...),
 	}
 }
 
 type Server interface {
-	AddToMux(mux Mux)
+	// AddToMux adds a http.Handler for each root resource registered against this Server. Note that resources
+	// registered to this Server after AddToMux is called will not be reflected.
+	AddToMux(mux *http.ServeMux)
+	// Handler returns a raw http.Handler backed by a copy of this sever. Note that resources registered to this Server
+	// after Handler will not be reflected. This is not meant to be used in conjunction with a http.ServeMux, but
+	// instead with methods like http.ListenAndServe or http.ListenAndServeTLS
+	Handler() http.Handler
 
 	subNode(segments []ResourcePathSegment) *pathNode
 }
 
-func newPathNode(segment ResourcePathSegment) *pathNode {
+func (p *pathNode) newSubNode(segment ResourcePathSegment) *pathNode {
 	return &pathNode{
 		ResourcePathSegment: segment,
+		rootNode:            p.rootNode,
 		methods:             map[Method]handler{},
 		finders:             map[string]handler{},
 		actions:             map[string]handler{},
@@ -297,8 +393,45 @@ func newPathNode(segment ResourcePathSegment) *pathNode {
 	}
 }
 
-func NewServer() Server {
-	return newPathNode(ResourcePathSegment{})
+// Filter implementations can enrich the request as it comes in by adding values to the context. They also receive a
+// callback to add any response headers, if necessary. Filters' PreRequest methods will ve called in the order in which
+// they were passed to NewServer, and PostRequest methods in the inverse order.
+type Filter interface {
+	// PreRequest is called after the request is parsed and the corresponding method is found. It is not called on any
+	// invalid requests. The request's context will have corresponding values for the method, resource segments, entity
+	// segments, finder name (only set if the method is Method_finder) and action name (only set if the method is
+	// Method_action). Use the corresponding FromContext methods to get the values. If the returned context is non-nil,
+	// it will replace the context passed to the actual resource implementation.
+	PreRequest(req *http.Request) (context.Context, error)
+	// PostRequest is called with the original request context and the response header map right before the response
+	// header is written.
+	PostRequest(ctx context.Context, responseHeaders http.Header) error
+}
+
+func NewPrefixedServer(prefix string, filters ...Filter) Server {
+	if prefix == "" {
+		prefix = "/"
+	}
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	r := &rootNode{
+		pathNode: &pathNode{
+			ResourcePathSegment: ResourcePathSegment{},
+			methods:             map[Method]handler{},
+			finders:             map[string]handler{},
+			actions:             map[string]handler{},
+			subNodes:            map[string]*pathNode{},
+		},
+		prefix:  "/",
+		filters: filters,
+	}
+	r.rootNode = r
+	return r
+}
+
+func NewServer(filters ...Filter) Server {
+	return NewPrefixedServer("/", filters...)
 }
 
 type ResourcePathSegment struct {
@@ -320,7 +453,7 @@ func (p *pathNode) subNode(segments []ResourcePathSegment) *pathNode {
 			subNode.subNodes = make(map[string]*pathNode)
 		}
 		if subNode.subNodes[s.name] == nil {
-			subNode.subNodes[s.name] = newPathNode(s)
+			subNode.subNodes[s.name] = subNode.newSubNode(s)
 		}
 		subNode = subNode.subNodes[s.name]
 		if subNode.isCollection != s.isCollection {
@@ -330,24 +463,11 @@ func (p *pathNode) subNode(segments []ResourcePathSegment) *pathNode {
 	return subNode
 }
 
-type Mux interface {
-	Handle(string, http.Handler)
-}
-
-func (p *pathNode) AddToMux(mux Mux) {
-	pCopy := p.clone()
-	h := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		handle(pCopy, res, req)
-	})
-	for r := range pCopy.subNodes {
-		mux.Handle(r, h)
+func (r *rootNode) AddToMux(mux *http.ServeMux) {
+	h := r.Handler()
+	for rootResource := range r.subNodes {
+		mux.Handle(r.prefix+rootResource, h)
 	}
-}
-
-// Note: this implementation of http.Handler is _not_ threadsafe. The fact that pathNode implements this method is never
-// exposed outside this package and therefore should not be used. It is intended exclusively for testing purposes.
-func (p *pathNode) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	handle(p, res, req)
 }
 
 func registerMethod[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP]](

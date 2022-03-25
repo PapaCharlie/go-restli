@@ -94,7 +94,7 @@ var (
 }`)
 )
 
-func (c *R2D2Client) spoofUpdate(event TreeCacheEvent, f func(chan TreeCacheEvent)) {
+func (c *Client) spoofUpdate(event TreeCacheEvent, f func(chan TreeCacheEvent)) {
 	events := make(chan TreeCacheEvent)
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
@@ -110,7 +110,7 @@ func (c *R2D2Client) spoofUpdate(event TreeCacheEvent, f func(chan TreeCacheEven
 	wg.Wait()
 }
 
-func (c *R2D2Client) spoofServiceUpdate(data *[]byte) {
+func (c *Client) spoofServiceUpdate(data *[]byte) {
 	c.spoofUpdate(TreeCacheEvent{
 		Path: ServicesPath(testServiceName),
 		Data: data,
@@ -123,7 +123,7 @@ func (c *R2D2Client) spoofServiceUpdate(data *[]byte) {
 	})
 }
 
-func (c *R2D2Client) spoofUriUpdate(h host) {
+func (c *Client) spoofUriUpdate(h host) {
 	c.spoofUpdate(TreeCacheEvent{
 		Path: h.url.Hostname(),
 		Data: &h.data,
@@ -132,7 +132,7 @@ func (c *R2D2Client) spoofUriUpdate(h host) {
 	})
 }
 
-func (c *R2D2Client) spoofUriDelete(h host) {
+func (c *Client) spoofUriDelete(h host) {
 	c.spoofUpdate(TreeCacheEvent{
 		Path: h.url.Hostname(),
 		Data: nil,
@@ -142,7 +142,7 @@ func (c *R2D2Client) spoofUriDelete(h host) {
 }
 
 func TestR2D2Client_BasicTest(t *testing.T) {
-	c := new(R2D2Client)
+	c := new(Client)
 
 	c.spoofServiceUpdate(&serviceDefinitionHttpsAndHttp)
 
@@ -155,7 +155,7 @@ func TestR2D2Client_BasicTest(t *testing.T) {
 }
 
 func TestR2D2Client_PrioritizedSchemes(t *testing.T) {
-	c := new(R2D2Client)
+	c := new(Client)
 
 	c.spoofServiceUpdate(&serviceDefinitionHttpsAndHttp)
 
@@ -185,7 +185,7 @@ func TestR2D2Client_PrioritizedSchemes(t *testing.T) {
 }
 
 func TestR2D2Client_CallDistribution(t *testing.T) {
-	c := new(R2D2Client)
+	c := new(Client)
 
 	c.spoofServiceUpdate(&serviceDefinitionNoPrioritizedSchemes)
 
@@ -205,7 +205,7 @@ func TestR2D2Client_CallDistribution(t *testing.T) {
 	require.Less(t, ratios[heavyweightHost.url]-0.99, 0.01)
 }
 
-func hostRatios(t *testing.T, c *R2D2Client) map[url.URL]float64 {
+func hostRatios(t *testing.T, c *Client) map[url.URL]float64 {
 	const samples = 100_000
 	ratios := make(map[url.URL]float64)
 	for range [samples]struct{}{} {

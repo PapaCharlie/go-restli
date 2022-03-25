@@ -59,3 +59,11 @@ func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.
 func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context, *collectionwithtyperefkey.FindBySearchParams) (*collectionwithtyperefkey.Elements, error) {
 	panic(nil)
 }
+
+func (c *collectionWithTyperefKeyClient) OnEntityAction(extras.Temperature, *collectionwithtyperefkey.OnEntityActionParams) (err error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) OnEntityActionWithContext(context.Context, extras.Temperature, *collectionwithtyperefkey.OnEntityActionParams) (err error) {
+	panic(nil)
+}

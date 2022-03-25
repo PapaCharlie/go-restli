@@ -42,6 +42,16 @@ func NewJsonReaderWithExcludedFields(data []byte, excludedFields PathSpec, leadi
 	}, nil
 }
 
+func (j *jsonReader) Clone() Reader {
+	return &jsonReader{
+		missingFieldsTracker: missingFieldsTracker{
+			excludedFields: j.excludedFields,
+			scopeToIgnore:  j.scopeToIgnore,
+		},
+		lexer: jlexer.Lexer{Data: j.lexer.Data},
+	}
+}
+
 func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 	isTopLevel := j.lexer.IsStart()
 	if j.lexer.IsNull() {

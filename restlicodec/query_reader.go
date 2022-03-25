@@ -25,6 +25,10 @@ func UnmarshalQueryParamsDecoder[T QueryParamsDecoder[T]](query string) (t T, er
 
 type ror2QueryReader struct{ *ror2Reader }
 
+func (q *ror2QueryReader) Clone() Reader {
+	return q
+}
+
 func (q *ror2QueryReader) ReadRecord(requiredFields RequiredFields, recordReader MapReader) error {
 	return readRecord(q, requiredFields, recordReader)
 }

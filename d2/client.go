@@ -13,7 +13,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 )
 
-type R2D2Client struct {
+type Client struct {
 	Conn *zk.Conn
 	// During the initial listing of the /d2/uris node for a new cluster, this duration specifies how long to for the
 	// first host to show up. If the /d2/services node exists for a service, it is impossible to know whether or not a
@@ -38,7 +38,7 @@ const DefaultInitialUriWatchTimeout = 10 * time.Second
 // getServiceUris returns a snapshot of the current Service and all announced URIs. Both the Service and serviceUris
 // objects are read-only, as updates to those objects will be overwritten by the next update from ZK. This also means
 // they are thread safe.
-func (c *R2D2Client) getServiceUris(serviceName string) (*Service, *serviceUris, error) {
+func (c *Client) getServiceUris(serviceName string) (*Service, *serviceUris, error) {
 	timeout := c.newTimeout()
 
 	var serviceEvents chan TreeCacheEvent
@@ -122,7 +122,7 @@ func (c *R2D2Client) getServiceUris(serviceName string) (*Service, *serviceUris,
 	return service, uris.(*serviceUris), nil
 }
 
-func (c *R2D2Client) newTimeout() <-chan time.Time {
+func (c *Client) newTimeout() <-chan time.Time {
 	var d time.Duration
 	switch {
 	case c.InitialZkWatchTimeout > 0:
@@ -135,7 +135,7 @@ func (c *R2D2Client) newTimeout() <-chan time.Time {
 	return time.After(d)
 }
 
-func (c *R2D2Client) waitForServiceUpdates(serviceName string, events chan TreeCacheEvent) {
+func (c *Client) waitForServiceUpdates(serviceName string, events chan TreeCacheEvent) {
 	for e := range events {
 		s := c.handleServiceUpdate(serviceName, e)
 		if s != nil {
@@ -144,7 +144,7 @@ func (c *R2D2Client) waitForServiceUpdates(serviceName string, events chan TreeC
 	}
 }
 
-func (c *R2D2Client) handleServiceUpdate(serviceName string, event TreeCacheEvent) *Service {
+func (c *Client) handleServiceUpdate(serviceName string, event TreeCacheEvent) *Service {
 	path := ServicesPath(serviceName)
 	if event.Path != path || event.Data == nil {
 		return nil
@@ -159,14 +159,14 @@ func (c *R2D2Client) handleServiceUpdate(serviceName string, event TreeCacheEven
 	return s
 }
 
-func (c *R2D2Client) waitForUriUpdates(clusterName string, events chan TreeCacheEvent) {
+func (c *Client) waitForUriUpdates(clusterName string, events chan TreeCacheEvent) {
 	for e := range events {
 		uri, _ := c.uris.Load(clusterName)
 		c.uris.Store(clusterName, c.handleUriUpdate(uri.(*serviceUris), e))
 	}
 }
 
-func (c *R2D2Client) handleUriUpdate(watcher *serviceUris, event TreeCacheEvent) *serviceUris {
+func (c *Client) handleUriUpdate(watcher *serviceUris, event TreeCacheEvent) *serviceUris {
 	path := strings.TrimPrefix(event.Path, watcher.zkPath)
 
 	if path == "" {
@@ -201,7 +201,7 @@ func (c *R2D2Client) handleUriUpdate(watcher *serviceUris, event TreeCacheEvent)
 // SingleServiceClient will always return URIs from the given serviceName instead of getting them from the service
 // specified in resourceBaseName in ResolveHostnameAndContextForQuery. Some services announce to special D2 cluster
 // instead of the resource name (i.e. by default, the service name is equal to the resource name).
-func (c *R2D2Client) SingleServiceClient(serviceName string) *SingleServiceClient {
+func (c *Client) SingleServiceClient(serviceName string) *SingleServiceClient {
 	return &SingleServiceClient{
 		c:           c,
 		serviceName: serviceName,
@@ -209,7 +209,7 @@ func (c *R2D2Client) SingleServiceClient(serviceName string) *SingleServiceClien
 }
 
 type SingleServiceClient struct {
-	c           *R2D2Client
+	c           *Client
 	serviceName string
 }
 
@@ -217,15 +217,15 @@ func (c *SingleServiceClient) ResolveHostnameAndContextForQuery(_ string, query 
 	return c.c.ResolveHostnameAndContextForQuery(c.serviceName, query)
 }
 
-func (c *R2D2Client) ResolveHostnameAndContextForQuery(resourceBaseName string, _ *url.URL) (*url.URL, error) {
-	service, uris, err := c.getServiceUris(resourceBaseName)
+func (c *Client) ResolveHostnameAndContextForQuery(rootResource string, _ *url.URL) (*url.URL, error) {
+	service, uris, err := c.getServiceUris(rootResource)
 	if err != nil {
 		return nil, err
 	}
 
 	chosenHost := uris.chooseHost(service.PrioritizedSchemes)
 	if chosenHost == nil {
-		return nil, errors.Errorf("Could not find a host for %q", resourceBaseName)
+		return nil, errors.Errorf("Could not find a host for %q", rootResource)
 	}
 	return chosenHost, nil
 }

@@ -176,7 +176,6 @@ type CreatedEntity[K any] struct {
 	Location *string
 	Id       K
 	Status   int
-	Error    *ErrorResponse
 }
 
 func (c *CreatedEntity[K]) NewInstance() *CreatedEntity[K] {
@@ -210,9 +209,6 @@ func (c *CreatedEntity[K]) unmarshalRestLi(reader restlicodec.Reader, field stri
 		return err
 	case StatusField:
 		c.Status, err = reader.ReadInt()
-		return err
-	case ErrorField:
-		c.Error, err = restlicodec.UnmarshalRestLi[*ErrorResponse](reader)
 		return err
 	default:
 		return reader.Skip()
@@ -348,7 +344,8 @@ func (f *Elements[V]) UnmarshalRestLi(reader restlicodec.Reader) error {
 }
 
 type ElementsWithMetadata[V, M restlicodec.Marshaler] struct {
-	Elements[V]
+	Elements []V
+	Paging   *CollectionMedata
 	Metadata M
 }
 
@@ -358,7 +355,7 @@ func (f *ElementsWithMetadata[V, M]) NewInstance() *ElementsWithMetadata[V, M] {
 
 func (f *ElementsWithMetadata[V, M]) MarshalRestLi(writer restlicodec.Writer) (err error) {
 	return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) (err error) {
-		err = f.marshalElements(keyWriter)
+		err = restlicodec.WriteArray(keyWriter(ElementsField), f.Elements, V.MarshalRestLi)
 		if err != nil {
 			return err
 		}
@@ -368,9 +365,11 @@ func (f *ElementsWithMetadata[V, M]) MarshalRestLi(writer restlicodec.Writer) (e
 			return err
 		}
 
-		err = f.marshalPaging(keyWriter)
-		if err != nil {
-			return err
+		if f.Paging != nil {
+			err = f.Paging.MarshalRestLi(keyWriter(PagingField))
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -379,11 +378,18 @@ func (f *ElementsWithMetadata[V, M]) MarshalRestLi(writer restlicodec.Writer) (e
 
 func (f *ElementsWithMetadata[V, M]) UnmarshalRestLi(reader restlicodec.Reader) error {
 	return reader.ReadRecord(elementsRequiredResponseFields, func(reader restlicodec.Reader, field string) (err error) {
-		if field == MetadataField {
+		switch field {
+		case MetadataField:
 			f.Metadata, err = restlicodec.UnmarshalRestLi[M](reader)
 			return err
-		} else {
-			return f.unmarshalRestLi(reader, field)
+		case ElementsField:
+			f.Elements, err = restlicodec.ReadArray(reader, restlicodec.UnmarshalRestLi[V])
+			return err
+		case PagingField:
+			f.Paging = new(CollectionMedata)
+			return f.Paging.UnmarshalRestLi(reader)
+		default:
+			return reader.Skip()
 		}
 	})
 }

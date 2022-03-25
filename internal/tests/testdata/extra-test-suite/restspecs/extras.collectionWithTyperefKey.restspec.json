@@ -57,7 +57,18 @@
       }
     ],
     "entity": {
-      "path": "/collectionWithTyperefKey/{key}"
+      "path": "/collectionWithTyperefKey/{key}",
+      "actions": [
+        {
+          "name": "onEntity",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "string"
+            }
+          ]
+        }
+      ]
     }
   }
 }

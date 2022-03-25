@@ -1,9 +1,6 @@
 package restli
 
-// IntPointer returns a pointer to the given parameter, useful for inlining setting optional fields
-func IntPointer(v int) *int {
-	return &v
-}
+import "fmt"
 
 // Int32Pointer returns a pointer to the given parameter, useful for inlining setting optional fields
 func Int32Pointer(v int32) *int32 {
@@ -32,6 +29,12 @@ func BoolPointer(v bool) *bool {
 
 // StringPointer returns a pointer to the given parameter, useful for inlining setting optional fields
 func StringPointer(v string) *string {
+	return &v
+}
+
+// StringPointerf formats the given string then returns a pointer to it, useful for inlining setting optional fields
+func StringPointerf(format string, args ...any) *string {
+	v := fmt.Sprintf(format, args...)
 	return &v
 }
 

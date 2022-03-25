@@ -21,6 +21,9 @@
         },
         {
           "name": "collectionWithTyperefKey-find-with-paging-context-no-total"
+        },
+        {
+          "name": "collectionWithTyperefKey-action-on-entity"
         }
       ]
     },
