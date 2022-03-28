@@ -270,9 +270,9 @@ func (p *pathNode) receive(
 		}
 	}
 
-	newCtx := context.WithValue(ctx.Request.Context(), methodCtxKey{}, restLiMethod)
-	newCtx = context.WithValue(newCtx, resourcePathSegmentsCtxKey{}, pathSegments)
-	newCtx = context.WithValue(newCtx, entitySegmentsCtxKey{}, entitySegments)
+	newCtx := context.WithValue(ctx.Request.Context(), methodCtxKey, restLiMethod)
+	newCtx = context.WithValue(newCtx, resourcePathSegmentsCtxKey, pathSegments)
+	newCtx = context.WithValue(newCtx, entitySegmentsCtxKey, entitySegments)
 
 	var h handler
 	if restLiMethod == Method_finder {
@@ -280,13 +280,13 @@ func (p *pathNode) receive(
 		if h == nil {
 			return newErrorResponsef(nil, http.StatusBadRequest, "Finder %q not defined on %q", finder, p.name)
 		}
-		newCtx = context.WithValue(newCtx, finderNameCtxKey{}, finder)
+		newCtx = context.WithValue(newCtx, finderNameCtxKey, finder)
 	} else if restLiMethod == Method_action {
 		h = p.actions[action]
 		if h == nil {
 			return newErrorResponsef(nil, http.StatusBadRequest, "Action %q not defined on %q", action, p.name)
 		}
-		newCtx = context.WithValue(newCtx, actionNameCtxKey{}, action)
+		newCtx = context.WithValue(newCtx, actionNameCtxKey, action)
 	} else {
 		h = p.methods[restLiMethod]
 		if h == nil {
@@ -324,24 +324,16 @@ func (p *pathNode) receive(
 	return h(ctx, entitySegments, body)
 }
 
-type (
-	methodCtxKey               struct{}
-	resourcePathSegmentsCtxKey struct{}
-	entitySegmentsCtxKey       struct{}
-	finderNameCtxKey           struct{}
-	actionNameCtxKey           struct{}
-)
-
 func GetMethodFromContext(ctx context.Context) Method {
-	return ctx.Value(methodCtxKey{}).(Method)
+	return ctx.Value(methodCtxKey).(Method)
 }
 
 func GetResourcePathSegmentsFromContext(ctx context.Context) []ResourcePathSegment {
-	return ctx.Value(resourcePathSegmentsCtxKey{}).([]ResourcePathSegment)
+	return ctx.Value(resourcePathSegmentsCtxKey).([]ResourcePathSegment)
 }
 
 func GetEntitySegmentsFromContext(ctx context.Context) []restlicodec.Reader {
-	segments := ctx.Value(entitySegmentsCtxKey{}).([]restlicodec.Reader)
+	segments := ctx.Value(entitySegmentsCtxKey).([]restlicodec.Reader)
 	clonedSegments := make([]restlicodec.Reader, len(segments))
 	for i, r := range segments {
 		clonedSegments[i] = r.Clone()
@@ -350,11 +342,11 @@ func GetEntitySegmentsFromContext(ctx context.Context) []restlicodec.Reader {
 }
 
 func GetFinderNameFromContext(ctx context.Context) string {
-	return ctx.Value(finderNameCtxKey{}).(string)
+	return ctx.Value(finderNameCtxKey).(string)
 }
 
 func GetActionNameFromContext(ctx context.Context) string {
-	return ctx.Value(actionNameCtxKey{}).(string)
+	return ctx.Value(actionNameCtxKey).(string)
 }
 
 func newErrorResponsef(cause error, status int, format string, a ...any) (restlicodec.Marshaler, error) {

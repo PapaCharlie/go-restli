@@ -113,6 +113,33 @@ func SetRestLiHeaders(req *http.Request, method Method) {
 	req.Header.Set(MethodHeader, method.String())
 }
 
+type contextKey int
+
+const (
+	extraRequestHeadersKey contextKey = iota
+	responseHeadersCaptorKey
+	methodCtxKey
+	resourcePathSegmentsCtxKey
+	entitySegmentsCtxKey
+	finderNameCtxKey
+	actionNameCtxKey
+)
+
+// ExtraRequestHeaders returns a new context with the given headers. If a context with headers is passed into any Client
+// request, the headers will be added to the request before being sent. Note that these headers will not override any
+// existing headers such as Content-Type or MethodHeader. Only new headers will be added to the request.
+func ExtraRequestHeaders(ctx context.Context, headers http.Header) context.Context {
+	return context.WithValue(ctx, extraRequestHeadersKey, headers)
+}
+
+// AddResponseHeadersCaptor returns a new context and a http.Header. If the returned context is passed into any Client
+// request, the returned http.Header will be populated with all the headers returned by the server.
+func AddResponseHeadersCaptor(ctx context.Context) (context.Context, http.Header) {
+	headers := http.Header{}
+	ctx = context.WithValue(ctx, responseHeadersCaptorKey, headers)
+	return ctx, headers
+}
+
 func newRequest(
 	c *Client,
 	ctx context.Context,
@@ -265,6 +292,14 @@ func DoAndIgnore(c *Client, req *http.Request) (*http.Response, error) {
 }
 
 func (c *Client) do(req *http.Request) ([]byte, *http.Response, error) {
+	if extraHeaders, ok := req.Context().Value(extraRequestHeadersKey).(http.Header); ok {
+		for k, v := range extraHeaders {
+			if _, ok = req.Header[k]; !ok {
+				req.Header[k] = v
+			}
+		}
+	}
+
 	res, err := c.Do(req)
 	if err != nil {
 		return nil, res, err
@@ -289,6 +324,12 @@ func (c *Client) do(req *http.Request) ([]byte, *http.Response, error) {
 			Op:  "CloseResponse",
 			URL: req.URL.String(),
 			Err: err,
+		}
+	}
+
+	if resHeaders, ok := req.Context().Value(responseHeadersCaptorKey).(http.Header); ok {
+		for k, v := range res.Header {
+			resHeaders[k] = v
 		}
 	}
 

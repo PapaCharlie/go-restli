@@ -93,19 +93,9 @@ func TestContextAndFilters(t *testing.T) {
 		},
 	})
 
-	handler := server.Handler()
-	c := &restli.Client{
-		Client: &http.Client{
-			Transport: roundTripper(func(req *http.Request) (*http.Response, error) {
-				record := httptest.NewRecorder()
-				handler.ServeHTTP(record, req)
-				res := record.Result()
-				require.Equal(t, res.Header.Get(testHeader), testHeader)
-				return res, nil
-			}),
-		},
-		HostnameResolver: &restli.SimpleHostnameResolver{Hostname: &url.URL{}},
-	}
+	c := newClient(server, func(req *http.Request, res *http.Response) {
+		require.Equal(t, res.Header.Get(testHeader), testHeader)
+	})
 
 	resBool, err := actionset.NewClient(c).ReturnBoolAction()
 	require.NoError(t, err)
@@ -120,4 +110,48 @@ func TestContextAndFilters(t *testing.T) {
 	require.Equal(t, elements, resElements)
 
 	require.Equal(t, []int{1, 2, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1}, filterValues)
+}
+
+func TestCustomHeaders(t *testing.T) {
+	server := restli.NewServer()
+
+	const (
+		h1, v1 = "h1", "v1"
+		h2, v2 = "h2", "v2"
+	)
+
+	actionset.RegisterResource(server, &actionsettest.MockResource{
+		MockReturnBoolAction: func(ctx *restli.RequestContext) (actionResult bool, err error) {
+			require.Equal(t, v1, ctx.Request.Header.Get(h1))
+			ctx.ResponseHeaders.Set(h2, v2)
+			return true, nil
+		},
+	})
+
+	c := newClient(server, nil)
+
+	ctx := context.Background()
+	ctx = restli.ExtraRequestHeaders(ctx, http.Header{http.CanonicalHeaderKey(h1): {v1}})
+	ctx, resHeaders := restli.AddResponseHeadersCaptor(ctx)
+
+	_, err := actionset.NewClient(c).ReturnBoolActionWithContext(ctx)
+	require.NoError(t, err)
+	require.Equal(t, v2, resHeaders.Get(h2))
+}
+
+func newClient(server restli.Server, f func(req *http.Request, res *http.Response)) *restli.Client {
+	return &restli.Client{
+		Client: &http.Client{
+			Transport: roundTripper(func(req *http.Request) (*http.Response, error) {
+				record := httptest.NewRecorder()
+				server.(http.Handler).ServeHTTP(record, req)
+				res := record.Result()
+				if f != nil {
+					f(req, res)
+				}
+				return res, nil
+			}),
+		},
+		HostnameResolver: &restli.SimpleHostnameResolver{Hostname: &url.URL{}},
+	}
 }
