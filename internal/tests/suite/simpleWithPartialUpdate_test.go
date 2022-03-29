@@ -16,13 +16,15 @@ func (o *Operation) SimplePartialUpdate(t *testing.T, c Client) func(*testing.T)
 			String: restli.StringPointer("updated string"),
 		},
 	}
-	err := c.PartialUpdate(update)
+	params := &PartialUpdateParams{Param: 42}
+	err := c.PartialUpdate(update, params)
 	require.NoError(t, err)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockPartialUpdate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField_PartialUpdate) (err error) {
+			MockPartialUpdate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField_PartialUpdate, queryParams *PartialUpdateParams) (err error) {
 				require.Equal(t, update, entity)
+				require.Equal(t, params, queryParams)
 				return nil
 			},
 		}

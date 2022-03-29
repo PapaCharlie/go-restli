@@ -167,7 +167,12 @@ func (r *RestMethod) clientMethodGenerator(def *Group) {
 	if len(r.Params) == 0 {
 		params = append(params, Nil())
 	} else {
-		def.If(Add(QueryParams).Op("==").Nil()).Block(Return(Nil(), Qual(utils.RestLiPackage, "NilQueryParams")))
+		var errReturns []Code
+		if r.NonErrorFuncReturnParam() != nil {
+			errReturns = append(errReturns, Nil())
+		}
+		errReturns = append(errReturns, Qual(utils.RestLiPackage, "NilQueryParams"))
+		def.If(Add(QueryParams).Op("==").Nil()).Block(Return(errReturns...))
 	}
 
 	f := r.FuncName()
