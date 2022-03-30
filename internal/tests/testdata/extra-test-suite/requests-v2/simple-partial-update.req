@@ -1,4 +1,4 @@
-POST /simpleWithPartialUpdate HTTP/1.1
+POST /simpleWithPartialUpdate?param=42 HTTP/1.1
 Accept: application/json
 Content-Type: application/json
 X-RestLi-Method: partial_update

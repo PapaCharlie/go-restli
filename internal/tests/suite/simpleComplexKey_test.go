@@ -208,14 +208,17 @@ func (o *Operation) SimpleComplexKeyBatchPartialUpdate(t *testing.T, c Client) f
 		},
 	}
 
-	actual, err := c.BatchPartialUpdate(partialUpdate)
+	params := &BatchPartialUpdateParams{Param: 42}
+
+	actual, err := c.BatchPartialUpdate(partialUpdate, params)
 	require.NoError(t, err)
 
 	requiredBatchResponseEquals(t, expected, actual)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockBatchPartialUpdate: func(ctx *restli.RequestContext, entities map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField_PartialUpdate) (results *BatchResponse, err error) {
+			MockBatchPartialUpdate: func(ctx *restli.RequestContext, entities map[*SimpleComplexKey_ComplexKey]*extras.SinglePrimitiveField_PartialUpdate, queryParams *BatchPartialUpdateParams) (results *BatchResponse, err error) {
+				require.Equal(t, params, queryParams)
 				requireComplexKeyMapEquals(t, partialUpdate, entities)
 				return expected, nil
 			},

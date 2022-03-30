@@ -46,7 +46,7 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType *R
 	receiver := r.Receiver()
 	var params []Code
 	if batchKeyType != nil {
-		params = []Code{Add(utils.BatchKeySet).Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(batchKeyType.GoType())}
+		params = []Code{Add(utils.BatchKeySet).Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(batchKeyType.ReferencedType())}
 	}
 
 	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams, RecordShouldUsePointer).

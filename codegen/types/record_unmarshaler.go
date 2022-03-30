@@ -103,7 +103,7 @@ func (r *Record) GenerateQueryParamUnmarshaler(batchKeyType *RestliType) Code {
 
 	var params []Code
 	if batchKeyType != nil {
-		params = append(params, Add(ids).Index().Add(batchKeyType.GoType()))
+		params = append(params, Add(ids).Index().Add(batchKeyType.ReferencedType()))
 	}
 	params = append(params, Err().Error())
 
