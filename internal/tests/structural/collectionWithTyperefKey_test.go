@@ -44,14 +44,6 @@ func (c *collectionWithTyperefKeyClient) GetWithContext(context.Context, extras.
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) GetAll() (*collectionwithtyperefkey.Elements, error) {
-	panic(nil)
-}
-
-func (c *collectionWithTyperefKeyClient) GetAllWithContext(context.Context) (*collectionwithtyperefkey.Elements, error) {
-	panic(nil)
-}
-
 func (c *collectionWithTyperefKeyClient) FindBySearch(*collectionwithtyperefkey.FindBySearchParams) (*collectionwithtyperefkey.Elements, error) {
 	panic(nil)
 }
@@ -60,10 +52,34 @@ func (c *collectionWithTyperefKeyClient) FindBySearchWithContext(context.Context
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) OnEntityAction(extras.Temperature, *collectionwithtyperefkey.OnEntityActionParams) (err error) {
+func (c *collectionWithTyperefKeyClient) OnEntityAction(extras.Temperature, *collectionwithtyperefkey.OnEntityActionParams) error {
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) OnEntityActionWithContext(context.Context, extras.Temperature, *collectionwithtyperefkey.OnEntityActionParams) (err error) {
+func (c *collectionWithTyperefKeyClient) OnEntityActionWithContext(context.Context, extras.Temperature, *collectionwithtyperefkey.OnEntityActionParams) error {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) GetAll(*collectionwithtyperefkey.GetAllParams) (*collectionwithtyperefkey.Elements, error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) GetAllWithContext(context.Context, *collectionwithtyperefkey.GetAllParams) (*collectionwithtyperefkey.Elements, error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) FindByNoParams() (*collectionwithtyperefkey.Elements, error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) FindByNoParamsWithContext(context.Context) (*collectionwithtyperefkey.Elements, error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) FindByNoParamsWithPaging(*collectionwithtyperefkey.FindByNoParamsWithPagingParams) (*collectionwithtyperefkey.Elements, error) {
+	panic(nil)
+}
+
+func (c *collectionWithTyperefKeyClient) FindByNoParamsWithPagingWithContext(context.Context, *collectionwithtyperefkey.FindByNoParamsWithPagingParams) (*collectionwithtyperefkey.Elements, error) {
 	panic(nil)
 }

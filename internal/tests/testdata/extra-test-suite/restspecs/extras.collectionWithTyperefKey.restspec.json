@@ -54,6 +54,16 @@
           }
         ],
         "pagingSupported": true
+      },
+      {
+        "name": "noParams",
+        "parameters": [],
+        "pagingSupported": false
+      },
+      {
+        "name": "noParamsWithPaging",
+        "parameters": [],
+        "pagingSupported": true
       }
     ],
     "entity": {

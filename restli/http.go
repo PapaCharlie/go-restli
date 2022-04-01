@@ -224,9 +224,11 @@ func NewJsonRequest(
 	excludedFields restlicodec.PathSpec,
 ) (*http.Request, error) {
 	writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
-	err := contents.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
+	if contents != nil {
+		err := contents.MarshalRestLi(writer)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	size := writer.Size()

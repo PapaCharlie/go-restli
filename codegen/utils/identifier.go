@@ -75,8 +75,12 @@ func NewIdentifierSet(ids ...Identifier) IdentifierSet {
 	return set
 }
 
-func (set IdentifierSet) Add(id Identifier) {
+func (set IdentifierSet) Add(id Identifier) bool {
+	if set[id] {
+		return false
+	}
 	set[id] = true
+	return true
 }
 
 func (set IdentifierSet) AddAll(other IdentifierSet) {

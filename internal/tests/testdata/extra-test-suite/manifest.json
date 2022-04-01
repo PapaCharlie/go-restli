@@ -24,6 +24,15 @@
         },
         {
           "name": "collectionWithTyperefKey-action-on-entity"
+        },
+        {
+          "name": "collectionWithTyperefKey-get-all"
+        },
+        {
+          "name": "collectionWithTyperefKey-finder-noParams"
+        },
+        {
+          "name": "collectionWithTyperefKey-finder-noParamsWithPaging"
         }
       ]
     },

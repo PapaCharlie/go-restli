@@ -15,11 +15,19 @@ func (f *Finder) FuncName() string {
 }
 
 func (f *Finder) FuncParamNames() []Code {
-	return []Code{QueryParams}
+	if len(f.Params) > 0 {
+		return []Code{QueryParams}
+	} else {
+		return nil
+	}
 }
 
 func (f *Finder) FuncParamTypes() []Code {
-	return []Code{Op("*").Qual(f.Resource.PackagePath(), f.paramsStructType())}
+	if len(f.Params) > 0 {
+		return []Code{Op("*").Qual(f.Resource.PackagePath(), f.paramsStructType())}
+	} else {
+		return nil
+	}
 }
 
 func (f *Finder) NonErrorFuncReturnParam() Code {
@@ -43,23 +51,25 @@ func (f *Finder) paramsStructType() string {
 func (f *Finder) GenerateCode() *utils.CodeFile {
 	c := f.Resource.NewCodeFile("findBy" + utils.ExportedIdentifier(f.Name))
 
-	params := &types.Record{
-		NamedType: types.NamedType{
-			Identifier: utils.Identifier{
-				Name:      f.paramsStructType(),
-				Namespace: f.Resource.Namespace,
+	if len(f.Params) > 0 {
+		params := &types.Record{
+			NamedType: types.NamedType{
+				Identifier: utils.Identifier{
+					Name:      f.paramsStructType(),
+					Namespace: f.Resource.Namespace,
+				},
+				Doc: fmt.Sprintf("%s provides the parameters to the %s finder", f.paramsStructType(), f.Name),
 			},
-			Doc: fmt.Sprintf("%s provides the parameters to the %s finder", f.paramsStructType(), f.Name),
-		},
-		Fields: f.Params,
+			Fields: f.Params,
+		}
+		c.Code.Add(params.GenerateStruct()).Line().Line().
+			Add(params.GenerateQueryParamMarshaler(&f.Name, nil)).Line().Line().
+			Add(params.GenerateQueryParamUnmarshaler(nil)).Line().Line().
+			Add(params.GeneratePopulateDefaultValues()).Line().Line()
+	} else {
+		c.Code.Const().Id(f.paramsStructType()).Op("=").Qual(utils.RestLiPackage, "QueryParamsString").
+			Call(Lit("q=" + f.Name)).Line()
 	}
-	if f.PagingSupported {
-		addPagingContextFields(params)
-	}
-	c.Code.Add(params.GenerateStruct()).Line().Line().
-		Add(params.GenerateQueryParamMarshaler(&f.Name, nil)).Line().Line().
-		Add(params.GenerateQueryParamUnmarshaler(nil)).Line().Line().
-		Add(params.GeneratePopulateDefaultValues()).Line().Line()
 
 	if f.Metadata != nil {
 		c.Code.Type().Id(f.returnTypeAliasName()).Op("=").
@@ -76,12 +86,15 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 			genericParams = append(genericParams, f.Metadata.ReferencedType())
 		}
 
-		def.Return(Qual(utils.RestLiPackage, name).Index(List(genericParams...)).Call(
-			RestLiClientReceiver,
-			Ctx,
-			Rp,
-			QueryParams,
-		))
+		var qp Code
+		if len(f.Params) > 0 {
+			qp = QueryParams
+		} else {
+			qp = Id(f.paramsStructType())
+		}
+
+		def.Return(Qual(utils.RestLiPackage, name).Index(List(genericParams...)).
+			Call(RestLiClientReceiver, Ctx, Rp, qp))
 	})
 
 	return c

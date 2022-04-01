@@ -88,13 +88,12 @@ const (
 )
 
 type Method struct {
-	MethodType      MethodType        `json:"methodType"`
-	Name            string            `json:"name"`
-	Doc             string            `json:"doc"`
-	OnEntity        bool              `json:"onEntity"`
-	Params          []types.Field     `json:"params"`
-	Return          *types.RestliType `json:"return"`
-	Metadata        *types.RestliType `json:"metadata"`
-	ReturnEntity    bool              `json:"returnEntity"`
-	PagingSupported bool              `json:"pagingSupported"`
+	MethodType   MethodType        `json:"methodType"`
+	Name         string            `json:"name"`
+	Doc          string            `json:"doc"`
+	OnEntity     bool              `json:"onEntity"`
+	Params       []types.Field     `json:"params"`
+	Return       *types.RestliType `json:"return"`
+	Metadata     *types.RestliType `json:"metadata"`
+	ReturnEntity bool              `json:"returnEntity"`
 }

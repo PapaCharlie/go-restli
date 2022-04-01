@@ -18,6 +18,5 @@ public class Method {
   public List<Field> _params;
   public RestliType _return;
   public boolean _returnEntity;
-  public boolean _pagingSupported;
   public RestliType _metadata;
 }

@@ -5,7 +5,6 @@ import com.linkedin.restli.common.ResourceMethod;
 import com.linkedin.restli.restspec.ActionSchema;
 import com.linkedin.restli.restspec.FinderSchema;
 import com.linkedin.restli.restspec.ParameterSchema;
-import com.linkedin.restli.restspec.ParameterSchemaArray;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestMethodSchema;
 import io.papacharlie.gorestli.json.Method;
@@ -35,6 +34,9 @@ public class MethodParser {
       .addAll(BATCH_METHODS_WITH_IDS_PARAM)
       .build();
 
+  private static final RestliType.Identifier PAGING_CONTEXT =
+      new RestliType.Identifier("github.com/PapaCharlie/go-restli/restlidata", "PagingContext");
+
   private final TypeParser _typeParser;
   private final ResourceSchema _resource;
   private final RestliType _resourceSchema;
@@ -54,7 +56,7 @@ public class MethodParser {
   public Method newActionMethod(ActionSchema action, boolean isActionOnEntity) {
     Method method = newMethod(action.getName(), ACTION, isActionOnEntity);
     method._doc = action.getDoc();
-    method._params = toFieldList(action.getParameters());
+    method._params = toFieldList(action.getParameters(), false);
 
     if (action.getReturns() != null) {
       method._return = _typeParser.parseFromRestSpec(action.getReturns());
@@ -66,9 +68,8 @@ public class MethodParser {
   public Method newFinderMethod(FinderSchema finder) {
     Method method = newMethod(finder.getName(), FINDER, false);
     method._doc = finder.getDoc();
-    method._params = toFieldList(finder.getParameters());
+    method._params = toFieldList(finder.getParameters(), finder.isPagingSupported());
     method._return = _resourceSchema;
-    method._pagingSupported = finder.hasPagingSupported() && finder.isPagingSupported();
     if (finder.getMetadata() != null) {
       method._metadata = _typeParser.parseFromRestSpec(finder.getMetadata().getType());
     }
@@ -85,18 +86,41 @@ public class MethodParser {
     }
 
     Method method = newMethod(restMethod.getMethod(), REST_METHOD, onEntity);
-    method._params = toFieldList(restMethod.getParameters());
+    method._params = toFieldList(restMethod.getParameters(), restMethod.isPagingSupported());
     method._return = _resourceSchema;
     method._returnEntity = Utils.supportsReturnEntity(restMethod);
-    method._pagingSupported = restMethod.hasPagingSupported() && restMethod.isPagingSupported();
     return method;
   }
 
-  private List<Field> toFieldList(ParameterSchemaArray parameters) {
-    if (parameters == null || parameters.isEmpty()) {
+  private List<Field> toFieldList(List<ParameterSchema> parameters, Boolean isPagingSupported) {
+    if (parameters == null) {
+      parameters = Collections.emptyList();
+    }
+    isPagingSupported = isPagingSupported != null && isPagingSupported;
+    if (parameters.isEmpty() && !isPagingSupported) {
       return Collections.emptyList();
     }
+
     List<Field> fields = new ArrayList<>();
+    if (isPagingSupported) {
+      fields.add(new Field(
+          "start",
+          "The starting offset",
+          new RestliType(RestliType.GoPrimitive.INT32),
+          true,
+          null,
+          PAGING_CONTEXT
+      ));
+      fields.add(new Field(
+          "count",
+          "The number of elements to return",
+          new RestliType(RestliType.GoPrimitive.INT32),
+          true,
+          null,
+          PAGING_CONTEXT
+      ));
+    }
+
     for (ParameterSchema parameter : parameters) {
       fields.add(new Field(
           parameter.getName(),

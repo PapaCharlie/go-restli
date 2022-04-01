@@ -47,7 +47,8 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 	c := a.Resource.NewCodeFile(actionName)
 
 	actionNameConst := utils.ExportedIdentifier(actionName)
-	c.Code.Const().Id(actionNameConst).Op("=").Qual(utils.RestLiPackage, "ActionQueryParam").Call(Lit(a.Name)).Line()
+	c.Code.Const().Id(actionNameConst).Op("=").Qual(utils.RestLiPackage, "QueryParamsString").
+		Call(Lit("action=" + a.Name)).Line()
 
 	hasParams := len(a.Params) > 0
 	if hasParams {
@@ -74,7 +75,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 		if hasParams {
 			params = ActionParams
 		} else {
-			params = Add(EmptyRecord).Values()
+			params = Nil()
 		}
 
 		f := "DoActionRequest"

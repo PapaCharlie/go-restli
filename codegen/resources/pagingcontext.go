@@ -26,8 +26,3 @@ var PagingContext = &types.Record{
 func init() {
 	utils.TypeRegistry.Register(PagingContext)
 }
-
-func addPagingContextFields(record *types.Record) {
-	record.IncludedRecords = append([]utils.Identifier{utils.PagingContextIdentifier}, record.IncludedRecords...)
-	record.Fields = append(record.Fields, PagingContext.Fields...)
-}

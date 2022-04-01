@@ -46,7 +46,7 @@ func (r *Record) GenerateUnmarshalRestLi() *Statement {
 
 func (r *Record) generateUnmarshaler(def *Group, requiredFields Code, batchKeyType *RestliType) {
 	if len(r.Fields) == 0 {
-		def.Return(Reader.ReadMap(Reader, func(reader Code, field Code, def *Group) {
+		def.Return(Reader.ReadRecord(Reader, Nil(), func(reader Code, field Code, def *Group) {
 			def.Return(Reader.Skip(reader))
 		}))
 		return

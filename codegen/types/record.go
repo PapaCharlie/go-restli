@@ -18,8 +18,7 @@ const RecordShouldUsePointer = utils.Yes
 
 type Record struct {
 	NamedType
-	Fields          []Field
-	IncludedRecords []utils.Identifier
+	Fields []Field
 }
 
 func (r *Record) InnerTypes() utils.IdentifierSet {
@@ -123,7 +122,15 @@ func (r *Record) GenerateStruct() *Statement {
 	return utils.AddWordWrappedComment(Empty(), r.Doc).Line().
 		Type().Id(r.Name).
 		StructFunc(func(def *Group) {
-			for _, id := range r.IncludedRecords {
+			var uniqueIncludedRecords []utils.Identifier
+			includedRecords := utils.IdentifierSet{}
+			for _, f := range r.Fields {
+				if f.IncludedFrom != nil && includedRecords.Add(*f.IncludedFrom) {
+					uniqueIncludedRecords = append(uniqueIncludedRecords, *f.IncludedFrom)
+				}
+			}
+
+			for _, id := range uniqueIncludedRecords {
 				def.Add(id.Qual())
 			}
 			for _, f := range r.Fields {

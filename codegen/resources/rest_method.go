@@ -224,7 +224,7 @@ func (r *RestMethod) RegisterMethod(server, resource, segments Code) Code {
 func (r *RestMethod) GenerateCode() *utils.CodeFile {
 	c := r.Resource.NewCodeFile(r.Name)
 
-	if len(r.Params) > 0 || r.PagingSupported {
+	if len(r.Params) > 0 {
 		p := &types.Record{
 			NamedType: types.NamedType{
 				Identifier: utils.Identifier{
@@ -234,9 +234,6 @@ func (r *RestMethod) GenerateCode() *utils.CodeFile {
 				Doc: fmt.Sprintf("%s provides the parameters to the %s method", r.queryParamsStructName(), r.Name),
 			},
 			Fields: r.Params,
-		}
-		if r.PagingSupported {
-			addPagingContextFields(p)
 		}
 		c.Code.Add(p.GenerateStruct()).Line().Line()
 		var batchKeyType *types.RestliType

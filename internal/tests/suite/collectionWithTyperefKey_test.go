@@ -156,3 +156,56 @@ func (o *Operation) CollectionWithTyperefKeyActionOnEntity(t *testing.T, c Clien
 		}
 	}
 }
+
+func (o *Operation) CollectionWithTyperefKeyGetAll(t *testing.T, c Client) func(*testing.T) *MockResource {
+	params := &GetAllParams{
+		PagingContext: restlidata.NewPagingContext(5, 10),
+	}
+	res, err := c.GetAll(params)
+	require.NoError(t, err)
+	expected := new(Elements)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockGetAll: func(ctx *restli.RequestContext, queryParams *GetAllParams) (results *Elements, err error) {
+				require.Equal(t, params, queryParams)
+				return expected, nil
+			},
+		}
+	}
+}
+
+func (o *Operation) CollectionWithTyperefKeyFinderNoParams(t *testing.T, c Client) func(*testing.T) *MockResource {
+	res, err := c.FindByNoParams()
+	require.NoError(t, err)
+	expected := new(Elements)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockFindByNoParams: func(ctx *restli.RequestContext) (results *Elements, err error) {
+				return expected, nil
+			},
+		}
+	}
+}
+
+func (o *Operation) CollectionWithTyperefKeyFinderNoParamsWithPaging(t *testing.T, c Client) func(*testing.T) *MockResource {
+	params := &FindByNoParamsWithPagingParams{
+		PagingContext: restlidata.NewPagingContext(5, 10),
+	}
+	res, err := c.FindByNoParamsWithPaging(params)
+	require.NoError(t, err)
+	expected := new(Elements)
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockFindByNoParamsWithPaging: func(ctx *restli.RequestContext, queryParams *FindByNoParamsWithPagingParams) (results *Elements, err error) {
+				require.Equal(t, params, queryParams)
+				return expected, nil
+			},
+		}
+	}
+}

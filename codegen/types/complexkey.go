@@ -30,7 +30,6 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 				isComplexKeyParams: true,
 			},
 		},
-		IncludedRecords: []utils.Identifier{ck.Key},
 	}
 	for _, f := range utils.TypeRegistry.Resolve(ck.Key).(*Record).Fields {
 		f.IncludedFrom = &ck.Key

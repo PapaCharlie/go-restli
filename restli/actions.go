@@ -9,12 +9,6 @@ import (
 	"github.com/PapaCharlie/go-restli/restlidata"
 )
 
-type ActionQueryParam string
-
-func (a ActionQueryParam) EncodeQueryParams() (string, error) {
-	return "action=" + string(a), nil
-}
-
 // DoActionRequest executes a rest.li Action request and places the given restlicodec.Marshaler in the request's body
 // and discards the response body. Actions with no params are expected to use the EmptyRecord.
 func DoActionRequest(
