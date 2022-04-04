@@ -2,6 +2,7 @@ package tests
 
 import (
 	"crypto/md5"
+	"os/exec"
 	"testing"
 
 	"github.com/PapaCharlie/go-restli/fnv1a"
@@ -301,5 +302,17 @@ func TestEmbeddedPagingContext(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, test.expected, actual)
 		})
+	}
+}
+
+func TestAddWordWrappedComment(t *testing.T) {
+	// MultilineDoc contains (unsurprisingly) a multiline docstring that is susceptible to not being properly formatted.
+	// AddWordWrappedComment should now produce comments that do not need extra formatting
+	const file = "testdata/generated_extras/extras/MultilineDoc.gr.go"
+	cmd := exec.Command("gofmt", "-l", file)
+	out, err := cmd.Output()
+	require.NoError(t, err)
+	if len(out) != 0 {
+		t.Fatalf("%q is not well formatted", file)
 	}
 }

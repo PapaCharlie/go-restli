@@ -150,8 +150,15 @@ func CleanTargetDir(targetDir string) (err error) {
 
 func AddWordWrappedComment(code *Statement, comment string) *Statement {
 	if comment != "" {
+		// By splitting the comment by string, we prevent jen's default behavior of formatting multiline comments
+		// using /* */, which ends up not being well formatted according to gofmt.
+		for i, line := range strings.Split(strings.TrimSpace(comment), "\n") {
+			if i != 0 {
+				code.Line()
+			}
+			code.Comment(line)
+		}
 		// TODO: Find a way to pretty-wrap comments to 120 chars
-		code.Comment(comment)
 		return code
 	} else {
 		return code

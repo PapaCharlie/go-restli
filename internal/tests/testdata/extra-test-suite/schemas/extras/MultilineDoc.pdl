@@ -1,0 +1,9 @@
+namespace extras
+
+record MultilineDoc {
+  /**
+   * I am a comment
+   * with multiple lines
+   */
+  foo: string
+}

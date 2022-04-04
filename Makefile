@@ -61,6 +61,7 @@ generate-restli: clean $(JARGO)
 		--named-schemas-to-generate extras.IncludesUnion \
 		--named-schemas-to-generate extras.ArrayOfFixed \
 		--named-schemas-to-generate extras.ArrayOfUnion \
+		--named-schemas-to-generate extras.MultilineDoc \
 		--raw-records extras.Any \
 		$(EXTRA_TEST_SUITE)/restspecs/*
 	go test . $(COVERPROFILE)/generator.cov $(GENERATOR_TEST_ARGS) \
