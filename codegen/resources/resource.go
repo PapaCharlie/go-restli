@@ -31,6 +31,11 @@ func (r *Resource) NewCodeFile(filename string) *utils.CodeFile {
 }
 
 func (r *Resource) GenerateCode() []*utils.CodeFile {
+	// Some resources simply define no methods, so skip generating any code
+	if len(r.Methods) == 0 {
+		return nil
+	}
+
 	resource := r.NewCodeFile("resource")
 
 	for _, m := range r.Methods {

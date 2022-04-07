@@ -108,7 +108,11 @@ func CleanTargetDir(targetDir string) (err error) {
 		}
 
 		if len(children) == 0 {
-			return os.Remove(targetDir)
+			if targetDir != "." {
+				return os.Remove(targetDir)
+			} else {
+				return nil
+			}
 		}
 
 		for _, c := range children {
@@ -131,7 +135,11 @@ func CleanTargetDir(targetDir string) (err error) {
 		}
 
 		if len(children) == 0 {
-			return os.Remove(targetDir)
+			if targetDir != "." {
+				return os.Remove(targetDir)
+			} else {
+				return nil
+			}
 		}
 		return nil
 	}
