@@ -22,7 +22,7 @@ func Find[V restlicodec.Marshaler](
 	}
 
 	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*restlidata.Elements[V]])
-	return results, nil
+	return results, err
 }
 
 // FindWithMetadata executes a rest.li find request for finders that declare metadata
@@ -38,7 +38,7 @@ func FindWithMetadata[V, M restlicodec.Marshaler](
 	}
 
 	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*restlidata.ElementsWithMetadata[V, M]])
-	return results, nil
+	return results, err
 }
 
 func RegisterFinder[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](

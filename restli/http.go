@@ -1,8 +1,9 @@
 package restli
 
 import (
+	"bytes"
 	"context"
-	"io"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -18,6 +19,13 @@ const (
 	MethodHeader          = "X-RestLi-Method"
 	ProtocolVersionHeader = "X-RestLi-Protocol-Version"
 	ErrorResponseHeader   = "X-RestLi-Error-Response"
+	MethodOverrideHeader  = "X-HTTP-Method-Override"
+
+	ContentTypeHeader          = "Content-Type"
+	MultipartMixedContentType  = "multipart/mixed"
+	MultipartBoundary          = "boundary"
+	ApplicationJsonContentType = "application/json"
+	FormUrlEncodedContentType  = "application/x-www-form-urlencoded"
 )
 
 type Method int
@@ -54,13 +62,17 @@ var MethodNameMapping = func() map[string]Method {
 
 type Client struct {
 	*http.Client
-	HostnameResolver
+	HostnameResolver HostnameResolver
 	// Whether missing fields in a restli response should cause a MissingRequiredFields error to be returned. Note that
 	// even if the error is returned, the response will still be fully deserialized.
 	StrictResponseDeserialization bool
+	// When greater than 0, this enables request tunnelling. When a request's query is longer than this value, the
+	// request will instead be sent via POST, with the query encoded as a form query and the MethodOverrideHeader set to
+	// the original HTTP method.
+	QueryTunnellingThreshold int
 }
 
-func (c *Client) FormatQueryUrl(rp ResourcePath, query QueryParamsEncoder) (*url.URL, error) {
+func (c *Client) formatQueryUrl(rp ResourcePath, query QueryParamsEncoder) (*url.URL, error) {
 	path, err := rp.ResourcePath()
 	if err != nil {
 		return nil, err
@@ -81,7 +93,7 @@ func (c *Client) FormatQueryUrl(rp ResourcePath, query QueryParamsEncoder) (*url
 	}
 
 	root := rp.RootResource()
-	hostUrl, err := c.ResolveHostnameAndContextForQuery(root, u)
+	hostUrl, err := c.HostnameResolver.ResolveHostnameAndContextForQuery(root, u)
 	if err != nil {
 		return nil, err
 	}
@@ -98,19 +110,6 @@ func (c *Client) FormatQueryUrl(rp ResourcePath, query QueryParamsEncoder) (*url
 	}
 
 	return hostUrl.Parse(resolvedPath + u.RequestURI())
-}
-
-func SetJsonAcceptHeader(req *http.Request) {
-	req.Header.Set("Accept", "application/json")
-}
-
-func SetJsonContentTypeHeader(req *http.Request) {
-	req.Header.Set("Content-Type", "application/json")
-}
-
-func SetRestLiHeaders(req *http.Request, method Method) {
-	req.Header.Set(ProtocolVersionHeader, ProtocolVersion)
-	req.Header.Set(MethodHeader, method.String())
 }
 
 type contextKey int
@@ -147,19 +146,51 @@ func newRequest(
 	query QueryParamsEncoder,
 	httpMethod string,
 	method Method,
-	body io.Reader,
-) (*http.Request, error) {
-	u, err := c.FormatQueryUrl(rp, query)
+	contents restlicodec.Marshaler,
+	excludedFields restlicodec.PathSpec,
+) (req *http.Request, err error) {
+	u, err := c.formatQueryUrl(rp, query)
 	if err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, httpMethod, u.String(), body)
+	var body []byte
+	if contents != nil {
+		writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
+		err = contents.MarshalRestLi(writer)
+		if err != nil {
+			return nil, err
+		}
+		body = []byte(writer.Finalize())
+	}
+
+	headers := http.Header{}
+	if body != nil {
+		headers.Set(ContentTypeHeader, ApplicationJsonContentType)
+	}
+
+	if c.QueryTunnellingThreshold > 0 && len(u.RawQuery) > c.QueryTunnellingThreshold {
+		var tunnelHeaders http.Header
+		body, tunnelHeaders = EncodeTunnelledQuery(httpMethod, u.RawQuery, body)
+		for k := range tunnelHeaders {
+			headers.Set(k, tunnelHeaders.Get(k))
+		}
+		httpMethod = http.MethodPost
+		u.RawQuery = ""
+	}
+
+	req, err = http.NewRequestWithContext(ctx, httpMethod, u.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 
-	SetRestLiHeaders(req, method)
+	req.Header.Set(ProtocolVersionHeader, ProtocolVersion)
+	req.Header.Set(MethodHeader, method.String())
+	req.Header.Set("Accept", ApplicationJsonContentType)
+	for k, v := range headers {
+		req.Header[k] = v
+	}
+
 	return req, nil
 }
 
@@ -171,14 +202,7 @@ func NewGetRequest(
 	query QueryParamsEncoder,
 	method Method,
 ) (*http.Request, error) {
-	req, err := newRequest(c, ctx, rp, query, http.MethodGet, method, http.NoBody)
-	if err != nil {
-		return nil, err
-	}
-
-	SetJsonAcceptHeader(req)
-
-	return req, nil
+	return newRequest(c, ctx, rp, query, http.MethodGet, method, nil, nil)
 }
 
 // NewDeleteRequest creates a DELETE http.Request and sets the expected rest.li headers
@@ -189,14 +213,7 @@ func NewDeleteRequest(
 	query QueryParamsEncoder,
 	method Method,
 ) (*http.Request, error) {
-	req, err := newRequest(c, ctx, rp, query, http.MethodDelete, method, http.NoBody)
-	if err != nil {
-		return nil, err
-	}
-
-	SetJsonAcceptHeader(req)
-
-	return req, nil
+	return newRequest(c, ctx, rp, query, http.MethodDelete, method, nil, nil)
 }
 
 func NewCreateRequest(
@@ -223,25 +240,10 @@ func NewJsonRequest(
 	contents restlicodec.Marshaler,
 	excludedFields restlicodec.PathSpec,
 ) (*http.Request, error) {
-	writer := restlicodec.NewCompactJsonWriterWithExcludedFields(excludedFields)
-	if contents != nil {
-		err := contents.MarshalRestLi(writer)
-		if err != nil {
-			return nil, err
-		}
+	if contents == nil {
+		return nil, fmt.Errorf("go-restli: Must provide non-nil contents")
 	}
-
-	size := writer.Size()
-	req, err := newRequest(c, ctx, rp, query, httpMethod, restLiMethod, writer.ReadCloser())
-	if err != nil {
-		return nil, err
-	}
-
-	SetJsonAcceptHeader(req)
-	SetJsonContentTypeHeader(req)
-
-	req.ContentLength = int64(size)
-	return req, nil
+	return newRequest(c, ctx, rp, query, httpMethod, restLiMethod, contents, excludedFields)
 }
 
 // Do is a very thin shim between the standard http.Client.Do. All it does it parse the response into a Error if

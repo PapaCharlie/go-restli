@@ -1,16 +1,24 @@
 package suite
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"testing"
 
-	"github.com/PapaCharlie/go-restli/internal/tests"
+	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 )
 
 var testSuite = "rest.li-test-suite/client-testsuite"
@@ -33,11 +41,9 @@ type WireProtocolTestData struct {
 }
 
 type Operation struct {
-	Name          string
-	Request       *http.Request
-	RequestBytes  []byte
-	Response      *http.Response
-	ResponseBytes []byte
+	Name     string
+	Request  func(*testing.T) *http.Request
+	Response func(*testing.T) *http.Response
 }
 
 func (d *WireProtocolTestData) UnmarshalJSON(data []byte) error {
@@ -70,14 +76,26 @@ func (o *Operation) UnmarshalJSON(data []byte) error {
 
 	o.Name = operation.Name
 
-	o.Request, o.RequestBytes, err = tests.ReadRequestFromFile(filepath.Join(testSuite, "requests-v2", o.Name+".req"))
-	if err != nil {
-		return errors.WithStack(err)
+	testSuite := testSuite
+	o.Request = func(t *testing.T) *http.Request {
+		filename := filepath.Join(testSuite, "requests-v2", o.Name+".req")
+		r := readFile(t, filename)
+		req, err := http.ReadRequest(r)
+		require.NoError(t, err, "Could not read request from: %q", filename)
+		req.Body = adjustContentLength(t, filename, r, req.Header)
+
+		require.NoError(t, restli.DecodeTunnelledQuery(req))
+
+		return req
 	}
 
-	o.Response, o.ResponseBytes, err = tests.ReadResponseFromFile(filepath.Join(testSuite, "responses-v2", o.Name+".res"), o.Request)
-	if err != nil {
-		return errors.WithStack(err)
+	o.Response = func(t *testing.T) *http.Response {
+		filename := filepath.Join(testSuite, "responses-v2", o.Name+".res")
+		r := readFile(t, filename)
+		res, err := http.ReadResponse(r, o.Request(t))
+		require.NoError(t, err, "Could not read response from: %q", filename)
+		res.Body = adjustContentLength(t, filename, r, res.Header)
+		return res
 	}
 
 	return nil
@@ -111,4 +129,30 @@ func ReadManifest() *Manifest {
 		}
 	}
 	return &aggregateManifest
+}
+
+func readFile(t *testing.T, filename string) *bufio.Reader {
+	reqBytes, err := ioutil.ReadFile(filename)
+	require.NoError(t, err, "Could not read %s", filename)
+	return bufio.NewReader(bytes.NewBuffer(reqBytes))
+}
+
+func adjustContentLength(t *testing.T, filename string, r *bufio.Reader, h http.Header) io.ReadCloser {
+	const contentLength = "Content-Length"
+	// ReadRequest and ReadResponse only read the leading HTTP protocol bytes (e.g. GET /foo HTTP/1.1) and the headers.
+	// What remains of the buffer is the body of the request
+	b, err := io.ReadAll(r)
+	require.NoError(t, err)
+
+	b = bytes.Trim(b, "\r\n")
+	cl := h.Get(contentLength)
+	if cl != "" {
+		cli, _ := strconv.Atoi(cl)
+		if len(b) != cli {
+			require.FailNow(t, "??")
+			t.Logf("Content-Length header in %s indicates %d bytes, but body was %d bytes", filename, cli, len(b))
+			h.Set(contentLength, fmt.Sprintf("%d", len(b)))
+		}
+	}
+	return io.NopCloser(bytes.NewReader(b))
 }

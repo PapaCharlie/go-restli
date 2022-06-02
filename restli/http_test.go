@@ -67,7 +67,7 @@ func TestRestLiClient_FormatQuery(t *testing.T) {
 			for _, v := range test.Values {
 				supplier.Hostname = v
 
-				u, err := c.FormatQueryUrl(rp, query)
+				u, err := c.formatQueryUrl(rp, query)
 				if err != nil {
 					t.Fatal(err)
 				}

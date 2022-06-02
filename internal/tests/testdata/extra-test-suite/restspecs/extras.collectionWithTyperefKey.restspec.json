@@ -34,7 +34,13 @@
         ]
       },
       {
-        "method": "create"
+        "method": "create",
+        "parameters": [
+          {
+            "name": "test",
+            "type": "string"
+          }
+        ]
       },
       {
         "method": "get"

@@ -11,7 +11,7 @@
         "parameters": [
           {
             "name": "param",
-            "type": "int"
+            "type": "string"
           }
         ]
       }

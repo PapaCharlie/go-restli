@@ -34,6 +34,10 @@ func (n noopWriter) SetScope(...string) Writer {
 	return n
 }
 
+func (n noopWriter) Finalize() string {
+	return ""
+}
+
 var EmptyReader emptyReader
 
 type emptyReader struct{}

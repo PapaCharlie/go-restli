@@ -44,7 +44,7 @@ func writeIdHeaders[K any](ctx *RequestContext, id K) (err error) {
 	}
 	s := w.Finalize()
 	ctx.ResponseHeaders.Add(IDHeader, s)
-	ctx.ResponseHeaders.Add("Location", path.Join(ctx.Request.RequestURI, s))
+	ctx.ResponseHeaders.Add("Location", path.Join(ctx.RequestPath(), s))
 	return nil
 }
 

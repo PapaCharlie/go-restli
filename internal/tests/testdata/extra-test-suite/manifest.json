@@ -33,6 +33,9 @@
         },
         {
           "name": "collectionWithTyperefKey-finder-noParamsWithPaging"
+        },
+        {
+          "name": "collectionWithTyperefKey-create-with-params"
         }
       ]
     },
@@ -45,6 +48,9 @@
         },
         {
           "name": "simpleComplexKey-batch-get"
+        },
+        {
+          "name": "simpleComplexKey-batch-create"
         },
         {
           "name": "simpleComplexKey-batch-update-with-errors"
@@ -72,6 +78,9 @@
       "operations": [
         {
           "name": "simple-partial-update"
+        },
+        {
+          "name": "simple-partial-update-with-tunnelling"
         }
       ]
     }

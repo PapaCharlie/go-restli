@@ -28,11 +28,11 @@ func (c *collectionWithTyperefKeyClient) BatchGetWithContext(context.Context, []
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) Create(*extras.SinglePrimitiveField) (*collectionwithtyperefkey.CreatedEntity, error) {
+func (c *collectionWithTyperefKeyClient) Create(*extras.SinglePrimitiveField, *collectionwithtyperefkey.CreateParams) (*collectionwithtyperefkey.CreatedEntity, error) {
 	panic(nil)
 }
 
-func (c *collectionWithTyperefKeyClient) CreateWithContext(context.Context, *extras.SinglePrimitiveField) (*collectionwithtyperefkey.CreatedEntity, error) {
+func (c *collectionWithTyperefKeyClient) CreateWithContext(context.Context, *extras.SinglePrimitiveField, *collectionwithtyperefkey.CreateParams) (*collectionwithtyperefkey.CreatedEntity, error) {
 	panic(nil)
 }
 

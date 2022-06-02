@@ -75,7 +75,7 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 		if hasParams {
 			params = ActionParams
 		} else {
-			params = Nil()
+			params = Add(EmptyRecord).Values()
 		}
 
 		f := "DoActionRequest"

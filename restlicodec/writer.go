@@ -40,21 +40,6 @@ func MarshalRestLi[T any](t T, writer Writer) (err error) {
 	return nil
 }
 
-// Closer provides methods for the underlying Writer to release its buffer and return the constructed objects to the
-// caller. Note that once either Finalize or ReadCloser is called, subsequent calls to either will return the empty
-// string or the empty reader respectively.
-type Closer interface {
-	// Finalize returns the created object as a string and releases the pooled underlying buffer. Subsequent calls will
-	// return the empty string
-	Finalize() string
-	// ReadCloser returns an io.ReadCloser that will read the pooled underlying buffer, releasing each byte back into
-	// the pool as they are read. Close will release any remaining unread bytes to the pool.
-	ReadCloser() io.ReadCloser
-	// Size returns the size of the data that was written out. Note that calling Size after Finalize or ReadCloser will
-	// return 0
-	Size() int
-}
-
 // PrimitiveWriter provides the set of functions needed to write the supported rest.li primitives to the backing buffer,
 // according to the rest.li serialization spec: https://linkedin.github.io/rest.li/how_data_is_serialized_for_transport.
 type PrimitiveWriter interface {
@@ -66,12 +51,6 @@ type PrimitiveWriter interface {
 	WriteBool(v bool)
 	WriteString(v string)
 	WriteBytes(v []byte)
-}
-
-// WriteCloser groups the Writer and Closer functions.
-type WriteCloser interface {
-	Writer
-	Closer
 }
 
 type (
@@ -133,6 +112,9 @@ type Writer interface {
 	// custom serialization logic on top of the Writer. Designed to work around the backing PathSpec for field
 	// exclusion.
 	SetScope(...string) Writer
+	// Finalize returns the created object as a string and releases the pooled underlying buffer. Subsequent calls will
+	// return the empty string
+	Finalize() string
 }
 
 type rawWriter interface {

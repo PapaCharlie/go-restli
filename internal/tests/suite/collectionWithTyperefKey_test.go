@@ -23,8 +23,9 @@ func (o *Operation) CollectionWithTyperefKeyBatchCreateWithParams(t *testing.T, 
 	require.NoError(t, err)
 	expected := []*CreatedEntity{
 		{
-			Id:     1,
-			Status: http.StatusCreated,
+			Id:       1,
+			Status:   http.StatusCreated,
+			Location: restli.StringPointer("/collectionWithTyperefKey/1"),
 		},
 	}
 	require.Equal(t, expected, res)
@@ -34,7 +35,9 @@ func (o *Operation) CollectionWithTyperefKeyBatchCreateWithParams(t *testing.T, 
 			MockBatchCreate: func(ctx *restli.RequestContext, entities []*extras.SinglePrimitiveField, queryParams *BatchCreateParams) (createdEntities []*CreatedEntity, err error) {
 				require.Equal(t, create, entities)
 				require.Equal(t, params, queryParams)
-				return []*CreatedEntity{{Id: 1}}, nil
+				entity := &CreatedEntity{Id: 1}
+				require.NoError(t, restli.SetLocation(ctx, entity))
+				return []*CreatedEntity{entity}, nil
 			},
 		}
 	}
@@ -87,7 +90,7 @@ func (o *Operation) CollectionWithTyperefKeyGetIncompleteResponse(t *testing.T, 
 	require.Error(t, err)
 	require.IsType(t, new(restlicodec.MissingRequiredFieldsError), err)
 
-	c = o.newClient(t, false).Interface().(Client)
+	c = o.newClient(t, false, 0).Interface().(Client)
 	res, err := c.Get(id)
 	require.NoError(t, err)
 	require.Equal(t, &extras.SinglePrimitiveField{}, res)
@@ -205,6 +208,28 @@ func (o *Operation) CollectionWithTyperefKeyFinderNoParamsWithPaging(t *testing.
 			MockFindByNoParamsWithPaging: func(ctx *restli.RequestContext, queryParams *FindByNoParamsWithPagingParams) (results *Elements, err error) {
 				require.Equal(t, params, queryParams)
 				return expected, nil
+			},
+		}
+	}
+}
+
+func (o *Operation) CollectionWithTyperefKeyCreateWithParams(t *testing.T, c Client) func(*testing.T) *MockResource {
+	create := &extras.SinglePrimitiveField{String: "1"}
+	params := &CreateParams{Test: "foo"}
+	res, err := c.Create(create, params)
+	require.NoError(t, err)
+	expected := &CreatedEntity{
+		Id:     1,
+		Status: http.StatusCreated,
+	}
+	require.Equal(t, expected, res)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockCreate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField, queryParams *CreateParams) (createdEntity *CreatedEntity, err error) {
+				require.Equal(t, create, entity)
+				require.Equal(t, params, queryParams)
+				return &CreatedEntity{Id: 1}, nil
 			},
 		}
 	}

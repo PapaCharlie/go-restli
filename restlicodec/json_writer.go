@@ -10,15 +10,15 @@ type compactJsonWriter struct {
 	jwriter.Writer
 }
 
-// NewCompactJsonWriter returns a WriteCloser that serializes objects using JSON. This representation has no extraneous
+// NewCompactJsonWriter returns a Writer that serializes objects using JSON. This representation has no extraneous
 // whitespace and is intended for wire transport.
-func NewCompactJsonWriter() WriteCloser {
+func NewCompactJsonWriter() Writer {
 	return newGenericWriter(new(compactJsonWriter), nil)
 }
 
-// NewCompactJsonWriterWithExcludedFields returns a WriteCloser that serializes objects using JSON, excluding any fields
+// NewCompactJsonWriterWithExcludedFields returns a Writer that serializes objects using JSON, excluding any fields
 // matched by the given PathSpec. This representation has no extraneous whitespace and is intended for wire transport.
-func NewCompactJsonWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+func NewCompactJsonWriterWithExcludedFields(excludedFields PathSpec) Writer {
 	return newGenericWriter(new(compactJsonWriter), excludedFields)
 }
 
@@ -112,18 +112,18 @@ type prettyJsonWriter struct {
 	indent string
 }
 
-// NewPrettyJsonWriter returns a WriteCloser that serializes objects using JSON. This representation delimits fields and
+// NewPrettyJsonWriter returns a Writer that serializes objects using JSON. This representation delimits fields and
 // array items using newlines and provides indentation for nested objects. It generates a lot of unnecessary bytes and
 // is intended primarily for debugging or human-readability purposes.
-func NewPrettyJsonWriter() WriteCloser {
+func NewPrettyJsonWriter() Writer {
 	return newGenericWriter(new(prettyJsonWriter), nil)
 }
 
-// NewPrettyJsonWriterWithExcludedFields returns a WriteCloser that serializes objects using JSON, excluding any fields
+// NewPrettyJsonWriterWithExcludedFields returns a Writer that serializes objects using JSON, excluding any fields
 // matched by the given PathSpec. This representation delimits fields and array items using newlines and provides
 // indentation for nested objects. It generates a lot of unnecessary bytes and is intended primarily for debugging or
 // human-readability purposes.
-func NewPrettyJsonWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+func NewPrettyJsonWriterWithExcludedFields(excludedFields PathSpec) Writer {
 	return newGenericWriter(new(prettyJsonWriter), excludedFields)
 }
 

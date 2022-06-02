@@ -31,7 +31,7 @@ type UnexpectedStatusCodeError struct {
 }
 
 func (u *UnexpectedStatusCodeError) Error() string {
-	return fmt.Sprintf("unexpected response code from %s: %s", u.Response.Request.RequestURI, u.Response.Status)
+	return fmt.Sprintf("unexpected response code from %s: %s", u.Response.Request.URL, u.Response.Status)
 }
 
 // IsErrorResponse checks the contents of the given http.Response and if the X-RestLi-Error-Response is set to `true`,

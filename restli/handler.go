@@ -94,6 +94,12 @@ func (r *rootNode) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	err := DecodeTunnelledQuery(req)
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	sub := r.subNodes[segments[0]]
 	ctx := &RequestContext{
 		Request:         req,
@@ -559,13 +565,21 @@ type RequestContext struct {
 	ResponseStatus  int
 }
 
+func (c *RequestContext) RequestPath() string {
+	path := c.Request.URL.RawPath
+	if path == "" {
+		path = c.Request.URL.Path
+	}
+	return path
+}
+
 func SetLocation[K any](ctx *RequestContext, c *restlidata.CreatedEntity[K]) error {
 	c.Location = new(string)
-	w := restlicodec.NewRor2PathWriter()
+	w := restlicodec.NewRor2HeaderWriter()
 	err := restlicodec.MarshalRestLi[K](c.Id, w)
 	if err != nil {
 		return err
 	}
-	*c.Location = strings.TrimSuffix(ctx.Request.RequestURI, "/") + "/" + w.Finalize()
+	*c.Location = strings.TrimSuffix(ctx.RequestPath(), "/") + "/" + w.Finalize()
 	return nil
 }

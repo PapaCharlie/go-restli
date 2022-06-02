@@ -5,7 +5,7 @@ import (
 )
 
 type RestLiQueryParamsWriter interface {
-	WriteCloser
+	Writer
 	WriteParams(paramsWriter MapWriter) error
 }
 

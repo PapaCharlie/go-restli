@@ -11,24 +11,24 @@ type ror2Writer struct {
 	stringEscaper func(string) string
 }
 
-// NewRor2HeaderWriter returns a new WriteCloser that serializes objects using the rest.li protocol 2.0 object and
+// NewRor2HeaderWriter returns a new Writer that serializes objects using the rest.li protocol 2.0 object and
 // array representation (ROR2), whose spec is defined here:
 // https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
-// This specific WriteCloser uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
+// This specific Writer uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
 // following characters using url.QueryEscape:
 //   % , ( ) ' :
-func NewRor2HeaderWriter() WriteCloser {
+func NewRor2HeaderWriter() Writer {
 	return newGenericWriter(&ror2Writer{stringEscaper: headerEncodingEscaper}, nil)
 }
 
-// NewRor2HeaderWriterWithExcludedFields returns a new WriteCloser that serializes objects using the rest.li protocol
+// NewRor2HeaderWriterWithExcludedFields returns a new Writer that serializes objects using the rest.li protocol
 // 2.0 object and array representation (ROR2), whose spec is defined here:
 // https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
-// This specific WriteCloser uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
+// This specific Writer uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
 // following characters using url.QueryEscape:
 //   % , ( ) ' :
 // Any fields matched by the given PathSpec are excluded from serialization
-func NewRor2HeaderWriterWithExcludedFields(excludedFields PathSpec) WriteCloser {
+func NewRor2HeaderWriterWithExcludedFields(excludedFields PathSpec) Writer {
 	return newGenericWriter(&ror2Writer{stringEscaper: headerEncodingEscaper}, excludedFields)
 }
 

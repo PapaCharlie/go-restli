@@ -6,7 +6,6 @@ import (
 
 // Ror2PathWriter is an ROR2 Writer that is intended to construct URLs for entities that are ROR2 encoded.
 type Ror2PathWriter interface {
-	Closer
 	Writer
 	RawPathSegment(segment string)
 }

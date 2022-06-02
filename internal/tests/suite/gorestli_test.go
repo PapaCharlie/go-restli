@@ -56,36 +56,38 @@ func TestGoRestli(t *testing.T) {
 
 			prefix := testData.Name + "/" + o.Name
 
-			testMethod := o.testMethod()
-			var out []reflect.Value
+			t.Run(prefix, func(t *testing.T) {
 
-			t.Run(prefix+"/client", func(t *testing.T) {
-				if testMethod == nil {
-					t.SkipNow()
-				}
-				out = testMethod.Func.Call([]reflect.Value{
-					reflect.ValueOf(o),
-					reflect.ValueOf(t),
-					o.newClient(t, true),
+				testMethod := o.testMethod()
+				var out []reflect.Value
+
+				t.Run("client", func(t *testing.T) {
+					if testMethod == nil {
+						t.SkipNow()
+					}
+					out = testMethod.Func.Call([]reflect.Value{
+						reflect.ValueOf(o),
+						reflect.ValueOf(t),
+						o.newClient(t, true, 0),
+					})
 				})
-			})
 
-			t.Run(prefix+"/server", func(t *testing.T) {
-				if testMethod == nil || len(out) == 0 {
-					t.SkipNow()
-				}
-				resource := out[0].Call([]reflect.Value{reflect.ValueOf(t)})[0]
-				if resource.IsNil() {
-					t.SkipNow()
-				}
-				server := restli.NewServer()
-				o.getResource().register.Call([]reflect.Value{reflect.ValueOf(server), resource})
+				t.Run("server", func(t *testing.T) {
+					if testMethod == nil || len(out) == 0 {
+						t.SkipNow()
+					}
+					resource := out[0].Call([]reflect.Value{reflect.ValueOf(t)})[0]
+					if resource.IsNil() {
+						t.SkipNow()
+					}
+					server := restli.NewServer()
+					o.getResource().register.Call([]reflect.Value{reflect.ValueOf(server), resource})
 
-				res := httptest.NewRecorder()
-				o.Request.Body = ioutil.NopCloser(bytes.NewReader(o.RequestBytes))
-				server.(http.Handler).ServeHTTP(res, o.Request)
+					res := httptest.NewRecorder()
+					server.(http.Handler).ServeHTTP(res, o.Request(t))
 
-				compareResponses(t, o, res.Result())
+					o.compareResponses(t, res.Result())
+				})
 			})
 		}
 	}
@@ -147,17 +149,21 @@ func (o *Operation) getResource() *supportedResource {
 	return resourceRegistry[o.testMethod().Type.In(2)]
 }
 
-func (o *Operation) newClient(t *testing.T, strictResponseDeserialization bool) reflect.Value {
+func (o *Operation) newClient(
+	t *testing.T,
+	strictResponseDeserialization bool,
+	queryTunnellingThreshold int,
+) reflect.Value {
 	c := &restli.Client{
 		Client: &http.Client{
 			Transport: roundTripper(func(req *http.Request) (*http.Response, error) {
-				compareRequests(t, o, req)
-				o.Response.Body = ioutil.NopCloser(bytes.NewReader(o.ResponseBytes))
-				return o.Response, nil
+				o.compareRequests(t, req)
+				return o.Response(t), nil
 			}),
 		},
 		HostnameResolver:              &restli.SimpleHostnameResolver{Hostname: &url.URL{}},
 		StrictResponseDeserialization: strictResponseDeserialization,
+		QueryTunnellingThreshold:      queryTunnellingThreshold,
 	}
 
 	return o.getResource().client.Call([]reflect.Value{reflect.ValueOf(c)})[0]
@@ -239,24 +245,30 @@ func dumpRequest(t *testing.T, req *http.Request, body []byte) string {
 	return string(data)
 }
 
-func compareRequests(t *testing.T, left *Operation, right *http.Request) {
-	reqBytes, err := ioutil.ReadAll(right.Body)
+func (o *Operation) compareRequests(t *testing.T, right *http.Request) {
+	require.NoError(t, restli.DecodeTunnelledQuery(right))
+
+	left := o.Request(t)
+	leftBytes, err := ioutil.ReadAll(left.Body)
+	require.NoError(t, err)
+
+	rightBytes, err := ioutil.ReadAll(right.Body)
 	require.NoError(t, err)
 
 	equal := func(l, r any, msg string, params ...any) {
 		require.Equalf(t, l, r, msg+"\n\nExpected:\n\n%s\n\nGot:\n\n%s", append(params,
-			dumpRequest(t, left.Request, left.RequestBytes),
-			dumpRequest(t, right, reqBytes),
+			dumpRequest(t, left, leftBytes),
+			dumpRequest(t, right, rightBytes),
 		)...)
 	}
 
-	equal(left.Request.Method, right.Method, "methods did not match")
-	equal(left.Request.URL.Path, right.URL.Path, "paths did not match")
-	equal(left.Request.URL.RawQuery, right.URL.RawQuery, "queries did not match")
+	equal(left.Method, right.Method, "methods did not match")
+	equal(left.URL.Path, right.URL.Path, "paths did not match")
+	equal(left.URL.RawQuery, right.URL.RawQuery, "queries did not match")
 
 	rightHeaders := right.Header.Clone()
-	for k := range left.Request.Header {
-		equal(left.Request.Header.Get(k), right.Header.Get(k), "%q header did not match", k)
+	for k := range left.Header {
+		equal(left.Header.Get(k), right.Header.Get(k), "%q header did not match", k)
 		rightHeaders.Del(k)
 	}
 	// go-restli always sends the method header so ignore it if the expected response doesn't have it
@@ -265,8 +277,8 @@ func compareRequests(t *testing.T, left *Operation, right *http.Request) {
 		t.Fatalf("Unexpected headers:\n%s", niceHeaders(rightHeaders))
 	}
 
-	if len(left.RequestBytes) > 0 {
-		if expectedMap, actualMap, match := compareJson(left.RequestBytes, reqBytes); !match {
+	if len(leftBytes) > 0 {
+		if expectedMap, actualMap, match := compareJson(leftBytes, rightBytes); !match {
 			require.FailNow(t, "Request does not match! Expected\n\n%s\n\nGot\n\n%s",
 				expectedMap, actualMap)
 		}
@@ -304,44 +316,49 @@ func shallowCopy(source map[string]any) map[string]any {
 func dumpResponse(t *testing.T, res *http.Response, body []byte) string {
 	res.Body = ioutil.NopCloser(bytes.NewReader(body))
 	data, err := httputil.DumpResponse(res, true)
-	require.NoError(t, err)
+	require.NoError(t, err, "%s %d", string(body), len(string(body)))
 	return string(data)
 }
 
-func compareResponses(t *testing.T, left *Operation, right *http.Response) {
+func (o *Operation) compareResponses(t *testing.T, right *http.Response) {
+	left := o.Response(t)
+
+	leftBytes, err := ioutil.ReadAll(left.Body)
+	require.NoError(t, err)
+
 	rightBytes, err := ioutil.ReadAll(right.Body)
 	require.NoError(t, err)
 
 	equal := func(l, r any, msg string, params ...any) {
 		require.Equalf(t, l, r, msg+"\n\nExpected:\n\n%s\n\nGot:\n\n%s", append(params,
-			dumpResponse(t, left.Response, left.ResponseBytes),
+			dumpResponse(t, left, leftBytes),
 			dumpResponse(t, right, rightBytes),
 		)...)
 	}
 
-	equal(left.Response.StatusCode, right.StatusCode, "Statuses did not match")
+	equal(left.StatusCode, right.StatusCode, "Statuses did not match")
 
 	equal(
-		dropContentLength(left.Response.Header),
+		dropContentLength(left.Header),
 		dropContentLength(right.Header),
 		"Headers did not match",
 	)
 
 	// It's not super important that the error responses match
-	if strings.ToLower(left.Response.Header.Get(restli.ErrorResponseHeader)) == "true" {
+	if strings.ToLower(left.Header.Get(restli.ErrorResponseHeader)) == "true" {
 		return
 	}
 
-	expectedMap, actualMap, _ := compareJson(left.ResponseBytes, rightBytes)
+	expectedMap, actualMap, _ := compareJson(leftBytes, rightBytes)
 
 	if reflect.DeepEqual(expectedMap, actualMap) {
 		return
 	}
 
-	t.Log(string(left.ResponseBytes))
+	t.Log(string(leftBytes))
 	t.Log(string(rightBytes))
 
-	if strings.Contains(left.Name, "batch") {
+	if strings.Contains(o.Name, "batch") {
 		// there's a number of top-level fields that make life difficult, especially since reflect.DeepEqual doesn't
 		// consider the nil map and the empty map equal, so these maps need to be checked individually
 		expectedCopy, actualCopy := shallowCopy(expectedMap), shallowCopy(actualMap)
@@ -357,10 +374,7 @@ func compareResponses(t *testing.T, left *Operation, right *http.Response) {
 }
 
 func compareJson(expected, actual []byte) (expectedMap, actualMap map[string]any, match bool) {
-	expectedMap = make(map[string]any)
 	_ = json.Unmarshal(expected, &expectedMap)
-
-	actualMap = make(map[string]any)
 	_ = json.Unmarshal(actual, &actualMap)
 
 	return expectedMap, actualMap, reflect.DeepEqual(expectedMap, actualMap)
