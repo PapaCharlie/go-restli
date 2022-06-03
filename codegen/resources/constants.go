@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	ResourcePath       = "resourcePath"
-	ResourceEntityPath = "resourceEntityPath"
+	ResourcePath       = "ResourcePath"
+	ResourceEntityPath = "ResourceEntityPath"
 
 	WithContext = "WithContext"
 	FindBy      = "FindBy"
