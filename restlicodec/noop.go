@@ -61,4 +61,3 @@ func (e emptyReader) ReadArray(ArrayReader) error                { return io.EOF
 func (e emptyReader) ReadInterface() (interface{}, error)        { return nil, io.EOF }
 func (e emptyReader) ReadRawBytes() ([]byte, error)              { return nil, io.EOF }
 func (e emptyReader) Skip() error                                { return io.EOF }
-func (e emptyReader) Clone() Reader                              { return e }

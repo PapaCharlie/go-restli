@@ -753,6 +753,16 @@ func testEncoding[T Object[T]](t *testing.T, expected T, expectedRawJson, expect
 			requireEqual(t, expected, actual)
 		})
 	})
+
+	t.Run("any", func(t *testing.T) {
+		var m map[string]any
+		require.NoError(t, json.Unmarshal([]byte(expectedRawJson), &m))
+
+		actual, err := restlicodec.UnmarshalRestLi[T](restlicodec.NewInterfaceReader(m))
+		require.NoError(t, err)
+
+		requireEqual(t, expected, actual)
+	})
 }
 
 func testJsonEquality[T Object[T]](t *testing.T, obj T, expectedRawJson string, excludedFields restlicodec.PathSpec, equal bool) {

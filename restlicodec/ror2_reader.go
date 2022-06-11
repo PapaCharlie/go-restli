@@ -35,7 +35,7 @@ type ror2Reader struct {
 	state   ror2ReaderState
 }
 
-func validateRor2Input(data string) error {
+func ValidateRor2Input(data string) error {
 	parens := 0
 	for i, c := range data {
 		switch c {
@@ -70,17 +70,14 @@ func NewRor2Reader(data string) (Reader, error) {
 // NewRor2ReaderWithExcludedFields is the same as NewRor2Reader excepts it will return an error if it reads a field that
 // is excluded based on the given excluded fields.
 func NewRor2ReaderWithExcludedFields(data string, excludedField PathSpec, leadingScopeToIgnore int) (Reader, error) {
-	err := validateRor2Input(data)
+	err := ValidateRor2Input(data)
 	if err != nil {
 		return nil, err
 	}
 	return &ror2Reader{
-		missingFieldsTracker: missingFieldsTracker{
-			excludedFields: excludedField,
-			scopeToIgnore:  leadingScopeToIgnore,
-		},
-		decoder: url.PathUnescape,
-		data:    []byte(data),
+		missingFieldsTracker: newMissingFieldsTracker(excludedField, leadingScopeToIgnore),
+		decoder:              url.PathUnescape,
+		data:                 []byte(data),
 	}, nil
 }
 
@@ -425,15 +422,4 @@ func (u *ror2Reader) atInputStart() bool {
 
 func (u *ror2Reader) String() string {
 	return string(u.data)
-}
-
-func (u *ror2Reader) Clone() Reader {
-	return &ror2Reader{
-		missingFieldsTracker: missingFieldsTracker{
-			excludedFields: u.excludedFields,
-			scopeToIgnore:  u.scopeToIgnore,
-		},
-		decoder: url.PathUnescape,
-		data:    u.data,
-	}
 }

@@ -158,20 +158,19 @@ func (r *rootNode) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (p *pathNode) receive(
 	ctx *RequestContext,
 	pathSegments []ResourcePathSegment,
-	entitySegments []restlicodec.Reader,
+	entitySegments []validatedRor2String,
 	remainingSegments []string,
 ) (responseBody restlicodec.Marshaler, err error) {
 	pathSegments = append(pathSegments, p.ResourcePathSegment)
 	hasEntity := false
 	if len(remainingSegments) >= 1 {
 		if p.isCollection && len(remainingSegments) > 1 {
-			var r restlicodec.Reader
-			r, err = restlicodec.NewRor2Reader(remainingSegments[1])
+			err = restlicodec.ValidateRor2Input(remainingSegments[1])
 			if err != nil {
 				return newErrorResponsef(err, http.StatusNotFound, "Invalid path segment %q: %s", remainingSegments[1])
 			}
 			hasEntity = true
-			entitySegments = append(entitySegments, r)
+			entitySegments = append(entitySegments, validatedRor2String(remainingSegments[1]))
 
 			remainingSegments = remainingSegments[2:]
 		} else {
@@ -327,7 +326,17 @@ func (p *pathNode) receive(
 		}
 	}
 
-	return h(ctx, entitySegments, body)
+	return h(ctx, segmentReaders(entitySegments), body)
+}
+
+type validatedRor2String string
+
+func segmentReaders(segments []validatedRor2String) (readers []restlicodec.Reader) {
+	readers = make([]restlicodec.Reader, len(segments))
+	for i, s := range segments {
+		readers[i], _ = restlicodec.NewRor2Reader(string(s))
+	}
+	return readers
 }
 
 func GetMethodFromContext(ctx context.Context) Method {
@@ -339,12 +348,7 @@ func GetResourcePathSegmentsFromContext(ctx context.Context) []ResourcePathSegme
 }
 
 func GetEntitySegmentsFromContext(ctx context.Context) []restlicodec.Reader {
-	segments := ctx.Value(entitySegmentsCtxKey).([]restlicodec.Reader)
-	clonedSegments := make([]restlicodec.Reader, len(segments))
-	for i, r := range segments {
-		clonedSegments[i] = r.Clone()
-	}
-	return clonedSegments
+	return segmentReaders(ctx.Value(entitySegmentsCtxKey).([]validatedRor2String))
 }
 
 func GetFinderNameFromContext(ctx context.Context) string {

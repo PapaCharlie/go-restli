@@ -34,22 +34,9 @@ func NewJsonReaderWithExcludedFields(data []byte, excludedFields PathSpec, leadi
 		return nil, NullJSON
 	}
 	return &jsonReader{
-		missingFieldsTracker: missingFieldsTracker{
-			excludedFields: excludedFields,
-			scopeToIgnore:  leadingScopeToIgnore,
-		},
-		lexer: jlexer.Lexer{Data: data},
+		missingFieldsTracker: newMissingFieldsTracker(excludedFields, leadingScopeToIgnore),
+		lexer:                jlexer.Lexer{Data: data},
 	}, nil
-}
-
-func (j *jsonReader) Clone() Reader {
-	return &jsonReader{
-		missingFieldsTracker: missingFieldsTracker{
-			excludedFields: j.excludedFields,
-			scopeToIgnore:  j.scopeToIgnore,
-		},
-		lexer: jlexer.Lexer{Data: j.lexer.Data},
-	}
 }
 
 func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {

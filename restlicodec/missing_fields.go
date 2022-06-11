@@ -22,6 +22,13 @@ type missingFieldsTracker struct {
 	missingFields  []string
 }
 
+func newMissingFieldsTracker(excludedFields PathSpec, leadingScopeToIgnore int) missingFieldsTracker {
+	return missingFieldsTracker{
+		excludedFields: excludedFields,
+		scopeToIgnore:  leadingScopeToIgnore,
+	}
+}
+
 type ExcludedFieldError string
 
 func (e ExcludedFieldError) Error() string {

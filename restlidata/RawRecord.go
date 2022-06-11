@@ -47,17 +47,7 @@ func (r *RawRecord) UnmarshalRestLi(reader restlicodec.Reader) error {
 // UnmarshalTo attempts to deserialize this RawRecord into the given object by serializing it first to JSON then calling
 // the given object's unmarshal method
 func (r *RawRecord) UnmarshalTo(obj restlicodec.Unmarshaler) error {
-	w := restlicodec.NewCompactJsonWriter()
-	err := r.MarshalRestLi(w)
-	if err != nil {
-		return err
-	}
-
-	reader, err := restlicodec.NewJsonReader([]byte(w.Finalize()))
-	if err != nil {
-		return err
-	}
-	return obj.UnmarshalRestLi(reader)
+	return obj.UnmarshalRestLi(restlicodec.NewInterfaceReader(*r))
 }
 
 func writeInterface(value interface{}, writer restlicodec.Writer) error {
