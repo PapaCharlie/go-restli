@@ -131,7 +131,9 @@ func TestCustomHeaders(t *testing.T) {
 	c := newClient(server, nil)
 
 	ctx := context.Background()
-	ctx = restli.ExtraRequestHeaders(ctx, http.Header{http.CanonicalHeaderKey(h1): {v1}})
+	ctx = restli.ExtraRequestHeaders(ctx, func() (http.Header, error) {
+		return http.Header{http.CanonicalHeaderKey(h1): {v1}}, nil
+	})
 	ctx, resHeaders := restli.AddResponseHeadersCaptor(ctx)
 
 	_, err := actionset.NewClient(c).ReturnBoolActionWithContext(ctx)

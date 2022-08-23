@@ -124,11 +124,11 @@ const (
 	actionNameCtxKey
 )
 
-// ExtraRequestHeaders returns a new context with the given headers. If a context with headers is passed into any Client
-// request, the headers will be added to the request before being sent. Note that these headers will not override any
-// existing headers such as Content-Type or MethodHeader. Only new headers will be added to the request.
-func ExtraRequestHeaders(ctx context.Context, headers http.Header) context.Context {
-	return context.WithValue(ctx, extraRequestHeadersKey, headers)
+// ExtraRequestHeaders returns a context.Context to be passed into any generated client methods. Upon request creation,
+// the given function will be executed, and the headers will be added to the request before being sent. Note that these
+// headers will not override any existing headers such as Content-Type. Only new headers will be added to the request.
+func ExtraRequestHeaders(ctx context.Context, f func() (http.Header, error)) context.Context {
+	return context.WithValue(ctx, extraRequestHeadersKey, f)
 }
 
 // AddResponseHeadersCaptor returns a new context and a http.Header. If the returned context is passed into any Client
@@ -189,6 +189,19 @@ func newRequest(
 	req.Header.Set("Accept", ApplicationJsonContentType)
 	for k, v := range headers {
 		req.Header[k] = v
+	}
+
+	if extraHeaders, ok := req.Context().Value(extraRequestHeadersKey).(func() (http.Header, error)); ok {
+		extras, err := extraHeaders()
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range extras {
+			if _, ok = req.Header[k]; !ok {
+				req.Header[k] = v
+			}
+		}
 	}
 
 	return req, nil
@@ -296,13 +309,6 @@ func DoAndIgnore(c *Client, req *http.Request) (*http.Response, error) {
 }
 
 func (c *Client) do(req *http.Request) ([]byte, *http.Response, error) {
-	if extraHeaders, ok := req.Context().Value(extraRequestHeadersKey).(http.Header); ok {
-		for k, v := range extraHeaders {
-			if _, ok = req.Header[k]; !ok {
-				req.Header[k] = v
-			}
-		}
-	}
 
 	res, err := c.Do(req)
 	if err != nil {
