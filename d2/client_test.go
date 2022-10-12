@@ -1,3 +1,5 @@
+//go:build ignore
+
 package d2
 
 import (
@@ -118,7 +120,7 @@ func (c *Client) spoofServiceUpdate(data *[]byte) {
 		c.waitForServiceUpdates(testServiceName, events)
 	})
 	// initialize an empty serviceUris object to make sure the code does not try to call ZK
-	c.uris.LoadOrStore(testClusterName, func() interface{} {
+	c.uris.LazyLoad(testClusterName, func() interface{} {
 		return &serviceUris{zkPath: UrisPath(testClusterName)}
 	})
 }

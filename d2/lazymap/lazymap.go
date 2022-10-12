@@ -1,55 +1,36 @@
 package lazymap
 
-import "sync"
+import (
+	"sync"
+)
 
-type LazySyncMap sync.Map
+type LazySyncMap[K comparable, V any] sync.Map
 
-type inFlightValue struct {
-	wg sync.WaitGroup
-	v  interface{}
+type inFlightValue[V any] struct {
+	wg  sync.WaitGroup
+	v   V
+	err error
 }
 
-func (m *LazySyncMap) LoadOrStore(key interface{}, f func() interface{}) interface{} {
-	value := new(inFlightValue)
+func (m *LazySyncMap[K, V]) LazyLoad(key K, f func() (V, error)) (V, error) {
+	value := new(inFlightValue[V])
 	value.wg.Add(1)
+	defer value.wg.Done()
 
 	if s, loaded := (*sync.Map)(m).LoadOrStore(key, value); loaded {
-		if v, ok := s.(*inFlightValue); ok {
+		if v, ok := s.(*inFlightValue[V]); ok {
 			v.wg.Wait()
-			return v.v
+			return v.v, v.err
 		} else {
-			return s
+			return s.(V), nil
 		}
 	}
 
-	value.v = f()
-	(*sync.Map)(m).Store(key, value.v)
-	value.wg.Done()
-	return value.v
-}
-
-func (m *LazySyncMap) Load(key interface{}) (interface{}, bool) {
-	s, ok := (*sync.Map)(m).Load(key)
-	if !ok {
-		return nil, false
-	}
-
-	if v, ok := s.(*inFlightValue); ok {
-		v.wg.Wait()
-		return v.v, true
+	value.v, value.err = f()
+	if value.err != nil {
+		(*sync.Map)(m).Delete(key)
 	} else {
-		return s, true
+		(*sync.Map)(m).Store(key, value.v)
 	}
-}
-
-func (m *LazySyncMap) Store(key interface{}, value interface{}) {
-	stored := false
-	m.LoadOrStore(key, func() interface{} {
-		stored = true
-		return value
-	})
-
-	if !stored {
-		(*sync.Map)(m).Store(key, value)
-	}
+	return value.v, value.err
 }

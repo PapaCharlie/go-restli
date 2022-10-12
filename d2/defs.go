@@ -17,7 +17,6 @@ type Cluster struct {
 
 type Service struct {
 	Path                        string
-	ServiceName                 string   `json:"serviceName"`
 	ClusterName                 string   `json:"clusterName"`
 	PrioritizedSchemes          []string `json:"prioritizedSchemes"`
 	SslSessionValidationStrings []string `json:"sslSessionValidationStrings"`

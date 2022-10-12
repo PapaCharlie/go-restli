@@ -8,66 +8,45 @@ import (
 )
 
 func TestLazySyncMap_LoadOrStore(t *testing.T) {
-	var m LazySyncMap
-	v := m.LoadOrStore("", func() interface{} {
-		return 1
+	var m LazySyncMap[string, int]
+	v, _ := m.LazyLoad("", func() (int, error) {
+		return 1, nil
 	})
 	require.Equal(t, 1, v)
 }
 
 func TestLazySyncMap_SubsequentLoadOrStore(t *testing.T) {
-	var m LazySyncMap
-	m.LoadOrStore("", func() interface{} {
-		return 1
+	var m LazySyncMap[string, int]
+	_, _ = m.LazyLoad("", func() (int, error) {
+		return 1, nil
 	})
 
-	v := m.LoadOrStore("", func() interface{} {
+	v, _ := m.LazyLoad("", func() (int, error) {
 		t.Fail()
-		return nil
+		return 0, nil
 	})
 
 	require.Equal(t, v, 1)
 }
 
 func TestLazySyncMap_CompetingWrites(t *testing.T) {
-	var m LazySyncMap
+	var m LazySyncMap[string, int]
 
 	inLambda := new(sync.WaitGroup)
 	inLambda.Add(1)
 
 	go func() {
-		m.LoadOrStore("", func() interface{} {
+		_, _ = m.LazyLoad("", func() (int, error) {
 			inLambda.Done()
-			return 1
+			return 1, nil
 		})
 	}()
 
 	inLambda.Wait()
-	v := m.LoadOrStore("", func() interface{} {
+	v, _ := m.LazyLoad("", func() (int, error) {
 		t.Fail()
-		return nil
+		return 0, nil
 	})
 
 	require.Equal(t, v, 1)
-}
-
-func TestLazySyncMap_Store(t *testing.T) {
-	var m LazySyncMap
-
-	inLambda := new(sync.WaitGroup)
-	inLambda.Add(1)
-
-	go func() {
-		m.LoadOrStore("", func() interface{} {
-			inLambda.Done()
-			return 1
-		})
-	}()
-
-	inLambda.Wait()
-	m.Store("", 2)
-
-	loaded, ok := m.Load("")
-	require.True(t, ok)
-	require.Equal(t, 2, loaded)
 }

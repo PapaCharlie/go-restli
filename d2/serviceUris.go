@@ -4,18 +4,17 @@ import (
 	"math/rand"
 	"net/url"
 	"time"
+
+	"github.com/go-zookeeper/zk"
 )
 
 var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
-type serviceUris struct {
-	zkPath string
-	uris   map[string]*Uri
-}
+type serviceUris map[string]zk.NodeData[*Uri]
 
-func (uris *serviceUris) iterateHostWeights(receiver func(host *url.URL, weight float64) bool) {
-	for _, uri := range uris.uris {
-		for host, weight := range uri.Weights {
+func (uris serviceUris) iterateHostWeights(receiver func(host *url.URL, weight float64) bool) {
+	for _, uri := range uris {
+		for host, weight := range uri.T.Weights {
 			if !receiver(&host, weight) {
 				return
 			}
@@ -23,7 +22,7 @@ func (uris *serviceUris) iterateHostWeights(receiver func(host *url.URL, weight 
 	}
 }
 
-func (uris *serviceUris) filterAndChooseHost(hostFilter func(*url.URL) bool) *url.URL {
+func (uris serviceUris) filterAndChooseHost(hostFilter func(*url.URL) bool) *url.URL {
 	var totalWeight float64
 	uris.iterateHostWeights(func(host *url.URL, weight float64) bool {
 		if hostFilter(host) {
@@ -49,7 +48,7 @@ func (uris *serviceUris) filterAndChooseHost(hostFilter func(*url.URL) bool) *ur
 	return chosenHost
 }
 
-func (uris *serviceUris) chooseHost(prioritizedSchemes []string) *url.URL {
+func (uris serviceUris) chooseHost(prioritizedSchemes []string) *url.URL {
 	if len(prioritizedSchemes) == 0 {
 		return uris.filterAndChooseHost(func(*url.URL) bool { return true })
 	}
@@ -64,17 +63,4 @@ func (uris *serviceUris) chooseHost(prioritizedSchemes []string) *url.URL {
 	}
 
 	return nil
-}
-
-func (uris *serviceUris) copy() *serviceUris {
-	uCopy := &serviceUris{
-		zkPath: uris.zkPath,
-		uris:   make(map[string]*Uri),
-	}
-
-	for k, v := range uris.uris {
-		uCopy.uris[k] = v
-	}
-
-	return uCopy
 }

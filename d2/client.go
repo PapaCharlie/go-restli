@@ -2,15 +2,15 @@ package d2
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/PapaCharlie/go-restli/d2/lazymap"
+	"github.com/go-zookeeper/zk"
 	"github.com/pkg/errors"
-	"github.com/samuel/go-zookeeper/zk"
 )
 
 type Client struct {
@@ -28,98 +28,83 @@ type Client struct {
 	// SSLSessionValidator func(service string, host *url.URL, validationStrings []string, rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
 	// SSLSessionValidatorTimeout time.Duration
 
-	services lazymap.LazySyncMap
-	uris     lazymap.LazySyncMap
+	services lazymap.LazySyncMap[string, *zk.NodeCache[*Service]]
+	uris     lazymap.LazySyncMap[string, *zk.TreeCache[*Uri]]
 	caches   sync.Map
 }
 
 const DefaultInitialUriWatchTimeout = 10 * time.Second
 
+func unmarshalJson[T any](data []byte) (*T, error) {
+	t := new(T)
+	err := json.Unmarshal(data, t)
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
 // getServiceUris returns a snapshot of the current Service and all announced URIs. Both the Service and serviceUris
 // objects are read-only, as updates to those objects will be overwritten by the next update from ZK. This also means
 // they are thread safe.
-func (c *Client) getServiceUris(serviceName string) (*Service, *serviceUris, error) {
-	timeout := c.newTimeout()
+func (c *Client) getServiceUris(serviceName string) (service *Service, uris serviceUris, err error) {
+	done := make(chan struct{})
 
-	var serviceEvents chan TreeCacheEvent
-	s := c.services.LoadOrStore(serviceName, func() interface{} {
-		path := ServicesPath(serviceName)
+	go func() {
+		defer close(done)
 
-		exists, _, err := c.Conn.Exists(path)
+		var serviceCache *zk.NodeCache[*Service]
+		serviceCache, err = c.services.LazyLoad(serviceName, func() (*zk.NodeCache[*Service], error) {
+			Logger.Printf("Creating new service watcher for %q", serviceName)
+			path := ServicesPath(serviceName)
+			return zk.NewNodeCache(c.Conn, path, func(data []byte) (s *Service, err error) {
+				return unmarshalJson[Service](data)
+			})
+		})
 		if err != nil {
-			return err
-		}
-		if !exists {
-			return errors.Errorf("No service node found at %q", path)
+			return
 		}
 
-		serviceEvents = make(chan TreeCacheEvent)
-		c.caches.Store(path, NewTreeCache(c.Conn, path, serviceEvents))
+		service, err = serviceCache.Get()
+		if err != nil {
+			return
+		}
 
-		for {
-			select {
-			case e := <-serviceEvents:
-				s := c.handleServiceUpdate(serviceName, e)
-				if s != nil {
-					return s
-				}
-			case <-timeout:
-				return errors.Errorf("Failed to get service definition for %q within timeout", serviceName)
+		var urisCache *zk.TreeCache[*Uri]
+		urisCache, err = c.uris.LazyLoad(service.ClusterName, func() (*zk.TreeCache[*Uri], error) {
+			Logger.Printf("Creating new URI watcher for %q", service.ClusterName)
+
+			return zk.NewTreeCacheWithOpts(
+				c.Conn,
+				UrisPath(service.ClusterName),
+				func(_ string, data []byte) (u *Uri, err error) {
+					return unmarshalJson[Uri](data)
+				},
+				zk.TreeCacheOpts{
+					MinRelativeDepth: 2,
+					MaxRelativeDepth: 2,
+				},
+			)
+		})
+		if err != nil {
+			return
+		}
+
+		uris = urisCache.Children(urisCache.RootPath)
+		for _, v := range uris {
+			if err = v.Err; err != nil {
+				return
 			}
 		}
-	})
-	if err, ok := s.(error); ok {
-		return nil, nil, err
+	}()
+
+	select {
+	case <-done:
+	case <-c.newTimeout():
+		return nil, nil, fmt.Errorf("go-restli: Failed to find a valid URI for %q within timeout", service.ClusterName)
 	}
 
-	if serviceEvents != nil {
-		go c.waitForServiceUpdates(serviceName, serviceEvents)
-	}
-
-	service := s.(*Service)
-
-	var uriEvents chan TreeCacheEvent
-	uris := c.uris.LoadOrStore(service.ClusterName, func() interface{} {
-		Logger.Printf("Creating new URI watcher for %q", service.ClusterName)
-		watcher := &serviceUris{
-			zkPath: UrisPath(service.ClusterName),
-			uris:   make(map[string]*Uri),
-		}
-		uriEvents = make(chan TreeCacheEvent)
-
-		exists, _, err := c.Conn.Exists(watcher.zkPath)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			return errors.Errorf("No URIs node found at %q", watcher.zkPath)
-		}
-
-		c.caches.Store(watcher.zkPath, NewTreeCache(c.Conn, watcher.zkPath, uriEvents))
-
-		for {
-			select {
-			case e := <-uriEvents:
-				watcher = c.handleUriUpdate(watcher, e)
-				// Only return once at least one host is found (respecting the prioritized schemes)
-				if watcher.chooseHost(service.PrioritizedSchemes) != nil {
-					Logger.Println(watcher)
-					return watcher
-				}
-			case <-timeout:
-				return errors.Errorf("Failed to find a valid URI for %q within timeout", service.ClusterName)
-			}
-		}
-	})
-	if err, ok := uris.(error); ok {
-		return nil, nil, err
-	}
-
-	if uriEvents != nil {
-		go c.waitForUriUpdates(service.ClusterName, uriEvents)
-	}
-
-	return service, uris.(*serviceUris), nil
+	return service, uris, err
 }
 
 func (c *Client) newTimeout() <-chan time.Time {
@@ -133,69 +118,6 @@ func (c *Client) newTimeout() <-chan time.Time {
 		d = math.MaxInt64
 	}
 	return time.After(d)
-}
-
-func (c *Client) waitForServiceUpdates(serviceName string, events chan TreeCacheEvent) {
-	for e := range events {
-		s := c.handleServiceUpdate(serviceName, e)
-		if s != nil {
-			c.services.Store(serviceName, s)
-		}
-	}
-}
-
-func (c *Client) handleServiceUpdate(serviceName string, event TreeCacheEvent) *Service {
-	path := ServicesPath(serviceName)
-	if event.Path != path || event.Data == nil {
-		return nil
-	}
-
-	s := new(Service)
-	err := json.Unmarshal(*event.Data, s)
-	if err != nil {
-		Logger.Printf("Ignoring update to %q (contents: %q) due to error: %v", event.Path, string(*event.Data), err)
-	}
-	Logger.Printf("Got service definition for %q: %+v", serviceName, s)
-	return s
-}
-
-func (c *Client) waitForUriUpdates(clusterName string, events chan TreeCacheEvent) {
-	for e := range events {
-		uri, _ := c.uris.Load(clusterName)
-		c.uris.Store(clusterName, c.handleUriUpdate(uri.(*serviceUris), e))
-	}
-}
-
-func (c *Client) handleUriUpdate(watcher *serviceUris, event TreeCacheEvent) *serviceUris {
-	path := strings.TrimPrefix(event.Path, watcher.zkPath)
-
-	if path == "" {
-		return watcher
-	}
-
-	if event.Data == nil {
-		watcher = watcher.copy()
-		delete(watcher.uris, path)
-		return watcher
-	}
-
-	uri := new(Uri)
-	err := json.Unmarshal(*event.Data, uri)
-	if err != nil {
-		Logger.Printf("Ignoring update to %s (contents: %s) due to error: %v", event.Path, string(*event.Data), err)
-		return watcher
-	}
-
-	if len(uri.Weights) == 0 {
-		Logger.Printf("Ignoring partitioned URI at %q: %+v", event.Path, uri)
-		return watcher
-	}
-
-	Logger.Printf("Received update for %q: %+v", event.Path, uri)
-
-	watcher = watcher.copy()
-	watcher.uris[path] = uri
-	return watcher
 }
 
 // SingleServiceClient will always return URIs from the given serviceName instead of getting them from the service
