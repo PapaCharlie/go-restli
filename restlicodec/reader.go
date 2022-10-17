@@ -1,6 +1,7 @@
 package restlicodec
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -85,6 +86,9 @@ type (
 	ArrayReader               func(reader Reader) (err error)
 )
 
+// NoSuchFieldErr should be returned to signal that
+var NoSuchFieldErr = errors.New("go-restli: No such field")
+
 type Reader interface {
 	fmt.Stringer
 	PrimitiveReader
@@ -96,7 +100,7 @@ type Reader interface {
 	// ReadRecord tells the Reader that it should expect an object as its next input and calls recordReader for each
 	// field of the object. If the next input is not an object, it will return an error.
 	// Note that not using the inner Reader passed to the MapReader may result in undefined behavior.
-	ReadRecord(requiredFields RequiredFields, recordReader MapReader) error
+	ReadRecord(requiredFields *RequiredFields, recordReader MapReader) error
 	// ReadArray tells the reader that it should expect an array as its next input. If it is not, it will return an
 	// error
 	// Note that not using the inner Reader passed to the ArrayReader may result in undefined behavior.
@@ -121,7 +125,7 @@ type rawReader interface {
 	checkMissingFields() error
 }
 
-func readRecord(reader rawReader, requiredFields RequiredFields, mapReader MapReader) (err error) {
+func readRecord(reader rawReader, requiredFields *RequiredFields, mapReader MapReader) (err error) {
 	atInputStart := reader.atInputStart()
 	requiredFieldsRemaining := requiredFields.toMap()
 
@@ -187,11 +191,29 @@ func (d *DeserializationError) Error() string {
 	return fmt.Sprintf("go-restli: Failed to deserialize %q (%+v)", d.Scope, d.Err)
 }
 
-type RequiredFields []string
+type RequiredFields struct {
+	fields []string
+}
 
-func (rf RequiredFields) toMap() map[string]struct{} {
-	fields := make(map[string]struct{}, len(rf))
-	for _, f := range rf {
+func NewRequiredFields(included ...*RequiredFields) (rf *RequiredFields) {
+	rf = new(RequiredFields)
+	for _, i := range included {
+		rf.fields = append(rf.fields, i.fields...)
+	}
+	return rf
+}
+
+func (rf *RequiredFields) Add(fields ...string) *RequiredFields {
+	rf.fields = append(rf.fields, fields...)
+	return rf
+}
+
+func (rf *RequiredFields) toMap() map[string]struct{} {
+	if rf == nil || len(rf.fields) == 0 {
+		return nil
+	}
+	fields := make(map[string]struct{}, len(rf.fields))
+	for _, f := range rf.fields {
 		fields[f] = struct{}{}
 	}
 	return fields

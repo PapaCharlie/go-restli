@@ -2,12 +2,15 @@ package io.papacharlie.gorestli;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializer;
 import com.linkedin.restli.restspec.CustomAnnotationContentSchema;
 import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestMethodSchema;
 import io.papacharlie.gorestli.json.RestliType.GoPrimitive;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -25,6 +28,10 @@ public class Utils {
       .setFieldNamingStrategy(f -> StringUtils.removeStart(f.getName(), "_"))
       .registerTypeAdapter(GoPrimitive.class,
           (JsonSerializer<GoPrimitive>) (src, typeOfSrc, context) -> new JsonPrimitive(src.name().toLowerCase()))
+      .registerTypeAdapter(Path.class,
+          (JsonSerializer<Path>) (src, typeOfSrc, context) -> new JsonPrimitive(src.toString()))
+      .registerTypeAdapter(Path.class,
+          (JsonDeserializer<Path>) (src, typeOfSrc, context) -> Paths.get(src.getAsString()))
       .create();
   public static final Gson GSON = UGLY_GSON.newBuilder().setPrettyPrinting().create();
   private static final DateTimeFormatter LOG_TIME_FORMAT = new DateTimeFormatterBuilder()
@@ -39,6 +46,8 @@ public class Utils {
       .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
       .appendLiteral(':')
       .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+      .appendLiteral('.')
+      .appendValue(ChronoField.MILLI_OF_SECOND, 3)
       .toFormatter();
 
   private Utils() { /* No instance for you */ }
@@ -53,6 +62,12 @@ public class Utils {
     return newList;
   }
 
+  public static <T> Set<T> emptyIfNull(Set<T> set) {
+    return (set == null)
+        ? Collections.emptySet()
+        : set;
+  }
+
   public static <T> List<T> emptyIfNull(List<T> list) {
     return (list == null)
         ? Collections.emptyList()
@@ -60,7 +75,7 @@ public class Utils {
   }
 
   public static void log(String format, Object... args) {
-    System.err.printf("[go-restli] " + LOG_TIME_FORMAT.format(LocalDateTime.now()) + " " + format + "%n", args);
+    System.err.printf(LOG_TIME_FORMAT.format(LocalDateTime.now()) + " [go-restli] " + format + "%n", args);
   }
 
   private static final String FORCED_EXPORT_PREFIX = "Exported_";

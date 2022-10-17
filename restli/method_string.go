@@ -24,13 +24,13 @@ func _() {
 	_ = x[Method_finder-13]
 }
 
-const _RestLiMethod_name = "Unknowngetcreatedeleteupdatepartial_updatebatch_getbatch_createbatch_deletebatch_updatebatch_partial_updateget_allactionfinder"
+const _Method_name = "Unknowngetcreatedeleteupdatepartial_updatebatch_getbatch_createbatch_deletebatch_updatebatch_partial_updateget_allactionfinder"
 
-var _RestLiMethod_index = [...]uint8{0, 7, 10, 16, 22, 28, 42, 51, 63, 75, 87, 107, 114, 120, 126}
+var _Method_index = [...]uint8{0, 7, 10, 16, 22, 28, 42, 51, 63, 75, 87, 107, 114, 120, 126}
 
 func (i Method) String() string {
-	if i < 0 || i >= Method(len(_RestLiMethod_index)-1) {
+	if i < 0 || i >= Method(len(_Method_index)-1) {
 		return "Method(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _RestLiMethod_name[_RestLiMethod_index[i]:_RestLiMethod_index[i+1]]
+	return _Method_name[_Method_index[i]:_Method_index[i+1]]
 }

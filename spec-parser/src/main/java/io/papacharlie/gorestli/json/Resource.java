@@ -1,5 +1,6 @@
 package io.papacharlie.gorestli.json;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -9,14 +10,14 @@ import java.util.Set;
 public class Resource {
   public final String _namespace;
   public final String _doc;
-  public final String _sourceFile;
+  public final Path _sourceFile;
   public final RestliType _resourceSchema;
   public final Set<String> _readOnlyFields;
   public final Set<String> _createOnlyFields;
   public final List<Method> _methods = new ArrayList<>();
   public final List<ResourcePathSegment> _resourcePathSegments;
 
-  public Resource(String namespace, String doc, String sourceFile, RestliType resourceSchema,
+  public Resource(String namespace, String doc, Path sourceFile, RestliType resourceSchema,
       Set<String> readOnlyFields, Set<String> createOnlyFields, List<ResourcePathSegment> resourcePathSegments) {
     _namespace = namespace;
     _doc = doc;

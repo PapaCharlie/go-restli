@@ -16,6 +16,7 @@ public class Method {
   public String _doc;
   public boolean _onEntity;
   public List<Field> _params;
+  public boolean _isPagingSupported;
   public RestliType _return;
   public boolean _returnEntity;
   public RestliType _metadata;

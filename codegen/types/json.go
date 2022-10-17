@@ -38,7 +38,7 @@ func (t *RestliType) UnmarshalJSON(data []byte) error {
 	case t.Map != nil:
 		return nil
 	case t.RawRecord:
-		t.Reference = &utils.RawRecordContextIdentifier
+		t.Reference = &utils.RawRecordIdentifier
 		return nil
 	default:
 		return errors.Errorf("go-restli: RestliType declares no underlying type! (%s)", string(data))

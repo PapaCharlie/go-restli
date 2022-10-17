@@ -25,7 +25,7 @@ func UnmarshalQueryParamsDecoder[T QueryParamsDecoder[T]](query string) (t T, er
 
 type ror2QueryReader struct{ *ror2Reader }
 
-func (q *ror2QueryReader) ReadRecord(requiredFields RequiredFields, recordReader MapReader) error {
+func (q *ror2QueryReader) ReadRecord(requiredFields *RequiredFields, recordReader MapReader) error {
 	return readRecord(q, requiredFields, recordReader)
 }
 
@@ -33,7 +33,7 @@ func (q *ror2QueryReader) atInputStart() bool {
 	return false
 }
 
-func (q QueryParamsReader) ReadRecord(requiredFields RequiredFields, recordReader MapReader) (err error) {
+func (q QueryParamsReader) ReadRecord(requiredFields *RequiredFields, recordReader MapReader) (err error) {
 	tracker := missingFieldsTracker{}
 	requiredFieldsRemaining := requiredFields.toMap()
 

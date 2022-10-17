@@ -28,33 +28,33 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 	def := Empty()
 
 	utils.AddWordWrappedComment(def, u.Doc).Line().
-		Type().Id(u.Name).
+		Type().Id(u.TypeName()).
 		Add(u.Union.GoType()).
 		Line().Line()
 
-	AddEquals(def, unionReceiver, u.Name, UnionShouldUsePointer, func(other Code, def *Group) {
+	AddEquals(def, unionReceiver, u.TypeName(), UnionShouldUsePointer, func(other Code, def *Group) {
 		for _, m := range u.Union.Members {
 			def.If(Op("!").Add(equalsCondition(m.Type, true, Id(unionReceiver).Dot(m.name()), Add(other).Dot(m.name())))).Block(Return(False()))
 		}
 		def.Return(True())
 	})
 
-	AddComputeHash(def, unionReceiver, u.Name, UnionShouldUsePointer, func(h Code, def *Group) {
+	AddComputeHash(def, unionReceiver, u.TypeName(), UnionShouldUsePointer, func(h Code, def *Group) {
 		for _, m := range u.Union.Members {
 			def.Add(hash(h, m.Type, true, Id(unionReceiver).Dot(m.name()))).Line()
 		}
 	})
 
-	utils.AddFuncOnReceiver(def, unionReceiver, u.Name, utils.ValidateUnionFields, UnionShouldUsePointer).
+	utils.AddFuncOnReceiver(def, unionReceiver, u.TypeName(), utils.ValidateUnionFields, UnionShouldUsePointer).
 		Params().
 		Params(Error()).
 		BlockFunc(func(def *Group) {
-			u.Union.validateUnionFields(def, unionReceiver, u.Name)
+			u.Union.validateUnionFields(def, unionReceiver, u.TypeName())
 		}).Line().Line()
 
-	AddMarshalRestLi(def, unionReceiver, u.Name, UnionShouldUsePointer, func(def *Group) {
+	AddMarshalRestLi(def, unionReceiver, u.TypeName(), UnionShouldUsePointer, func(def *Group) {
 		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-			u.Union.validateAllMembers(def, unionReceiver, u.Name, func(def *Group, m UnionMember) {
+			u.Union.validateAllMembers(def, unionReceiver, u.TypeName(), func(def *Group, m UnionMember) {
 				fieldAccessor := Id(unionReceiver).Dot(m.name())
 				if m.Type.Reference == nil {
 					fieldAccessor = Op("*").Add(fieldAccessor)
@@ -65,8 +65,8 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		}))
 	})
 
-	AddUnmarshalRestli(def, unionReceiver, u.Name, UnionShouldUsePointer, func(def *Group) {
-		u.Union.decode(def, unionReceiver, u.Name)
+	AddUnmarshalRestli(def, unionReceiver, u.TypeName(), UnionShouldUsePointer, func(def *Group) {
+		u.Union.decode(def, unionReceiver, u.TypeName())
 	})
 
 	return def

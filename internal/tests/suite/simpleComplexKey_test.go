@@ -7,7 +7,7 @@ import (
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/simpleComplexKey_test"
 	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -136,10 +136,10 @@ func (o *Operation) SimpleComplexKeyBatchUpdateWithErrors(t *testing.T, c Client
 		keys[2]: &keys[2].SinglePrimitiveField,
 	}
 	expected := &BatchResponse{
-		Results: map[*SimpleComplexKey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
+		Results: map[*SimpleComplexKey_ComplexKey]*common.BatchEntityUpdateResponse{
 			keys[1]: {Status: 204},
 		},
-		Errors: map[*SimpleComplexKey_ComplexKey]*restlidata.ErrorResponse{
+		Errors: map[*SimpleComplexKey_ComplexKey]*common.ErrorResponse{
 			keys[0]: {
 				Status:         restli.Int32Pointer(400),
 				Message:        restli.StringPointer("message"),
@@ -202,7 +202,7 @@ func (o *Operation) SimpleComplexKeyBatchPartialUpdate(t *testing.T, c Client) f
 	}
 
 	expected := &BatchResponse{
-		Results: map[*SimpleComplexKey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
+		Results: map[*SimpleComplexKey_ComplexKey]*common.BatchEntityUpdateResponse{
 			keys[0]: {Status: 204},
 			keys[1]: {Status: 205},
 		},

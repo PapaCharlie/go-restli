@@ -197,7 +197,7 @@ func (a *anyReader) ReadMap(mapReader MapReader) (err error) {
 	return nil
 }
 
-func (a *anyReader) ReadRecord(requiredFields RequiredFields, recordReader MapReader) error {
+func (a *anyReader) ReadRecord(requiredFields *RequiredFields, recordReader MapReader) error {
 	return readRecord(a, requiredFields, recordReader)
 }
 

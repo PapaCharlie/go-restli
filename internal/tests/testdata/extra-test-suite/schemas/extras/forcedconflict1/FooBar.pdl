@@ -1,0 +1,5 @@
+namespace extras.forcedconflict1
+
+record FooBar {
+  foo: optional extras.forcedconflict2.Foobar
+}

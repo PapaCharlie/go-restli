@@ -1,8 +1,8 @@
 .idea/
 vendor/
 *.gr.go
-!protocol/stdtypes/*.gr.go
-parsed-specs.gr.json
+!restlidata/generated/*
+go-restli-manifest.gr.json
 /options/
 go-restli
 *.swp

@@ -40,7 +40,7 @@ func Ror2PathEscape(s string) string {
 }
 
 func NewRor2PathWriter() Ror2PathWriter {
-	return &ror2PathWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: Ror2PathEscape}, nil)}
+	return &ror2PathWriter{genericWriter: newGenericWriter(newRor2Writer(Ror2PathEscape), nil)}
 }
 
 func (p *ror2PathWriter) RawPathSegment(segment string) {

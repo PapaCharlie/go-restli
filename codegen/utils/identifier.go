@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -16,23 +17,17 @@ type Identifier struct {
 	Namespace string `json:"namespace"`
 }
 
-func (i Identifier) String() string {
+func (i Identifier) FullName() string {
 	return i.Namespace + "." + i.Name
 }
 
-func (i *Identifier) GetIdentifier() Identifier {
-	return *i
+func (i Identifier) GetIdentifier() Identifier {
+	return i
 }
 
 func (i Identifier) PackagePath() string {
 	if i.Namespace == "" {
-		Logger.Panicf("%+v has no namespace!", i)
-	}
-	if i.Name == "" {
-		Logger.Panicf("%+v has no name!", i)
-	}
-	if strings.HasPrefix(i.Namespace, RestLiPackage) {
-		return i.Namespace
+		log.Panicf("%+v has no namespace!", i)
 	}
 	var p string
 	if TypeRegistry.IsCyclic(i) {
@@ -40,26 +35,39 @@ func (i Identifier) PackagePath() string {
 	} else {
 		p = i.Namespace
 	}
-	return FqcpToPackagePath(p)
+	return FqcpToPackagePath(i.PackageRoot(), p)
+}
+
+func (i Identifier) TypeName() string {
+	override := TypeRegistry.TypeNameOverride(i)
+	if override != "" {
+		return override
+	} else {
+		return i.Name
+	}
 }
 
 func (i Identifier) Qual() *jen.Statement {
-	return jen.Qual(i.PackagePath(), i.Name)
+	return jen.Qual(i.PackagePath(), i.TypeName())
 }
 
-func (i *Identifier) Receiver() string {
-	return ReceiverName(i.Name)
+func (i Identifier) Receiver() string {
+	return ReceiverName(i.TypeName())
 }
 
-func (i *Identifier) Resolve() ComplexType {
-	return TypeRegistry.Resolve(*i)
+func (i Identifier) Resolve() ComplexType {
+	return TypeRegistry.Resolve(i)
 }
 
-func FqcpToPackagePath(fqcp string) string {
+func (i Identifier) PackageRoot() string {
+	return TypeRegistry.PackageRoot(i)
+}
+
+func FqcpToPackagePath(packageRoot string, fqcp string) string {
 	fqcp = strings.Replace(namespaceEscape.ReplaceAllString(fqcp, "${1}_internal${2}"), ".", "/", -1)
 
-	if PackagePrefix != "" {
-		fqcp = filepath.Join(PackagePrefix, fqcp)
+	if packageRoot != "" {
+		fqcp = filepath.Join(packageRoot, fqcp)
 	}
 
 	return fqcp
@@ -100,7 +108,7 @@ func (set IdentifierSet) Get(id Identifier) bool {
 func (set IdentifierSet) String() string {
 	var classes []string
 	for s := range set {
-		classes = append(classes, s.String())
+		classes = append(classes, s.FullName())
 	}
 	sort.Strings(classes)
 	return "{" + strings.Join(classes, ", ") + "}"

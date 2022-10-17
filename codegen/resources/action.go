@@ -62,7 +62,8 @@ func (a *Action) GenerateCode() *utils.CodeFile {
 			},
 			Fields: a.Params,
 		}
-		c.Code.Add(record.GenerateStruct()).Line().
+		c.Code.
+			Add(record.GenerateStruct()).Line().
 			Add(record.GenerateMarshalRestLi()).Line().
 			Add(record.GenerateUnmarshalRestLi()).Line()
 	}

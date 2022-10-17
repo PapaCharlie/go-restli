@@ -14,6 +14,7 @@ import (
 	"github.com/PapaCharlie/go-restli/restli/equals"
 	"github.com/PapaCharlie/go-restli/restlicodec"
 	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -548,6 +549,46 @@ func TestMissingRequiredFields(t *testing.T) {
 			reader := newRor2Reader(t, `(records:List((bar:bar),(foo:foo,bar:bar)))`)
 			checkRequiredFieldsError(t, actual.UnmarshalRestLi(reader), "records[0].foo")
 			require.Equal(t, expected, actual)
+		})
+	})
+
+	t.Run("includes", func(t *testing.T) {
+		expected := common.Link{
+			Rel:  "rel",
+			Href: "href",
+			Type: "",
+		}
+
+		t.Run("json", func(t *testing.T) {
+			rawJson := `{"rel": "rel", "href": "href"}`
+			{
+				var includes extras.IncludesLink
+				reader := newJsonReader(t, rawJson)
+				checkRequiredFieldsError(t, includes.UnmarshalRestLi(reader), "type")
+				require.Equal(t, expected, includes.Link)
+			}
+			{
+				var includesIncludes extras.IncludesIncludesLink
+				reader := newJsonReader(t, rawJson)
+				checkRequiredFieldsError(t, includesIncludes.UnmarshalRestLi(reader), "type")
+				require.Equal(t, expected, includesIncludes.Link)
+			}
+		})
+
+		t.Run("ror2", func(t *testing.T) {
+			rawRor2 := `(rel:rel,href:href)`
+			{
+				var includes extras.IncludesLink
+				reader := newRor2Reader(t, rawRor2)
+				checkRequiredFieldsError(t, includes.UnmarshalRestLi(reader), "type")
+				require.Equal(t, expected, includes.Link)
+			}
+			{
+				var includesIncludes extras.IncludesIncludesLink
+				reader := newRor2Reader(t, rawRor2)
+				checkRequiredFieldsError(t, includesIncludes.UnmarshalRestLi(reader), "type")
+				require.Equal(t, expected, includesIncludes.Link)
+			}
 		})
 	})
 }

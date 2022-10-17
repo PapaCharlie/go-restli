@@ -81,7 +81,7 @@ func (j *jsonReader) ReadMap(mapReader MapReader) (err error) {
 	return j.checkError()
 }
 
-func (j *jsonReader) ReadRecord(requiredFields RequiredFields, mapReader MapReader) error {
+func (j *jsonReader) ReadRecord(requiredFields *RequiredFields, mapReader MapReader) error {
 	return readRecord(j, requiredFields, mapReader)
 }
 

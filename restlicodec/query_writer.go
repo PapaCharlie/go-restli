@@ -1,16 +1,12 @@
 package restlicodec
 
 import (
+	"sort"
 	"strings"
 )
 
 type RestLiQueryParamsWriter interface {
-	Writer
-	WriteParams(paramsWriter MapWriter) error
-}
-
-type queryParamsWriter struct {
-	*genericWriter
+	WriteParams(paramsWriter MapWriter) (string, error)
 }
 
 var unescapedQueryCharacters = func() map[byte]struct{} {
@@ -39,20 +35,41 @@ func Ror2QueryEscape(s string) string {
 	return buf.String()
 }
 
-func NewRestLiQueryParamsWriter() RestLiQueryParamsWriter {
-	return &queryParamsWriter{genericWriter: newGenericWriter(&ror2Writer{stringEscaper: Ror2QueryEscape}, nil)}
+func NewRestLiQueryParamsWriter() Writer {
+	return newGenericWriter(newRor2Writer(Ror2QueryEscape), nil)
 }
 
-func (w *queryParamsWriter) WriteParams(paramsWriter MapWriter) (err error) {
-	first := true
-	return paramsWriter(func(paramName string) Writer {
-		if first {
-			first = false
-		} else {
-			w.RawByte('&')
+func BuildQueryParams(paramsWriter MapWriter) (out string, err error) {
+	type entry struct {
+		param  string
+		writer *genericWriter
+	}
+	var entries []entry
+
+	err = paramsWriter(func(param string) Writer {
+		e := entry{
+			param:  param,
+			writer: newGenericWriter(newRor2Writer(Ror2QueryEscape), nil),
 		}
-		w.RawString(paramName)
-		w.RawByte('=')
-		return w
+		entries = append(entries, e)
+		return e.writer
 	})
+	if err != nil {
+		return "", err
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].param < entries[j].param })
+
+	builder := new(strings.Builder)
+	for i, e := range entries {
+		if i != 0 {
+			builder.WriteByte('&')
+		}
+		builder.WriteString(e.param)
+		builder.WriteByte('=')
+
+		_, _ = e.writer.getWriter().Buffer.DumpTo(builder)
+	}
+
+	return builder.String(), nil
 }

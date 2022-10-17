@@ -27,30 +27,30 @@ func (f *Fixed) ShouldReference() utils.ShouldUsePointer {
 func (f *Fixed) GenerateCode() (def *Statement) {
 	def = Empty()
 	utils.AddWordWrappedComment(def, f.Doc).Line()
-	def.Type().Id(f.Name).Index(Lit(f.Size)).Byte().Line().Line()
+	def.Type().Id(f.TypeName()).Index(Lit(f.Size)).Byte().Line().Line()
 
 	receiver := f.Receiver()
-	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.Name, f.Size)
+	errorMsg := fmt.Sprintf("size of %s must be exactly %d bytes (was %%d)", f.TypeName(), f.Size)
 	slice := Index(Op(":"))
 
-	AddEquals(def, receiver, f.Name, FixedShouldUsePointer, func(other Code, def *Group) {
+	AddEquals(def, receiver, f.TypeName(), FixedShouldUsePointer, func(other Code, def *Group) {
 		def.Return(Qual("bytes", "Equal").Call(
 			Id(receiver).Add(slice),
 			Add(other).Add(slice)))
 	})
 
-	AddComputeHash(def, receiver, f.Name, FixedShouldUsePointer, func(h Code, def *Group) {
+	AddComputeHash(def, receiver, f.TypeName(), FixedShouldUsePointer, func(h Code, def *Group) {
 		def.Add(hash(h, FixedUnderlyingType, false, Id(receiver).Add(slice)))
 	})
 
-	utils.AddPointer(def, f.Receiver(), f.Name)
+	utils.AddPointer(def, f.Receiver(), f.TypeName())
 
-	AddMarshalRestLi(def, receiver, f.Name, FixedShouldUsePointer, func(def *Group) {
+	AddMarshalRestLi(def, receiver, f.TypeName(), FixedShouldUsePointer, func(def *Group) {
 		def.Add(Writer.Write(FixedUnderlyingType, Writer, Id(receiver).Add(slice)))
 		def.Return(Nil())
 	})
 
-	AddUnmarshalRestli(def, receiver, f.Name, FixedShouldUsePointer, func(def *Group) {
+	AddUnmarshalRestli(def, receiver, f.TypeName(), FixedShouldUsePointer, func(def *Group) {
 		data := Id("data")
 		def.Var().Add(data).Index().Byte()
 		def.Add(Reader.Read(FixedUnderlyingType, Reader, data))

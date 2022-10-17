@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"log"
 	"reflect"
 
 	"github.com/PapaCharlie/go-restli/codegen/utils"
@@ -83,7 +84,7 @@ func (p *PrimitiveType) UnmarshalerFunc() *Statement {
 func getLitBytesValues(rawJson string) *Statement {
 	var v string
 	if err := json.Unmarshal([]byte(rawJson), &v); err != nil {
-		utils.Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", BytesPrimitive, rawJson, err)
+		log.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", BytesPrimitive, rawJson, err)
 	}
 	return ValuesFunc(func(def *Group) {
 		for _, c := range v {
@@ -100,7 +101,7 @@ func (p *PrimitiveType) getLit(rawJson string) *Statement {
 
 		err := json.Unmarshal([]byte(rawJson), v)
 		if err != nil {
-			utils.Logger.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
+			log.Panicf("(%v) Illegal primitive literal: \"%s\" (%s)", p, rawJson, err)
 		}
 		return Lit(reflect.ValueOf(v).Elem().Interface())
 	}

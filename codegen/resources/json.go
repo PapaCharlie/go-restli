@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/PapaCharlie/go-restli/codegen/types"
+	"github.com/PapaCharlie/go-restli/codegen/utils"
 	"github.com/pkg/errors"
 )
 
@@ -31,6 +32,8 @@ func (pk *PathKey) UnmarshalJSON(data []byte) error {
 }
 
 type Resource struct {
+	PackageRoot string `json:"-"`
+
 	Namespace            string                 `json:"namespace"`
 	Doc                  string                 `json:"doc"`
 	SourceFile           string                 `json:"sourceFile"`
@@ -88,12 +91,25 @@ const (
 )
 
 type Method struct {
-	MethodType   MethodType        `json:"methodType"`
-	Name         string            `json:"name"`
-	Doc          string            `json:"doc"`
-	OnEntity     bool              `json:"onEntity"`
-	Params       []types.Field     `json:"params"`
-	Return       *types.RestliType `json:"return"`
-	Metadata     *types.RestliType `json:"metadata"`
-	ReturnEntity bool              `json:"returnEntity"`
+	MethodType        MethodType        `json:"methodType"`
+	Name              string            `json:"name"`
+	Doc               string            `json:"doc"`
+	OnEntity          bool              `json:"onEntity"`
+	Params            []types.Field     `json:"params"`
+	IsPagingSupported bool              `json:"isPagingSupported"`
+	Return            *types.RestliType `json:"return"`
+	Metadata          *types.RestliType `json:"metadata"`
+	ReturnEntity      bool              `json:"returnEntity"`
+}
+
+func (m *Method) hasParams() bool {
+	return len(m.Params) > 0 || m.IsPagingSupported
+}
+
+func (m *Method) includes() []utils.Identifier {
+	if m.IsPagingSupported {
+		return []utils.Identifier{utils.PagingContextIdentifier}
+	} else {
+		return nil
+	}
 }

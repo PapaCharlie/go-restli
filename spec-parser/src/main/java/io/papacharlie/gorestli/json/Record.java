@@ -3,28 +3,21 @@ package io.papacharlie.gorestli.json;
 import com.linkedin.data.ByteString;
 import com.linkedin.data.schema.NamedDataSchema;
 import io.papacharlie.gorestli.json.RestliType.Identifier;
-import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 
-import static io.papacharlie.gorestli.Utils.*;
+import static io.papacharlie.gorestli.Utils.UGLY_GSON;
 
 
 public class Record extends NamedType {
+  public final List<Identifier> _includes;
   public final List<Field> _fields;
 
-  public Record(NamedDataSchema namedDataSchema, File sourceFile, List<Field> fields) {
+  public Record(NamedDataSchema namedDataSchema, Path sourceFile, List<Identifier> includes, List<Field> fields) {
     super(namedDataSchema, sourceFile);
+    _includes = includes;
     _fields = fields;
-  }
-
-  public Field getField(String name) {
-    for (Field field : _fields) {
-      if (field._name.equals(name)) {
-        return field;
-      }
-    }
-    throw new IllegalArgumentException(String.format("No such field %s in %s", name, getIdentifier()));
   }
 
   public static class Field {
@@ -33,20 +26,17 @@ public class Record extends NamedType {
     public final RestliType _type;
     public final boolean _isOptional;
     public final String _defaultValue;
-    public final Identifier _includedFrom;
 
-    public Field(String name, String doc, RestliType type, Boolean isOptional, Object defaultValue,
-        Identifier includedFrom) {
+    public Field(String name, String doc, RestliType type, Boolean isOptional, Object defaultValue) {
       _name = name;
       _doc = doc;
       _type = type;
-      _isOptional = (isOptional == null) ? false : isOptional;
+      _isOptional = isOptional != null && isOptional;
       _defaultValue = serializeDefaultValue(defaultValue);
-      _includedFrom = includedFrom;
     }
 
     public Field(String name, String doc, RestliType type, Boolean isOptional) {
-      this(name, doc, type, isOptional, null, null);
+      this(name, doc, type, isOptional, null);
     }
 
     private static String serializeDefaultValue(Object value) {

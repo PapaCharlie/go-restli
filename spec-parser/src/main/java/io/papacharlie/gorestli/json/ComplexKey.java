@@ -3,6 +3,7 @@ package io.papacharlie.gorestli.json;
 import io.papacharlie.gorestli.Utils;
 import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
+import java.nio.file.Path;
 
 
 public class ComplexKey extends NamedType {
@@ -11,7 +12,7 @@ public class ComplexKey extends NamedType {
   public final Identifier _key;
   public final Identifier _params;
 
-  public ComplexKey(String resourceName, String resourceNamespace, File restSpecFile, Identifier key,
+  public ComplexKey(String resourceName, String resourceNamespace, Path restSpecFile, Identifier key,
       Identifier params) {
     super(complexKeyTypeName(resourceName), resourceNamespace, String.format(DOC_FORMAT, resourceName), restSpecFile);
     _key = key;

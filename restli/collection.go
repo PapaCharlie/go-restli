@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 )
 
 // Create executes a rest.li create request with the given object. The X-RestLi-Id header field will be parsed into id
@@ -18,7 +18,7 @@ func Create[K any, V restlicodec.Marshaler](
 	create V,
 	query QueryParamsEncoder,
 	readOnlyFields restlicodec.PathSpec,
-) (*restlidata.CreatedEntity[K], error) {
+) (*common.CreatedEntity[K], error) {
 	req, err := NewCreateRequest(c, ctx, rp, query, Method_create, create, readOnlyFields)
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func CreateWithReturnEntity[K any, V restlicodec.Marshaler](
 	create V,
 	query QueryParamsEncoder,
 	readOnlyFields restlicodec.PathSpec,
-) (*restlidata.CreatedAndReturnedEntity[K, V], error) {
+) (*common.CreatedAndReturnedEntity[K, V], error) {
 	req, err := NewCreateRequest(c, ctx, rp, query, Method_create, create, readOnlyFields)
 	if err != nil {
 		return nil, err
@@ -55,13 +55,13 @@ func CreateWithReturnEntity[K any, V restlicodec.Marshaler](
 	if err != nil {
 		return nil, err
 	}
-	return &restlidata.CreatedAndReturnedEntity[K, V]{
+	return &common.CreatedAndReturnedEntity[K, V]{
 		CreatedEntity: *k,
 		Entity:        v,
 	}, nil
 }
 
-func unmarshalReturnEntityKey[K any](c *Client, res *http.Response) (result *restlidata.CreatedEntity[K], err error) {
+func unmarshalReturnEntityKey[K any](c *Client, res *http.Response) (result *common.CreatedEntity[K], err error) {
 	if h := res.Header.Get(IDHeader); len(h) > 0 {
 		var reader restlicodec.Reader
 		reader, err = restlicodec.NewRor2Reader(h)
@@ -77,7 +77,7 @@ func unmarshalReturnEntityKey[K any](c *Client, res *http.Response) (result *res
 		if err != nil {
 			return nil, err
 		}
-		return &restlidata.CreatedEntity[K]{
+		return &common.CreatedEntity[K]{
 			Id:     k,
 			Status: res.StatusCode,
 		}, nil
@@ -91,12 +91,12 @@ func GetAll[V restlicodec.Marshaler](
 	ctx context.Context,
 	rp ResourcePath,
 	query QueryParamsEncoder,
-) (results *restlidata.Elements[V], err error) {
+) (results *common.Elements[V], err error) {
 	req, err := NewGetRequest(c, ctx, rp, query, Method_get_all)
 	if err != nil {
 		return nil, err
 	}
 
-	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*restlidata.Elements[V]])
+	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*common.Elements[V]])
 	return results, err
 }
