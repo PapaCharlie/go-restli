@@ -30,7 +30,7 @@ const (
 
 type Method int
 
-// Disabled until https://github.com/golang/go/issues/45218 is resolved: go:generate stringer -type=Method -trimprefix Method_
+//go:generate stringer -type=Method -trimprefix Method_
 const (
 	Method_Unknown = Method(iota)
 

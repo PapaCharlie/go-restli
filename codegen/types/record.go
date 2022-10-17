@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"log"
 	"regexp"
 	"sort"
 
@@ -18,7 +19,8 @@ const RecordShouldUsePointer = utils.Yes
 
 type Record struct {
 	NamedType
-	Fields []Field
+	Includes []utils.Identifier
+	Fields   []Field
 }
 
 func (r *Record) InnerTypes() utils.IdentifierSet {
@@ -35,15 +37,15 @@ func (r *Record) ShouldReference() utils.ShouldUsePointer {
 }
 
 func (r *Record) PartialUpdateStructName() string {
-	return r.Name + PartialUpdate
+	return r.TypeName() + PartialUpdate
 }
 
 func (r *Record) PartialUpdateDeleteFieldsStructName() string {
-	return r.Name + PartialUpdate + "_" + DeleteFields
+	return r.TypeName() + PartialUpdate + "_" + DeleteFields
 }
 
 func (r *Record) PartialUpdateSetFieldsStructName() string {
-	return r.Name + PartialUpdate + "_" + SetFields
+	return r.TypeName() + PartialUpdate + "_" + SetFields
 }
 
 func (r *Record) PartialUpdateStruct() *Statement {
@@ -56,7 +58,6 @@ type Field struct {
 	Doc                string
 	IsOptional         bool
 	DefaultValue       *string
-	IncludedFrom       *utils.Identifier
 	isComplexKeyParams bool
 }
 
@@ -69,11 +70,7 @@ func (r *Record) rawFieldAccessor(f Field) *Statement {
 }
 
 func fieldAccessor(receiver Code, f Field) *Statement {
-	accessor := Add(receiver)
-	if r := f.ResolveRecord(); r != nil {
-		accessor.Dot(r.Name)
-	}
-	return accessor.Dot(f.FieldName())
+	return Add(receiver).Dot(f.FieldName())
 }
 
 func (f *Field) IsOptionalOrDefault() bool {
@@ -85,15 +82,6 @@ func (f *Field) FieldName() string {
 		return utils.ComplexKeyParamsField
 	} else {
 		return utils.ExportedIdentifier(f.Name)
-	}
-}
-
-func (f *Field) ResolveRecord() *Record {
-	if f.IncludedFrom == nil {
-		return nil
-	} else {
-		// This is guaranteed to be a record
-		return f.IncludedFrom.Resolve().(*Record)
 	}
 }
 
@@ -120,23 +108,13 @@ func (r *Record) GenerateCode() *Statement {
 
 func (r *Record) GenerateStruct() *Statement {
 	return utils.AddWordWrappedComment(Empty(), r.Doc).Line().
-		Type().Id(r.Name).
+		Type().Id(r.TypeName()).
 		StructFunc(func(def *Group) {
-			var uniqueIncludedRecords []utils.Identifier
-			includedRecords := utils.IdentifierSet{}
-			for _, f := range r.Fields {
-				if f.IncludedFrom != nil && includedRecords.Add(*f.IncludedFrom) {
-					uniqueIncludedRecords = append(uniqueIncludedRecords, *f.IncludedFrom)
-				}
+			for _, i := range r.Includes {
+				def.Add(i.Qual())
 			}
 
-			for _, id := range uniqueIncludedRecords {
-				def.Add(id.Qual())
-			}
 			for _, f := range r.Fields {
-				if f.IncludedFrom != nil {
-					continue
-				}
 				field := def.Empty()
 				utils.AddWordWrappedComment(field, f.Doc).Line()
 				field.Id(f.FieldName())
@@ -162,9 +140,9 @@ func (r *Record) GeneratePopulateDefaultValues() Code {
 
 	def.Func().
 		Id(r.defaultValuesConstructor()).Params().
-		Params(Id(r.Receiver()).Op("*").Id(r.Name)).
+		Params(Id(r.Receiver()).Op("*").Id(r.TypeName())).
 		BlockFunc(func(def *Group) {
-			def.Id(r.Receiver()).Op("=").New(Id(r.Name))
+			def.Id(r.Receiver()).Op("=").New(Id(r.TypeName()))
 			for _, f := range r.Fields {
 				if f.Type.Reference == nil {
 					continue
@@ -177,7 +155,7 @@ func (r *Record) GeneratePopulateDefaultValues() Code {
 			def.Return()
 		}).Line().Line()
 
-	utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, utils.PopulateLocalDefaultValues, RecordShouldUsePointer).
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.TypeName(), utils.PopulateLocalDefaultValues, RecordShouldUsePointer).
 		Params().
 		BlockFunc(func(def *Group) {
 			for _, f := range r.Fields {
@@ -211,10 +189,10 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 				var v string
 				err := json.Unmarshal([]byte(rawJson), &v)
 				if err != nil {
-					utils.Logger.Panicln("illegal enum", err)
+					log.Panicln("illegal enum", err)
 				}
 				if !enum.isValidSymbol(v) {
-					utils.Logger.Panicf("illegal enum value %q for %q (not in %q)", v, enum.Identifier, enum.Symbols)
+					log.Panicf("illegal enum value %q for %q (not in %q)", v, enum.Identifier, enum.Symbols)
 				}
 				def.Id("val").Op(":=").Qual(enum.PackagePath(), enum.SymbolIdentifier(v))
 				def.Add(accessor).Op("= &").Id("val")
@@ -230,7 +208,7 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 				def.Add(Reader.Read(*t, Reader, accessor))
 				addPanic()
 			} else {
-				utils.Logger.Panic("Unknown reference type for default value", t.Reference.Resolve())
+				log.Panic("Unknown reference type for default value", t.Reference.Resolve())
 			}
 		case t.Array != nil:
 			def.Add(accessor).Op("=").New(t.GoType())
@@ -264,5 +242,5 @@ func (r *Record) hasDefaultValue() bool {
 }
 
 func (r *Record) defaultValuesConstructor() string {
-	return "New" + r.Name + "WithDefaultValues"
+	return "New" + r.TypeName() + "WithDefaultValues"
 }

@@ -24,7 +24,10 @@ func AddCustomComputeHash(def *Statement, receiver, typeName string, pointer uti
 }
 
 func (r *Record) GenerateComputeHash() Code {
-	return AddComputeHash(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(h Code, def *Group) {
+	return AddComputeHash(Empty(), r.Receiver(), r.TypeName(), RecordShouldUsePointer, func(h Code, def *Group) {
+		for _, i := range r.Includes {
+			def.Add(h).Dot("Add").Call(Id(r.Receiver()).Dot(i.TypeName()).Dot(utils.ComputeHash).Call())
+		}
 		for _, f := range r.Fields {
 			def.Add(hash(h, f.Type, f.IsOptionalOrDefault(), r.fieldAccessor(f))).Line()
 		}

@@ -1,10 +1,7 @@
 package types
 
 import (
-	"sort"
-
 	"github.com/PapaCharlie/go-restli/codegen/utils"
-	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	. "github.com/dave/jennifer/jen"
 )
 
@@ -28,9 +25,27 @@ func AddMarshalRestLi(def *Statement, receiver, typeName string, pointer utils.S
 	return def
 }
 
+const MarshalFields = "MarshalFields"
+
+func (r *Record) GenerateMarshalFields() *Statement {
+	return utils.AddFuncOnReceiver(Empty(), r.Receiver(), r.TypeName(), MarshalFields, RecordShouldUsePointer).
+		Params(KeyWriterFunc).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			for _, i := range r.Includes {
+				def.Err().Op("=").Id(r.Receiver()).Dot(i.TypeName()).Dot(MarshalFields).Call(KeyWriter)
+				def.Add(utils.IfErrReturn(Err()))
+			}
+			fields := r.SortedFields()
+			writeAllFields(def, fields, func(_ int, f Field) Code { return r.fieldAccessor(f) }, KeyWriter)
+		}).
+		Line().Line()
+}
+
 func (r *Record) GenerateMarshalRestLi() *Statement {
-	return AddMarshalRestLi(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(def *Group) {
-		r.generateMarshaler(def)
+	def := r.GenerateMarshalFields()
+	return AddMarshalRestLi(def, r.Receiver(), r.TypeName(), RecordShouldUsePointer, func(def *Group) {
+		def.Return(Add(Writer).Dot("WriteMap").Call(Id(r.Receiver()).Dot(MarshalFields)))
 	})
 }
 
@@ -49,56 +64,31 @@ func (r *Record) GenerateQueryParamMarshaler(finderName *string, batchKeyType *R
 		params = []Code{Add(utils.BatchKeySet).Qual(utils.BatchKeySetPackage, "BatchKeySet").Index(batchKeyType.ReferencedType())}
 	}
 
-	return utils.AddFuncOnReceiver(Empty(), receiver, r.Name, utils.EncodeQueryParams, RecordShouldUsePointer).
+	def := r.GenerateMarshalFields()
+
+	return utils.AddFuncOnReceiver(def, receiver, r.TypeName(), utils.EncodeQueryParams, RecordShouldUsePointer).
 		Params(params...).
 		Params(Id("rawQuery").String(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			def.Add(Writer).Op(":=").Qual(utils.RestLiCodecPackage, "NewRestLiQueryParamsWriter").Call()
-
-			fields := r.SortedFields()
-
-			insertFieldAt := func(index int, field Field) {
-				fields = append(fields[:index], append([]Field{field}, fields[index:]...)...)
-			}
-			qIndex := -1
-			if finderName != nil {
-				qIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= utils.FinderNameParam })
-				insertFieldAt(qIndex, Field{
-					Type:       RestliType{Primitive: &StringPrimitive},
-					Name:       utils.FinderNameParam,
-					IsOptional: false,
-				})
-			}
-			idsIndex := -1
-			if batchKeyType != nil {
-				idsIndex = sort.Search(len(fields), func(i int) bool { return fields[i].Name >= batchkeyset.EntityIDsField })
-				insertFieldAt(idsIndex, Field{})
-			}
-
 			paramNameWriter := Id("paramNameWriter")
 			paramNameWriterFunc := Add(paramNameWriter).Func().Params(String()).Add(WriterQual)
-			def.Err().Op("=").Add(Writer).Dot("WriteParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
-				for i, f := range fields {
-					if i == idsIndex {
-						def.BlockFunc(func(def *Group) {
-							def.Err().Op("=").Add(utils.BatchKeySet).Dot("Encode").Call(paramNameWriter)
-							def.Add(utils.IfErrReturn(Err()))
-						}).Line()
-					} else {
-						var accessor Code
-						if i == qIndex {
-							accessor = Lit(*finderName)
-						} else {
-							accessor = r.fieldAccessor(f)
-						}
-						writeField(def, f, accessor, paramNameWriter)
-					}
+			def.Return(Qual(utils.RestLiCodecPackage, "BuildQueryParams").Call(Func().Params(paramNameWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
+				if batchKeyType != nil {
+					def.Err().Op("=").Add(utils.BatchKeySet).Dot("Encode").Call(paramNameWriter)
+					def.Add(utils.IfErrReturn(Err()))
 				}
-				def.Return(Nil())
-			}))
 
-			def.Add(utils.IfErrReturn(Lit(""), Err()))
-			def.Return(Writer.Finalize(), Nil())
+				if finderName != nil {
+					def.Add(Writer.Write(
+						RestliType{Primitive: &StringPrimitive},
+						Add(paramNameWriter).Call(Lit(utils.FinderNameParam)),
+						Lit(*finderName),
+						Err(),
+					))
+				}
+
+				def.Return(Id(r.Receiver()).Dot(MarshalFields).Call(paramNameWriter))
+			})))
 		})
 }
 

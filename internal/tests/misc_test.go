@@ -8,6 +8,7 @@ import (
 	"github.com/PapaCharlie/go-restli/fnv1a"
 	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
+	forcedConflict "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/conflictResolution"
 	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 	"github.com/PapaCharlie/go-restli/restli"
@@ -16,6 +17,10 @@ import (
 	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
+
+func init() {
+	testsuite.NewDefaultsWithDefaultValues()
+}
 
 func TestInclude(t *testing.T) {
 	expected := &testsuite.Include{
@@ -240,7 +245,7 @@ func TestQueryParamsReader(t *testing.T) {
 	require.NoError(t, err)
 
 	c := new(extras.SinglePrimitiveField)
-	err = q.ReadRecord(restlicodec.RequiredFields{"a", "b", "c"}, func(reader restlicodec.Reader, field string) (err error) {
+	err = q.ReadRecord(restlicodec.NewRequiredFields().Add("a", "b", "c"), func(reader restlicodec.Reader, field string) (err error) {
 		if field == "c" {
 			return c.UnmarshalRestLi(reader)
 		} else {
@@ -315,4 +320,10 @@ func TestAddWordWrappedComment(t *testing.T) {
 	if len(out) != 0 {
 		t.Fatalf("%q is not well formatted", file)
 	}
+}
+
+func TestForcedConflictResolution(t *testing.T) {
+	// Reference the types so the compiler checks the package to make sure it compiles
+	_ = forcedConflict.Forcedconflict1FooBar{}
+	_ = forcedConflict.Forcedconflict2Foobar{}
 }

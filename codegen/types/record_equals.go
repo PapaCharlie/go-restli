@@ -24,18 +24,28 @@ func AddEquals(def *Statement, receiver, typeName string, pointer utils.ShouldUs
 }
 
 func (r *Record) GenerateEquals() Code {
-	return AddEquals(Empty(), r.Receiver(), r.Name, RecordShouldUsePointer, func(other Code, def *Group) {
-		if len(r.Fields) == 0 {
+	return AddEquals(Empty(), r.Receiver(), r.TypeName(), RecordShouldUsePointer, func(other Code, def *Group) {
+		if len(r.Fields) == 0 && len(r.Includes) == 0 {
 			def.Return(True())
 			return
 		}
 
 		exp := Empty()
-		for i, f := range r.Fields {
-			left, right := r.fieldAccessor(f), fieldAccessor(other, f)
-			if i != 0 {
+		count := 0
+		addAnd := func() {
+			if count != 0 {
 				exp.Op("&&").Line()
 			}
+			count++
+		}
+		for _, i := range r.Includes {
+			addAnd()
+			exp.Id(r.Receiver()).Dot(i.TypeName()).Dot(utils.Equals).Call(Op("&").Add(other).Dot(i.TypeName()))
+		}
+
+		for _, f := range r.Fields {
+			left, right := r.fieldAccessor(f), fieldAccessor(other, f)
+			addAnd()
 			exp.Add(equalsCondition(f.Type, f.IsOptionalOrDefault(), left, right))
 		}
 		def.Return(exp)

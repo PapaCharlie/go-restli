@@ -70,7 +70,7 @@ func (e *Object) UnmarshalRestLi(reader Reader) (err error) {
 		case "status":
 			e.Status, err = reader.ReadInt32()
 		default:
-			err = reader.Skip()
+			err = NoSuchFieldErr
 		}
 		return err
 	})

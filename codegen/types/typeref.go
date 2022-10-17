@@ -27,9 +27,9 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 	cast := r.Type.Cast(Id(r.Receiver()))
 
 	utils.AddWordWrappedComment(def, r.Doc).Line()
-	def.Type().Id(r.Name).Add(r.Type.GoType()).Line().Line()
+	def.Type().Id(r.TypeName()).Add(r.Type.GoType()).Line().Line()
 
-	AddEquals(def, r.Receiver(), r.Name, TyperefShouldUsePointer, func(other Code, def *Group) {
+	AddEquals(def, r.Receiver(), r.TypeName(), TyperefShouldUsePointer, func(other Code, def *Group) {
 		if r.Type.IsBytes() {
 			def.Return(Qual("bytes", "Equal").Call(Id(r.Receiver()), other))
 		} else {
@@ -37,24 +37,24 @@ func (r *Typeref) GenerateCode() (def *Statement) {
 		}
 	})
 
-	AddComputeHash(def, r.Receiver(), r.Name, TyperefShouldUsePointer, func(h Code, def *Group) {
+	AddComputeHash(def, r.Receiver(), r.TypeName(), TyperefShouldUsePointer, func(h Code, def *Group) {
 		def.Add(h).Dot(r.Type.HasherName()).Call(cast)
 	})
 
-	utils.AddPointer(def, r.Receiver(), r.Name)
+	utils.AddPointer(def, r.Receiver(), r.TypeName())
 
-	AddMarshalRestLi(def, r.Receiver(), r.Name, TyperefShouldUsePointer, func(def *Group) {
+	AddMarshalRestLi(def, r.Receiver(), r.TypeName(), TyperefShouldUsePointer, func(def *Group) {
 		def.Add(Writer.Write(underlyingType, Writer, cast))
 		def.Return(Nil())
 	})
 
-	AddUnmarshalRestli(def, r.Receiver(), r.Name, TyperefShouldUsePointer, func(def *Group) {
+	AddUnmarshalRestli(def, r.Receiver(), r.TypeName(), TyperefShouldUsePointer, func(def *Group) {
 		tmp := Id("tmp")
 		def.Var().Add(tmp).Add(r.Type.GoType())
 		def.Add(Reader.Read(underlyingType, Reader, tmp))
 		def.Add(utils.IfErrReturn(Err())).Line()
 
-		def.Op("*").Id(r.Receiver()).Op("=").Id(r.Name).Call(tmp)
+		def.Op("*").Id(r.Receiver()).Op("=").Id(r.TypeName()).Call(tmp)
 		def.Return(Nil())
 	})
 

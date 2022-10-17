@@ -1,4 +1,4 @@
-package restlidata
+package common
 
 import (
 	"reflect"
@@ -17,7 +17,7 @@ func (e EmptyRecord) DecodeQueryParams(restlicodec.QueryParamsReader) error {
 }
 
 func (e EmptyRecord) UnmarshalRestLi(reader restlicodec.Reader) error {
-	return reader.ReadMap(func(restlicodec.Reader, string) error { return reader.Skip() })
+	return reader.ReadMap(func(restlicodec.Reader, string) error { return restlicodec.NoSuchFieldErr })
 }
 
 func (e EmptyRecord) MarshalRestLi(writer restlicodec.Writer) error {

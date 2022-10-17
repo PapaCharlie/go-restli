@@ -12,16 +12,16 @@ type writer struct {
 }
 
 var (
-	KeyWriter   = Code(Id("keyWriter"))
-	ItemWriter  = Code(Id("itemWriter"))
-	Writer      = &writer{Id("writer")}
-	WriterQual  = Code(Qual(utils.RestLiCodecPackage, "Writer"))
-	WriterParam = Code(Add(Writer).Add(WriterQual))
+	KeyWriter     = Code(Id("keyWriter"))
+	KeyWriterFunc = Code(Add(KeyWriter).Func().Params(String()).Add(WriterQual))
+	ItemWriter    = Code(Id("itemWriter"))
+	Writer        = &writer{Id("writer")}
+	WriterQual    = Code(Qual(utils.RestLiCodecPackage, "Writer"))
+	WriterParam   = Code(Add(Writer).Add(WriterQual))
 )
 
 func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
-	keyWriterFunc := Add(KeyWriter).Func().Params(String()).Add(WriterQual)
-	return Add(writerAccessor).Dot("WriteMap").Call(Func().Params(keyWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
+	return Add(writerAccessor).Dot("WriteMap").Call(Func().Params(KeyWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
 		writer(KeyWriter, def)
 	}))
 }
@@ -86,9 +86,10 @@ type reader struct {
 }
 
 var (
-	Reader      = &reader{Id("reader")}
-	ReaderQual  = Qual(utils.RestLiCodecPackage, "Reader")
-	ReaderParam = Add(Reader).Add(ReaderQual)
+	Reader         = &reader{Id("reader")}
+	ReaderQual     = Code(Qual(utils.RestLiCodecPackage, "Reader"))
+	ReaderParam    = Code(Add(Reader).Add(ReaderQual))
+	FieldParamName = Code(Id("field"))
 )
 
 func (d *reader) ReadMap(reader Code, mapReader func(reader, key Code, def *Group)) Code {
@@ -99,9 +100,8 @@ func (d *reader) ReadMap(reader Code, mapReader func(reader, key Code, def *Grou
 }
 
 func (d *reader) ReadRecord(reader Code, requiredFields Code, mapReader func(reader, key Code, def *Group)) Code {
-	field := Id("field")
-	return Add(reader).Dot("ReadRecord").Call(requiredFields, Func().Params(Add(d).Add(ReaderQual), Add(field).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
-		mapReader(d, field, def)
+	return Add(reader).Dot("ReadRecord").Call(requiredFields, Func().Params(Add(d).Add(ReaderQual), Add(FieldParamName).String()).Params(Err().Error()).BlockFunc(func(def *Group) {
+		mapReader(d, FieldParamName, def)
 	}))
 }
 

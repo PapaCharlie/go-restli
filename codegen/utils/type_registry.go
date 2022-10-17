@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/dave/jennifer/jen"
@@ -14,55 +16,67 @@ type ComplexType interface {
 	GenerateCode() *jen.Statement
 }
 
-var TypeRegistry = make(typeRegistry)
+var TypeRegistry = &typeRegistry{
+	types:        map[Identifier]*registeredType{},
+	packageRoots: map[string]IdentifierSet{},
+}
 
 type registeredType struct {
-	Type     ComplexType
-	IsCyclic bool
+	Type             ComplexType
+	PackageRoot      string
+	IsCyclic         bool
+	TypeNameOverride string
 }
 
-type typeRegistry map[Identifier]*registeredType
+type typeRegistry struct {
+	types        map[Identifier]*registeredType
+	packageRoots map[string]IdentifierSet
+}
 
-func (reg typeRegistry) Register(t ComplexType) {
+func (reg *typeRegistry) Register(t ComplexType, packageRoot string) error {
 	id := t.GetIdentifier()
-	if _, ok := reg[id]; ok {
-		Logger.Panicf("Cannot register type %s twice!", id)
+	if ct, ok := reg.types[id]; !ok {
+		reg.types[id] = &registeredType{Type: t, PackageRoot: packageRoot}
+		if _, ok = reg.packageRoots[packageRoot]; !ok {
+			reg.packageRoots[packageRoot] = IdentifierSet{}
+		}
+		reg.packageRoots[packageRoot].Add(id)
+		addImportName(id.PackagePath())
+		return nil
+	} else {
+		return fmt.Errorf("go-restli: %q has already been registered in package %q", id, ct.PackageRoot)
 	}
-	reg[id] = &registeredType{Type: t}
 }
 
-func (reg typeRegistry) get(id Identifier) *registeredType {
-	t, ok := reg[id]
+func (reg *typeRegistry) get(id Identifier) *registeredType {
+	t, ok := reg.types[id]
 	if !ok {
-		Logger.Panicf("Unknown type: %s", id)
+		log.Panicf("Unknown type: %q", id.FullName())
 	}
 	return t
 }
 
-func (reg typeRegistry) Resolve(id Identifier) ComplexType {
+func (reg *typeRegistry) Resolve(id Identifier) ComplexType {
 	return reg.get(id).Type
 }
 
-func (reg typeRegistry) IsCyclic(id Identifier) bool {
+func (reg *typeRegistry) PackageRoot(id Identifier) string {
+	return reg.get(id).PackageRoot
+}
+
+func (reg *typeRegistry) IsCyclic(id Identifier) bool {
 	return reg.get(id).IsCyclic
 }
 
-func (reg typeRegistry) GenerateTypeCode() (files []*CodeFile) {
-	for id, t := range reg {
-		if strings.HasPrefix(id.Namespace, RootPackage) {
-			continue
-		}
-		files = append(files, &CodeFile{
-			SourceFile:  t.Type.GetSourceFile(),
-			PackagePath: t.Type.GetIdentifier().PackagePath(),
-			Filename:    t.Type.GetIdentifier().Name,
-			Code:        t.Type.GenerateCode(),
-		})
+func (reg *typeRegistry) TypeNameOverride(id Identifier) string {
+	if t, ok := reg.types[id]; ok {
+		return t.TypeNameOverride
+	} else {
+		return ""
 	}
-	return files
 }
 
-func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
+func (reg *typeRegistry) findCycle(nextNode Identifier, path Path) []Identifier {
 	if cycle := path.IntroducesCycle(nextNode); len(cycle) > 0 {
 		return cycle
 	}
@@ -75,7 +89,7 @@ func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
 	newPath := path.Add(nextNode)
 	for c := range reg.get(nextNode).Type.InnerTypes() {
 		if !reg.IsCyclic(c) {
-			if p := reg.FindCycle(c, newPath); len(p) > 0 {
+			if p := reg.findCycle(c, newPath); len(p) > 0 {
 				return p
 			}
 		}
@@ -84,35 +98,118 @@ func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
 	return nil
 }
 
-func (reg typeRegistry) FlagCyclic(id Identifier) {
+func (reg *typeRegistry) flagCyclic(id Identifier) {
 	node := reg.get(id)
 	node.IsCyclic = true
 	for c := range node.Type.InnerTypes() {
 		if !reg.IsCyclic(c) {
-			reg.FlagCyclic(c)
+			reg.flagCyclic(c)
 		}
 	}
 }
 
-func (reg typeRegistry) FlagCyclicDependencies() {
-	for id := range reg {
+func (reg *typeRegistry) Finalize() (err error) {
+	err = reg.validateAllTypesSatisfied()
+	if err != nil {
+		return err
+	}
+
+	err = reg.flagCyclicDependencies()
+	if err != nil {
+		return err
+	}
+
+	err = reg.remediateConflictingNames()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (reg *typeRegistry) validateAllTypesSatisfied() error {
+	for id, rt := range reg.types {
+		for dep := range rt.Type.InnerTypes() {
+			if _, ok := reg.types[dep]; !ok {
+				return fmt.Errorf("go-restli: %q depends on unknown type %q", id.FullName(), dep.FullName())
+			}
+		}
+	}
+	return nil
+}
+
+func (reg *typeRegistry) flagCyclicDependencies() error {
+	for id := range reg.types {
 		for {
-			cycle := reg.FindCycle(id, Path{})
+			cycle := reg.findCycle(id, Path{})
 			if len(cycle) > 0 {
+				packageRoots := map[string]bool{}
 				var identifiers []string
 				for _, cyclicModel := range cycle {
-					identifiers = append(identifiers, cyclicModel.String())
+					packageRoots[cyclicModel.PackageRoot()] = true
+					identifiers = append(identifiers, cyclicModel.FullName())
 				}
-				Logger.Println("Detected cyclic dependency:", strings.Join(identifiers, " -> "))
+
+				path := strings.Join(identifiers, " -> ")
+				if len(packageRoots) > 1 {
+					return fmt.Errorf("go-restli: The following cyclic dependency between packages was detected but "+
+						"cannot be remediated due to type definitions being in different manifests: %s", path)
+				}
+				log.Printf("Detected cyclic dependency: %s", path)
 
 				for _, c := range cycle {
-					reg.FlagCyclic(c)
+					reg.flagCyclic(c)
 				}
 			} else {
 				break
 			}
 		}
 	}
+
+	return nil
+}
+
+func (reg *typeRegistry) remediateConflictingNames() error {
+	for _, types := range reg.packageRoots {
+		conflictingTypes := map[string]IdentifierSet{}
+		for id := range types {
+			if reg.IsCyclic(id) {
+				name := strings.ToLower(id.Name)
+				if _, ok := conflictingTypes[name]; !ok {
+					conflictingTypes[name] = NewIdentifierSet()
+				}
+				conflictingTypes[name].Add(id)
+			}
+		}
+
+		for _, v := range conflictingTypes {
+			if len(v) == 1 {
+				continue
+			}
+			log.Printf("WARNING: The following types have conflicting names: %s", v)
+
+			overrides := map[string]Identifier{}
+			for id := range v {
+				override := ExportedIdentifier(id.Namespace[strings.LastIndex(id.Namespace, ".")+1:] + id.Name)
+				reg.get(id).TypeNameOverride = override
+				if conflict, ok := overrides[override]; ok {
+					return fmt.Errorf("go-restli: Could not rename conflicting type %q to \"%s.%s\" as it would "+
+						"conflict with other renamed type %q", id.FullName(), id.Namespace, override,
+						conflict.FullName())
+				} else {
+					log.Printf("Conflicting type %q successfully renamed to \"%s.%s\"", id.FullName(), id.Namespace, override)
+					overrides[override] = id
+				}
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (reg *typeRegistry) TypesInPackageRoot(packageRoot string) IdentifierSet {
+	return reg.packageRoots[packageRoot]
 }
 
 type Path []Identifier
@@ -135,12 +232,14 @@ func (p Path) SeenNode(id Identifier) bool {
 
 func (p Path) IntroducesCycle(nextNode Identifier) Path {
 	inSameNamespace := true
+	nextPkg := nextNode.PackagePath()
 	for i := len(p) - 1; i >= 0; i-- {
-		if p[i].Namespace != nextNode.Namespace {
+		pIPkg := p[i].PackagePath()
+		if pIPkg != nextPkg {
 			inSameNamespace = false
 			continue
 		}
-		if !inSameNamespace && p[i].Namespace == nextNode.Namespace {
+		if !inSameNamespace && pIPkg == nextPkg {
 			return append(append(Path(nil), p[i:]...), nextNode)
 		}
 	}
@@ -149,10 +248,15 @@ func (p Path) IntroducesCycle(nextNode Identifier) Path {
 
 var PagingContextIdentifier = Identifier{
 	Name:      "PagingContext",
-	Namespace: RestLiDataPackage,
+	Namespace: "restlidata",
 }
 
-var RawRecordContextIdentifier = Identifier{
+var RawRecordIdentifier = Identifier{
 	Name:      "RawRecord",
-	Namespace: RestLiDataPackage,
+	Namespace: "restlidata",
+}
+
+var EmptyRecordIdentifier = Identifier{
+	Name:      "EmptyRecord",
+	Namespace: "com.linkedin.restli.common",
 }

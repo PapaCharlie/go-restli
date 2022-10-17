@@ -7,19 +7,19 @@ import (
 )
 
 type compactJsonWriter struct {
-	jwriter.Writer
+	*jwriter.Writer
 }
 
 // NewCompactJsonWriter returns a Writer that serializes objects using JSON. This representation has no extraneous
 // whitespace and is intended for wire transport.
 func NewCompactJsonWriter() Writer {
-	return newGenericWriter(new(compactJsonWriter), nil)
+	return newGenericWriter(&compactJsonWriter{new(jwriter.Writer)}, nil)
 }
 
 // NewCompactJsonWriterWithExcludedFields returns a Writer that serializes objects using JSON, excluding any fields
 // matched by the given PathSpec. This representation has no extraneous whitespace and is intended for wire transport.
 func NewCompactJsonWriterWithExcludedFields(excludedFields PathSpec) Writer {
-	return newGenericWriter(new(compactJsonWriter), excludedFields)
+	return newGenericWriter(&compactJsonWriter{new(jwriter.Writer)}, excludedFields)
 }
 
 func (c *compactJsonWriter) writeMapStart() {
@@ -64,6 +64,14 @@ func (c *compactJsonWriter) writeArrayEnd() {
 func (c *compactJsonWriter) writeEmptyArray() {
 	c.writeArrayStart()
 	c.writeArrayEnd()
+}
+
+func (c *compactJsonWriter) getWriter() *jwriter.Writer {
+	return c.Writer
+}
+
+func (c *compactJsonWriter) setWriter(w *jwriter.Writer) {
+	c.Writer = w
 }
 
 func (c *compactJsonWriter) WriteInt(v int) {
@@ -116,7 +124,7 @@ type prettyJsonWriter struct {
 // array items using newlines and provides indentation for nested objects. It generates a lot of unnecessary bytes and
 // is intended primarily for debugging or human-readability purposes.
 func NewPrettyJsonWriter() Writer {
-	return newGenericWriter(new(prettyJsonWriter), nil)
+	return newGenericWriter(&prettyJsonWriter{compactJsonWriter: compactJsonWriter{new(jwriter.Writer)}}, nil)
 }
 
 // NewPrettyJsonWriterWithExcludedFields returns a Writer that serializes objects using JSON, excluding any fields
@@ -124,7 +132,7 @@ func NewPrettyJsonWriter() Writer {
 // indentation for nested objects. It generates a lot of unnecessary bytes and is intended primarily for debugging or
 // human-readability purposes.
 func NewPrettyJsonWriterWithExcludedFields(excludedFields PathSpec) Writer {
-	return newGenericWriter(new(prettyJsonWriter), excludedFields)
+	return newGenericWriter(&prettyJsonWriter{compactJsonWriter: compactJsonWriter{new(jwriter.Writer)}}, excludedFields)
 }
 
 func (p *prettyJsonWriter) incrementIndent() {

@@ -15,7 +15,7 @@ func (f *Finder) FuncName() string {
 }
 
 func (f *Finder) FuncParamNames() []Code {
-	if len(f.Params) > 0 {
+	if f.hasParams() {
 		return []Code{QueryParams}
 	} else {
 		return nil
@@ -23,7 +23,7 @@ func (f *Finder) FuncParamNames() []Code {
 }
 
 func (f *Finder) FuncParamTypes() []Code {
-	if len(f.Params) > 0 {
+	if f.hasParams() {
 		return []Code{Op("*").Qual(f.Resource.PackagePath(), f.paramsStructType())}
 	} else {
 		return nil
@@ -51,7 +51,7 @@ func (f *Finder) paramsStructType() string {
 func (f *Finder) GenerateCode() *utils.CodeFile {
 	c := f.Resource.NewCodeFile("findBy" + utils.ExportedIdentifier(f.Name))
 
-	if len(f.Params) > 0 {
+	if f.hasParams() {
 		params := &types.Record{
 			NamedType: types.NamedType{
 				Identifier: utils.Identifier{
@@ -60,7 +60,8 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 				},
 				Doc: fmt.Sprintf("%s provides the parameters to the %s finder", f.paramsStructType(), f.Name),
 			},
-			Fields: f.Params,
+			Fields:   f.Params,
+			Includes: f.includes(),
 		}
 		c.Code.Add(params.GenerateStruct()).Line().Line().
 			Add(params.GenerateQueryParamMarshaler(&f.Name, nil)).Line().Line().
@@ -87,7 +88,7 @@ func (f *Finder) GenerateCode() *utils.CodeFile {
 		}
 
 		var qp Code
-		if len(f.Params) > 0 {
+		if f.hasParams() {
 			qp = QueryParams
 		} else {
 			qp = Id(f.paramsStructType())

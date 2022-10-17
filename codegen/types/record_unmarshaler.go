@@ -14,11 +14,11 @@ func AddNewInstance(def *Statement, receiver, typeName string) {
 	).Line().Line()
 }
 
-func AddUnmarshalRestli(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
-	if pointer.ShouldUsePointer() {
-		AddNewInstance(def, receiver, typeName)
-	}
+const UnmarshalField = "UnmarshalField"
 
+var Found = Code(Id("found"))
+
+func AddUnmarshalRestli(def *Statement, receiver, typeName string, pointer utils.ShouldUsePointer, f func(def *Group)) *Statement {
 	utils.AddFuncOnReceiver(def, receiver, typeName, utils.UnmarshalRestLi, utils.Yes).
 		Params(ReaderParam).
 		Params(Err().Error()).
@@ -34,50 +34,81 @@ func AddUnmarshalRestli(def *Statement, receiver, typeName string, pointer utils
 			def.Return(Qual(utils.RestLiCodecPackage, unmarshalJSON).Call(data, Id(receiver)))
 		}).Line().Line()
 
+	if pointer.ShouldUsePointer() {
+		AddNewInstance(def, receiver, typeName)
+	}
+
 	return def
+}
+
+func (r *Record) GenerateUnmarshalField(batchKeyType *RestliType) *Statement {
+	params := []Code{ReaderParam, Add(FieldParamName).String()}
+	if batchKeyType != nil {
+		params = append(params, Add(Ids).Add((&RestliType{Array: batchKeyType}).PointerType()))
+	}
+	return utils.AddFuncOnReceiver(Empty(), r.Receiver(), r.TypeName(), UnmarshalField, RecordShouldUsePointer).
+		Params(params...).
+		Params(Add(Found).Bool(), Err().Error()).
+		BlockFunc(func(def *Group) {
+			if len(r.Fields) == 0 && len(r.Includes) == 0 && batchKeyType == nil {
+				def.Return(False(), Nil())
+				return
+			}
+
+			for _, i := range r.Includes {
+				def.List(Found, Err()).Op("=").Id(r.Receiver()).Dot(i.TypeName()).Dot(UnmarshalField).Call(Reader, FieldParamName)
+				def.Add(utils.IfErrReturn(Found, Err()))
+				def.If(Found).Block(Return(Found, Nil()))
+			}
+			def.Switch(FieldParamName).BlockFunc(func(def *Group) {
+				if batchKeyType != nil {
+					def.Case(Lit(batchkeyset.EntityIDsField)).BlockFunc(func(def *Group) {
+						def.Add(Found).Op("=").True()
+						def.Add(Reader.Read(RestliType{Array: batchKeyType}, Reader, Op("*").Add(Ids)))
+					})
+				}
+				for _, f := range r.Fields {
+					def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
+						def.Add(Found).Op("=").True()
+						r.readField(def, f, Reader)
+					})
+				}
+			})
+			def.Return(Found, Err())
+		}).
+		Line().Line()
 }
 
 func (r *Record) GenerateUnmarshalRestLi() *Statement {
 	requiredFields, def := r.generateRequiredFields(nil)
-	return AddUnmarshalRestli(def, r.Receiver(), r.Name, RecordShouldUsePointer, func(def *Group) {
+	def.Add(r.GenerateUnmarshalField(nil))
+	return AddUnmarshalRestli(def, r.Receiver(), r.TypeName(), RecordShouldUsePointer, func(def *Group) {
 		r.generateUnmarshaler(def, requiredFields, nil)
 	})
 }
 
-func (r *Record) generateUnmarshaler(def *Group, requiredFields Code, batchKeyType *RestliType) {
-	if len(r.Fields) == 0 {
-		def.Return(Reader.ReadRecord(Reader, Nil(), func(reader Code, field Code, def *Group) {
-			def.Return(Reader.Skip(reader))
-		}))
-		return
+func (r *Record) readField(def *Group, f Field, reader Code) {
+	accessor := r.fieldAccessor(f)
+
+	if f.IsOptionalOrDefault() {
+		def.Add(accessor).Op("=").New(f.Type.GoType())
+		if f.Type.Reference == nil {
+			accessor = Op("*").Add(accessor)
+		}
 	}
 
-	ids := Code(Id(batchkeyset.EntityIDsField))
+	def.Add(Reader.Read(f.Type, reader, accessor))
+}
+
+func (r *Record) generateUnmarshaler(def *Group, requiredFields Code, batchKeyType *RestliType) {
 	def.Err().Op("=").Add(Reader.ReadRecord(Reader, requiredFields, func(reader, field Code, def *Group) {
-		def.Switch(field).BlockFunc(func(def *Group) {
-			if batchKeyType != nil {
-				def.Case(Lit(batchkeyset.EntityIDsField)).BlockFunc(func(def *Group) {
-					def.Add(Reader.Read(RestliType{Array: batchKeyType}, reader, ids))
-				})
-			}
-			for _, f := range r.Fields {
-				def.Case(Lit(f.Name)).BlockFunc(func(def *Group) {
-					accessor := r.fieldAccessor(f)
-
-					if f.IsOptionalOrDefault() {
-						def.Add(accessor).Op("=").New(f.Type.GoType())
-						if f.Type.Reference == nil {
-							accessor = Op("*").Add(accessor)
-						}
-					}
-
-					def.Add(Reader.Read(f.Type, reader, accessor))
-				})
-			}
-			def.Default().BlockFunc(func(def *Group) {
-				def.Err().Op("=").Add(Reader.Skip(reader))
-			})
-		})
+		callParams := []Code{reader, field}
+		if batchKeyType != nil {
+			callParams = append(callParams, Op("&").Add(Ids))
+		}
+		def.List(Found, Err()).Op(":=").Id(r.Receiver()).Dot(UnmarshalField).Call(callParams...)
+		def.Add(utils.IfErrReturn(Err()))
+		def.If(Op("!").Add(Found)).Block(Err().Op("=").Add(Reader.Skip(reader)))
 		def.Return(Err())
 	}))
 	if batchKeyType != nil {
@@ -91,25 +122,27 @@ func (r *Record) generateUnmarshaler(def *Group, requiredFields Code, batchKeyTy
 	}
 
 	if batchKeyType != nil {
-		def.Return(ids, Err())
+		def.Return(Ids, Nil())
 	} else {
-		def.Return(Err())
+		def.Return(Nil())
 	}
 }
 
+var Ids = Code(Id(batchkeyset.EntityIDsField))
+
 func (r *Record) GenerateQueryParamUnmarshaler(batchKeyType *RestliType) Code {
 	requiredFields, def := r.generateRequiredFields(batchKeyType)
-	ids := Code(Id(batchkeyset.EntityIDsField))
 
 	var params []Code
 	if batchKeyType != nil {
-		params = append(params, Add(ids).Index().Add(batchKeyType.ReferencedType()))
+		params = append(params, Add(Ids).Index().Add(batchKeyType.ReferencedType()))
 	}
 	params = append(params, Err().Error())
 
-	AddNewInstance(def, r.Receiver(), r.Name)
+	AddNewInstance(def, r.Receiver(), r.TypeName())
+	def.Add(r.GenerateUnmarshalField(batchKeyType))
 
-	return utils.AddFuncOnReceiver(def, r.Receiver(), r.Name, "DecodeQueryParams", RecordShouldUsePointer).
+	return utils.AddFuncOnReceiver(def, r.Receiver(), r.TypeName(), "DecodeQueryParams", RecordShouldUsePointer).
 		Params(Add(Reader).Qual(utils.RestLiCodecPackage, "QueryParamsReader")).
 		Params(params...).
 		BlockFunc(func(def *Group) {
@@ -126,23 +159,31 @@ func (r *Record) generateRequiredFields(batchKeyType *RestliType) (requiredField
 		}
 	}
 
+	const suffix = "RequiredFields"
+	requiredFields = Code(Id(r.TypeName() + suffix))
+	def = Var().Add(requiredFields).Op("=").
+		Add(utils.NewRequiredFields).CustomFunc(utils.MultiLineCall, func(def *Group) {
+		for _, i := range r.Includes {
+			def.Qual(i.PackagePath(), i.TypeName()+suffix)
+		}
+	})
+
 	if hasRequiredFields {
-		requiredFields = Code(Id("_" + r.Name + "RequiredFields"))
-		def = Var().Add(requiredFields).Op("=").Add(utils.RequiredFields).ValuesFunc(func(def *Group) {
+		const suffix = "RequiredFields"
+		requiredFields = Code(Id(r.TypeName() + suffix))
+		def.Dot("Add").CustomFunc(utils.MultiLineCall, func(def *Group) {
 			for _, f := range r.Fields {
 				if !f.IsOptionalOrDefault() {
-					def.Line().Lit(f.Name)
+					def.Lit(f.Name)
 				}
 			}
 			if batchKeyType != nil {
-				def.Line().Lit(batchkeyset.EntityIDsField)
+				def.Qual(utils.BatchKeySetPackage, "EntityIDsField")
 			}
-			def.Line()
-		}).Line().Line()
-	} else {
-		requiredFields = Nil()
-		def = Empty()
+		})
 	}
+
+	def.Line().Line()
 
 	return requiredFields, def
 }

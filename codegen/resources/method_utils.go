@@ -124,7 +124,7 @@ func registerParams(m MethodImplementation) []Code {
 		params = append(params, Add(name).Add(types[i]))
 	}
 
-	if len(m.GetMethod().Params) == 0 {
+	if !m.GetMethod().hasParams() {
 		p := Id("_")
 		if rM, ok := m.(*RestMethod); ok && rM.usesBatchQueryParams() {
 			p.Op("*").Qual(utils.RestLiPackage, "SliceBatchQueryParams").Index(rM.EntityKeyType())

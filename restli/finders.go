@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 )
 
 // Find executes a rest.li find request
@@ -15,13 +15,13 @@ func Find[V restlicodec.Marshaler](
 	ctx context.Context,
 	rp ResourcePath,
 	query QueryParamsEncoder,
-) (results *restlidata.Elements[V], err error) {
+) (results *common.Elements[V], err error) {
 	req, err := NewGetRequest(c, ctx, rp, query, Method_finder)
 	if err != nil {
 		return nil, err
 	}
 
-	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*restlidata.Elements[V]])
+	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*common.Elements[V]])
 	return results, err
 }
 
@@ -31,13 +31,13 @@ func FindWithMetadata[V, M restlicodec.Marshaler](
 	ctx context.Context,
 	rp ResourcePath,
 	query QueryParamsEncoder,
-) (results *restlidata.ElementsWithMetadata[V, M], err error) {
+) (results *common.ElementsWithMetadata[V, M], err error) {
 	req, err := NewGetRequest(c, ctx, rp, query, Method_finder)
 	if err != nil {
 		return nil, err
 	}
 
-	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*restlidata.ElementsWithMetadata[V, M]])
+	results, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*common.ElementsWithMetadata[V, M]])
 	return results, err
 }
 
@@ -45,7 +45,7 @@ func RegisterFinder[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDe
 	s Server,
 	segments []ResourcePathSegment,
 	name string,
-	find func(*RequestContext, RP, QP) (*restlidata.Elements[V], error),
+	find func(*RequestContext, RP, QP) (*common.Elements[V], error),
 ) {
 	registerFinder(s, segments, name,
 		func(ctx *RequestContext, rp RP, qp QP) (restlicodec.Marshaler, error) {
@@ -57,7 +57,7 @@ func RegisterFinderWithMetadata[RP ResourcePathUnmarshaler[RP], QP restlicodec.Q
 	s Server,
 	segments []ResourcePathSegment,
 	name string,
-	find func(*RequestContext, RP, QP) (*restlidata.ElementsWithMetadata[V, M], error),
+	find func(*RequestContext, RP, QP) (*common.ElementsWithMetadata[V, M], error),
 ) {
 	registerFinder(s, segments, name,
 		func(ctx *RequestContext, rp RP, p QP) (restlicodec.Marshaler, error) {

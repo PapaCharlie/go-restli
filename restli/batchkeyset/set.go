@@ -22,14 +22,9 @@ type BatchKeySet[T any] interface {
 }
 
 func generateRawQuery[T any](set batchKeySet[T]) (string, error) {
-	writer := restlicodec.NewRestLiQueryParamsWriter()
-	err := writer.WriteParams(func(paramNameWriter func(key string) restlicodec.Writer) error {
+	return restlicodec.BuildQueryParams(func(paramNameWriter func(key string) restlicodec.Writer) error {
 		return encode(set, paramNameWriter)
 	})
-	if err != nil {
-		return "", err
-	}
-	return writer.Finalize(), nil
 }
 
 func encode[T any](set batchKeySet[T], paramNameWriter func(string) restlicodec.Writer) (err error) {

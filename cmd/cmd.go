@@ -3,8 +3,10 @@ package cmd
 import (
 	"bytes"
 	"compress/gzip"
+	_ "embed"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -21,10 +23,10 @@ import (
 var Version string
 
 type JarStdinParameters struct {
-	ResolverPath               string   `json:"resolverPath"`
-	RestSpecPaths              []string `json:"restSpecPaths"`
-	NamedDataSchemasToGenerate []string `json:"namedDataSchemasToGenerate"`
-	RawRecords                 []string `json:"rawRecords"`
+	PackageRoot  string   `json:"packageRoot,omitempty"`
+	Dependencies []string `json:"dependencies,omitempty"`
+	Inputs       []string `json:"inputs,omitempty"`
+	RawRecords   []string `json:"rawRecords,omitempty"`
 }
 
 func CodeGenerator() *cobra.Command {
@@ -34,69 +36,59 @@ func CodeGenerator() *cobra.Command {
 		Version:      Version,
 	}
 
-	var specBytes []byte
 	var outputDir string
-
-	cmd.Flags().StringVarP(&utils.PackagePrefix, "package-prefix", "p", "",
-		"All files will be generated as sub-packages of this package.")
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", ".", "The directory in which to output the generated files")
+
+	var manifestDependencies []string
+	cmd.Flags().StringArrayVarP(&manifestDependencies, "manifest-dependencies", "m", nil,
+		`Files or directories that may contain other "`+utils.ManifestFile+`" manifest files that this manifest may `+
+			`depend on. Note that this may simply be "$GOPATH" or the "vendor" directory after "go mod vendor" is run.`)
+
+	var generateWithPackageRoot bool
+	cmd.Flags().BoolVar(&generateWithPackageRoot, "generate-with-package-root", false,
+		"If specified, the generated files will be generated with the package root directory structure.")
+
+	var namespaceAllowList []string
+	const namespaceAllowListFlag = "namespace-allow-list"
+	cmd.Flags().StringArrayVar(&namespaceAllowList, namespaceAllowListFlag, nil,
+		"HIDDEN FLAG, USE AT YOUR OWN RISK: if provided, any data type whose namespace is not in this list will not "+
+			"be generated")
+	cmd.Flag(namespaceAllowListFlag).Hidden = true
+
+	var manifestBytes []byte
 
 	if len(Jar) > 0 {
 		var params JarStdinParameters
 
-		cmd.Use += " REST_SPEC [REST_SPEC...]"
+		cmd.Use += " INPUTS..."
 		cmd.Short = strings.TrimSpace(`
-This standalone executable will parse all the .pdsc/.pdl files in -r/--resolver-path and produce
-bindings for the given rest specs, and all necessary associated schemas. By default, bindings are
-generated only for the schemas required to interact with the given resources, but this behavior can
-be overridden with -n/--named-schemas-to-generate which can be used to specify some extra schemas
-that should also have bindings. If named schemas are specified, it's not necessary to specify rest
-specs.`)
-		cmd.Flags().StringVarP(&params.ResolverPath, "resolver-path", "r", "",
-			"The directory that contains all the .pdsc/.pdl files that may be needed")
-		cmd.Flags().StringArrayVarP(&params.NamedDataSchemasToGenerate, "named-schemas-to-generate", "n", nil,
-			"Bindings for these schemas will be generated (can be used without .restspec.json files)")
+This standalone executable will parse all the .pdsc/.pdl and .restspec.json
+files in the given inputs and produce bindings for each model and resource.
+Inputs can be directories, files or JARs`)
+		cmd.Flags().StringVarP(&params.PackageRoot, "package-root", "p", "",
+			"All files will be generated as sub-packages of this package.")
+		cmd.Flags().StringArrayVarP(&params.Dependencies, "dependencies", "d", nil,
+			"The directories, files or JARs that contains all the PDSC/PDL schema definitions required to "+
+				"generate the inputs.")
 		cmd.Flags().StringArrayVar(&params.RawRecords, "raw-records", nil,
 			"These records will be interpreted as `restli.RawRecord`s instead of their actual underlying type.")
 
-		cmd.Args = func(_ *cobra.Command, args []string) error {
-			params.RestSpecPaths = args
-			if len(params.RestSpecPaths) == 0 && len(params.NamedDataSchemasToGenerate) == 0 {
-				return errors.New("go-restli: Must specify at least one restspec file or named data schema")
-			}
-
-			if params.ResolverPath == "" {
-				return errors.New("go-restli: Must specify a schema dir")
-			} else if _, err := os.Stat(params.ResolverPath); err != nil {
-				return errors.Wrap(err, "go-restli: Must specify a valid schema dir: %w")
-			}
-
-			return nil
-		}
-
 		cmd.PreRunE = func(_ *cobra.Command, args []string) (err error) {
-			specBytes, err = ExecuteJar(params)
+			params.Inputs = args
+			manifestBytes, err = ExecuteJar(params)
 			return err
 		}
 	} else {
-		cmd.Use += " [SPEC_FILE]"
-		cmd.Short = "Generate rest.li bindings for the given parsed specs"
+		cmd.Use += " MANIFEST"
+		cmd.Short = strings.TrimSpace(`
+Generate rest.li bindings for the given manifest. If MANIFEST is -, the input
+manifest will be read from stdin.`)
 
 		cmd.Args = func(_ *cobra.Command, args []string) error {
 			switch len(args) {
 			case 0:
-				stat, err := os.Stdin.Stat()
-				if err != nil {
-					return errors.Wrap(err, "go-restli: Could not stat stdin")
-				}
-				if (stat.Mode() & os.ModeCharDevice) != 0 {
-					return errors.New("go-restli: No stdin and no spec file given")
-				}
-				return nil
+				return errors.New("go-restli: No manifest specified")
 			case 1:
-				if _, err := os.Stat(args[0]); err != nil {
-					return errors.Wrap(err, "go-restli: Must specify a valid spec file")
-				}
 				return nil
 			default:
 				return errors.New("go-restli: Too many arguments")
@@ -104,13 +96,53 @@ specs.`)
 		}
 
 		cmd.PreRunE = func(_ *cobra.Command, args []string) (err error) {
-			specBytes, err = ReadSpec(args)
+			manifestFile := args[0]
+			if manifestFile == "-" {
+				stat, err := os.Stdin.Stat()
+				if err != nil {
+					return errors.Wrap(err, "go-restli: Could not stat stdin")
+				}
+				if (stat.Mode() & os.ModeCharDevice) != 0 {
+					return errors.New("go-restli: No stdin and no manifest file given")
+				}
+				manifestFile = os.Stdin.Name()
+			}
+			manifestBytes, err = os.ReadFile(manifestFile)
 			return err
 		}
 	}
 
-	cmd.RunE = func(*cobra.Command, []string) error {
-		return GenerateCode(specBytes, outputDir)
+	cmd.RunE = func(*cobra.Command, []string) (err error) {
+		var manifests []*GoRestliManifest
+		for _, d := range manifestDependencies {
+			err = filepath.WalkDir(d, func(path string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+				if strings.HasSuffix(path, utils.ManifestFile) {
+					var data []byte
+					data, err = os.ReadFile(path)
+					if err != nil {
+						return err
+					}
+
+					// Reading the dependent manifests is enough to populate the TypeRegistry. There is no need to
+					// capture the manifests directly.
+					var m *GoRestliManifest
+					m, err = ReadManifest(data)
+					if err != nil {
+						return errors.Wrapf(err, "go-restli: Could not deserialize manifest from %q", path)
+					}
+					manifests = append(manifests, m)
+				}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		return GenerateCode(outputDir, manifestBytes, manifests, generateWithPackageRoot, namespaceAllowList)
 	}
 
 	return cmd
@@ -161,46 +193,61 @@ func ExecuteJar(params JarStdinParameters) ([]byte, error) {
 	return stdout, nil
 }
 
-func ReadSpec(args []string) ([]byte, error) {
-	if len(args) == 0 {
-		specBytes, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return nil, errors.Wrap(err, "go-restli: Could not read spec from stdin")
-		}
-		return specBytes, nil
-	} else {
-		specByes, err := ioutil.ReadFile(args[0])
-		if err != nil {
-			return nil, errors.Wrap(err, "go-restli: Could not open spec file")
-		}
-		return specByes, nil
-	}
-}
-
-func GenerateCode(specBytes []byte, outputDir string) error {
+func GenerateCode(
+	outputDir string,
+	manifestBytes []byte,
+	manifestDependencies []*GoRestliManifest,
+	generateWithPackageRoot bool,
+	namespaceAllowList []string,
+) error {
 	err := utils.CleanTargetDir(outputDir)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Could not clean up output dir %q", outputDir)
 	}
 
-	var schemas GoRestliSpec
-
 	_ = os.MkdirAll(outputDir, os.ModePerm)
-	parsedSpecs := filepath.Join(outputDir, utils.ParsedSpecsFile)
-	err = ioutil.WriteFile(parsedSpecs, specBytes, utils.ReadOnlyPermissions)
+	manifestFile := filepath.Join(outputDir, utils.ManifestFile)
+	err = ioutil.WriteFile(manifestFile, manifestBytes, utils.ReadOnlyPermissions)
 	if err != nil {
-		return errors.Wrapf(err, "go-restli: Failed to write parsed specs to %q", parsedSpecs)
+		return errors.Wrapf(err, "go-restli: Failed to write parsed manifest to %q", manifestFile)
+	}
+	log.Printf("Wrote manifest to: %q", manifestFile)
+
+	manifest, err := ReadManifest(manifestBytes)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not deserialize manifest")
 	}
 
-	err = json.NewDecoder(bytes.NewBuffer(specBytes)).Decode(&schemas)
+	manifestDependencies = append(manifestDependencies, manifest)
+	err = RegisterManifests(manifestDependencies)
 	if err != nil {
-		return errors.Wrapf(err, "go-restli: Could not deserialize GoRestliSpec")
+		return errors.Wrapf(err, "go-restli: Could not register all manifest types")
 	}
 
-	codeFiles := append(utils.TypeRegistry.GenerateTypeCode(), schemas.GenerateClientCode()...)
+	allowList := map[string]bool{}
+	for _, ns := range namespaceAllowList {
+		allowList[ns] = true
+	}
+
+	var codeFiles []*utils.CodeFile
+	for id := range utils.TypeRegistry.TypesInPackageRoot(manifest.PackageRoot) {
+		if ok := allowList[id.Namespace]; len(allowList) > 0 && !ok {
+			continue
+		}
+		t := id.Resolve()
+		codeFiles = append(codeFiles, &utils.CodeFile{
+			SourceFile:  t.GetSourceFile(),
+			PackagePath: t.GetIdentifier().PackagePath(),
+			PackageRoot: t.GetIdentifier().PackageRoot(),
+			Filename:    t.GetIdentifier().TypeName(),
+			Code:        t.GenerateCode(),
+		})
+	}
+
+	codeFiles = append(codeFiles, manifest.GenerateClientCode()...)
 
 	for _, code := range codeFiles {
-		err = code.Write(outputDir, true)
+		err = code.Write(outputDir, generateWithPackageRoot)
 		if err != nil {
 			return errors.Wrapf(err, "go-restli: Could not generate code for %+v:\n%s", code, code.Code.GoString())
 		}
@@ -214,7 +261,7 @@ func GenerateCode(specBytes []byte, outputDir string) error {
 	return nil
 }
 
-func GenerateAllImportsTest(outputDir string, codeFiles []*utils.CodeFile) error {
+func GenerateAllImportsTest(outputDir string, codeFiles []*utils.CodeFile) (err error) {
 	imports := make(map[string]bool)
 	for _, code := range codeFiles {
 		if code == nil {
@@ -223,14 +270,16 @@ func GenerateAllImportsTest(outputDir string, codeFiles []*utils.CodeFile) error
 		imports[code.PackagePath] = true
 	}
 	f := jen.NewFile("main")
+
+	f.HeaderComment("Code generated by \"github.com/PapaCharlie/go-restli\"; DO NOT EDIT.")
+
 	for p := range imports {
 		f.Anon(p)
 	}
 	f.Func().Id("TestAllImports").Params(jen.Op("*").Qual("testing", "T")).Block()
 
 	out := filepath.Join(outputDir, "all_imports_test"+utils.GeneratedFileSuffix)
-	_ = os.Remove(out)
-	err := utils.WriteJenFile(out, f)
+	err = utils.WriteJenFile(out, f)
 	if err != nil {
 		return errors.Wrapf(err, "Could not write all imports file: %+v", err)
 	}

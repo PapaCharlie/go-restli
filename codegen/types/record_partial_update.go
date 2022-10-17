@@ -24,7 +24,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 			"setting the value of a field in Update represents setting that field in the\n"+
 			"current struct. Other fields in this struct represent record fields that can\n"+
 			"themselves be partially updated.",
-		r.PartialUpdateStructName(), r.Name)
+		r.PartialUpdateStructName(), r.TypeName())
 
 	isEmpty := len(r.Fields) == 0
 	fields := r.SortedFields()
@@ -61,8 +61,8 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 
 	checker := Code(Id("checker"))
 	checkAllFields := func(def *Group, keyChecker Code) {
-		def.Add(checker).Op(":=").Qual(utils.RestLiPackage, "PartialUpdateFieldChecker").Values(Dict{
-			Id("RecordType"): Lit(r.Identifier.String()),
+		def.Add(checker).Op(":=").Qual(utils.RestLiPatchPackage, "PartialUpdateFieldChecker").Values(Dict{
+			Id("RecordType"): Lit(r.Identifier.FullName()),
 		})
 		for _, f := range r.Fields {
 			var d Code
@@ -89,7 +89,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		}
 	}
 
-	patch := Qual(utils.RestLiPackage, "PatchField")
+	patch := Qual(utils.RestLiPatchPackage, "PatchField")
 
 	const marshalPatch = "MarshalRestLiPatch"
 	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), marshalPatch, utils.Yes).
@@ -187,7 +187,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		}).Line().Line()
 
 	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
-		def.Return(Add(Reader.ReadRecord(Reader, Qual(utils.RestLiPackage, "RequiredPatchRecordFields"), func(reader, key Code, def *Group) {
+		def.Return(Add(Reader.ReadRecord(Reader, Qual(utils.RestLiPatchPackage, "RequiredPatchRecordFields"), func(reader, key Code, def *Group) {
 			def.If(Add(key).Op("==").Add(patch)).Block(
 				Return(Id(r.Receiver()).Dot(unmarshalPatch).Call(reader)),
 			).Else().Block(
@@ -234,14 +234,13 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 	})
 
 	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
-		field := Id("field")
-		def.Var().Add(field).String()
+		def.Var().Add(FieldParamName).String()
 
 		def.Return(Reader.ReadArray(Reader, func(itemReader Code, def *Group) {
-			def.Add(Reader.Read(deleteType, itemReader, field))
+			def.Add(Reader.Read(deleteType, itemReader, FieldParamName))
 			def.Add(utils.IfErrReturn(Err())).Line()
 
-			def.Switch(field).BlockFunc(func(def *Group) {
+			def.Switch(FieldParamName).BlockFunc(func(def *Group) {
 				for _, f := range r.Fields {
 					if !f.IsOptionalOrDefault() {
 						continue

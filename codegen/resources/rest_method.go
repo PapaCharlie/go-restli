@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/PapaCharlie/go-restli/codegen/types"
 	"github.com/PapaCharlie/go-restli/codegen/utils"
@@ -70,7 +71,7 @@ func (r *RestMethod) FuncParamNames() (params []Code) {
 	case restli.Method_batch_create, restli.Method_batch_update, restli.Method_batch_partial_update:
 		params = append(params, Entities)
 	}
-	if len(r.Params) > 0 {
+	if r.hasParams() {
 		params = append(params, QueryParams)
 	}
 	return params
@@ -91,7 +92,7 @@ func (r *RestMethod) FuncParamTypes() (params []Code) {
 	case restli.Method_batch_partial_update:
 		params = append(params, Map(r.EntityKeyType()).Add(r.PartialEntityUpdateType()))
 	}
-	if len(r.Params) > 0 {
+	if r.hasParams() {
 		params = append(params, Op("*").Qual(r.Resource.PackagePath(), r.queryParamsStructName()))
 	}
 	return params
@@ -148,7 +149,7 @@ func (r *RestMethod) GenericParams() Code {
 func (r *RestMethod) restLiMethod() restli.Method {
 	method, ok := restli.MethodNameMapping[r.Name]
 	if !ok {
-		utils.Logger.Panicf("Unknown restli method: %s", r.Name)
+		log.Panicf("Unknown restli method: %s", r.Name)
 	}
 	return method
 }
@@ -164,15 +165,15 @@ func (r *RestMethod) queryParamsStructName() string {
 func (r *RestMethod) clientMethodGenerator(def *Group) {
 	params := r.FuncParamNames()
 
-	if len(r.Params) == 0 {
-		params = append(params, Nil())
-	} else {
+	if r.hasParams() {
 		var errReturns []Code
 		if r.NonErrorFuncReturnParam() != nil {
 			errReturns = append(errReturns, Nil())
 		}
 		errReturns = append(errReturns, Qual(utils.RestLiPackage, "NilQueryParams"))
 		def.If(Add(QueryParams).Op("==").Nil()).Block(Return(errReturns...))
+	} else {
+		params = append(params, Nil())
 	}
 
 	f := r.FuncName()
@@ -224,7 +225,7 @@ func (r *RestMethod) RegisterMethod(server, resource, segments Code) Code {
 func (r *RestMethod) GenerateCode() *utils.CodeFile {
 	c := r.Resource.NewCodeFile(r.Name)
 
-	if len(r.Params) > 0 {
+	if r.hasParams() {
 		p := &types.Record{
 			NamedType: types.NamedType{
 				Identifier: utils.Identifier{
@@ -233,7 +234,8 @@ func (r *RestMethod) GenerateCode() *utils.CodeFile {
 				},
 				Doc: fmt.Sprintf("%s provides the parameters to the %s method", r.queryParamsStructName(), r.Name),
 			},
-			Fields: r.Params,
+			Fields:   r.Params,
+			Includes: r.includes(),
 		}
 		c.Code.Add(p.GenerateStruct()).Line().Line()
 		var batchKeyType *types.RestliType

@@ -5,6 +5,8 @@ import (
 	"log"
 	"reflect"
 	"sort"
+
+	"github.com/mailru/easyjson/jwriter"
 )
 
 // Marshaler is the interface that should be implemented by objects that can be serialized to JSON and ROR2
@@ -87,7 +89,8 @@ type Writer interface {
 	//			keyWriter("baz").WriteInt32(42)
 	//			return nil
 	//		}
-	// Note that not using the inner Writer returned by the keyWriter may result in undefined behavior.
+	// Note that not using the inner Writer returned by the keyWriter will result in undefined behavior. Additionally,
+	// reusing a Writer returned by a previous call to keyWriter will also result in undefined behavior.
 	WriteMap(mapWriter MapWriter) error
 	// WriteArray writes the array items written by the given lambda between array delimiters. The lambda
 	// takes a function that is used to signal that a new item is starting and returns a nested Writer. This
@@ -102,10 +105,11 @@ type Writer interface {
 	//			itemWriter().WriteString("bar")
 	//			return nil
 	//		}
-	// Note that not using the inner Writer returned by the itemWriter may result in undefined behavior.
+	// Note that not using the inner Writer returned by the itemWriter may result in undefined behavior. Additionally,
+	// reusing a Writer returned by a previous call to itemWriter will also result in undefined behavior.
 	WriteArray(arrayWriter ArrayWriter) error
-	// IsKeyExcluded checks whether or not the given key or field name at the current scope should be included in
-	// serialization. Exclusion behavior is already built into the writer but this is intended for Marhsalers that use
+	// IsKeyExcluded checks whether the given key or field name at the current scope should be included in
+	// serialization. Exclusion behavior is already built into the writer but this is intended for Marshalers that use
 	// custom serialization logic on top of the Writer
 	IsKeyExcluded(key string) bool
 	// SetScope returns a copy of the current writer with the given scope. For internal use only by Marshalers that use
@@ -132,6 +136,9 @@ type rawWriter interface {
 	writeArrayEnd()
 	writeEmptyArray()
 
+	getWriter() *jwriter.Writer
+	setWriter(w *jwriter.Writer)
+
 	// The following are exposed directly by jwriter.Writer
 	RawByte(byte)
 	Raw([]byte, error)
@@ -151,104 +158,131 @@ func newGenericWriter(raw rawWriter, excludedFields PathSpec) *genericWriter {
 	return &genericWriter{rawWriter: raw, excludedFields: excludedFields}
 }
 
-func (e *genericWriter) WriteRawBytes(data []byte) {
-	e.rawWriter.Raw(data, nil)
+func (gw *genericWriter) Write(p []byte) (n int, err error) {
+	gw.getWriter().Buffer.AppendBytes(p)
+	return len(p), nil
 }
 
-func (e *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
-	empty := true
-	sub := e.subWriter("")
+func (gw *genericWriter) WriteRawBytes(data []byte) {
+	gw.Raw(data, nil)
+}
 
+func (gw *genericWriter) enterScope(scope string) {
+	gw.scope = append(gw.scope, scope)
+}
+
+func (gw *genericWriter) exitScope() {
+	gw.scope = gw.scope[:len(gw.scope)-1]
+}
+
+func (gw *genericWriter) WriteMap(mapWriter MapWriter) (err error) {
+	type entry struct {
+		key    string
+		writer *jwriter.Writer
+	}
+	var entries []entry
+
+	buf := gw.getWriter()
+
+	started := false
 	err = mapWriter(func(key string) Writer {
-		var writer Writer
-		if !e.IsKeyExcluded(key) {
-			if empty {
-				e.rawWriter.writeMapStart()
-				empty = false
-			} else {
-				e.rawWriter.writeEntryDelimiter()
-			}
-			e.rawWriter.writeKey(key)
-			e.rawWriter.writeKeyDelimiter()
-			writer = sub
-			sub.scope[len(sub.scope)-1] = key
+		if started {
+			// If started is true then a scope was entered and needs to be cleared
+			gw.exitScope()
 		} else {
-			writer = NoopWriter
+			started = true
 		}
-		return writer
+		gw.enterScope(key)
+		if gw.excludedFields.Matches(gw.scope) {
+			return NoopWriter
+		}
+
+		if len(entries) == 0 {
+			gw.writeMapStart()
+		}
+
+		e := entry{
+			key:    key,
+			writer: new(jwriter.Writer),
+		}
+		entries = append(entries, e)
+		gw.setWriter(e.writer)
+		return gw
 	})
 	if err != nil {
 		return err
 	}
+	gw.setWriter(buf)
 
-	if empty {
-		e.rawWriter.writeEmptyMap()
-	} else {
-		e.rawWriter.writeMapEnd()
+	if started {
+		// If started is true then a scope was entered and needs to be cleared
+		gw.exitScope()
 	}
+
+	if len(entries) == 0 {
+		gw.writeEmptyMap()
+		return nil
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].key < entries[j].key })
+	for i, e := range entries {
+		if i != 0 {
+			gw.writeEntryDelimiter()
+		}
+		gw.writeKey(e.key)
+		gw.writeKeyDelimiter()
+		_, _ = e.writer.DumpTo(gw)
+	}
+	gw.writeMapEnd()
 	return nil
 }
 
-func (e *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
+func (gw *genericWriter) WriteArray(arrayWriter ArrayWriter) (err error) {
 	empty := true
-	sub := e.subWriter(WildCard)
+	gw.enterScope(WildCard)
 	err = arrayWriter(func() Writer {
 		if empty {
-			e.rawWriter.writeArrayStart()
+			gw.writeArrayStart()
 			empty = false
 		} else {
-			e.rawWriter.writeArrayItemDelimiter()
+			gw.writeArrayItemDelimiter()
 		}
-		return sub
+		return gw
 	})
 	if err != nil {
 		return err
 	}
+	gw.exitScope()
 
 	if empty {
-		e.rawWriter.writeEmptyArray()
+		gw.writeEmptyArray()
 	} else {
-		e.rawWriter.writeArrayEnd()
+		gw.writeArrayEnd()
 	}
 	return nil
 }
 
-func (e *genericWriter) IsKeyExcluded(key string) bool {
-	e.scope = append(e.scope, key)
-	excluded := e.excludedFields.Matches(e.scope)
-	e.scope = e.scope[:len(e.scope)-1]
-	return excluded
+func (gw *genericWriter) IsKeyExcluded(key string) bool {
+	gw.enterScope(key)
+	defer gw.exitScope()
+	return gw.excludedFields.Matches(gw.scope)
 }
 
-func (e *genericWriter) SetScope(scope ...string) Writer {
+func (gw *genericWriter) SetScope(scope ...string) Writer {
 	var out genericWriter
-	out = *e
+	out = *gw
 	out.scope = scope
 	return &out
 }
 
-func (e *genericWriter) Finalize() string {
-	data, _ := e.rawWriter.BuildBytes()
+func (gw *genericWriter) Finalize() string {
+	data, _ := gw.BuildBytes()
 	return string(data)
 }
 
-func (e *genericWriter) ReadCloser() io.ReadCloser {
-	rc, _ := e.rawWriter.ReadCloser()
+func (gw *genericWriter) ReadCloser() io.ReadCloser {
+	rc, _ := gw.rawWriter.ReadCloser()
 	return rc
-}
-
-func (e *genericWriter) subWriter(key string) *genericWriter {
-	var out genericWriter
-	out = *e
-	out.scope = copyAndAppend(e.scope, key)
-	return &out
-}
-
-func copyAndAppend(a []string, v string) (out []string) {
-	out = make([]string, 0, len(out)+1)
-	out = append(out, a...)
-	out = append(out, v)
-	return out
 }
 
 type ComparablePrimitive interface {
@@ -282,28 +316,13 @@ func WriteGenericMap[K comparable, V any](
 	valueMarshaler GenericMarshaler[V],
 ) (err error) {
 	return writer.WriteMap(func(keyWriter func(key string) Writer) (err error) {
-		if len(entries) == 0 {
-			return nil
-		}
-		sortedEntries := make([]struct {
-			key   string
-			value V
-		}, len(entries))
-		i := 0
+		var key string
 		for k, v := range entries {
-			sortedEntries[i].key, err = keyMarshaler(k)
+			key, err = keyMarshaler(k)
 			if err != nil {
 				return err
 			}
-			sortedEntries[i].value = v
-			i++
-		}
-		sort.Slice(sortedEntries, func(i, j int) bool {
-			return sortedEntries[i].key < sortedEntries[j].key
-		})
-
-		for _, e := range sortedEntries {
-			err = valueMarshaler(e.value, keyWriter(e.key))
+			err = valueMarshaler(v, keyWriter(key))
 			if err != nil {
 				return err
 			}
