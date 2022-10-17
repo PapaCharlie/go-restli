@@ -7,7 +7,7 @@ import (
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey_test"
 	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -170,7 +170,7 @@ func (o *Operation) ComplexkeyBatchDelete(t *testing.T, c Client) func(*testing.
 	require.NoError(t, err)
 
 	expected := &BatchResponse{
-		Results: map[*Complexkey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
+		Results: map[*Complexkey_ComplexKey]*common.BatchEntityUpdateResponse{
 			k1: {
 				Status: 204,
 			},
@@ -186,11 +186,11 @@ func (o *Operation) ComplexkeyBatchDelete(t *testing.T, c Client) func(*testing.
 			MockBatchDelete: func(ctx *restli.RequestContext, keys []*Complexkey_ComplexKey) (results *BatchResponse, err error) {
 				require.Equal(t, delete, keys)
 				results = &BatchResponse{
-					Results: map[*Complexkey_ComplexKey]*restlidata.BatchEntityUpdateResponse{},
+					Results: map[*Complexkey_ComplexKey]*common.BatchEntityUpdateResponse{},
 				}
 				for _, k := range keys {
 					// Explicitly don't set the status to check if the default status kicks in
-					results.Results[&Complexkey_ComplexKey{ComplexKey: k.ComplexKey}] = new(restlidata.BatchEntityUpdateResponse)
+					results.Results[&Complexkey_ComplexKey{ComplexKey: k.ComplexKey}] = new(common.BatchEntityUpdateResponse)
 				}
 				return results, nil
 			},
@@ -359,7 +359,7 @@ func (o *Operation) ComplexkeyBatchUpdate(t *testing.T, c Client) func(*testing.
 	res, err := c.BatchUpdate(updates)
 	require.NoError(t, err)
 	requiredBatchResponseEquals(t, &BatchResponse{
-		Results: map[*Complexkey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
+		Results: map[*Complexkey_ComplexKey]*common.BatchEntityUpdateResponse{
 			k1: {
 				Status: 204,
 			},
@@ -374,7 +374,7 @@ func (o *Operation) ComplexkeyBatchUpdate(t *testing.T, c Client) func(*testing.
 			MockBatchUpdate: func(ctx *restli.RequestContext, entities map[*Complexkey_ComplexKey]*conflictresolution.LargeRecord) (results *BatchResponse, err error) {
 				requireComplexKeyMapEquals(t, updates, entities)
 				return &BatchResponse{
-					Results: map[*Complexkey_ComplexKey]*restlidata.BatchEntityUpdateResponse{
+					Results: map[*Complexkey_ComplexKey]*common.BatchEntityUpdateResponse{
 						&Complexkey_ComplexKey{ComplexKey: k1.ComplexKey}: {},
 						&Complexkey_ComplexKey{ComplexKey: k2.ComplexKey}: {},
 					},

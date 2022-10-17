@@ -31,6 +31,8 @@ func (pk *PathKey) UnmarshalJSON(data []byte) error {
 }
 
 type Resource struct {
+	PackageRoot string `json:"-"`
+
 	Namespace            string                 `json:"namespace"`
 	Doc                  string                 `json:"doc"`
 	SourceFile           string                 `json:"sourceFile"`

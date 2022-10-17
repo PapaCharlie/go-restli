@@ -1,4 +1,4 @@
-package restlidata
+package common
 
 import (
 	"reflect"

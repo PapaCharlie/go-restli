@@ -1,6 +1,7 @@
 package io.papacharlie.gorestli;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import com.linkedin.data.schema.ArrayDataSchema;
 import com.linkedin.data.schema.DataSchema;
 import com.linkedin.data.schema.DataSchemaLocation;
@@ -13,20 +14,18 @@ import com.linkedin.data.schema.TyperefDataSchema;
 import com.linkedin.data.schema.UnionDataSchema;
 import com.linkedin.pegasus.generator.DataSchemaParser;
 import com.linkedin.restli.restspec.CollectionSchema;
-import com.linkedin.restli.restspec.ResourceSchema;
 import com.linkedin.restli.restspec.RestSpecCodec;
-import com.linkedin.restli.tools.snapshot.gen.SnapshotGenerator;
 import io.papacharlie.gorestli.json.ComplexKey;
 import io.papacharlie.gorestli.json.Enum;
 import io.papacharlie.gorestli.json.Fixed;
-import io.papacharlie.gorestli.json.GoRestliSpec.DataType;
+import io.papacharlie.gorestli.json.GoRestliManifest.DataType;
 import io.papacharlie.gorestli.json.PathKey;
 import io.papacharlie.gorestli.json.Record;
 import io.papacharlie.gorestli.json.Record.Field;
 import io.papacharlie.gorestli.json.RestliType;
 import io.papacharlie.gorestli.json.StandaloneUnion;
 import io.papacharlie.gorestli.json.Typeref;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,8 +37,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-import static com.linkedin.data.schema.DataSchema.Type.*;
-import static io.papacharlie.gorestli.json.RestliType.*;
+import static com.linkedin.data.schema.DataSchema.Type.NULL;
+import static com.linkedin.data.schema.DataSchema.Type.RECORD;
+import static com.linkedin.data.schema.DataSchema.Type.TYPEREF;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive;
+import static io.papacharlie.gorestli.json.RestliType.Identifier;
+import static io.papacharlie.gorestli.json.RestliType.JAVA_TO_GO_PRIMTIIVE_TYPE;
+import static io.papacharlie.gorestli.json.RestliType.RAW_RECORD;
+import static io.papacharlie.gorestli.json.RestliType.UnionMember;
 
 
 public class TypeParser {
@@ -47,41 +52,54 @@ public class TypeParser {
   private final Set<String> _rawRecords;
   private final Map<Identifier, DataType> _dataTypes = new HashMap<>();
 
+  // These types are manually defined in go-restli and should never be re-generated
+  private static final Set<Identifier> RESERVED_TYPES = ImmutableSet.of(
+      MethodParser.PAGING_CONTEXT,
+      new Identifier("com.linkedin.restli.common", "EmptyRecord"),
+      new Identifier("restlidata", "RawRecord")
+  );
+
   public TypeParser(DataSchemaParser parser, Set<String> rawRecords) {
     _parser = parser;
     _rawRecords = rawRecords;
   }
 
-  public void extractDataTypes(ResourceSchema resourceSchema) {
-    SnapshotGenerator generator = new SnapshotGenerator(resourceSchema, _parser.getSchemaResolver());
-    for (NamedDataSchema schema : generator.generateModelList()) {
-      addNamedDataSchema(schema);
+  public void addNamedDataSchemas(Map<String, NamedDataSchema> schemas) {
+    Set<String> keysRemaining = new HashSet<>(schemas.keySet());
+    // If there are inter-schema dependencies, it is necessary to consume the schemas in multiple passes since some
+    // schemas may not immediately be resolvable.
+    while (!keysRemaining.isEmpty()) {
+      Set<String> before = new HashSet<>(keysRemaining);
+      keysRemaining.removeIf(key -> addNamedDataSchema(schemas.get(key)));
+      if (before.equals(keysRemaining)) {
+        // If the set of remaining keys does not change between passes then they will never be consumed and this loop
+        // would otherwise never exit.
+        throw new IllegalStateException("Failed to process the following schemas: " + before);
+      }
     }
   }
 
-  public void addNamedDataSchema(NamedDataSchema schema) {
-    File sourceFile = resolveSourceFile(schema);
+  private boolean addNamedDataSchema(NamedDataSchema schema) {
+    Path sourceFile = resolveSourceFile(schema);
     switch (schema.getType()) {
       case RECORD:
-        parseDataType((RecordDataSchema) schema, sourceFile);
-        break;
+        return parseDataType((RecordDataSchema) schema, sourceFile);
       case TYPEREF:
         fromDataSchema(schema, null, null, null);
-        break;
+        return true;
       case ENUM:
         parseDataType((EnumDataSchema) schema, sourceFile);
-        break;
+        return true;
       case FIXED:
         parseDataType((FixedDataSchema) schema, sourceFile);
-        break;
+        return true;
       default:
-        System.err.printf("Don't know what to do with %s%n", schema);
-        break;
+        throw new IllegalArgumentException("Don't know what to do with: " + schema);
     }
   }
 
   public Set<DataType> getDataTypes() {
-    return Collections.unmodifiableSet(new HashSet<>(_dataTypes.values()));
+    return new HashSet<>(_dataTypes.values());
   }
 
   public RestliType parseFromRestSpec(String schema) {
@@ -89,7 +107,7 @@ public class TypeParser {
   }
 
   public PathKey collectionPathKey(String resourceName, String resourceNamespace, CollectionSchema collection,
-      File specFile) {
+      Path specFile) {
     RestliType pkType;
     if (collection.getIdentifier().hasParams()) {
       RestliType keyType = parseFromRestSpec(collection.getIdentifier().getType());
@@ -107,9 +125,9 @@ public class TypeParser {
     return new PathKey(collection.getIdentifier().getName(), pkType);
   }
 
-  private void parseDataType(RecordDataSchema schema, File sourceFile) {
+  private boolean parseDataType(RecordDataSchema schema, Path sourceFile) {
     if (_rawRecords.contains(schema.getFullName())) {
-      return;
+      return true;
     }
 
     List<Field> fields = new ArrayList<>();
@@ -122,12 +140,12 @@ public class TypeParser {
       if (includedFrom != null) {
         // Special case for transitive types (such as unions) that don't exist in PDL but do exist as standalone types
         // in go-restli. Always refer to the included record's type and skip calling fromDataSchema to prevent such
-        // transient types from being generated more than once
-        Record parent = (Record) _dataTypes.get(includedFrom).getNamedType();
-        if (parent == null) {
-          throw new IllegalStateException(includedFrom + " was not yet parsed, "
-              + "SnapshotGenerator.generateModelList iteration order has changed!");
+        // transient types from being generated more than once. Additionally, this logic is necessary to allow the
+        // parsing to be retried if a record depends on another record that has not yet been seen.
+        if (!_dataTypes.containsKey(includedFrom)) {
+          return false;
         }
+        Record parent = (Record) _dataTypes.get(includedFrom).getNamedType();
         fieldRestliType = parent.getField(field.getName())._type;
       } else {
         fieldRestliType = fromDataSchema(
@@ -148,23 +166,29 @@ public class TypeParser {
     }
 
     registerDataType(new DataType(new Record(schema, sourceFile, fields)));
+    return true;
   }
 
-  private void parseDataType(EnumDataSchema schema, File sourceFile) {
+  private void parseDataType(EnumDataSchema schema, Path sourceFile) {
     registerDataType(new DataType(new Enum(schema, sourceFile, schema.getSymbols(), schema.getSymbolDocs())));
   }
 
-  private void parseDataType(FixedDataSchema schema, File sourceFile) {
+  private void parseDataType(FixedDataSchema schema, Path sourceFile) {
     registerDataType(new DataType(new Fixed(schema, sourceFile, schema.getSize())));
   }
 
-  private RestliType fromDataSchema(DataSchema schema, @Nullable String namespace, @Nullable File sourceFile,
+  private RestliType fromDataSchema(DataSchema schema, @Nullable String namespace, @Nullable Path sourceFile,
       @Nullable List<String> hierarchy) {
     if (schema.isPrimitive()) {
       return new RestliType(primitiveType(schema));
     }
 
     if (schema instanceof NamedDataSchema && _rawRecords.contains(((NamedDataSchema) schema).getFullName())) {
+      if (schema.getType() != RECORD) {
+        throw new IllegalArgumentException(String.format(
+            "Only records can be parsed as raw records (got %s for %s",
+            schema.getType(), ((NamedDataSchema) schema).getFullName()));
+      }
       return RAW_RECORD;
     }
 
@@ -214,11 +238,6 @@ public class TypeParser {
             .map(Utils::exportedIdentifier)
             .collect(Collectors.joining("_"));
 
-        Identifier identifier = new Identifier(namespace, name);
-        if (_dataTypes.containsKey(identifier)) {
-          return new RestliType(identifier);
-        }
-
         List<UnionMember> members = unionSchema.getMembers().stream()
             .map(m -> m.getType().getType() == NULL
                 ? null
@@ -241,14 +260,16 @@ public class TypeParser {
   }
 
   private void registerDataType(DataType type) {
-    _dataTypes.putIfAbsent(type.getIdentifier(), type);
+    if (!RESERVED_TYPES.contains(type.getIdentifier())) {
+      _dataTypes.putIfAbsent(type.getIdentifier(), type);
+    }
   }
 
-  private File resolveSourceFile(NamedDataSchema namedSchema) {
+  private Path resolveSourceFile(NamedDataSchema namedSchema) {
     DataSchemaLocation location =
         _parser.getSchemaResolver().nameToDataSchemaLocations().get(namedSchema.getFullName());
     Preconditions.checkNotNull(location, "Could not resolve original location for %s", namedSchema.getFullName());
-    return location.getSourceFile();
+    return location.getSourceFile().toPath();
   }
 
   public static class UnknownTypeException extends RuntimeException {

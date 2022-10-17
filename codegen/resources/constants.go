@@ -32,9 +32,9 @@ var (
 	Context                   = Code(Qual("context", "Context"))
 	RequestContext            = Code(Op("*").Qual(utils.RestLiPackage, "RequestContext"))
 	RequestContextParam       = Code(Add(Ctx).Add(RequestContext))
-	ElementsWithMetadata      = Code(Qual(utils.RestLiDataPackage, "ElementsWithMetadata"))
-	BatchEntityUpdateResponse = Code(Op("*").Qual(utils.RestLiDataPackage, "BatchEntityUpdateResponse"))
-	EmptyRecord               = Code(Qual(utils.RestLiDataPackage, "EmptyRecord"))
+	ElementsWithMetadata      = Code(Qual(utils.RestLiCommonPackage, "ElementsWithMetadata"))
+	BatchEntityUpdateResponse = Code(Op("*").Qual(utils.RestLiCommonPackage, "BatchEntityUpdateResponse"))
+	EmptyRecord               = Code(Qual(utils.RestLiCommonPackage, "EmptyRecord"))
 
 	Rp           = Code(Id("rp"))
 	Ctx          = Code(Id("ctx"))

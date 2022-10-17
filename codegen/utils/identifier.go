@@ -31,16 +31,13 @@ func (i Identifier) PackagePath() string {
 	if i.Name == "" {
 		Logger.Panicf("%+v has no name!", i)
 	}
-	if strings.HasPrefix(i.Namespace, RestLiPackage) {
-		return i.Namespace
-	}
 	var p string
 	if TypeRegistry.IsCyclic(i) {
 		p = "conflictResolution"
 	} else {
 		p = i.Namespace
 	}
-	return FqcpToPackagePath(p)
+	return FqcpToPackagePath(i.PackageRoot(), p)
 }
 
 func (i Identifier) Qual() *jen.Statement {
@@ -51,15 +48,19 @@ func (i *Identifier) Receiver() string {
 	return ReceiverName(i.Name)
 }
 
-func (i *Identifier) Resolve() ComplexType {
-	return TypeRegistry.Resolve(*i)
+func (i Identifier) Resolve() ComplexType {
+	return TypeRegistry.Resolve(i)
 }
 
-func FqcpToPackagePath(fqcp string) string {
+func (i Identifier) PackageRoot() string {
+	return TypeRegistry.PackageRoot(i)
+}
+
+func FqcpToPackagePath(packageRoot string, fqcp string) string {
 	fqcp = strings.Replace(namespaceEscape.ReplaceAllString(fqcp, "${1}_internal${2}"), ".", "/", -1)
 
-	if PackagePrefix != "" {
-		fqcp = filepath.Join(PackagePrefix, fqcp)
+	if packageRoot != "" {
+		fqcp = filepath.Join(packageRoot, fqcp)
 	}
 
 	return fqcp

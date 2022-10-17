@@ -5,6 +5,7 @@ import com.linkedin.data.schema.NamedDataSchema;
 import io.papacharlie.gorestli.json.RestliType.Identifier;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 
 import static io.papacharlie.gorestli.Utils.*;
@@ -13,7 +14,7 @@ import static io.papacharlie.gorestli.Utils.*;
 public class Record extends NamedType {
   public final List<Field> _fields;
 
-  public Record(NamedDataSchema namedDataSchema, File sourceFile, List<Field> fields) {
+  public Record(NamedDataSchema namedDataSchema, Path sourceFile, List<Field> fields) {
     super(namedDataSchema, sourceFile);
     _fields = fields;
   }
@@ -40,7 +41,7 @@ public class Record extends NamedType {
       _name = name;
       _doc = doc;
       _type = type;
-      _isOptional = (isOptional == null) ? false : isOptional;
+      _isOptional = isOptional != null && isOptional;
       _defaultValue = serializeDefaultValue(defaultValue);
       _includedFrom = includedFrom;
     }

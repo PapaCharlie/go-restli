@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,7 +76,7 @@ func newTestTunnellingRequest(t *testing.T, tunnellingThreshold int, withBody bo
 	var err error
 
 	if withBody {
-		req, err = NewJsonRequest(c, ctx, rp, qp, http.MethodPut, Method_partial_update, restlidata.EmptyRecord{}, nil)
+		req, err = NewJsonRequest(c, ctx, rp, qp, http.MethodPut, Method_partial_update, new(common.EmptyRecord), nil)
 	} else {
 		req, err = NewGetRequest(c, ctx, rp, qp, Method_get)
 	}

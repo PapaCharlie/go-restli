@@ -14,7 +14,7 @@ func (pk *PathKey) GoType() *Statement {
 }
 
 func (r *Resource) PackagePath() string {
-	return utils.FqcpToPackagePath(r.Namespace)
+	return utils.FqcpToPackagePath(r.PackageRoot, r.Namespace)
 }
 
 func (r *Resource) LocalType(name string) *Statement {
@@ -24,6 +24,7 @@ func (r *Resource) LocalType(name string) *Statement {
 func (r *Resource) NewCodeFile(filename string) *utils.CodeFile {
 	return &utils.CodeFile{
 		PackagePath: r.PackagePath(),
+		PackageRoot: r.PackageRoot,
 		SourceFile:  r.SourceFile,
 		Filename:    filename,
 		Code:        Empty(),
@@ -84,13 +85,13 @@ func (r *Resource) GenerateCode() []*utils.CodeFile {
 	if r.ResourceSchema != nil {
 		resource.Code.Type().DefsFunc(func(def *Group) {
 			entityType := r.ResourceSchema.ReferencedType()
-			def.Id(Elements).Op("=").Qual(utils.RestLiDataPackage, Elements).Index(entityType)
+			def.Id(Elements).Op("=").Qual(utils.RestLiCommonPackage, Elements).Index(entityType)
 			if r.LastSegment().PathKey != nil {
 				keyType := r.LastSegment().PathKey.Type.ReferencedType()
-				def.Id(CreatedEntity).Op("=").Qual(utils.RestLiDataPackage, CreatedEntity).Index(keyType)
-				def.Id(CreatedAndReturnedEntity).Op("=").Qual(utils.RestLiDataPackage, CreatedAndReturnedEntity).Index(List(keyType, entityType))
+				def.Id(CreatedEntity).Op("=").Qual(utils.RestLiCommonPackage, CreatedEntity).Index(keyType)
+				def.Id(CreatedAndReturnedEntity).Op("=").Qual(utils.RestLiCommonPackage, CreatedAndReturnedEntity).Index(List(keyType, entityType))
 
-				batchResponse := Qual(utils.RestLiDataPackage, BatchResponse)
+				batchResponse := Qual(utils.RestLiCommonPackage, BatchResponse)
 				def.Id(BatchEntities).Op("=").Add(batchResponse).Index(List(keyType, entityType))
 				def.Id(BatchResponse).Op("=").Add(batchResponse).Index(List(keyType, BatchEntityUpdateResponse))
 			}

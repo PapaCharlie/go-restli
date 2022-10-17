@@ -12,7 +12,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 )
 
 type handler func(
@@ -119,7 +119,7 @@ func (r *rootNode) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if errRes, ok := err.(*restlidata.ErrorResponse); ok {
+	if errRes, ok := err.(*common.ErrorResponse); ok {
 		res.Header().Set(ErrorResponseHeader, "true")
 		responseBody = errRes
 		if errRes.Status != nil {
@@ -303,7 +303,7 @@ func (p *pathNode) receive(
 		if r := recover(); r != nil {
 			stack := string(debug.Stack())
 			log.Printf("Failed to handle %q (%s)\n%s", ctx.Request.URL, r, stack)
-			err = &restlidata.ErrorResponse{
+			err = &common.ErrorResponse{
 				Status:     Int32Pointer(http.StatusInternalServerError),
 				Message:    StringPointer(fmt.Sprint(r)),
 				StackTrace: &stack,
@@ -360,13 +360,13 @@ func GetActionNameFromContext(ctx context.Context) string {
 }
 
 func newErrorResponsef(cause error, status int, format string, a ...any) (restlicodec.Marshaler, error) {
-	if e, ok := cause.(*restlidata.ErrorResponse); ok {
+	if e, ok := cause.(*common.ErrorResponse); ok {
 		return nil, e
 	}
 	if cause != nil {
 		a = append(a, cause)
 	}
-	return nil, &restlidata.ErrorResponse{
+	return nil, &common.ErrorResponse{
 		Status:  Int32Pointer(int32(status)),
 		Message: StringPointerf(format, a...),
 	}
@@ -498,7 +498,7 @@ func registerMethod[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDe
 		}
 
 		var queryParams QP
-		if !restlidata.IsEmptyRecord(queryParams) {
+		if !common.IsEmptyRecord(queryParams) {
 			queryParams, err = restlicodec.UnmarshalQueryParamsDecoder[QP](ctx.Request.URL.RawQuery)
 			if err != nil {
 				return newErrorResponsef(err, http.StatusBadRequest, "Invalid query params for %q: %s", method)
@@ -506,7 +506,7 @@ func registerMethod[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDe
 		}
 
 		responseBody, err = h(ctx, rp, queryParams, body)
-		if _, ok := err.(*restlidata.ErrorResponse); err != nil && !ok {
+		if _, ok := err.(*common.ErrorResponse); err != nil && !ok {
 			return newErrorResponsef(err, http.StatusInternalServerError, "%q failed: %s", method)
 		} else {
 			return responseBody, err
@@ -577,7 +577,7 @@ func (c *RequestContext) RequestPath() string {
 	return path
 }
 
-func SetLocation[K any](ctx *RequestContext, c *restlidata.CreatedEntity[K]) error {
+func SetLocation[K any](ctx *RequestContext, c *common.CreatedEntity[K]) error {
 	c.Location = new(string)
 	w := restlicodec.NewRor2HeaderWriter()
 	err := restlicodec.MarshalRestLi[K](c.Id, w)

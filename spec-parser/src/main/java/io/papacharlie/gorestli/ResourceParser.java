@@ -11,7 +11,7 @@ import io.papacharlie.gorestli.json.PathKey;
 import io.papacharlie.gorestli.json.Resource;
 import io.papacharlie.gorestli.json.ResourcePathSegment;
 import io.papacharlie.gorestli.json.RestliType;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -23,10 +23,10 @@ public class ResourceParser {
   private final TypeParser _typeParser;
   private final List<String> _namespaceChain;
   private final List<ResourcePathSegment> _resourcePathSegments;
-  private final File _resourceFile;
+  private final Path _resourceFile;
   private final MethodParser _methodParser;
 
-  private ResourceParser(ResourceSchema schema, File resourceFile, TypeParser typeParser, List<String> namespaceChain,
+  private ResourceParser(ResourceSchema schema, Path resourceFile, TypeParser typeParser, List<String> namespaceChain,
       List<ResourcePathSegment> resourcePathSegments) {
     _schema = schema;
     _resourceFile = resourceFile;
@@ -53,7 +53,7 @@ public class ResourceParser {
         parent._resourcePathSegments);
   }
 
-  public ResourceParser(ResourceSchema schema, File resourceFile, TypeParser typeParser) {
+  private ResourceParser(ResourceSchema schema, Path resourceFile, TypeParser typeParser) {
     this(
         schema,
         resourceFile,
@@ -62,7 +62,7 @@ public class ResourceParser {
         Collections.emptyList());
   }
 
-  public Set<Resource> parse() {
+  private Set<Resource> parse() {
     // Skip parsing association resources and all subresources
     if (_schema.hasAssociation()) {
       return Collections.emptySet();
@@ -114,7 +114,7 @@ public class ResourceParser {
     return new Resource(
         namespace(),
         _schema.getDoc(),
-        _resourceFile.getAbsolutePath(),
+        _resourceFile,
         resourceType,
         readOnlyFields,
         createOnlyFields,
@@ -136,5 +136,9 @@ public class ResourceParser {
     for (ActionSchema action : Utils.emptyIfNull(actions)) {
       resource.addMethod(_methodParser.newActionMethod(action, onEntity));
     }
+  }
+
+  public static Set<Resource> parse(ResourceSchema schema, Path resourceFile, TypeParser typeParser) {
+    return new ResourceParser(schema, resourceFile, typeParser).parse();
   }
 }

@@ -16,7 +16,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static io.papacharlie.gorestli.json.Method.MethodType.*;
+import static io.papacharlie.gorestli.json.Method.MethodType.ACTION;
+import static io.papacharlie.gorestli.json.Method.MethodType.FINDER;
+import static io.papacharlie.gorestli.json.Method.MethodType.REST_METHOD;
 
 
 public class MethodParser {
@@ -34,13 +36,11 @@ public class MethodParser {
       .addAll(BATCH_METHODS_WITH_IDS_PARAM)
       .build();
 
-  private static final RestliType.Identifier PAGING_CONTEXT =
-      new RestliType.Identifier("github.com/PapaCharlie/go-restli/restlidata", "PagingContext");
+  public static final RestliType.Identifier PAGING_CONTEXT = new RestliType.Identifier("restlidata", "PagingContext");
 
   private final TypeParser _typeParser;
   private final ResourceSchema _resource;
   private final RestliType _resourceSchema;
-  private final String _path;
 
   public MethodParser(TypeParser typeParser, ResourceSchema resource) {
     _typeParser = typeParser;
@@ -50,7 +50,6 @@ public class MethodParser {
     } else {
       _resourceSchema = null;
     }
-    _path = resource.getPath();
   }
 
   public Method newActionMethod(ActionSchema action, boolean isActionOnEntity) {

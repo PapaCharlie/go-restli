@@ -6,7 +6,7 @@ import (
 
 	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 )
 
 type queryParamsFunc func() (string, error)
@@ -77,8 +77,8 @@ func BatchCreate[K comparable, V restlicodec.Marshaler](
 	entities []V,
 	query QueryParamsEncoder,
 	readOnlyFields restlicodec.PathSpec,
-) (createdEntities []*restlidata.CreatedEntity[K], err error) {
-	return batchCreate[K, V, *restlidata.CreatedEntity[K]](c, ctx, rp, entities, query, readOnlyFields)
+) (createdEntities []*common.CreatedEntity[K], err error) {
+	return batchCreate[K, V, *common.CreatedEntity[K]](c, ctx, rp, entities, query, readOnlyFields)
 }
 
 func BatchCreateWithReturnEntity[K comparable, V restlicodec.Marshaler](
@@ -88,8 +88,8 @@ func BatchCreateWithReturnEntity[K comparable, V restlicodec.Marshaler](
 	entities []V,
 	query QueryParamsEncoder,
 	readOnlyFields restlicodec.PathSpec,
-) (createdEntities []*restlidata.CreatedAndReturnedEntity[K, V], err error) {
-	return batchCreate[K, V, *restlidata.CreatedAndReturnedEntity[K, V]](c, ctx, rp, entities, query, readOnlyFields)
+) (createdEntities []*common.CreatedAndReturnedEntity[K, V], err error) {
+	return batchCreate[K, V, *common.CreatedAndReturnedEntity[K, V]](c, ctx, rp, entities, query, readOnlyFields)
 }
 
 func batchCreate[K comparable, V restlicodec.Marshaler, R restlicodec.Marshaler](
@@ -102,14 +102,14 @@ func batchCreate[K comparable, V restlicodec.Marshaler, R restlicodec.Marshaler]
 ) (createdEntities []R, err error) {
 	req, err := NewCreateRequest(c, ctx, rp, query, Method_batch_create, restlicodec.MarshalerFunc(func(writer restlicodec.Writer) error {
 		return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) (err error) {
-			return restlicodec.WriteArray(keyWriter(restlidata.ElementsField), entities, V.MarshalRestLi)
+			return restlicodec.WriteArray(keyWriter(common.ElementsField), entities, V.MarshalRestLi)
 		})
 	}), readOnlyFields)
 	if err != nil {
 		return nil, err
 	}
 
-	elements, _, err := DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*restlidata.Elements[R]])
+	elements, _, err := DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[*common.Elements[R]])
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func BatchDelete[K comparable](
 	rp ResourcePath,
 	keys []K,
 	query batchQueryParamsEncoder[K],
-) (*restlidata.BatchResponse[K, *restlidata.BatchEntityUpdateResponse], error) {
+) (*common.BatchResponse[K, *common.BatchEntityUpdateResponse], error) {
 	keySet := batchkeyset.NewBatchKeySet[K]()
 	err := batchkeyset.AddAllKeys(keySet, keys...)
 	if err != nil {
@@ -134,7 +134,7 @@ func BatchDelete[K comparable](
 		return nil, err
 	}
 
-	return doBatchQuery[K, *restlidata.BatchEntityUpdateResponse](c, keySet, req)
+	return doBatchQuery[K, *common.BatchEntityUpdateResponse](c, keySet, req)
 }
 
 func BatchGet[K comparable, V restlicodec.Marshaler](
@@ -143,7 +143,7 @@ func BatchGet[K comparable, V restlicodec.Marshaler](
 	rp ResourcePath,
 	keys []K,
 	query batchQueryParamsEncoder[K],
-) (*restlidata.BatchResponse[K, V], error) {
+) (*common.BatchResponse[K, V], error) {
 	keySet := batchkeyset.NewBatchKeySet[K]()
 	err := batchkeyset.AddAllKeys(keySet, keys...)
 	if err != nil {
@@ -165,7 +165,7 @@ func BatchUpdate[K comparable, V restlicodec.Marshaler](
 	entities map[K]V,
 	query batchQueryParamsEncoder[K],
 	createAndReadOnlyFields restlicodec.PathSpec,
-) (*restlidata.BatchResponse[K, *restlidata.BatchEntityUpdateResponse], error) {
+) (*common.BatchResponse[K, *common.BatchEntityUpdateResponse], error) {
 	keys := batchkeyset.NewBatchKeySet[K]()
 	err := batchkeyset.AddAllMapKeys(keys, entities)
 	if err != nil {
@@ -186,7 +186,7 @@ func BatchUpdate[K comparable, V restlicodec.Marshaler](
 		return nil, err
 	}
 
-	return doBatchQuery[K, *restlidata.BatchEntityUpdateResponse](c, keys, req)
+	return doBatchQuery[K, *common.BatchEntityUpdateResponse](c, keys, req)
 }
 
 func BatchPartialUpdate[K comparable, PV restlicodec.Marshaler](
@@ -196,7 +196,7 @@ func BatchPartialUpdate[K comparable, PV restlicodec.Marshaler](
 	entities map[K]PV,
 	query batchQueryParamsEncoder[K],
 	createAndReadOnlyFields restlicodec.PathSpec,
-) (*restlidata.BatchResponse[K, *restlidata.BatchEntityUpdateResponse], error) {
+) (*common.BatchResponse[K, *common.BatchEntityUpdateResponse], error) {
 	keys := batchkeyset.NewBatchKeySet[K]()
 	err := batchkeyset.AddAllMapKeys(keys, entities)
 	if err != nil {
@@ -217,14 +217,14 @@ func BatchPartialUpdate[K comparable, PV restlicodec.Marshaler](
 		return nil, err
 	}
 
-	return doBatchQuery[K, *restlidata.BatchEntityUpdateResponse](c, keys, req)
+	return doBatchQuery[K, *common.BatchEntityUpdateResponse](c, keys, req)
 }
 
 func doBatchQuery[K comparable, V restlicodec.Marshaler](
 	c *Client,
 	keys batchkeyset.BatchKeySet[K],
 	req *http.Request,
-) (res *restlidata.BatchResponse[K, V], err error) {
+) (res *common.BatchResponse[K, V], err error) {
 	data, _, err := c.do(req)
 	if err != nil {
 		return nil, err
@@ -234,7 +234,7 @@ func doBatchQuery[K comparable, V restlicodec.Marshaler](
 	if err != nil {
 		return nil, err
 	}
-	res = new(restlidata.BatchResponse[K, V])
+	res = new(common.BatchResponse[K, V])
 	return res, res.UnmarshalWithKeyLocator(r, keys)
 }
 
@@ -242,16 +242,16 @@ type batchEntities[K comparable, V restlicodec.Marshaler] map[K]V
 
 func (b batchEntities[K, V]) MarshalRestLi(writer restlicodec.Writer) error {
 	return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) (err error) {
-		return restlidata.MarshalBatchEntities(b, keyWriter(restlidata.EntitiesField))
+		return common.MarshalBatchEntities(b, keyWriter(common.EntitiesField))
 	})
 }
 
-var entitiesRequiredResponseFields = restlicodec.RequiredFields{restlidata.EntitiesField}
+var entitiesRequiredResponseFields = restlicodec.RequiredFields{common.EntitiesField}
 
 func (b batchEntities[K, V]) UnmarshalRestLi(reader restlicodec.Reader) error {
 	return reader.ReadRecord(entitiesRequiredResponseFields, func(reader restlicodec.Reader, field string) (err error) {
-		if field == restlidata.EntitiesField {
-			return restlidata.UnmarshalBatchEntities(b, reader)
+		if field == common.EntitiesField {
+			return common.UnmarshalBatchEntities(b, reader)
 		} else {
 			return reader.Skip()
 		}

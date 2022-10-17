@@ -61,7 +61,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 
 	checker := Code(Id("checker"))
 	checkAllFields := func(def *Group, keyChecker Code) {
-		def.Add(checker).Op(":=").Qual(utils.RestLiPackage, "PartialUpdateFieldChecker").Values(Dict{
+		def.Add(checker).Op(":=").Qual(utils.RestLiPatchPackage, "PartialUpdateFieldChecker").Values(Dict{
 			Id("RecordType"): Lit(r.Identifier.String()),
 		})
 		for _, f := range r.Fields {
@@ -89,7 +89,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		}
 	}
 
-	patch := Qual(utils.RestLiPackage, "PatchField")
+	patch := Qual(utils.RestLiPatchPackage, "PatchField")
 
 	const marshalPatch = "MarshalRestLiPatch"
 	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), marshalPatch, utils.Yes).
@@ -187,7 +187,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		}).Line().Line()
 
 	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateStructName(), RecordShouldUsePointer, func(def *Group) {
-		def.Return(Add(Reader.ReadRecord(Reader, Qual(utils.RestLiPackage, "RequiredPatchRecordFields"), func(reader, key Code, def *Group) {
+		def.Return(Add(Reader.ReadRecord(Reader, Qual(utils.RestLiPatchPackage, "RequiredPatchRecordFields"), func(reader, key Code, def *Group) {
 			def.If(Add(key).Op("==").Add(patch)).Block(
 				Return(Id(r.Receiver()).Dot(unmarshalPatch).Call(reader)),
 			).Else().Block(

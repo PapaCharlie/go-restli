@@ -2,7 +2,7 @@ SHELL := zsh
 
 define get-version
 ref=HEAD; tag=""; while true ; do \
-  tag=$$(git tag -l "v*" --contains "$$ref") ; \
+  tag=$$(git tag -l "v*" --contains "$$ref" | tail -n1) ; \
   [[ -n "$$tag" ]] && break ; \
   ref="$${ref}^" ; \
 done ; \
@@ -33,47 +33,36 @@ bin/go-restli_%:
 	export GOARCH=$(word 2,$(subst -, ,$(*F))) ; \
 	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
-generate:
-	go generate $(foreach p,$(PACKAGES),$p/...)
-	go run ./internal/restlidata
+generate: $(JARGO)
+	go generate ./...
+	go test . $(COVERPROFILE)/core_generator.cov $(GENERATOR_TEST_ARGS) \
+		--output-dir restlidata/generated \
+		--package-root github.com/PapaCharlie/go-restli/restlidata/generated \
+		--namespace-allow-list com.linkedin.restli.common \
+		"$(FAT_JAR)"
 
 test: generate imports
 	go test -count=1 $(COVERPKG) $(COVERPROFILE)/protocol.cov $(foreach p,$(PACKAGES),$p/...)
 
 imports:
-	goimports -w main.go $(PACKAGES)
+	goimports -w $$(git ls-files | grep '.go$$' | grep -v '.gr.go$$')
 
 integration-test: generate-restli run-testsuite
+
 
 generate-restli: clean $(JARGO)
 	go test . $(COVERPROFILE)/extras_generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated_extras \
-		--resolver-path $(EXTRA_TEST_SUITE)/schemas \
-		--package-prefix $(PACKAGE_PREFIX)_extras \
-		--named-schemas-to-generate extras.RecordWithDelete \
-		--named-schemas-to-generate extras.NestedArraysAndMaps \
-		--named-schemas-to-generate extras.EvenMoreComplexTypes \
-		--named-schemas-to-generate extras.DefaultTyperef \
-		--named-schemas-to-generate extras.IPAddress \
-		--named-schemas-to-generate extras.RecordArray \
-		--named-schemas-to-generate extras.MoreDefaults \
-		--named-schemas-to-generate extras.RecordWithAny \
-		--named-schemas-to-generate extras.IncludesUnion \
-		--named-schemas-to-generate extras.ArrayOfFixed \
-		--named-schemas-to-generate extras.ArrayOfUnion \
-		--named-schemas-to-generate extras.MultilineDoc \
+		--package-root $(PACKAGE_PREFIX)_extras \
 		--raw-records extras.Any \
-		$(EXTRA_TEST_SUITE)/restspecs/*
+		--dependencies $(FAT_JAR) \
+		--manifest-dependencies ./restlidata \
+		$(EXTRA_TEST_SUITE)/schemas $(EXTRA_TEST_SUITE)/restspecs
 	go test . $(COVERPROFILE)/generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated \
-		--resolver-path $(TEST_SUITE)/schemas \
-		--package-prefix $(PACKAGE_PREFIX) \
-		--named-schemas-to-generate testsuite.Primitives \
-		--named-schemas-to-generate testsuite.ComplexTypes \
-		--named-schemas-to-generate testsuite.Include \
-		--named-schemas-to-generate testsuite.Defaults \
-		--named-schemas-to-generate testsuite.RecordWithTyperefField \
-		$(TEST_SUITE)/restspecs/*
+		--dependencies $(FAT_JAR) \
+		--package-root $(PACKAGE_PREFIX) \
+		$(TEST_SUITE)/schemas $(TEST_SUITE)/restspecs
 
 run-testsuite:
 	go test $(COVERPKG) $(COVERPROFILE)/suite.cov -count=1 ./internal/tests/...
@@ -102,8 +91,9 @@ $(FAT_JAR): $(shell git ls-files spec-parser)
 	$(GRADLEW) build fatJar
 	touch $(FAT_JAR) # touch the jar after the build to inform make that the file is fresh
 
+jargo: $(JARGO)
 $(JARGO): $(FAT_JAR)
-	echo -e '// +build jar\n\npackage cmd\n\nimport "encoding/base64"\n\nvar Jar, _ = base64.StdEncoding.DecodeString(`' > $(JARGO)
+	echo -e '//go:build jar\n// +build jar\n\npackage cmd\n\nimport "encoding/base64"\n\nvar Jar, _ = base64.StdEncoding.DecodeString(`' > $(JARGO)
 	gzip -9 -c $(FAT_JAR) | base64 | fold -w 120 >> $(JARGO)
 	echo '`)' >> $(JARGO)
 

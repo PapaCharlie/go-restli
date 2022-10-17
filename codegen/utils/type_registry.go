@@ -17,18 +17,30 @@ type ComplexType interface {
 var TypeRegistry = make(typeRegistry)
 
 type registeredType struct {
-	Type     ComplexType
-	IsCyclic bool
+	Type        ComplexType
+	PackageRoot string
+	IsCyclic    bool
 }
 
 type typeRegistry map[Identifier]*registeredType
 
-func (reg typeRegistry) Register(t ComplexType) {
+func (reg typeRegistry) RegisterTypes(types []ComplexType, packageRoot string) {
+	for i := range types {
+		reg.Register(types[i], packageRoot)
+	}
+	reg.FlagCyclicDependencies()
+
+	for i := range types {
+		addImportName(types[i].GetIdentifier().PackagePath())
+	}
+}
+
+func (reg typeRegistry) Register(t ComplexType, packageRoot string) {
 	id := t.GetIdentifier()
 	if _, ok := reg[id]; ok {
 		Logger.Panicf("Cannot register type %s twice!", id)
 	}
-	reg[id] = &registeredType{Type: t}
+	reg[id] = &registeredType{Type: t, PackageRoot: packageRoot}
 }
 
 func (reg typeRegistry) get(id Identifier) *registeredType {
@@ -43,23 +55,12 @@ func (reg typeRegistry) Resolve(id Identifier) ComplexType {
 	return reg.get(id).Type
 }
 
-func (reg typeRegistry) IsCyclic(id Identifier) bool {
-	return reg.get(id).IsCyclic
+func (reg typeRegistry) PackageRoot(id Identifier) string {
+	return reg.get(id).PackageRoot
 }
 
-func (reg typeRegistry) GenerateTypeCode() (files []*CodeFile) {
-	for id, t := range reg {
-		if strings.HasPrefix(id.Namespace, RootPackage) {
-			continue
-		}
-		files = append(files, &CodeFile{
-			SourceFile:  t.Type.GetSourceFile(),
-			PackagePath: t.Type.GetIdentifier().PackagePath(),
-			Filename:    t.Type.GetIdentifier().Name,
-			Code:        t.Type.GenerateCode(),
-		})
-	}
-	return files
+func (reg typeRegistry) IsCyclic(id Identifier) bool {
+	return reg.get(id).IsCyclic
 }
 
 func (reg typeRegistry) FindCycle(nextNode Identifier, path Path) []Identifier {
@@ -149,10 +150,15 @@ func (p Path) IntroducesCycle(nextNode Identifier) Path {
 
 var PagingContextIdentifier = Identifier{
 	Name:      "PagingContext",
-	Namespace: RestLiDataPackage,
+	Namespace: "restlidata",
 }
 
-var RawRecordContextIdentifier = Identifier{
+var RawRecordIdentifier = Identifier{
 	Name:      "RawRecord",
-	Namespace: RestLiDataPackage,
+	Namespace: "restlidata",
+}
+
+var EmptyRecordIdentifier = Identifier{
+	Name:      "EmptyRecordIdentifier",
+	Namespace: "restlidata",
 }

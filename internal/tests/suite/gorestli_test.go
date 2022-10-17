@@ -30,7 +30,7 @@ import (
 	"github.com/PapaCharlie/go-restli/restli"
 	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
 	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -100,7 +100,7 @@ func requireMapEquals[K comparable, V any](t *testing.T, left, right map[K]V) {
 	require.Equal(t, left, right)
 }
 
-func requiredBatchResponseEquals[K comparable, V restlicodec.Marshaler](t *testing.T, left, right *restlidata.BatchResponse[K, V]) {
+func requiredBatchResponseEquals[K comparable, V restlicodec.Marshaler](t *testing.T, left, right *common.BatchResponse[K, V]) {
 	requireMapEquals(t, left.Statuses, right.Statuses)
 	requireMapEquals(t, left.Results, right.Results)
 	requireMapEquals(t, left.Errors, right.Errors)

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 )
 
 // DoActionRequest executes a rest.li Action request and places the given restlicodec.Marshaler in the request's body
@@ -27,7 +27,7 @@ func DoActionRequest(
 	return err
 }
 
-var actionRequiredResponseFields = restlicodec.RequiredFields{restlidata.ValueField}
+var actionRequiredResponseFields = restlicodec.RequiredFields{common.ValueField}
 
 // DoActionRequestWithResults executes a rest.li Action request and places the given restlicodec.Marshaler in the
 // request's body, and returns the results after deserialization. Actions with no params are expected to use the
@@ -48,7 +48,7 @@ func DoActionRequestWithResults[T any](
 	t, _, err = DoAndUnmarshal(c, req, func(reader restlicodec.Reader) (t T, err error) {
 		err = reader.ReadRecord(actionRequiredResponseFields, func(reader restlicodec.Reader, field string) (err error) {
 			switch field {
-			case restlidata.ValueField:
+			case common.ValueField:
 				t, err = unmarshaler(reader)
 				return err
 			default:
@@ -119,7 +119,7 @@ func registerAction[RP ResourcePathUnmarshaler[RP], P, R any](
 		// Special case for action params that are EmptyRecord: skip reading the body altogether, as it's valid for an
 		// action with no parameters to supply an empty POST body
 		var params P
-		if !restlidata.IsEmptyRecord(params) {
+		if !common.IsEmptyRecord(params) {
 			var r restlicodec.Reader
 			r, err = restlicodec.NewJsonReader(body)
 			if err == nil {
@@ -137,7 +137,7 @@ func registerAction[RP ResourcePathUnmarshaler[RP], P, R any](
 		if resultsMarshaler != nil {
 			return restlicodec.MarshalerFunc(func(writer restlicodec.Writer) error {
 				return writer.WriteMap(func(keyWriter func(key string) restlicodec.Writer) (err error) {
-					return resultsMarshaler(results, keyWriter(restlidata.ValueField))
+					return resultsMarshaler(results, keyWriter(common.ValueField))
 				})
 			}), nil
 		} else {

@@ -16,7 +16,8 @@ type ror2Writer struct {
 // https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
 // This specific Writer uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
 // following characters using url.QueryEscape:
-//   % , ( ) ' :
+//
+//	% , ( ) ' :
 func NewRor2HeaderWriter() Writer {
 	return newGenericWriter(&ror2Writer{stringEscaper: headerEncodingEscaper}, nil)
 }
@@ -26,7 +27,9 @@ func NewRor2HeaderWriter() Writer {
 // https://linkedin.github.io/rest.li/spec/protocol#restli-protocol-20-object-and-listarray-representation
 // This specific Writer uses the "reduced" URL encoding instead of the full URL encoding, i.e. it only escapes the
 // following characters using url.QueryEscape:
-//   % , ( ) ' :
+//
+//	% , ( ) ' :
+//
 // Any fields matched by the given PathSpec are excluded from serialization
 func NewRor2HeaderWriterWithExcludedFields(excludedFields PathSpec) Writer {
 	return newGenericWriter(&ror2Writer{stringEscaper: headerEncodingEscaper}, excludedFields)

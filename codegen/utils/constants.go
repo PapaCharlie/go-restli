@@ -14,13 +14,15 @@ const (
 	ComplexKeyParams           = "$params"
 	FinderNameParam            = "q"
 
-	RootPackage        = "github.com/PapaCharlie/go-restli"
-	HashPackage        = RootPackage + "/fnv1a"
-	RestLiPackage      = RootPackage + "/restli"
-	RestLiCodecPackage = RootPackage + "/restlicodec"
-	RestLiDataPackage  = RootPackage + "/restlidata"
-	BatchKeySetPackage = RestLiPackage + "/batchkeyset"
-	EqualsPackage      = RestLiPackage + "/equals"
+	RootPackage         = "github.com/PapaCharlie/go-restli"
+	HashPackage         = RootPackage + "/fnv1a"
+	RestLiPackage       = RootPackage + "/restli"
+	RestLiPatchPackage  = RestLiPackage + "/patch"
+	RestLiCodecPackage  = RootPackage + "/restlicodec"
+	RestLiDataPackage   = RootPackage + "/restlidata"
+	RestLiCommonPackage = RestLiDataPackage + "/generated/com/linkedin/restli/common"
+	BatchKeySetPackage  = RestLiPackage + "/batchkeyset"
+	EqualsPackage       = RestLiPackage + "/equals"
 )
 
 var (

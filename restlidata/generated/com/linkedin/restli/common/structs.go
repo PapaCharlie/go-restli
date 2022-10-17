@@ -1,9 +1,33 @@
-package restlidata
+package common
 
 import (
 	"net/http"
 
 	"github.com/PapaCharlie/go-restli/restlicodec"
+)
+
+const (
+	ElementsField = "elements"
+	ValueField    = "value"
+	StatusField   = "status"
+	StatusesField = "statuses"
+	ResultsField  = "results"
+	ErrorField    = "error"
+	ErrorsField   = "errors"
+	IdField       = "id"
+	LocationField = "location"
+	PagingField   = "paging"
+	MetadataField = "metadata"
+	EntityField   = "entity"
+	EntitiesField = "entities"
+)
+
+var (
+	elementsRequiredResponseFields              = restlicodec.RequiredFields{ElementsField}
+	batchEntityUpdateResponseRequiredFields     = restlicodec.RequiredFields{StatusField}
+	batchResponseRequiredFields                 = restlicodec.RequiredFields{ResultsField}
+	batchCreateResponseRequiredFields           = restlicodec.RequiredFields{StatusField}
+	batchCreateWithReturnResponseRequiredFields = restlicodec.RequiredFields{StatusField, EntityField}
 )
 
 type BatchEntityUpdateResponse struct {
@@ -292,7 +316,7 @@ func (c *CreatedAndReturnedEntity[K, V]) MarshalRestLi(writer restlicodec.Writer
 
 type Elements[V restlicodec.Marshaler] struct {
 	Elements []V
-	Paging   *CollectionMedata
+	Paging   *CollectionMetadata
 }
 
 func (f *Elements[V]) NewInstance() *Elements[V] {
@@ -332,7 +356,7 @@ func (f *Elements[V]) unmarshalRestLi(reader restlicodec.Reader, field string) (
 		f.Elements, err = restlicodec.ReadArray(reader, restlicodec.UnmarshalRestLi[V])
 		return err
 	case PagingField:
-		f.Paging = new(CollectionMedata)
+		f.Paging = new(CollectionMetadata)
 		return f.Paging.UnmarshalRestLi(reader)
 	default:
 		return reader.Skip()
@@ -345,7 +369,7 @@ func (f *Elements[V]) UnmarshalRestLi(reader restlicodec.Reader) error {
 
 type ElementsWithMetadata[V, M restlicodec.Marshaler] struct {
 	Elements []V
-	Paging   *CollectionMedata
+	Paging   *CollectionMetadata
 	Metadata M
 }
 
@@ -386,7 +410,7 @@ func (f *ElementsWithMetadata[V, M]) UnmarshalRestLi(reader restlicodec.Reader) 
 			f.Elements, err = restlicodec.ReadArray(reader, restlicodec.UnmarshalRestLi[V])
 			return err
 		case PagingField:
-			f.Paging = new(CollectionMedata)
+			f.Paging = new(CollectionMetadata)
 			return f.Paging.UnmarshalRestLi(reader)
 		default:
 			return reader.Skip()

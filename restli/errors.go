@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 )
 
 // Error is returned by the Do* methods when the X-RestLi-Error-Response header is set to true.
 type Error struct {
-	restlidata.ErrorResponse
+	common.ErrorResponse
 	// Will be non-nil if an error occurred when attempting to deserialize the actual JSON response fields (i.e. Status,
 	// Message, ExceptionClass and StackTrace)
 	DeserializationError error `json:"-"`
@@ -96,18 +96,6 @@ type CreateResponseHasNoEntityHeaderError struct {
 
 func (c CreateResponseHasNoEntityHeaderError) Error() string {
 	return "go-restli: response from CREATE request did not specify a " + IDHeader + " header"
-}
-
-// IllegalPartialUpdateError is returned by PartialUpdateFieldChecker a partial update struct defines an illegal
-// operation, such as deleting and setting the same field.
-type IllegalPartialUpdateError struct {
-	Message    string
-	RecordType string
-	Field      string
-}
-
-func (c *IllegalPartialUpdateError) Error() string {
-	return fmt.Sprintf("go-restli: %s field %q of %q", c.Message, c.Field, c.RecordType)
 }
 
 var NilQueryParams = fmt.Errorf("go-restli: Query params cannot be nil")

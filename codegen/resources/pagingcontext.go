@@ -24,5 +24,5 @@ var PagingContext = &types.Record{
 }
 
 func init() {
-	utils.TypeRegistry.Register(PagingContext)
+	utils.TypeRegistry.Register(PagingContext, utils.RootPackage)
 }

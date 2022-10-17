@@ -1,0 +1,4145 @@
+{
+  "packageRoot": "github.com/PapaCharlie/go-restli/restlidata/generated",
+  "dataTypes": [
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "quarantineMaxPercent",
+            "doc": "The percentage of the hosts that can be quarantined at the same time. It is also the switch to turn on Quarantine feature.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "quarantineMethod",
+            "doc": "Config the health checking method for quarantine. Format: \u003cMETHOD\u003e:\u003cFULL_PATH\u003e. Default to OPTIONS method.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "quarantineLatency",
+            "doc": "The latency threshold (in milliseconds) for health checking response. Responding time longer than this threshold is considered as unhealthy.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "quarantineInfo",
+        "namespace": "com.linkedin.d2",
+        "doc": "Config info for d2 quarantine feature",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [],
+        "name": "IndividualBody",
+        "namespace": "com.linkedin.restli.common.multiplexer",
+        "doc": "Represents content that may be in the body of an individual request / response",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "status",
+            "doc": "",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "error",
+            "doc": "",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.common",
+                "name": "ErrorResponse"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "UpdateStatus",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "A rest.li update status.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "uriRegexes",
+            "doc": "List of Regex to match against the URI of incoming request and compute hash value. The hash value is computed based on the contents of the first capture group of the first expression that matches the request URI",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "failOnNoMatch",
+            "doc": "Optional config value. if true, fail if no regex matches, otherwise fall back to random.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "false"
+          },
+          {
+            "name": "warnOnNoMatch",
+            "doc": " Optional config value. if false, don\u0027t warn on falling back to random if the uri doesn\u0027t match the regex",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "true"
+          }
+        ],
+        "name": "hashConfigType",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "CustomAnnotationSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Custom annotation for idl",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "CustomAnnotationSchema"
+            }
+          },
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "success",
+            "doc": "Success statuses for this resource method.",
+            "type": {
+              "array": {
+                "primitive": "int32",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "SuccessStatusesSchema"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "name of this finder - not required if this is the default finder",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for this finder",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "parameters",
+            "doc": "list of query parameters for this finder",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ParameterSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "metadata",
+            "doc": "describes the collection-level metadata returned by this finder",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "MetadataSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "assocKey",
+            "doc": "association key for this finder - only present if this finder takes a single association key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "assocKeys",
+            "doc": "list of association keys for this finder - only present if this finder takes multiple association keys",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "pagingSupported",
+            "doc": "Indicates if this finder method has paging support using the start and count parameters",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "FinderSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a finder resource method.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "operation",
+            "doc": "Operation for which specified backup requests will be made. Only idempotent operations should be used. Examples of operations when used with Rest.li: GET or FINDER:findByName",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "strategy",
+            "doc": "Configuration properties of backup requests.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "BackupRequestsConfiguration_Strategy"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "BackupRequestsConfiguration",
+        "namespace": "com.linkedin.d2",
+        "doc": "Configuration of backup requests for specific operation.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "using",
+            "doc": "Specifies only for one to many relationship. It can use either GET_ALL(\"get_all\") or a FINDER(\"finder:\u003cmethod name\u003e\").",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "params",
+            "doc": "Specifies parameters if any of them are specified. It is also used for FINDER.",
+            "type": {
+              "map": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "versionSuffix",
+            "doc": "Specifies versionSuffix in multi-version scenario. If is is not provided, will pick first version by default.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ExtensionSchemaAnnotation",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "Specifies the extension schema annotation configuration for defining the entity relationship among entities.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "rel",
+            "doc": "The link relation e.g. \u0027self\u0027 or \u0027next\u0027",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "href",
+            "doc": "The link URI",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "type",
+            "doc": "The type (media type) of the resource",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "Link",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "A atom:link-inspired link",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "HTTP_1_1",
+          "HTTP_2"
+        ],
+        "symbolToDoc": {
+          "HTTP_1_1": "HTTP/1.1",
+          "HTTP_2": "HTTP/2"
+        },
+        "name": "HttpProtocolVersionType",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "actions",
+            "doc": "list of actions supported by this action set",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ActionSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "ActionsSetSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing an actions set resource.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "globalStepDown",
+            "doc": "The step down function\u0027s delta size when adjusting the drop rate. Should be between 0.0 - 1.0. Defaults to 0.2.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "globalStepUp",
+            "doc": "The step up function\u0027s delta size when adjusting the drop rate. Should be between 0.0 - 1.0. Defaults to 0.2.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "initialRecoveryLevel",
+            "doc": "When a node is completely degraded, this config is used to determine the starting recovery weight for that node. Should be between 0.0 - 1.0. Defaults to 0.01.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "ringRampFactor",
+            "doc": "How fast should load balancer ramp up node that has been 100% degraded and is being recovered. This is used with initialRecoveryLevel to recover the traffic of a node. Defaults to 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "highWaterMark",
+            "doc": "If average ms latency for the entire service is over this number then we consider the service is in a bad state. Defaults to 3000ms.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "lowWaterMark",
+            "doc": "If average ms latency for the entire service is lower than this number then we consider the service is in a good state. Defaults to 500ms.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "pointsPerWeight",
+            "doc": "The number of points per weight given for a particular node in a hash ring. Defaults to 100.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "updateIntervalMs",
+            "doc": "Interval in ms between each round of load balancer calculation. Defaults to 5000ms.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minCallCountHighWaterMark",
+            "doc": "If call count for the cluster for this service is over this number then we can use the statistics to calculate drop rate. Defaults to 10.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minCallCountLowWaterMark",
+            "doc": "If call count for the cluster for this service is below this number then we will not use the statistics to calculate drop rate. Defaults to 5.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "hashMethod",
+            "doc": "What hashing method used to hash incoming request. Used to determine which node should serve the request. Choices are Random, UriRegex",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "hashMethodEnum"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "hashConfig",
+            "doc": "Configuration used to supplement the hash method.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "hashConfigType"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "updateOnlyAtInterval",
+            "doc": "Whether to update load balancer strategy state only at each update interval.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "false"
+          },
+          {
+            "name": "hashRingPointCleanupRate",
+            "doc": "The highest ratio of unused entries over the total entries of the Ring points that d2 maintains.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "consistentHashAlgorithm",
+            "doc": "Consistent hash algorithm the d2 load balancer should use. Defaults to POINT_BASED.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "ConsistentHashAlgorithmEnum"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "numberOfProbes",
+            "doc": "The number of probes used to look up a key in consistent hash ring. Defaults to 21.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "numberOfPointsPerHost",
+            "doc": "The number of points on MultiProbe hash ring for each host. Defaults to 1.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "boundedLoadBalancingFactor",
+            "doc": "The balancing factor that enables the bounded-load feature, which is a decorator of consistent hashing algorithms. No single server is allowed to have a load more than this factor times the average load among all servers. A value of -1 disables the feature. Otherwise, it is a factor greater than 1. Defaults to -1.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "-1.0"
+          },
+          {
+            "name": "quarantineCfg",
+            "doc": "",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "quarantineInfo"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "errorStatusRegex",
+            "doc": "Regular expression to match the status code indicates a server-side error.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "lowEmittingInterval",
+            "doc": "Low emitting interval (in ms) for D2Monitor events. Generally used when abnormal events present in D2Monitor that need higher emitting frequency.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "highEmittingInterval",
+            "doc": "High emitting interval (in ms) for D2Monitor events. Used for normal D2Monitor Event emitting.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2LoadBalancerStrategyProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "Load balancer properties for a particular D2 service",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "name",
+            "doc": "The name of this degrader.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "logEnabled",
+            "doc": "Whether degrader-specific logging is enabled or not. Defaults to false.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "false"
+          },
+          {
+            "name": "maxDropRate",
+            "doc": "The maximum drop rate that this degrader can achieve. Values are from 0.0 - 1.0. Defaults to 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "upStep",
+            "doc": "Degrader\u0027s step function\u0027s delta size for increasing the drop rate. Values are from 0.0 - 1.0. Defaults to 0.2.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "downStep",
+            "doc": "Degrader\u0027s step function\u0027s delta size for decreasing the drop rate. Values are from 0.0 - 1.0. Defaults to 0.2.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minCallCount",
+            "doc": "The minimum number of call count that should be achieved before degrader start using the call statistics to compute drop rate. Defaults to 10.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "highLatency",
+            "doc": "If the call latency during the interval exceeds this value, then we will increase the drop rate by upStep. Defaults to 3000ms.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "lowLatency",
+            "doc": "If the call latency during the interval is under this value, then we will decrease the drop rate by downStep. Defaults to 500ms.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "highErrorRate",
+            "doc": "If the error rate during the interval exceeds this value, then we will increase the drop rate by upStep. Values are from 0.0 - 1.0. Defaults to 1.1.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "lowErrorRate",
+            "doc": "If the error rate during the interval is under this value, then we will decrease the drop rate by downStep. Values are from 0.0 - 1.0. Defaults to 1.1.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "highOutstanding",
+            "doc": "If the latency of outstanding calls during the interval exceeds this value, then we will increase the drop rate by upStep. Defaults to 10000ms.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "lowOutstanding",
+            "doc": "If the latency of outstanding calls during the interval is under this value, then we will decrease the drop rate by downStep. Defaults to 500ms.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minOutstandingCount",
+            "doc": "If the number of minOutstanding calls exceeds this value then we will consider outstanding latency to compute drop rate. Defaults to 5.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxDropDuration",
+            "doc": "maximum duration that is allowed when all requests are dropped. For example, if maxDropDuration is 1 min and the last request that should not be dropped is older than 1 min, then the next request should not be dropped. Defaults to 60000ms.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "latencyToUse",
+            "doc": "latency used to calculate the drop rate. Defaults to AVERAGE.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "latencyType"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "initialDropRate",
+            "doc": "The initial drop rate that this degrader should start with. Defaults to 0.0. For values greater than 0, it means the tracker client corresponding to this degrader will receive less than 100% of the normal traffic initially and slowly recover from there.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "slowStartThreshold",
+            "doc": "The drop rate threshold that controls whether the degrader should perform slow start(by doubling the transmission rate) or the normal stepUp/Down operation. Defaults to 0.0 which means no slow start phase will be performed.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "logThreshold",
+            "doc": "The computed drop rate threshold to log degrader state changes. The log is enabled only when current drop rate higher than or equal to the threshold value.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "preemptiveRequestTimeoutRate",
+            "doc": "Preemptively timeout requests at a fraction of the configured request timeout after entering a degraded state. A value of 0.8 indicates 20% preemptive application of request timeout. Defaults to 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2DegraderProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "Degrader properties that is applied to all tracker clients talking to this particular D2 service",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "type",
+            "doc": "pegasus type of the metadata",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "MetadataSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "STRUCTURED_DATA",
+          "UNSTRUCTURED_DATA"
+        ],
+        "symbolToDoc": {
+          "STRUCTURED_DATA": "This resource produces structured data that is defined by schema",
+          "UNSTRUCTURED_DATA": "This resource produces unstructured data that has no schema"
+        },
+        "name": "ResourceEntityType",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "MRU",
+          "LRU"
+        ],
+        "symbolToDoc": {
+          "MRU": "Select most recently used connection",
+          "LRU": "Select least recently used connection"
+        },
+        "name": "poolStrategyType",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "OPTIONS",
+          "GET"
+        ],
+        "symbolToDoc": {},
+        "name": "HttpMethod",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "status",
+            "doc": "The HTTP status code.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "serviceErrorCode",
+            "doc": "A service-specific error code.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "code",
+            "doc": "The canonical error code, e.g. for \u0027400 Bad Request\u0027 it can be \u0027INPUT_VALIDATION_FAILED\u0027. Only predefined codes should be used.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "message",
+            "doc": "A human-readable explanation of the error.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "docUrl",
+            "doc": "URL to a page that describes this particular error in more detail.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "requestId",
+            "doc": "The unique identifier that would identify this error. For example, it can be used to identify requests in the service\u0027s logs.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "exceptionClass",
+            "doc": "The FQCN of the exception thrown by the server.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "stackTrace",
+            "doc": "The full stack trace of the exception thrown by the server.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "errorDetailType",
+            "doc": "The type of the error detail model, e.g. com.example.api.BadRequest. Clients can use this field to identify the actual error detail schema.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "errorDetails",
+            "doc": "This field should be used for communicating extra error details to clients.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.common",
+                "name": "ErrorDetails"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ErrorResponse",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "A generic ErrorResponse",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "method",
+            "doc": "HTTP method name",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "headers",
+            "doc": "HTTP headers specific to the individual request. All common headers should be specified in the top level envelope request. If IndividualRequest headers contain a header that is also specified in the top level envelope request, the header in the IndividualRequest will be used. In additions, for security reasons, headers in IndividualRequest are whitelisted. Only headers within the whitelist can be specified here.",
+            "type": {
+              "map": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "{}"
+          },
+          {
+            "name": "relativeUrl",
+            "doc": "Relative URL of the request",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "body",
+            "doc": "Request body",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.common.multiplexer",
+                "name": "IndividualBody"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "dependentRequests",
+            "doc": "Requests that should be executed after the current request is processed (sequential ordering). Dependent requests are executed in parallel. Keys of the dependent requests are used to correlate responses with requests. They should be unique within the multiplexed request",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.common.multiplexer",
+                  "name": "IndividualRequest"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "{}"
+          }
+        ],
+        "name": "IndividualRequest",
+        "namespace": "com.linkedin.restli.common.multiplexer",
+        "doc": "Individual HTTP request within a multiplexed request. For security reasons, cookies are not allowed to be specified in the IndividualRequest. Instead, it MUST be specified in the top level envelope request.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "standaloneUnion": {
+        "union": {
+          "hasNull": false,
+          "members": [
+            {
+              "type": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "RangedPartitionProperties"
+                },
+                "rawRecord": false
+              },
+              "alias": "com.linkedin.d2.RangedPartitionProperties"
+            },
+            {
+              "type": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "HashAlgorithm"
+                },
+                "rawRecord": false
+              },
+              "alias": "com.linkedin.d2.HashAlgorithm"
+            },
+            {
+              "type": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "PartitionAccessorList"
+                },
+                "rawRecord": false
+              },
+              "alias": "com.linkedin.d2.PartitionAccessorList"
+            }
+          ]
+        },
+        "name": "D2ClusterPartitionConfiguration_PartitionTypeSpecificData",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "success",
+            "doc": "Success statuses for this resource method.",
+            "type": {
+              "array": {
+                "primitive": "int32",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "SuccessStatusesSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Extension schema allowing method schemas to define success statuses.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "status",
+            "doc": "",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "id",
+            "doc": "",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "location",
+            "doc": "The location url to retrieve the newly created entity",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "error",
+            "doc": "",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.common",
+                "name": "ErrorResponse"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "CreateStatus",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "A rest.li create status.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "RELATIVE_TRAFFIC",
+          "CONSTANT_QPS",
+          "IDENTICAL_TRAFFIC"
+        ],
+        "symbolToDoc": {
+          "RELATIVE_TRAFFIC": "This strategy aims to maintain a proportional amount of incoming QPS at the host level between the source and dark clusters.\nConfigured with \"multiplier\". For example a multiplier of 1 would mean the average incoming QPS for a source host equals that\nof a dark host. A multiplier of 2 means on average a dark host will receive 2x more traffic than a source host.",
+          "CONSTANT_QPS": "This strategy will try to maintain a certain queries per second to the entire dark cluster. Configured with \"dispatcherOutboundTargetRate\".",
+          "IDENTICAL_TRAFFIC": "This strategy aims to send identical traffic across all the dark clusters configured with this strategy. For eg: if\nthere are 3 dark clusters configured with this strategy with a multiplier of 1, all 3 dark clusters would receive\nexactly same requests from the source clusters. This strategy can be used in scenarios where users want to do performance\nanalysis across dark clusters in which case having exactly similar traffic coming into all the clusters would help\nmake a fair comparison"
+        },
+        "name": "DarkClusterStrategyName",
+        "namespace": "com.linkedin.d2",
+        "doc": "There are 2 types of strategy: RELATIVE_TRAFFIC, CONSTANT_QPS. These can be specified in prioritized order and\nwill be picked in that order depending on availability.\nA strategy may not be available when a new strategy is introduced but the client has not upgraded to a code version\nthat supports that strategy.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "identifier",
+            "doc": "name of the identifier (key) for this collection",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "assocKeys",
+            "doc": "list of association keys for this association",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "AssocKeySchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "alternativeKeys",
+            "doc": "alternative keys",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "AlternativeKeySchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "supports",
+            "doc": "list of rest.li methods supported by this association, e.g., get, update, delete, batch_get",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "methods",
+            "doc": "details on rest methods supported by this association",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "RestMethodSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "finders",
+            "doc": "list of finders supported by this association",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "FinderSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "batchFinders",
+            "doc": "list of batch finders supported by this association",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "BatchFinderSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "actions",
+            "doc": "list of actions supported by this association",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ActionSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "entity",
+            "doc": "details on the entities contained in this association",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "EntitySchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "AssociationSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing an association resource.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "AVERAGE",
+          "PCT50",
+          "PCT90",
+          "PCT95",
+          "PCT99"
+        ],
+        "symbolToDoc": {
+          "AVERAGE": "Average latency",
+          "PCT50": "50th percentile latency",
+          "PCT90": "90th percentile latency",
+          "PCT95": "95th percentile latency",
+          "PCT99": "99th percentile latency"
+        },
+        "name": "latencyType",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "path",
+            "doc": "URI template for accessing this entity",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "actions",
+            "doc": "list of actions supported by this entity",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ActionSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "subresources",
+            "doc": "list of subresources accessible via this entity",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ResourceSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "EntitySchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "HASH",
+          "RANGE",
+          "CUSTOM",
+          "NONE"
+        ],
+        "symbolToDoc": {},
+        "name": "PartitionTypeEnum",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "POINT_BASED",
+          "MULTI_PROBE",
+          "DISTRIBUTION_BASED"
+        ],
+        "symbolToDoc": {
+          "POINT_BASED": "Point-based consistent hash ring. The more points the ring has, the more balanced it is.",
+          "MULTI_PROBE": "Multi-probe consistent hash. The more probes to use, the more balanced the ring is.",
+          "DISTRIBUTION_BASED": "Use points of hosts to build a distribution and make randomized host selection. NOTE: this algorithm DOES NOT support sticky routing"
+        },
+        "name": "ConsistentHashAlgorithm",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ServiceErrorsSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Extension schema allowing resource and method schemas to define service errors.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "standaloneUnion": {
+        "union": {
+          "hasNull": false,
+          "members": [
+            {
+              "type": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "BoundedCostBackupRequests"
+                },
+                "rawRecord": false
+              },
+              "alias": "com.linkedin.d2.BoundedCostBackupRequests"
+            }
+          ]
+        },
+        "name": "BackupRequestsConfiguration_Strategy",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [],
+        "name": "CustomAnnotationContentSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Unstructured record that represents arbitrary custom annotations for idl. Actual content is always a map with annotation\u0027s overridable member name as key and member value as value",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "partitionSize",
+            "doc": "The size of each partition. Used only for RANGE based partition. Not used for HASH based partition",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "keyRangeStart",
+            "doc": "The starting point for RANGE partitioning. Not used for HASH based partition.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "RangedPartitionProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "URI_REGEX",
+          "RANDOM"
+        ],
+        "symbolToDoc": {
+          "URI_REGEX": "Extract a key from the URI and use it to hash the request.",
+          "RANDOM": "The default fall back value. Will route requests randomly."
+        },
+        "name": "HashMethod",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "name",
+            "doc": "name of the identifier",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "type",
+            "doc": "avro type of the identifier",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "params",
+            "doc": "avro type of the identifier parameters",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "IdentifierSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "classNames",
+            "doc": "Class names for the implemented BasePartitionAccessor",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "PartitionAccessorList",
+        "namespace": "com.linkedin.d2",
+        "doc": "The list of class names that implement BasePartitionAccessor. D2 goes through the list and uses the first one that is registered to PartitionAccessorRegistry. This list is used when the service needs to provide/deploy multiple versions of implementation.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [],
+        "name": "PegasusSchema",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "A \"marker\" data schema for data that is itself a data schema (a \"PDSC for PDSCs\"). Because PDSC is not expressive enough to describe it\u0027s own format, this is only a marker, and has no fields. Despite having no fields, it is required that data marked with this schema be non-empty. Specifically, is required that data marked as using this schema fully conform to the PDSC format (https://github.com/linkedin/rest.li/wiki/DATA-Data-Schema-and-Templates#schema-definition).",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "name",
+            "doc": "name of association key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "type",
+            "doc": "avro type of association key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "AssocKeySchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "uriRegexes",
+            "doc": "List of Regex to match against the URI of incoming request and compute hash value. The hash value is computed based on the contents of the first capture group of the first expression that matches the request URI",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "failOnNoMatch",
+            "doc": "Optional config value. if true, fail if no regex matches, otherwise fall back to random.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "false"
+          },
+          {
+            "name": "warnOnNoMatch",
+            "doc": " Optional config value. if false, don\u0027t warn on falling back to random if the uri doesn\u0027t match the regex",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "true"
+          }
+        ],
+        "name": "HashConfig",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "responses",
+            "doc": "Individual HTTP responses, where the key is Id of the corresponding individual request.",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.common.multiplexer",
+                  "name": "IndividualResponse"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "MultiplexedResponseContent",
+        "namespace": "com.linkedin.restli.common.multiplexer",
+        "doc": "Represents multiple HTTP responses to send as a single multiplexed HTTP response",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "type",
+            "doc": "The type of partitioning. We support HASH, RANGE, NONE.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "PartitionTypeEnum"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "partitionKeyRegex",
+            "doc": "The regular expression to extract the partition key from a request URI.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "partitionCount",
+            "doc": "The number of partitions this cluster has.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "partitionTypeSpecificData",
+            "doc": "If the partition type is RANGE, then we have RangedPartitionProperties. If it\u0027s type HASH, we should have a HashAlgorithm. If it is type CUSTOM, we have PartitionAccessorList. Otherwise we won\u0027t have any extra data in this field",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2ClusterPartitionConfiguration_PartitionTypeSpecificData"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2ClusterPartitionConfiguration",
+        "namespace": "com.linkedin.d2",
+        "doc": "Partitioning configuration for D2 clusters",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "MODULO",
+          "MD5",
+          "XXHASH"
+        ],
+        "symbolToDoc": {
+          "MODULO": "Mod the key with partitionCount to get the partitionKey",
+          "MD5": "Hash the key and mod it with partitionCount to get the partitionKey",
+          "XXHASH": "Hash the key with xxhash and mod it with partitionCount to get the partitionKey"
+        },
+        "name": "HashAlgorithm",
+        "namespace": "com.linkedin.d2",
+        "doc": "The hashing algorithm used in HASH based partitioning. Supported algorithms are: MODULO or MD5. Not used for RANGE based partition.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "HTTP",
+          "HTTPS"
+        ],
+        "symbolToDoc": {},
+        "name": "scheme",
+        "namespace": "com.linkedin.d2",
+        "doc": "There are 2 types of scheme: HTTP, HTTPS",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "supports",
+            "doc": "basic rest.li methods supported by this resource, e.g. get, update, delete",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "methods",
+            "doc": "details on rest methods supported by this simple resource",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "RestMethodSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "actions",
+            "doc": "list of actions supported by this simple resource",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ActionSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "entity",
+            "doc": "details of the entity provided by this simple resource",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "EntitySchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "SimpleSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a simple resource.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "value",
+            "doc": "Value of the max batch size.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "validate",
+            "doc": "Flag which is used to specify whether valid request batch size based on the max batch size value.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "defaultValue": "false"
+          }
+        ],
+        "name": "MaxBatchSizeSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a max batch size.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "requests",
+            "doc": "Individual HTTP requests executed in parallel.  Keys of the requests are used to correlate responses with requests. They should be unique within the multiplexed request",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.common.multiplexer",
+                  "name": "IndividualRequest"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "MultiplexedRequestContent",
+        "namespace": "com.linkedin.restli.common.multiplexer",
+        "doc": "Represents multiple HTTP requests to send as a single multiplexed HTTP request",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [],
+        "name": "ErrorDetails",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "created",
+            "doc": "A timestamp corresponding to the creation of this resource/association/sub-resource",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "includedFrom": {
+              "namespace": "com.linkedin.d2",
+              "name": "D2ChangeTimeStamps"
+            }
+          },
+          {
+            "name": "lastModified",
+            "doc": "A timestamp corresponding to the last modification of this resource/association/sub-resource. If no modification has happened since creation, lastModified should be the same as created",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "includedFrom": {
+              "namespace": "com.linkedin.d2",
+              "name": "D2ChangeTimeStamps"
+            }
+          },
+          {
+            "name": "deleted",
+            "doc": "A timestamp corresponding to the deletion of this resource/association/sub-resource. Logically, deleted MUST have a later timestamp than creation. It may or may not have the same time as lastModified depending upon the resource/association/sub-resource semantics.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.d2",
+              "name": "D2ChangeTimeStamps"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "The name of the cluster",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "services",
+            "doc": "The services that this cluster can provide",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "[]"
+          },
+          {
+            "name": "uris",
+            "doc": "The URIs of machines that belong to this cluster",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "D2Uri"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "[]"
+          },
+          {
+            "name": "bannedUris",
+            "doc": "banned Uris for this cluster",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "[]"
+          },
+          {
+            "name": "partitionConfiguration",
+            "doc": "If this cluster has partitioning, then this is the partition config of this cluster",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2ClusterPartitionConfiguration"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "sslSessionValidationStrings",
+            "doc": "List of validation strings. SSL session validator use this information to verify the host it connects to. The name is generically defined because it can be used by any type SSLSessionValidator in open source world.",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "[]"
+          },
+          {
+            "name": "darkClusters",
+            "doc": "Holds the configuration for this cluster\u0027s dark canary clusters, if any. The map is keyed by the dark canary name.",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "DarkClusterConfig"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "{}"
+          }
+        ],
+        "name": "D2Cluster",
+        "namespace": "com.linkedin.d2",
+        "doc": "A cluster as represented in D2",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "created",
+            "doc": "A timestamp corresponding to the creation of this resource/association/sub-resource",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "includedFrom": {
+              "namespace": "com.linkedin.d2",
+              "name": "D2ChangeTimeStamps"
+            }
+          },
+          {
+            "name": "lastModified",
+            "doc": "A timestamp corresponding to the last modification of this resource/association/sub-resource. If no modification has happened since creation, lastModified should be the same as created",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "includedFrom": {
+              "namespace": "com.linkedin.d2",
+              "name": "D2ChangeTimeStamps"
+            }
+          },
+          {
+            "name": "deleted",
+            "doc": "A timestamp corresponding to the deletion of this resource/association/sub-resource. Logically, deleted MUST have a later timestamp than creation. It may or may not have the same time as lastModified depending upon the resource/association/sub-resource semantics.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.d2",
+              "name": "D2ChangeTimeStamps"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "The name of the service",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "path",
+            "doc": "The path to reach the resource/service",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "loadBalancerStrategyList",
+            "doc": "Prioritized order of strategy that this service should use.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "loadBalancerStrategyType"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "prioritizedSchemes",
+            "doc": "List of schemes that this service supports ordered by priority",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "scheme"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "bannedUris",
+            "doc": "banned Uris for this service",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "serviceMetadataProperties",
+            "doc": "Metadata properties about the service e.g. multi colo routing, service variants, etc",
+            "type": {
+              "map": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "cluster",
+            "doc": "The cluster where this service belongs",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "loadBalancerStrategyProperties",
+            "doc": "The load balancer strategy properties for this service.\n\nRequired along with D2DegraderProperties for the degrader strategy.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2LoadBalancerStrategyProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "degraderProperties",
+            "doc": "The degrader properties for this service.\n\nRequired along with D2DegraderProperties for the degrader strategy.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2DegraderProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "relativeStrategyProperties",
+            "doc": "Properties used for the relative load balancing strategy.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2RelativeStrategyProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "transportClientProperties",
+            "doc": "The transport client properties for this service",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2TransportClientProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "backupRequests",
+            "doc": "Configuration of backup requests. Each element describes backup requests configuration for specific operation.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "BackupRequestsConfiguration"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "enableClusterSubsetting",
+            "doc": "When enabled, client will only send requests to a subset of the hosts in the cluster. Used together with minClusterSubsetSize.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minClusterSubsetSize",
+            "doc": "The minimum cluster subset size for this service. Will only take effect when enableClusterSubsetting is set to true.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2Service",
+        "namespace": "com.linkedin.d2",
+        "doc": "A service as represented in D2",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "start",
+            "doc": "The start index of this collection",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "count",
+            "doc": "The number of elements in this collection segment",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "total",
+            "doc": "The total number of elements in the entire collection (not just this segment)",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "0"
+          },
+          {
+            "name": "links",
+            "doc": "",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.common",
+                  "name": "Link"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "CollectionMetadata",
+        "namespace": "com.linkedin.restli.common",
+        "doc": "Metadata and pagination links for this collection",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "lowerBound",
+            "doc": "The lower bound in the range, inclusive.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "upperBound",
+            "doc": "The upper bound in the range, inclusive.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "HttpStatusCodeRange",
+        "namespace": "com.linkedin.d2",
+        "doc": "Defines a range of http status codes as [lowerBound, upperBound].\n\nFor example, 5xx would be modeled as HttpCodeRange(500, 599).",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "RELATIVE",
+          "DEGRADER",
+          "RANDOM"
+        ],
+        "symbolToDoc": {
+          "RELATIVE": "This strategy balances traffic to hosts within a service by comparing individual hosts` call\nstatistics relatively to the performance of the entire cluster.",
+          "DEGRADER": "This strategy will choose an endpoint based on multiple hints like latency, error rate and other call statistics",
+          "RANDOM": "This strategy will choose an endpoint randomly."
+        },
+        "name": "loadBalancerStrategyType",
+        "namespace": "com.linkedin.d2",
+        "doc": "There are 3 types of strategy: RELATIVE, DEGRADER, and RANDOM.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "multiplier",
+            "doc": "Constant multiplier. The dispatcher(s) will send a multiple of the original requests",
+            "type": {
+              "primitive": "float32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "0.0"
+          },
+          {
+            "name": "dispatcherOutboundTargetRate",
+            "doc": "Desired query rate to be maintained to dark canaries. Measured in qps.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "0"
+          },
+          {
+            "name": "dispatcherOutboundMaxRate",
+            "doc": "Max rate dispatcher can send to dark canary. Measured in qps. Will act as upper bound to protect canaries in case of traffic spikes",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "2147483647"
+          },
+          {
+            "name": "DarkClusterStrategyPrioritizedList",
+            "doc": "Prioritized order of dark cluster multiplier strategies. This is a list to support adding new strategies and having the strategy users\npick it up as they upgrade code versions, versus waiting for all strategy users to upgrade first. This is the same reason\nDegraderLoadBalancerStrategyName was replaced by DegraderLoadBalancerStrategyList.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "DarkClusterStrategyName"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "[\"RELATIVE_TRAFFIC\"]"
+          },
+          {
+            "name": "transportClientProperties",
+            "doc": "The transport client properties to use for this dark cluster",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2TransportClientProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "DarkClusterConfig",
+        "namespace": "com.linkedin.d2",
+        "doc": "Configuration for a dark canary cluster. Dark Canaries are instances of a service that have production traffic tee\u0027d off to them, but the results are ignored. These are used for early validation of code, configs, and A/B ramps.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "CustomAnnotationSchema"
+            }
+          },
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "success",
+            "doc": "Success statuses for this resource method.",
+            "type": {
+              "array": {
+                "primitive": "int32",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "SuccessStatusesSchema"
+            }
+          },
+          {
+            "name": "method",
+            "doc": "Method type for this rest method",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for this rest method",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "parameters",
+            "doc": "list of query parameters for this method",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ParameterSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "metadata",
+            "doc": "Describes the collection level metadata returned by this method. This is usually set only for GET_ALL method type.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "MetadataSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "pagingSupported",
+            "doc": "Indicates if this rest method has paging support using the start and count parameters",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxBatchSize",
+            "doc": "Specifies the max batch size allowed for this method. It supports BATCH_GET, BATCH_CREATE, BATCH_DELETE,\nBATCH_UPDATE and BATCH_PARTIAL_UPDATE methods.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "MaxBatchSizeSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "RestMethodSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a basic REST resource method.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "status",
+            "doc": "The HTTP status code.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "code",
+            "doc": "The canonical error code, e.g. for \u0027400 Bad Request\u0027 it can be \u0027INPUT_VALIDATION_FAILED\u0027. Only predefined codes should be used.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "message",
+            "doc": "A human-readable explanation of the error.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "errorDetailType",
+            "doc": "The type of the error detail model, e.g. com.example.api.BadRequest. Error detail records returned to the client should conform to this schema.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "parameters",
+            "doc": "Resource method parameters for which this service error applies, if any. Allowed only for method-level service errors.",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ServiceErrorSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Describes a service error that may be returned by some resource or resource method.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "CustomAnnotationSchema"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "name of this parameter",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "type",
+            "doc": "avro type of this parameter",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "items",
+            "doc": "type of individual items, if this is an array parameter (used for finder parameters)",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "optional",
+            "doc": "indicates whether this parameter is optional.  omitted for required parameters",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "default",
+            "doc": "indicates the default value for this parameter",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for this parameter",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ParameterSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "name",
+            "doc": "Name of the alternative key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for the alternative key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "type",
+            "doc": "the avro type of the alternative key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "keyCoercer",
+            "doc": "the keyCoercer class for this alternative key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "AlternativeKeySchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "CustomAnnotationSchema"
+            }
+          },
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "success",
+            "doc": "Success statuses for this resource method.",
+            "type": {
+              "array": {
+                "primitive": "int32",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "SuccessStatusesSchema"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "name of this finder - not required if this is the default finder",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for this finder",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "parameters",
+            "doc": "list of query parameters for this finder",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ParameterSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "metadata",
+            "doc": "describes the collection-level metadata returned by this finder",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "MetadataSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "assocKey",
+            "doc": "association key for this finder - only present if this finder takes a single association key",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "assocKeys",
+            "doc": "list of association keys for this finder - only present if this finder takes multiple association keys",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "pagingSupported",
+            "doc": "Indicates if this finder method has paging support using the start and count parameters",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "FinderSchema"
+            }
+          },
+          {
+            "name": "batchParam",
+            "doc": "Indicates the parameter name that contains the criteria list",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "maxBatchSize",
+            "doc": "",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "MaxBatchSizeSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "BatchFinderSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a batch finder resource method.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "CustomAnnotationSchema"
+            }
+          },
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "success",
+            "doc": "Success statuses for this resource method.",
+            "type": {
+              "array": {
+                "primitive": "int32",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "SuccessStatusesSchema"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "name of this action",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for this action",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "parameters",
+            "doc": "parameters for this action",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ParameterSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "returns",
+            "doc": "avro type of this action\u0027s return value",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "throws",
+            "doc": "list of exception types thrown by this action",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ActionSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing an action resource method.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "RANDOM",
+          "URI_REGEX"
+        ],
+        "symbolToDoc": {},
+        "name": "hashMethodEnum",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "serviceErrors",
+            "doc": "Service errors for this resource or resource method.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ServiceErrorSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "ServiceErrorsSchema"
+            }
+          },
+          {
+            "name": "identifier",
+            "doc": "details of the identifier (key) for this collection",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "IdentifierSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "alternativeKeys",
+            "doc": "alternative keys",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "AlternativeKeySchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "supports",
+            "doc": "basic rest.li methods supported by this resource, e.g., create, get, update, delete, batch_get",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "methods",
+            "doc": "details on rest methods supported by this collection",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "RestMethodSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "finders",
+            "doc": "list of finders supported by this collection",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "FinderSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "batchFinders",
+            "doc": "list of batch finders supported by this collection",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "BatchFinderSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "actions",
+            "doc": "list of actions supported by this collection",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "ActionSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "entity",
+            "doc": "details of the entity provided by this collection",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "EntitySchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "CollectionSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a collection resource.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "annotations",
+            "doc": "custom annotation data",
+            "type": {
+              "map": {
+                "reference": {
+                  "namespace": "com.linkedin.restli.restspec",
+                  "name": "CustomAnnotationContentSchema"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true,
+            "includedFrom": {
+              "namespace": "com.linkedin.restli.restspec",
+              "name": "CustomAnnotationSchema"
+            }
+          },
+          {
+            "name": "name",
+            "doc": "name of the resource",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "namespace",
+            "doc": "namespace of the resource",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "path",
+            "doc": "URI template for accessing the resource",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "schema",
+            "doc": "Java-style fully-qualified class name for record entities of this resource. This is only present when the entity type is STRUCTURED_DATA",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "entityType",
+            "doc": "The type of entity this resource produces. This is not the record schema type, which is specified in the \u0027schema\u0027 field",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "ResourceEntityType"
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "\"STRUCTURED_DATA\""
+          },
+          {
+            "name": "doc",
+            "doc": "Documentation for this resource",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "collection",
+            "doc": "details of collection, if this resource is a collection",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "CollectionSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "association",
+            "doc": "details of association, if this resource is an association",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "AssociationSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "actionsSet",
+            "doc": "details of action set, if this resource is an action set",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "ActionsSetSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "simple",
+            "doc": "details of simple resource, if this resource is a simple resource",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.restspec",
+                "name": "SimpleSchema"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "ResourceSchema",
+        "namespace": "com.linkedin.restli.restspec",
+        "doc": "Schema representing a Rest.li resource.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "status",
+            "doc": "HTTP status code",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "headers",
+            "doc": "HTTP headers",
+            "type": {
+              "map": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "{}"
+          },
+          {
+            "name": "body",
+            "doc": "Response body",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.restli.common.multiplexer",
+                "name": "IndividualBody"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "IndividualResponse",
+        "namespace": "com.linkedin.restli.common.multiplexer",
+        "doc": "Individual HTTP response within a multiplexed response",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "created",
+            "doc": "A timestamp corresponding to the creation of this resource/association/sub-resource",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "lastModified",
+            "doc": "A timestamp corresponding to the last modification of this resource/association/sub-resource. If no modification has happened since creation, lastModified should be the same as created",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "deleted",
+            "doc": "A timestamp corresponding to the deletion of this resource/association/sub-resource. Logically, deleted MUST have a later timestamp than creation. It may or may not have the same time as lastModified depending upon the resource/association/sub-resource semantics.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2ChangeTimeStamps",
+        "namespace": "com.linkedin.d2",
+        "doc": "Data captured on a resource/association/sub-resource level giving insight into when that resource/association/sub-resource moved into various lifecycle stages, and who acted to move it into those lifecycle stages.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "upStep",
+            "doc": "Step function delta size for increasing a server\u0027s health score. Values are from 0.0 - 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "downStep",
+            "doc": "Step function delta size for decreasing a server\u0027s health score. Values are from 0.0 - 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "relativeLatencyHighThresholdFactor",
+            "doc": "A server whose latency is above this specified factor of the cluster average is considered unhealthy,\nand its health score will be decreased by downStep.\nValues must be greater than both 1.0 and relativeLatencyLowThresholdFactor.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "relativeLatencyLowThresholdFactor",
+            "doc": "A server whose latency is below this specified factor of the cluster average is considered healthy,\nand its health score will be increased by upStep.\nValues must be greater than 1.0 and below relativeLatencyHighThresholdFactor.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "highErrorRate",
+            "doc": "If the error rate during the interval exceeds this value, then we will decrease the health score by downStep.\nValues are from 0.0 - 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "lowErrorRate",
+            "doc": "If the error rate during the interval is under this value, then we will increase the health score by upStep.\nValues are from 0.0 - 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minCallCount",
+            "doc": "The health score for a server will not be calculated unless the number of calls to it in the interval\nmeets or exceeds the minimum call count.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "updateIntervalMs",
+            "doc": "The interval (in milliseconds) between each round of health score calculations.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "initialHealthScore",
+            "doc": "The initial health score that a server starts with.\nValues are from 0.0 - 1.0.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "slowStartThreshold",
+            "doc": "The health score threshold that determines whether D2 should perform slow start\n(by doubling the health score) or the normal stepUp/Down operation.\nValues are from 0.0 - 1.0. A value of 0.0 means slow start is disabled.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "errorStatusFilter",
+            "doc": "A request status code that falls within any of the provided ranges will be considered as a server-side error.",
+            "type": {
+              "array": {
+                "reference": {
+                  "namespace": "com.linkedin.d2",
+                  "name": "HttpStatusCodeRange"
+                },
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "emittingIntervalMs",
+            "doc": "Emitting interval (in milliseconds) for D2Events.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "enableFastRecovery",
+            "doc": "When enabled, fully degraded hosts will \"recover\" health despite not taking any traffic.\nThe health recovery will model that of slow start. Health score will be doubled as long\nas the number of requests toward the entire cluster exceed the minimum call count (minCallCount).\nThe idea is to prevent unhealthy hosts from never receiving traffic and being able to\nnaturally recover due to their health score and overall QPS to the cluster being too low.",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "quarantineProperties",
+            "doc": "Quarantine properties.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2QuarantineProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "ringProperties",
+            "doc": "Ring properties.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "D2RingProperties"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2RelativeStrategyProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "Relative load balancer strategy properties for a particular D2 service.\n\nBalances traffic to hosts within a service by dynamically adjusting a server\u0027s health score\nbased on call statitics compared relatively to the performance of the entire cluster.\n\nHealth score is rated on a scale from 0.0 - 1.0, with 0.0 meaning most unhealthy (all traffic\nrouted away) and 1.0 meaning most healthy (no traffic routed away). Note that this behavior is\ninverse of dropRate in the degrader strategy.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "URI",
+            "doc": "URI for this machine.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "clusterName",
+            "doc": "The cluster where this URI belongs.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "partitionDescription",
+            "doc": "partitionId key to weight",
+            "type": {
+              "map": {
+                "primitive": "float64",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false
+          }
+        ],
+        "name": "D2Uri",
+        "namespace": "com.linkedin.d2",
+        "doc": "A URI resource as represented in D2",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "queryPostThreshold",
+            "doc": "The minimum size of GET requests parameters before we start converting it to POST request.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "requestTimeout",
+            "doc": "Timeout in ms for this transport client. Defaults to 10s.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "streamingTimeout",
+            "doc": "Streaming Timeout in ms for this transport client. Disabled by default (-1)",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxResponseSize",
+            "doc": "Max payload that this transport client can carry in bytes. Defaults to 2MB.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxHeaderSize",
+            "doc": "Maximum size, in bytes, of all headers for a single HTTP request/response. Defaults to 8KB.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxChunkSize",
+            "doc": "Maximum chunk size, in bytes, of HTTP chunked encoding. Defaults to 8KB.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "poolSize",
+            "doc": "Maximum size of the underlying HTTP connection pool. Defaults to 200.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "poolWaiterSize",
+            "doc": "Maximum waiters waiting on the HTTP connection pool.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "poolStatsNamePrefix",
+            "doc": "Custom prefix of the name of the pool stats.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "tcpNoDelay",
+            "doc": "Flag to enable/disable Nagle\u0027s algorithm. Defaults to true",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "true"
+          },
+          {
+            "name": "poolStrategy",
+            "doc": "The strategy HTTP connection pool uses to select connections. Defaults to MRU.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "poolStrategyType"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "minPoolSize",
+            "doc": "Minimum size of the HTTP connection pool",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxConcurrentConnections",
+            "doc": "Maximum connection requests this transport client can send to an endpoint concurrently.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "idleTimeout",
+            "doc": "interval after which idle connections will be automatically closed. Defaults to 25s.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "sslIdleTimeout",
+            "doc": "interval after which idle SSL connections will be automatically closed. Defaults to 2h 55m.",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "shutdownTimeout",
+            "doc": "timeout, in ms, the client should wait after shutdown is initiated before terminating outstanding requests. Defaults to 5s",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "gracefulShutdownTimeout",
+            "doc": "timeout, in ms, the client should wait for exiting http2 streams before shutting down the connection. Defaults to 30s",
+            "type": {
+              "primitive": "int64",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "30000"
+          },
+          {
+            "name": "responseCompressionOperations",
+            "doc": "operations where compression should be used",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "responseContentEncodings",
+            "doc": "preferred content encodings for responses, used to construct Accept-Encoding header",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "requestContentEncodings",
+            "doc": "supported content encodings for requests",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "useResponseCompression",
+            "doc": "whether to enable response compression or not",
+            "type": {
+              "primitive": "bool",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "false"
+          },
+          {
+            "name": "allowedClientOverrideKeys",
+            "doc": "a list of keys in D2TransportClientProperties which client can override",
+            "type": {
+              "array": {
+                "primitive": "string",
+                "rawRecord": false
+              },
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "[]"
+          },
+          {
+            "name": "protocolVersion",
+            "doc": "service desired transport client protocol version e.g. HTTP/1.1, HTTP/2",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "HttpProtocolVersionType"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "maxClientRequestRetryRatio",
+            "doc": "Service desired maximum ratio of retry requests to total requests per client. The retry ratio is applied\nonly when D2 RetryClient is enabled.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2TransportClientProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "The properties that is applied when creating transport client to talk to this particular D2 service",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "enum": {
+        "symbols": [
+          "POINT_BASED",
+          "MULTI_PROBE",
+          "DISTRIBUTION_BASED"
+        ],
+        "symbolToDoc": {
+          "POINT_BASED": "Point-based consistent hash ring. The more points the ring has, the more balanced it is.",
+          "MULTI_PROBE": "Multi-probe consistent hash. The more probes to use, the more balanced the ring is.",
+          "DISTRIBUTION_BASED": "Use points of hosts to build a distribution and make randomized host selection. NOTE: this algorithm DOES NOT support sticky routing"
+        },
+        "name": "ConsistentHashAlgorithmEnum",
+        "namespace": "com.linkedin.d2",
+        "doc": "",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "quarantineMaxPercent",
+            "doc": "The max percentage of hosts in the cluster that can be quarantined at the same time.\nValues are from 0.0 - 1.0. A value of 0.0 means quarantine is disabled.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "healthCheckMethod",
+            "doc": "The http method used for health checking quarantined hosts. Defaults to OPTIONS method.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "HttpMethod"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "healthCheckPath",
+            "doc": "The path used for health checking quarantined hosts. eg: \"/\u003ccontextPath\u003e/admin\". Defaults to the service path.",
+            "type": {
+              "primitive": "string",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2QuarantineProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "Properties for D2 quarantine.\n\nSeverely unhealthy hosts can be placed in quarantine, in which \"dummy\" requests with a\ncustomizable method/path are used as pings to check endpoint health instead of real requests.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "pointsPerWeight",
+            "doc": "The number of points per weight given for a particular node in a hash ring. Defaults to 100.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "hashMethod",
+            "doc": "What hashing method used to hash incoming request. Used to determine which node should serve the request. Choices are Random, UriRegex",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "HashMethod"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "hashConfig",
+            "doc": "Configuration used to supplement the hash method.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "HashConfig"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "hashRingPointCleanupRate",
+            "doc": "The highest ratio of unused entries over the total entries of the Ring points that d2 maintains.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "consistentHashAlgorithm",
+            "doc": "Consistent hash algorithm the d2 load balancer should use. Defaults to POINT_BASED.",
+            "type": {
+              "reference": {
+                "namespace": "com.linkedin.d2",
+                "name": "ConsistentHashAlgorithm"
+              },
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "numberOfProbes",
+            "doc": "The number of probes used to look up a key in consistent hash ring. Defaults to 21.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "numberOfPointsPerHost",
+            "doc": "The number of points on MultiProbe hash ring for each host. Defaults to 1.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": true
+          },
+          {
+            "name": "boundedLoadBalancingFactor",
+            "doc": "The balancing factor that enables the bounded-load feature, which is a decorator of consistent hashing algorithms. No single server is allowed to have a load more than this factor times the average load among all servers. A value of -1 disables the feature. Otherwise, it is a factor greater than 1. Defaults to -1.",
+            "type": {
+              "primitive": "float64",
+              "rawRecord": false
+            },
+            "isOptional": true
+          }
+        ],
+        "name": "D2RingProperties",
+        "namespace": "com.linkedin.d2",
+        "doc": "D2 hash ring properties used for load balancing.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    },
+    {
+      "record": {
+        "fields": [
+          {
+            "name": "cost",
+            "doc": "Maximum number of backup requests expressed in percent. For example, value 5 means that clients will not make more than 5% of additional backup requests. The actual number of backup requests is not guaranteed and this strategy allows for short bursts of additional requests in order to be effective. Minimum value is 1 and maximum value is 99.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false
+          },
+          {
+            "name": "historyLength",
+            "doc": "Decision on when to make a backup requests is based on recent history of response times. This property specifies how many recent requests should be taken into consideration. Minimum value is 100.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "1024"
+          },
+          {
+            "name": "requiredHistoryLength",
+            "doc": "Decision on when to make a backup requests is based on recent history of response times. This property specifies how many requests are needed in order to start making backup requests. Minimum value is 100.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "128"
+          },
+          {
+            "name": "maxBurst",
+            "doc": "It is expected that backup requests will happen in bursts e.g. when one of the hosts is experiencing long GC pause. Capping number of backup requests in a continuous way would decrease effectiveness of this technique in common case. This property specifies the maximum size of backup requests burst. For example, value 64 means that there might be 64 consecutive backup requests made even though it means that this burst temporarily exceeds specified percentage limit. See documentation of BurstyBarrier class for detailed discussion. Minimum value is 1.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "64"
+          },
+          {
+            "name": "minBackupDelayMs",
+            "doc": "Backup request may be made after certain delay that is dynamically calculated based on recent response times. This parameter is a minimum value for that delay. This parameter may help limit number of backup requests if SLA is already met. For example, if this parameter has value 5, then no backup requests will be made if max response time is lower than 5ms. 0 means that there is no minimum backup delay. Value must not be negative.",
+            "type": {
+              "primitive": "int32",
+              "rawRecord": false
+            },
+            "isOptional": false,
+            "defaultValue": "0"
+          }
+        ],
+        "name": "BoundedCostBackupRequests",
+        "namespace": "com.linkedin.d2",
+        "doc": "Configuration of bounded cost backup requests strategy. This strategy attempts to keep cost (number of backup requests expressed in percents) of backup requests close to specified limit. This strategy will try not to make more backup requests than specified. The actual number of backup requests is not guaranteed and allows for short bursts of additional requests in order to be effective.",
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.0.jar"
+      }
+    }
+  ],
+  "resources": []
+}

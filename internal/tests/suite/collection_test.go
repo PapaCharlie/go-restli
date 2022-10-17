@@ -13,7 +13,7 @@ import (
 	colletionSubSimpletest "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection/subsimple_test"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection_test"
 	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlidata"
+	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +49,7 @@ func (o *Operation) CollectionCreate500(t *testing.T, c Client) func(*testing.T)
 		return &MockResource{
 			MockCreate: func(ctx *restli.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedEntity, err error) {
 				require.Equal(t, message, entity)
-				return nil, &restlidata.ErrorResponse{
+				return nil, &common.ErrorResponse{
 					Status: restli.Int32Pointer(http.StatusInternalServerError),
 				}
 			},
@@ -67,7 +67,7 @@ func (o *Operation) CollectionCreateErrorDetails(t *testing.T, c Client) func(*t
 		return &MockResource{
 			MockCreate: func(ctx *restli.RequestContext, entity *conflictresolution.Message) (createdEntity *CreatedEntity, err error) {
 				require.Equal(t, message, entity)
-				return nil, &restlidata.ErrorResponse{Status: restli.Int32Pointer(http.StatusBadRequest)}
+				return nil, &common.ErrorResponse{Status: restli.Int32Pointer(http.StatusBadRequest)}
 			},
 		}
 	}
@@ -131,7 +131,7 @@ func (o *Operation) CollectionGet404(t *testing.T, c Client) func(*testing.T) *M
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
 			MockGet: func(ctx *restli.RequestContext, collectionId int64) (entity *conflictresolution.Message, err error) {
-				return nil, &restlidata.ErrorResponse{
+				return nil, &common.ErrorResponse{
 					Status: restli.Int32Pointer(http.StatusNotFound),
 				}
 			},
@@ -161,7 +161,7 @@ func (o *Operation) CollectionSearchFinder(t *testing.T, c Client) func(*testing
 			newMessage(1, "test message"),
 			newMessage(2, "another message"),
 		},
-		Paging: &restlidata.CollectionMedata{
+		Paging: &common.CollectionMetadata{
 			Count: 10,
 			Total: restli.Int32Pointer(2),
 		},
@@ -252,7 +252,7 @@ func newMessage(id int64, message string) *conflictresolution.Message {
 func (o *Operation) CollectionBatchDelete(t *testing.T, c Client) func(*testing.T) *MockResource {
 	expectedKeys := []int64{1, 3}
 	expected := &BatchResponse{
-		Results: map[int64]*restlidata.BatchEntityUpdateResponse{
+		Results: map[int64]*common.BatchEntityUpdateResponse{
 			expectedKeys[0]: {
 				Status: 204,
 			},
@@ -278,7 +278,7 @@ func (o *Operation) CollectionBatchDelete(t *testing.T, c Client) func(*testing.
 func (o *Operation) CollectionBatchGet(t *testing.T, c Client) func(*testing.T) *MockResource {
 	expectedKeys := []int64{1, 3}
 	expected := &BatchEntities{
-		Errors: map[int64]*restlidata.ErrorResponse{},
+		Errors: map[int64]*common.ErrorResponse{},
 		Results: map[int64]*conflictresolution.Message{
 			expectedKeys[0]: {
 				Id:      &expectedKeys[0],
@@ -318,7 +318,7 @@ func (o *Operation) CollectionBatchUpdate(t *testing.T, c Client) func(*testing.
 		},
 	}
 	expected := &BatchResponse{
-		Results: map[int64]*restlidata.BatchEntityUpdateResponse{
+		Results: map[int64]*common.BatchEntityUpdateResponse{
 			keys[0]: {
 				Status: 204,
 			},
@@ -361,7 +361,7 @@ func (o *Operation) CollectionBatchPartialUpdate(t *testing.T, c Client) func(*t
 		},
 	}
 	expected := &BatchResponse{
-		Results: map[int64]*restlidata.BatchEntityUpdateResponse{
+		Results: map[int64]*common.BatchEntityUpdateResponse{
 			keys[0]: {
 				Status: 204,
 			},

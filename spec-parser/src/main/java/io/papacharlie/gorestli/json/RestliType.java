@@ -6,7 +6,13 @@ import com.linkedin.data.schema.NamedDataSchema;
 import java.util.Map;
 import java.util.Objects;
 
-import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.*;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.BOOL;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.BYTES;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.FLOAT32;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.FLOAT64;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.INT32;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.INT64;
+import static io.papacharlie.gorestli.json.RestliType.GoPrimitive.STRING;
 
 
 public final class RestliType {
@@ -97,12 +103,6 @@ public final class RestliType {
     @Override
     public String toString() {
       return _namespace + "." + _name;
-    }
-  }
-
-  public static class UnknownTypeException extends RuntimeException {
-    private UnknownTypeException(DataSchema.Type type) {
-      super("Unknown type: " + type);
     }
   }
 }

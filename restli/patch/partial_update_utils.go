@@ -1,6 +1,10 @@
-package restli
+package patch
 
-import "github.com/PapaCharlie/go-restli/restlicodec"
+import (
+	"fmt"
+
+	"github.com/PapaCharlie/go-restli/restlicodec"
+)
 
 const (
 	PatchField = "patch"
@@ -50,4 +54,16 @@ func (c *PartialUpdateFieldChecker) CheckField(
 	}
 
 	return nil
+}
+
+// IllegalPartialUpdateError is returned by PartialUpdateFieldChecker a partial update struct defines an illegal
+// operation, such as deleting and setting the same field.
+type IllegalPartialUpdateError struct {
+	Message    string
+	RecordType string
+	Field      string
+}
+
+func (c *IllegalPartialUpdateError) Error() string {
+	return fmt.Sprintf("go-restli: %s field %q of %q", c.Message, c.Field, c.RecordType)
 }
