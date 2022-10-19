@@ -7,6 +7,7 @@ import (
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
 	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey_test"
 	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/restlicodec"
 	"github.com/PapaCharlie/go-restli/restlidata"
 	"github.com/stretchr/testify/require"
 )
@@ -102,20 +103,16 @@ func (o *Operation) ComplexkeyCreate(t *testing.T, c Client) func(*testing.T) *M
 			Message: "test message",
 		},
 	}
-	_, err := c.Create(create)
-	require.IsType(t, new(restli.CreateResponseHasNoEntityHeaderError), err)
-	// TODO: Merge https://github.com/linkedin/rest.li-test-suite/pull/6 and actually test the contents of the key
-	// require.Equal(t, expectedKey, actualKey.ComplexKey)
+	actualKey, err := c.Create(create)
+	require.NoError(t, err)
+	require.Equal(t, &Complexkey_ComplexKey{ComplexKey: expectedKey}, actualKey.Id)
 	return func(t *testing.T) *MockResource {
-		// TODO: ^ see above
-		t.SkipNow()
-		return nil
-		// return &MockResource{
-		// 	MockCreate: func(ctx *restli.RequestContext, entity *conflictresolution.LargeRecord) (createdEntity *restli.CreatedEntity[*Complexkey_ComplexKey], err error) {
-		// 		require.Equal(t, create, entity)
-		// 		return &restli.CreatedEntity[*Complexkey_ComplexKey]{Id: &Complexkey_ComplexKey{ComplexKey: expectedKey}}, nil
-		// 	},
-		// }
+		return &MockResource{
+			MockCreate: func(ctx *restli.RequestContext, entity *conflictresolution.LargeRecord) (createdEntity *CreatedEntity, err error) {
+				require.Equal(t, create, entity)
+				return &CreatedEntity{Id: &Complexkey_ComplexKey{ComplexKey: expectedKey}}, nil
+			},
+		}
 	}
 }
 
@@ -409,17 +406,38 @@ func (o *Operation) ComplexkeyBatchCreate(t *testing.T, c Client) func(*testing.
 	}
 	res, err := c.BatchCreate(create)
 	require.NoError(t, err)
-	require.Equal(t, []*CreatedEntity{
-		{
+
+	var expected []*CreatedEntity
+	for _, lr := range create {
+		ce := &CreatedEntity{
 			Status: 201,
-		},
-		{
-			Status: 201,
-		},
-	}, res)
+			Id:     &Complexkey_ComplexKey{ComplexKey: lr.Key},
+		}
+		w := restlicodec.NewRor2HeaderWriter()
+		require.NoError(t, restlicodec.MarshalRestLi(ce.Id, w))
+		ce.Location = new(string)
+		*ce.Location = "/complexkey/" + w.Finalize()
+		expected = append(expected, ce)
+	}
+
+	require.Equal(t, expected, res)
 
 	return func(t *testing.T) *MockResource {
-		deliberateSkip(t, "Cannot return empty key from batch create (merge https://github.com/linkedin/rest.li-test-suite/pull/6 to fix)")
-		return nil
+		return &MockResource{
+			MockBatchCreate: func(ctx *restli.RequestContext, entities []*conflictresolution.LargeRecord) (createdEntities []*CreatedEntity, err error) {
+				require.Equal(t, create, entities)
+				for _, e := range entities {
+					ce := &CreatedEntity{
+						// Skip setting the Status to check that the server correctly sets it if it's omitted on CREATE
+						// calls
+
+						Id: &Complexkey_ComplexKey{ComplexKey: e.Key},
+					}
+					require.NoError(t, restli.SetLocation(ctx, ce))
+					createdEntities = append(createdEntities, ce)
+				}
+				return createdEntities, nil
+			},
+		}
 	}
 }
