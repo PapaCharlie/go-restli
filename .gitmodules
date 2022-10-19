@@ -1,4 +1,4 @@
 
 [submodule "internal/tests/testdata/rest.li-test-suite"]
 	path = internal/tests/testdata/rest.li-test-suite
-	url = git@github.com:linkedin/rest.li-test-suite.git
+	url = git@github.com:PapaCharlie/rest.li-test-suite.git

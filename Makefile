@@ -95,6 +95,7 @@ generate-tests:
 	cd internal/tests/suite && go run ./generator
 
 clean:
+	git submodule update --init --recursive
 	git -C $(TEST_SUITE) reset --hard origin/master
 
 fat-jar: $(FAT_JAR)
