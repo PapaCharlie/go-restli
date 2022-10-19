@@ -110,3 +110,23 @@ release: build
 		spec-parser/build/libs/spec-parser-$(VERSION).jar \
 		spec-parser/build/publications/mavenJava/pom-default.xml \
 		releases/$(VERSION)
+
+codegen/parser/antlr4-4.11.1-complete.jar:
+	wget "https://www.antlr.org/download/antlr-4.11.1-complete.jar" -O $@
+
+codegen/parser/jar/go-restli-manifest.gr.json: $(JARGO)
+	go test . $(COVERPROFILE)/jar.cov $(GENERATOR_TEST_ARGS) \
+		--output-dir $(@D) \
+		--package-root garbage \
+		--raw-records extras.Any \
+		$(FAT_JAR) \
+		internal/tests/testdata/extra-test-suite/schemas \
+		internal/tests/testdata/rest.li-test-suite/client-testsuite/schemas
+	find $(@D) \( -mindepth 1 -maxdepth 1 -type d -or -name all_imports_test.gr.go \) -exec rm -rf {} \;
+
+codegen/parser/gopdl/go-restli-manifest.gr.json: $(JARGO)
+	go run ./$(@D) \
+		$(FAT_JAR) \
+		internal/tests/testdata/extra-test-suite/schemas \
+		internal/tests/testdata/rest.li-test-suite/client-testsuite/schemas
+	find $(@D) \( -mindepth 1 -maxdepth 1 -type d -or -name all_imports_test.gr.go \) -exec rm -rf {} \;

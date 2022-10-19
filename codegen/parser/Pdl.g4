@@ -1,0 +1,236 @@
+/*
+ * Copyright 2015 Coursera Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Antlr grammar for the Pegasus data language format (.pdl).
+ */
+grammar Pdl;
+
+// Document is the top level node of this grammar.
+// Each .pdl file contains exactly one document.
+// Ideally, only namedTypeDeclaration would be allowed for document level type declarations.
+// But for compatibility with .pdsc, arrays, maps and unions may be declared as well.
+document: namespaceDeclaration? packageDeclaration? importDeclarations typeDeclaration;
+
+namespaceDeclaration: NAMESPACE typeName;
+
+packageDeclaration: PACKAGE typeName;
+
+importDeclarations: importDeclaration*;
+
+importDeclaration: IMPORT type=typeName;
+
+// A typeReference is simply a type name that refers to a type defined elsewhere.
+typeReference returns [string value]: NULL_LITERAL { $value = "null"; } | typeName {
+  $value = $typeName.value;
+};
+
+typeDeclaration: scopedNamedTypeDeclaration | namedTypeDeclaration | anonymousTypeDeclaration;
+
+// Named declarations support schemadoc and properties.
+namedTypeDeclaration: doc=schemadoc? props+=propDeclaration*
+  (recordDeclaration | enumDeclaration | typerefDeclaration | fixedDeclaration);
+
+// Why can named type declarations be scoped with an alternate namespace and package?
+// Begrudgingly, for compatibility with .pdsc. In .pdsc all type declarations may specify a namespace and package,
+// even if they are inline declarations.
+scopedNamedTypeDeclaration: OPEN_BRACE namespaceDeclaration? packageDeclaration? namedTypeDeclaration CLOSE_BRACE;
+
+// Anonymous type declarations support properties.
+anonymousTypeDeclaration: props+=propDeclaration* (unionDeclaration | arrayDeclaration | mapDeclaration);
+
+typeAssignment: typeReference | typeDeclaration;
+
+// Each property is a node in a properties tree, keyed by it's path in the tree.
+// The value of each property may be any JSON type.
+// If the property does not specify a property, it defaults to JSON 'true'.
+propDeclaration returns [[]string path]: propNameDeclaration propJsonValue? {
+  $path = $propNameDeclaration.path;
+};
+
+propNameDeclaration returns [[]string path]: AT propName {
+  $path = $propName.path;
+};
+
+propJsonValue: EQ jsonValue;
+
+recordDeclaration returns [string name]: RECORD identifier beforeIncludes=fieldIncludes? recordDecl=fieldSelection afterIncludes=fieldIncludes? {
+  $name = $identifier.value;
+};
+
+enumDeclaration returns [string name]: ENUM identifier enumDecl=enumSymbolDeclarations {
+  $name = $identifier.value;
+};
+
+enumSymbolDeclarations: OPEN_BRACE symbolDecls+=enumSymbolDeclaration* CLOSE_BRACE;
+
+enumSymbolDeclaration: doc=schemadoc? props+=propDeclaration* symbol=enumSymbol;
+
+enumSymbol returns [string value]: identifier {
+  $value = $identifier.value;
+};
+
+typerefDeclaration returns [string name]: TYPEREF identifier EQ ref=typeAssignment {
+  $name = $identifier.value;
+};
+
+fixedDeclaration returns[string name, int size]:
+  FIXED identifier sizeStr=NUMBER_LITERAL {
+  $name = $identifier.value;
+  $size = $sizeStr.int;
+};
+
+unionDeclaration: UNION typeParams=unionTypeAssignments;
+
+unionTypeAssignments: OPEN_BRACKET members+=unionMemberDeclaration* CLOSE_BRACKET;
+
+unionMemberDeclaration: alias=unionMemberAlias? member=typeAssignment;
+
+unionMemberAlias: doc=schemadoc? props+=propDeclaration* name=identifier COLON;
+
+arrayDeclaration: ARRAY typeParams=arrayTypeAssignments;
+
+arrayTypeAssignments: OPEN_BRACKET items=typeAssignment CLOSE_BRACKET;
+
+mapDeclaration: MAP typeParams=mapTypeAssignments;
+
+mapTypeAssignments: OPEN_BRACKET key=typeAssignment value=typeAssignment CLOSE_BRACKET;
+
+fieldSelection: OPEN_BRACE fields+=fieldDeclaration* CLOSE_BRACE;
+
+fieldIncludes: INCLUDES typeAssignment+;
+
+fieldDeclaration returns [string name, bool isOptional]:
+    doc=schemadoc? props+=propDeclaration* fieldName=identifier COLON OPTIONAL? type=typeAssignment
+    fieldDefault? {
+  $name = $identifier.value;
+  $isOptional = $OPTIONAL != nil;
+};
+
+fieldDefault: EQ jsonValue;
+
+// A qualified identifier is simply one or more '.' separated identifiers.
+typeName returns [string value]: ID (DOT ID)* {
+  $value = validatePegasusId(unescapeIdentifier($text));
+};
+
+identifier returns [string value]: ID {
+  $value = validatePegasusId(unescapeIdentifier($text));
+};
+
+// A full property name, made of property segments separated by dots.
+// Returns the list of property segments.
+propName returns [[]string path]
+//@init{$path = new ArrayList<>();}
+  : propSegment {$path = append($path, $propSegment.value);} (DOT propSegment {$path = append($path, $propSegment.value);})*
+  ;
+
+// A property segment. Can be escaped with back-tick() to include dots (.) or other special characters in the segment.
+// Eg,
+// validate
+// `com.linkedin.validate.CustomValidator`
+// deprecated
+// `/*`
+propSegment returns [string value]: (ID | PROPERTY_ID | ESCAPED_PROP_ID) {
+  $value = unescapeIdentifier($text);
+};
+
+// Schemadoc strings support markdown formatting.
+schemadoc returns [string value]: SCHEMADOC_COMMENT {
+  $value = extractMarkdown($SCHEMADOC_COMMENT.text);
+};
+
+// Embedded JSON Grammar
+// JSON is used both for property values and for field default values.
+object: OPEN_BRACE objectEntry* CLOSE_BRACE;
+
+objectEntry: key=string COLON value=jsonValue ;
+
+array: OPEN_BRACKET items=jsonValue* CLOSE_BRACKET;
+
+jsonValue: string | number | object | array | bool | nullValue;
+
+string returns [string value]: STRING_LITERAL {
+  $value = parseStringLiteral($STRING_LITERAL.text)
+};
+
+number returns [Number value]: NUMBER_LITERAL {
+  $value = parseNumber($NUMBER_LITERAL.text);
+};
+
+bool returns [bool value]: BOOLEAN_LITERAL {
+  $value = parseBool($BOOLEAN_LITERAL.text);
+};
+
+nullValue: NULL_LITERAL;
+
+// Tokens
+// Antlr uses the below token rules to construct it the lexer for this grammar.
+ARRAY: 'array';
+ENUM: 'enum';
+FIXED: 'fixed';
+IMPORT: 'import';
+OPTIONAL: 'optional';
+PACKAGE: 'package';
+MAP: 'map';
+NAMESPACE: 'namespace';
+RECORD: 'record';
+TYPEREF: 'typeref';
+UNION: 'union';
+INCLUDES: 'includes';
+
+OPEN_PAREN: '(';
+CLOSE_PAREN: ')';
+OPEN_BRACE: '{';
+CLOSE_BRACE: '}';
+OPEN_BRACKET: '[';
+CLOSE_BRACKET: ']';
+
+AT: '@';
+COLON: ':';
+DOT: '.';
+EQ: '=';
+
+BOOLEAN_LITERAL: 'true' | 'false';
+NULL_LITERAL: 'null';
+
+SCHEMADOC_COMMENT: '/**' .*? '*/';
+BLOCK_COMMENT: '/*' .*? '*/' -> skip;
+LINE_COMMENT: '//' ~[\r\n]* -> skip;
+
+NUMBER_LITERAL: '-'? ('0' | [1-9] [0-9]*) ( '.' [0-9]+)? ([eE][+-]?[0-9]+)?;
+
+fragment HEX: [0-9a-fA-F];
+fragment UNICODE: 'u' HEX HEX HEX HEX;
+fragment ESC:   '\\' (["\\/bfnrt] | UNICODE);
+STRING_LITERAL: '"' (ESC | ~["\\])* '"';
+
+// ID lexeme is used both for property names and pegasus identifiers.
+// Unlike pegasus identifiers, it may contain '-' since that is allowed in property names.
+// The parser further constrains this ID using validatePegasusId when matching
+// pegasus identifiers.
+fragment UNESCAPED_ID: [A-Za-z_] [A-Za-z0-9_\-]*;
+fragment ESCAPED_ID: '`' UNESCAPED_ID '`';
+ID: UNESCAPED_ID | ESCAPED_ID;
+
+// "insignificant commas" are used in this grammar. Commas may be added as desired
+// in source files, but they are treated as whitespace.
+WS: [ \t\n\r\f,]+ -> skip;
+
+// Property segments can be any group of regular chars without escaping.
+PROPERTY_ID: [A-Za-z0-9_\-]+;
+// Property segment id escaped with ` to include special characters in them.
+ESCAPED_PROP_ID: '`' (~[`])+ '`';

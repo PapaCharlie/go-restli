@@ -19,3 +19,4 @@ cmd/classpath_jar.go
 internal/tests/parsed-specs.json
 releases/
 internal/tests/coverage/*.cov
+codegen/parser/*.jar

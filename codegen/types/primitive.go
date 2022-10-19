@@ -11,17 +11,18 @@ import (
 
 type PrimitiveType struct {
 	Type        string
+	Pdltype     string
 	newInstance func() interface{}
 }
 
 var (
-	Int32Primitive   = PrimitiveType{Type: "int32", newInstance: func() interface{} { return new(int32) }}
-	Int64Primitive   = PrimitiveType{Type: "int64", newInstance: func() interface{} { return new(int64) }}
-	Float32Primitive = PrimitiveType{Type: "float32", newInstance: func() interface{} { return new(float32) }}
-	Float64Primitive = PrimitiveType{Type: "float64", newInstance: func() interface{} { return new(float64) }}
-	BoolPrimitive    = PrimitiveType{Type: "bool", newInstance: func() interface{} { return new(bool) }}
-	StringPrimitive  = PrimitiveType{Type: "string", newInstance: func() interface{} { return new(string) }}
-	BytesPrimitive   = PrimitiveType{Type: "bytes"}
+	Int32Primitive   = PrimitiveType{Type: "int32", Pdltype: "int", newInstance: func() interface{} { return new(int32) }}
+	Int64Primitive   = PrimitiveType{Type: "int64", Pdltype: "long", newInstance: func() interface{} { return new(int64) }}
+	Float32Primitive = PrimitiveType{Type: "float32", Pdltype: "float", newInstance: func() interface{} { return new(float32) }}
+	Float64Primitive = PrimitiveType{Type: "float64", Pdltype: "double", newInstance: func() interface{} { return new(float64) }}
+	BoolPrimitive    = PrimitiveType{Type: "bool", Pdltype: "boolean", newInstance: func() interface{} { return new(bool) }}
+	StringPrimitive  = PrimitiveType{Type: "string", Pdltype: "string", newInstance: func() interface{} { return new(string) }}
+	BytesPrimitive   = PrimitiveType{Type: "bytes", Pdltype: "bytes"}
 )
 
 var PrimitiveTypes = []PrimitiveType{
@@ -33,6 +34,14 @@ var PrimitiveTypes = []PrimitiveType{
 	StringPrimitive,
 	BytesPrimitive,
 }
+
+var PdlTypes = func() map[string]PrimitiveType {
+	m := map[string]PrimitiveType{}
+	for _, t := range PrimitiveTypes {
+		m[t.Pdltype] = t
+	}
+	return m
+}()
 
 func (p *PrimitiveType) UnmarshalJSON(data []byte) error {
 	var primitiveType string
