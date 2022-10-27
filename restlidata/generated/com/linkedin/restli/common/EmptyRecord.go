@@ -3,6 +3,7 @@ package common
 import (
 	"reflect"
 
+	"github.com/PapaCharlie/go-restli/fnv1a"
 	"github.com/PapaCharlie/go-restli/restlicodec"
 )
 
@@ -10,6 +11,14 @@ type EmptyRecord struct{}
 
 func (e EmptyRecord) NewInstance() EmptyRecord {
 	return e
+}
+
+func (e EmptyRecord) Equals(EmptyRecord) bool {
+	return true
+}
+
+func (e EmptyRecord) ComputeHash() fnv1a.Hash {
+	return fnv1a.ZeroHash()
 }
 
 func (e EmptyRecord) DecodeQueryParams(restlicodec.QueryParamsReader) error {

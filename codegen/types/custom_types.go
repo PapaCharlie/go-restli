@@ -13,7 +13,7 @@ func init() {
 	utils.TypeRegistry.Register(&customType{
 		identifier: utils.EmptyRecordIdentifier,
 		sourceFile: "https://github.com/PapaCharlie/go-restli/blob/master/restlidata/EmptyRecord.go",
-	}, utils.RootPackage)
+	}, utils.RestLiDataPackage+"/generated")
 }
 
 type customType struct {

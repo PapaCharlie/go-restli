@@ -1,5 +1,5 @@
 namespace extras
 
 record WithManifestDependency {
-  link: com.linkedin.restli.common.Link
+  dep: com.linkedin.restli.common.EmptyRecord
 }
