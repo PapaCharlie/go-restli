@@ -102,8 +102,10 @@ func (reg *typeRegistry) flagCyclic(id Identifier) {
 	node := reg.get(id)
 	node.IsCyclic = true
 	for c := range node.Type.InnerTypes() {
-		if !reg.IsCyclic(c) {
+		child := reg.get(c)
+		if !child.IsCyclic && node.PackageRoot == child.PackageRoot {
 			reg.flagCyclic(c)
+			log.Printf("Flagging %q as cyclic", c.FullName())
 		}
 	}
 }

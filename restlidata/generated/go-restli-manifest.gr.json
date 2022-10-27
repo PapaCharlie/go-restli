@@ -36,7 +36,7 @@
         "name": "quarantineInfo",
         "namespace": "com.linkedin.d2",
         "doc": "Config info for d2 quarantine feature",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -46,7 +46,7 @@
         "name": "IndividualBody",
         "namespace": "com.linkedin.restli.common.multiplexer",
         "doc": "Represents content that may be in the body of an individual request / response",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -78,7 +78,7 @@
         "name": "UpdateStatus",
         "namespace": "com.linkedin.restli.common",
         "doc": "A rest.li update status.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -121,7 +121,7 @@
         "name": "hashConfigType",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -147,7 +147,7 @@
         "name": "CustomAnnotationSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Custom annotation for idl",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -246,7 +246,7 @@
         "name": "FinderSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a finder resource method.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -278,7 +278,7 @@
         "name": "BackupRequestsConfiguration",
         "namespace": "com.linkedin.d2",
         "doc": "Configuration of backup requests for specific operation.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -319,7 +319,7 @@
         "name": "ExtensionSchemaAnnotation",
         "namespace": "com.linkedin.restli.common",
         "doc": "Specifies the extension schema annotation configuration for defining the entity relationship among entities.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -357,7 +357,7 @@
         "name": "Link",
         "namespace": "com.linkedin.restli.common",
         "doc": "A atom:link-inspired link",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -373,7 +373,7 @@
         "name": "HttpProtocolVersionType",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -404,7 +404,7 @@
         "name": "ActionsSetSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing an actions set resource.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -627,7 +627,7 @@
         "name": "D2LoadBalancerStrategyProperties",
         "namespace": "com.linkedin.d2",
         "doc": "Load balancer properties for a particular D2 service",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -813,7 +813,7 @@
         "name": "D2DegraderProperties",
         "namespace": "com.linkedin.d2",
         "doc": "Degrader properties that is applied to all tracker clients talking to this particular D2 service",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -833,7 +833,7 @@
         "name": "MetadataSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -849,7 +849,7 @@
         "name": "ResourceEntityType",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -865,7 +865,7 @@
         "name": "poolStrategyType",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -878,7 +878,7 @@
         "name": "HttpMethod",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -982,7 +982,7 @@
         "name": "ErrorResponse",
         "namespace": "com.linkedin.restli.common",
         "doc": "A generic ErrorResponse",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1052,7 +1052,7 @@
         "name": "IndividualRequest",
         "namespace": "com.linkedin.restli.common.multiplexer",
         "doc": "Individual HTTP request within a multiplexed request. For security reasons, cookies are not allowed to be specified in the IndividualRequest. Instead, it MUST be specified in the top level envelope request.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1095,7 +1095,7 @@
         "name": "D2ClusterPartitionConfiguration_PartitionTypeSpecificData",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1118,7 +1118,7 @@
         "name": "SuccessStatusesSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Extension schema allowing method schemas to define success statuses.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1168,7 +1168,7 @@
         "name": "CreateStatus",
         "namespace": "com.linkedin.restli.common",
         "doc": "A rest.li create status.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1186,7 +1186,7 @@
         "name": "DarkClusterStrategyName",
         "namespace": "com.linkedin.d2",
         "doc": "There are 2 types of strategy: RELATIVE_TRAFFIC, CONSTANT_QPS. These can be specified in prioritized order and\nwill be picked in that order depending on availability.\nA strategy may not be available when a new strategy is introduced but the client has not upgraded to a code version\nthat supports that strategy.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1325,7 +1325,7 @@
         "name": "AssociationSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing an association resource.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1347,7 +1347,7 @@
         "name": "latencyType",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1397,7 +1397,7 @@
         "name": "EntitySchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1412,7 +1412,7 @@
         "name": "PartitionTypeEnum",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1430,7 +1430,7 @@
         "name": "ConsistentHashAlgorithm",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1456,7 +1456,7 @@
         "name": "ServiceErrorsSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Extension schema allowing resource and method schemas to define service errors.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1479,7 +1479,7 @@
         "name": "BackupRequestsConfiguration_Strategy",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1489,7 +1489,7 @@
         "name": "CustomAnnotationContentSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Unstructured record that represents arbitrary custom annotations for idl. Actual content is always a map with annotation\u0027s overridable member name as key and member value as value",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1518,7 +1518,7 @@
         "name": "RangedPartitionProperties",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1534,7 +1534,7 @@
         "name": "HashMethod",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1572,7 +1572,7 @@
         "name": "IdentifierSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1595,7 +1595,7 @@
         "name": "PartitionAccessorList",
         "namespace": "com.linkedin.d2",
         "doc": "The list of class names that implement BasePartitionAccessor. D2 goes through the list and uses the first one that is registered to PartitionAccessorRegistry. This list is used when the service needs to provide/deploy multiple versions of implementation.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1605,7 +1605,7 @@
         "name": "PegasusSchema",
         "namespace": "com.linkedin.restli.common",
         "doc": "A \"marker\" data schema for data that is itself a data schema (a \"PDSC for PDSCs\"). Because PDSC is not expressive enough to describe it\u0027s own format, this is only a marker, and has no fields. Despite having no fields, it is required that data marked with this schema be non-empty. Specifically, is required that data marked as using this schema fully conform to the PDSC format (https://github.com/linkedin/rest.li/wiki/DATA-Data-Schema-and-Templates#schema-definition).",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1648,7 +1648,7 @@
         "name": "HashConfig",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1677,7 +1677,7 @@
         "name": "AssocKeySchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1703,7 +1703,7 @@
         "name": "MultiplexedResponseContent",
         "namespace": "com.linkedin.restli.common.multiplexer",
         "doc": "Represents multiple HTTP responses to send as a single multiplexed HTTP response",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1756,7 +1756,7 @@
         "name": "D2ClusterPartitionConfiguration",
         "namespace": "com.linkedin.d2",
         "doc": "Partitioning configuration for D2 clusters",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1774,7 +1774,7 @@
         "name": "HashAlgorithm",
         "namespace": "com.linkedin.d2",
         "doc": "The hashing algorithm used in HASH based partitioning. Supported algorithms are: MODULO or MD5. Not used for RANGE based partition.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1787,7 +1787,7 @@
         "name": "scheme",
         "namespace": "com.linkedin.d2",
         "doc": "There are 2 types of scheme: HTTP, HTTPS",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1857,7 +1857,7 @@
         "name": "SimpleSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a simple resource.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1887,7 +1887,7 @@
         "name": "MaxBatchSizeSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a max batch size.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1913,7 +1913,7 @@
         "name": "MultiplexedRequestContent",
         "namespace": "com.linkedin.restli.common.multiplexer",
         "doc": "Represents multiple HTTP requests to send as a single multiplexed HTTP request",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -1923,7 +1923,7 @@
         "name": "ErrorDetails",
         "namespace": "com.linkedin.restli.common",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2031,7 +2031,7 @@
         "name": "D2Cluster",
         "namespace": "com.linkedin.d2",
         "doc": "A cluster as represented in D2",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2209,7 +2209,7 @@
         "name": "D2Service",
         "namespace": "com.linkedin.d2",
         "doc": "A service as represented in D2",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2263,7 +2263,7 @@
         "name": "CollectionMetadata",
         "namespace": "com.linkedin.restli.common",
         "doc": "Metadata and pagination links for this collection",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2292,7 +2292,7 @@
         "name": "HttpStatusCodeRange",
         "namespace": "com.linkedin.d2",
         "doc": "Defines a range of http status codes as [lowerBound, upperBound].\n\nFor example, 5xx would be modeled as HttpCodeRange(500, 599).",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2310,7 +2310,7 @@
         "name": "loadBalancerStrategyType",
         "namespace": "com.linkedin.d2",
         "doc": "There are 3 types of strategy: RELATIVE, DEGRADER, and RANDOM.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2379,7 +2379,7 @@
         "name": "DarkClusterConfig",
         "namespace": "com.linkedin.d2",
         "doc": "Configuration for a dark canary cluster. Dark Canaries are instances of a service that have production traffic tee\u0027d off to them, but the results are ignored. These are used for early validation of code, configs, and A/B ramps.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2469,7 +2469,7 @@
         "name": "RestMethodSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a basic REST resource method.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2528,7 +2528,7 @@
         "name": "ServiceErrorSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Describes a service error that may be returned by some resource or resource method.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2598,7 +2598,7 @@
         "name": "ParameterSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2645,7 +2645,7 @@
         "name": "AlternativeKeySchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2682,7 +2682,7 @@
         "name": "BatchFinderSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a batch finder resource method.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2760,7 +2760,7 @@
         "name": "ActionSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing an action resource method.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2773,7 +2773,7 @@
         "name": "hashMethodEnum",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -2900,7 +2900,7 @@
         "name": "CollectionSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a collection resource.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3022,7 +3022,7 @@
         "name": "ResourceSchema",
         "namespace": "com.linkedin.restli.restspec",
         "doc": "Schema representing a Rest.li resource.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3067,7 +3067,7 @@
         "name": "IndividualResponse",
         "namespace": "com.linkedin.restli.common.multiplexer",
         "doc": "Individual HTTP response within a multiplexed response",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3105,7 +3105,7 @@
         "name": "D2ChangeTimeStamps",
         "namespace": "com.linkedin.d2",
         "doc": "Data captured on a resource/association/sub-resource level giving insight into when that resource/association/sub-resource moved into various lifecycle stages, and who acted to move it into those lifecycle stages.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3263,7 +3263,7 @@
         "name": "D2RelativeStrategyProperties",
         "namespace": "com.linkedin.d2",
         "doc": "Relative load balancer strategy properties for a particular D2 service.\n\nBalances traffic to hosts within a service by dynamically adjusting a server\u0027s health score\nbased on call statitics compared relatively to the performance of the entire cluster.\n\nHealth score is rated on a scale from 0.0 - 1.0, with 0.0 meaning most unhealthy (all traffic\nrouted away) and 1.0 meaning most healthy (no traffic routed away). Note that this behavior is\ninverse of dropRate in the degrader strategy.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3304,7 +3304,7 @@
         "name": "D2Uri",
         "namespace": "com.linkedin.d2",
         "doc": "A URI resource as represented in D2",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3553,7 +3553,7 @@
         "name": "D2TransportClientProperties",
         "namespace": "com.linkedin.d2",
         "doc": "The properties that is applied when creating transport client to talk to this particular D2 service",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3571,7 +3571,7 @@
         "name": "ConsistentHashAlgorithmEnum",
         "namespace": "com.linkedin.d2",
         "doc": "",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3612,7 +3612,7 @@
         "name": "D2QuarantineProperties",
         "namespace": "com.linkedin.d2",
         "doc": "Properties for D2 quarantine.\n\nSeverely unhealthy hosts can be placed in quarantine, in which \"dummy\" requests with a\ncustomizable method/path are used as pings to check endpoint health instead of real requests.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3704,7 +3704,7 @@
         "name": "D2RingProperties",
         "namespace": "com.linkedin.d2",
         "doc": "D2 hash ring properties used for load balancing.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     },
     {
@@ -3764,7 +3764,7 @@
         "name": "BoundedCostBackupRequests",
         "namespace": "com.linkedin.d2",
         "doc": "Configuration of bounded cost backup requests strategy. This strategy attempts to keep cost (number of backup requests expressed in percents) of backup requests close to specified limit. This strategy will try not to make more backup requests than specified. The actual number of backup requests is not guaranteed and allows for short bursts of additional requests in order to be effective.",
-        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.1.jar"
+        "sourceFile": "/Users/pchesnai/code/personal/go-restli/spec-parser/build/libs/go-restli-spec-parser-2.0.2.jar"
       }
     }
   ],

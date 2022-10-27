@@ -2,4 +2,5 @@ namespace extras.forcedconflict1
 
 record FooBar {
   foo: optional extras.forcedconflict2.Foobar
+  link: com.linkedin.restli.common.Link
 }
