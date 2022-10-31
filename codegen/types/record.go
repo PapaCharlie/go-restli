@@ -19,12 +19,12 @@ const RecordShouldUsePointer = utils.Yes
 
 type Record struct {
 	NamedType
-	Includes []utils.Identifier
-	Fields   []Field
+	Includes []utils.Identifier `json:"includes"`
+	Fields   []Field            `json:"fields"`
 }
 
 func (r *Record) InnerTypes() utils.IdentifierSet {
-	innerTypes := make(utils.IdentifierSet)
+	innerTypes := utils.NewIdentifierSet(r.Includes...)
 	for _, f := range r.Fields {
 		innerTypes.AddAll(f.Type.InnerTypes())
 	}
@@ -53,11 +53,11 @@ func (r *Record) PartialUpdateStruct() *Statement {
 }
 
 type Field struct {
-	Type               RestliType
-	Name               string
-	Doc                string
-	IsOptional         bool
-	DefaultValue       *string
+	Name               string     `json:"name"`
+	Doc                string     `json:"doc"`
+	Type               RestliType `json:"type"`
+	IsOptional         bool       `json:"isOptional"`
+	DefaultValue       *string    `json:"defaultValue,omitempty"`
 	isComplexKeyParams bool
 }
 
@@ -200,8 +200,14 @@ func (r *Record) setDefaultValue(def *Group, accessor Code, rawJson string, t *R
 				def.Id("val").Op(":=").Add(fixed.getLit(rawJson))
 				def.Add(accessor).Op("= &").Id("val")
 			} else if typeref := t.Typeref(); typeref != nil {
-				def.Id("val").Op(":=").Add(t.GoType()).Call(typeref.Type.getLit(rawJson))
-				def.Add(accessor).Op("= &").Id("val")
+				v := Code(Id("val"))
+				if typeref.IsCustomTyperef() {
+					def.List(v, Err()).Op(":=").Add(Qual(typeref.PackagePath(), "Unmarshal"+typeref.TypeName())).Call(typeref.Type.getLit(rawJson))
+					addPanic()
+				} else {
+					def.Add(v).Op(":=").Add(t.GoType()).Call(typeref.Type.getLit(rawJson))
+				}
+				def.Add(accessor).Op("= &").Add(v)
 			} else if t.Record() != nil || t.StandaloneUnion() != nil {
 				def.Add(accessor).Op("=").New(t.GoType())
 				declareReader()

@@ -14,11 +14,11 @@ type NamedType struct {
 }
 
 type RestliType struct {
-	Primitive *PrimitiveType    `json:"primitive"`
-	Reference *utils.Identifier `json:"reference"`
-	Array     *RestliType       `json:"array"`
-	Map       *RestliType       `json:"map"`
-	RawRecord bool              `json:"rawRecord"`
+	Primitive *PrimitiveType    `json:"primitive,omitempty"`
+	Reference *utils.Identifier `json:"reference,omitempty"`
+	Array     *RestliType       `json:"array,omitempty"`
+	Map       *RestliType       `json:"map,omitempty"`
+	RawRecord bool              `json:"rawRecord,omitempty"`
 }
 
 func (t *RestliType) UnmarshalJSON(data []byte) error {

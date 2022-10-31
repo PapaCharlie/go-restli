@@ -40,6 +40,8 @@ func hash(h Code, t RestliType, isPointer bool, accessor Code) Code {
 		switch {
 		case t.Primitive != nil:
 			def.Add(h).Dot(t.Primitive.HasherName()).Call(accessor)
+		case t.IsCustomTyperef():
+			def.Add(h).Dot("Add").Call(customTyperefHashFunc(*t.Reference).Call(accessor))
 		case t.Reference != nil:
 			def.Add(h).Dot("Add").Call(Add(accessor).Dot(utils.ComputeHash).Call())
 		case t.IsMapOrArray():
@@ -50,7 +52,7 @@ func hash(h Code, t RestliType, isPointer bool, accessor Code) Code {
 			switch {
 			case innerT.Primitive != nil:
 				def.Add(add).Call(h, accessor, innerT.Primitive.HasherQual())
-			case innerT.Reference != nil:
+			case innerT.Reference != nil && !innerT.Reference.IsCustomTyperef():
 				def.Add(addHashable).Call(h, accessor)
 			default:
 				inner := Id("inner")
@@ -66,7 +68,7 @@ func hash(h Code, t RestliType, isPointer bool, accessor Code) Code {
 
 	if isPointer {
 		def := If(Add(accessor).Op("!=").Nil())
-		if t.Reference == nil {
+		if t.Reference == nil || t.Reference.IsCustomTyperef() {
 			accessor = Op("*").Add(accessor)
 		}
 		return def.Block(hasher(accessor))

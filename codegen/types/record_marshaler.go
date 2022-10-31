@@ -101,7 +101,7 @@ func writeAllFields(def *Group, fields []Field, fieldAccessor func(i int, f Fiel
 
 func writeField(def *Group, f Field, accessor Code, keyWriter Code) {
 	serialize := func() Code {
-		if f.IsOptionalOrDefault() && f.Type.Reference == nil {
+		if f.IsOptionalOrDefault() && (f.Type.Reference == nil || f.Type.IsCustomTyperef()) {
 			accessor = Op("*").Add(accessor)
 		}
 		return Writer.Write(f.Type, Add(keyWriter).Call(Lit(f.Name)), accessor, Err())

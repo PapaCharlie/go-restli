@@ -56,7 +56,7 @@ func (u *StandaloneUnion) GenerateCode() *Statement {
 		def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
 			u.Union.validateAllMembers(def, unionReceiver, u.TypeName(), func(def *Group, m UnionMember) {
 				fieldAccessor := Id(unionReceiver).Dot(m.name())
-				if m.Type.Reference == nil {
+				if m.Type.Reference == nil || m.Type.IsCustomTyperef() {
 					fieldAccessor = Op("*").Add(fieldAccessor)
 				}
 				def.Add(Writer.Write(m.Type, Add(keyWriter).Call(Lit(m.Alias)), fieldAccessor, Err()))
@@ -121,7 +121,7 @@ func (u *UnionType) decode(def *Group, receiver string, typeName string) {
 				def.Case(Lit(m.Alias)).BlockFunc(func(def *Group) {
 					def.Add(fieldAccessor).Op("=").New(m.Type.GoType())
 
-					if m.Type.Reference == nil {
+					if m.Type.Reference == nil || m.Type.IsCustomTyperef() {
 						fieldAccessor = Op("*").Add(fieldAccessor)
 					}
 

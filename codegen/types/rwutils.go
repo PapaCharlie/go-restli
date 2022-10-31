@@ -37,6 +37,10 @@ func (e *writer) Write(t RestliType, writerAccessor, sourceAccessor Code, return
 	switch {
 	case t.Primitive != nil:
 		return Add(writerAccessor).Dot(t.Primitive.WriterName()).Call(sourceAccessor)
+	case t.IsCustomTyperef():
+		def := Err().Op("=").Add(writeCustomTyperef(writerAccessor, sourceAccessor, *t.Reference)).Line()
+		def.Add(utils.IfErrReturn(returnOnError...))
+		return def
 	case t.Reference != nil:
 		def := Err().Op("=").Add(sourceAccessor).Dot(utils.MarshalRestLi).Call(writerAccessor).Line()
 		def.Add(utils.IfErrReturn(returnOnError...))
@@ -55,6 +59,11 @@ func (e *writer) MarshalerFunc(t RestliType) Code {
 	switch {
 	case t.Primitive != nil:
 		return t.Primitive.MarshalerFunc()
+	case t.IsCustomTyperef():
+		v := Id("t")
+		return Func().Params(Add(v).Add(t.GoType()), Add(WriterParam)).Error().Block(
+			Return(writeCustomTyperef(Writer, v, *t.Reference)),
+		)
 	case t.Reference != nil:
 		q := t.Reference.Qual()
 		if t.ShouldReference() {
@@ -119,6 +128,8 @@ func (d *reader) Read(t RestliType, reader, targetAccessor Code) Code {
 	switch {
 	case t.Primitive != nil:
 		return List(targetAccessor, Err()).Op("=").Add(reader).Dot(t.Primitive.ReaderName()).Call()
+	case t.IsCustomTyperef():
+		return List(targetAccessor, Err()).Op("=").Add(readCustomTyperef(reader, *t.Reference))
 	case t.Reference != nil:
 		return Err().Op("=").Add(targetAccessor).Dot(utils.UnmarshalRestLi).Call(reader)
 	case t.IsMapOrArray():
@@ -133,6 +144,13 @@ func (d *reader) UnmarshalerFunc(t RestliType) Code {
 	switch {
 	case t.Primitive != nil:
 		return t.Primitive.UnmarshalerFunc()
+	case t.IsCustomTyperef():
+		return Func().
+			Params(Add(Reader).Add(ReaderQual)).
+			Params(t.GoType(), Error()).
+			BlockFunc(func(def *Group) {
+				def.Return(readCustomTyperef(Reader, *t.Reference))
+			})
 	case t.Reference != nil:
 		return Qual(utils.RestLiCodecPackage, utils.UnmarshalRestLi).Index(t.ReferencedType())
 	case t.IsMapOrArray():

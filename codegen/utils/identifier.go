@@ -47,6 +47,10 @@ func (i Identifier) TypeName() string {
 	}
 }
 
+func (i Identifier) IsCustomTyperef() bool {
+	return TypeRegistry.IsCustomTyperef(i)
+}
+
 func (i Identifier) Qual() *jen.Statement {
 	return jen.Qual(i.PackagePath(), i.TypeName())
 }
@@ -75,25 +79,21 @@ func FqcpToPackagePath(packageRoot string, fqcp string) string {
 
 type IdentifierSet map[Identifier]bool
 
-func NewIdentifierSet(ids ...Identifier) IdentifierSet {
-	set := make(IdentifierSet)
+func NewIdentifierSet(ids ...Identifier) (set IdentifierSet) {
+	set = IdentifierSet{}
 	for _, id := range ids {
 		set.Add(id)
 	}
 	return set
 }
 
-func (set IdentifierSet) Add(id Identifier) bool {
-	if set[id] {
-		return false
-	}
+func (set IdentifierSet) Add(id Identifier) {
 	set[id] = true
-	return true
 }
 
 func (set IdentifierSet) AddAll(other IdentifierSet) {
 	for id := range other {
-		set[id] = true
+		set.Add(id)
 	}
 }
 
@@ -101,15 +101,23 @@ func (set IdentifierSet) Remove(id Identifier) {
 	delete(set, id)
 }
 
-func (set IdentifierSet) Get(id Identifier) bool {
-	return set[id]
-}
-
 func (set IdentifierSet) String() string {
 	var classes []string
-	for s := range set {
-		classes = append(classes, s.FullName())
-	}
-	sort.Strings(classes)
+	set.Range(func(id Identifier) {
+		classes = append(classes, id.FullName())
+	})
 	return "{" + strings.Join(classes, ", ") + "}"
+}
+
+func (set IdentifierSet) Range(f func(id Identifier)) {
+	var ids []Identifier
+	for id := range set {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i].FullName() < ids[j].FullName()
+	})
+	for _, id := range ids {
+		f(id)
+	}
 }

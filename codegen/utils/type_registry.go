@@ -26,6 +26,7 @@ type registeredType struct {
 	PackageRoot      string
 	IsCyclic         bool
 	TypeNameOverride string
+	IsCustomTyperef  bool
 }
 
 type typeRegistry struct {
@@ -76,6 +77,14 @@ func (reg *typeRegistry) TypeNameOverride(id Identifier) string {
 	}
 }
 
+func (reg *typeRegistry) SetCustomTyperef(id Identifier) {
+	reg.get(id).IsCustomTyperef = true
+}
+
+func (reg *typeRegistry) IsCustomTyperef(id Identifier) bool {
+	return reg.get(id).IsCustomTyperef
+}
+
 func (reg *typeRegistry) findCycle(nextNode Identifier, path Path) []Identifier {
 	if cycle := path.IntroducesCycle(nextNode); len(cycle) > 0 {
 		return cycle
@@ -100,12 +109,14 @@ func (reg *typeRegistry) findCycle(nextNode Identifier, path Path) []Identifier 
 
 func (reg *typeRegistry) flagCyclic(id Identifier) {
 	node := reg.get(id)
-	node.IsCyclic = true
+	if !node.IsCyclic {
+		node.IsCyclic = true
+		log.Printf("Flagging %q as cyclic", id.FullName())
+	}
 	for c := range node.Type.InnerTypes() {
 		child := reg.get(c)
 		if !child.IsCyclic && node.PackageRoot == child.PackageRoot {
 			reg.flagCyclic(c)
-			log.Printf("Flagging %q as cyclic", c.FullName())
 		}
 	}
 }
@@ -178,7 +189,7 @@ func (reg *typeRegistry) remediateConflictingNames() error {
 			if reg.IsCyclic(id) {
 				name := strings.ToLower(id.Name)
 				if _, ok := conflictingTypes[name]; !ok {
-					conflictingTypes[name] = NewIdentifierSet()
+					conflictingTypes[name] = IdentifierSet{}
 				}
 				conflictingTypes[name].Add(id)
 			}

@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/PapaCharlie/go-restli/codegen/types"
 	"github.com/PapaCharlie/go-restli/codegen/utils"
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
@@ -142,7 +143,14 @@ manifest will be read from stdin.`)
 			}
 		}
 
-		return GenerateCode(outputDir, manifestBytes, manifests, generateWithPackageRoot, namespaceAllowList)
+		inputManifest, err := ReadManifest(manifestBytes)
+		if err != nil {
+			return err
+		}
+
+		manifests = append(manifests, inputManifest)
+
+		return GenerateCode(outputDir, manifests, generateWithPackageRoot, namespaceAllowList)
 	}
 
 	return cmd
@@ -195,8 +203,7 @@ func ExecuteJar(params JarStdinParameters) ([]byte, error) {
 
 func GenerateCode(
 	outputDir string,
-	manifestBytes []byte,
-	manifestDependencies []*GoRestliManifest,
+	manifests []*GoRestliManifest,
 	generateWithPackageRoot bool,
 	namespaceAllowList []string,
 ) error {
@@ -205,24 +212,33 @@ func GenerateCode(
 		return errors.Wrapf(err, "go-restli: Could not clean up output dir %q", outputDir)
 	}
 
+	inputManifest := manifests[len(manifests)-1]
+	if generateWithPackageRoot {
+		outputDir = filepath.Join(outputDir, inputManifest.PackageRoot)
+	}
+
+	err = RegisterManifests(manifests)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not register all manifest types")
+	}
+
+	err = LocateCustomTyperefs(inputManifest, outputDir)
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Failed to locate custom typerefs")
+	}
+
+	manifestBytes, err := json.MarshalIndent(inputManifest, "", "  ")
+	if err != nil {
+		return errors.Wrapf(err, "go-restli: Could not marshal manifest")
+	}
+
 	_ = os.MkdirAll(outputDir, os.ModePerm)
 	manifestFile := filepath.Join(outputDir, utils.ManifestFile)
-	err = ioutil.WriteFile(manifestFile, manifestBytes, utils.ReadOnlyPermissions)
+	err = os.WriteFile(manifestFile, manifestBytes, utils.ReadOnlyPermissions)
 	if err != nil {
 		return errors.Wrapf(err, "go-restli: Failed to write parsed manifest to %q", manifestFile)
 	}
 	log.Printf("Wrote manifest to: %q", manifestFile)
-
-	manifest, err := ReadManifest(manifestBytes)
-	if err != nil {
-		return errors.Wrapf(err, "go-restli: Could not deserialize manifest")
-	}
-
-	manifestDependencies = append(manifestDependencies, manifest)
-	err = RegisterManifests(manifestDependencies)
-	if err != nil {
-		return errors.Wrapf(err, "go-restli: Could not register all manifest types")
-	}
 
 	allowList := map[string]bool{}
 	for _, ns := range namespaceAllowList {
@@ -230,32 +246,75 @@ func GenerateCode(
 	}
 
 	var codeFiles []*utils.CodeFile
-	for id := range utils.TypeRegistry.TypesInPackageRoot(manifest.PackageRoot) {
+	for id := range utils.TypeRegistry.TypesInPackageRoot(inputManifest.PackageRoot) {
 		if ok := allowList[id.Namespace]; len(allowList) > 0 && !ok {
 			continue
 		}
 		t := id.Resolve()
-		codeFiles = append(codeFiles, &utils.CodeFile{
-			SourceFile:  t.GetSourceFile(),
-			PackagePath: t.GetIdentifier().PackagePath(),
-			PackageRoot: t.GetIdentifier().PackageRoot(),
-			Filename:    t.GetIdentifier().TypeName(),
-			Code:        t.GenerateCode(),
-		})
+		if code := t.GenerateCode(); code != nil {
+			codeFiles = append(codeFiles, &utils.CodeFile{
+				SourceFile:  t.GetSourceFile(),
+				PackagePath: t.GetIdentifier().PackagePath(),
+				PackageRoot: t.GetIdentifier().PackageRoot(),
+				Filename:    t.GetIdentifier().TypeName(),
+				Code:        t.GenerateCode(),
+			})
+		}
 	}
 
-	codeFiles = append(codeFiles, manifest.GenerateClientCode()...)
+	codeFiles = append(codeFiles, inputManifest.GenerateResourceCode()...)
 
 	for _, code := range codeFiles {
-		err = code.Write(outputDir, generateWithPackageRoot)
+		err = code.Write(outputDir)
 		if err != nil {
 			return errors.Wrapf(err, "go-restli: Could not generate code for %+v:\n%s", code, code.Code.GoString())
 		}
 	}
 
+	err = GenerateCustomTyperefInit(outputDir, inputManifest)
+	if err != nil {
+		return err
+	}
+
 	err = GenerateAllImportsTest(outputDir, codeFiles)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func GenerateCustomTyperefInit(outputDir string, manifest *GoRestliManifest) (err error) {
+	customTyperefs := map[string]utils.IdentifierSet{}
+
+	for _, dt := range manifest.InputDataTypes {
+		if dt.Typeref == nil || !dt.Typeref.IsCustom {
+			continue
+		}
+		pkg := dt.Typeref.PackagePath()
+		if _, ok := customTyperefs[pkg]; !ok {
+			customTyperefs[pkg] = utils.IdentifierSet{}
+		}
+		customTyperefs[pkg].Add(dt.Typeref.Identifier)
+	}
+
+	for pkg, refs := range customTyperefs {
+		f := jen.NewFilePathName(pkg, utils.PackageName(pkg))
+		utils.AddImportNames(f)
+		f.HeaderComment(utils.DoNotEditHeader)
+
+		f.Func().Id("init").Call().BlockFunc(func(def *jen.Group) {
+			refs.Range(func(id utils.Identifier) {
+				def.Add(types.CallRegisterCustomTyperef(id))
+			})
+		})
+
+		log.Println(pkg, outputDir, strings.TrimPrefix(pkg, manifest.PackageRoot))
+		name := filepath.Join(outputDir, strings.TrimPrefix(pkg, manifest.PackageRoot), "init_custom_typerefs.gr.go")
+		err = utils.WriteJenFile(name, f)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -270,8 +329,7 @@ func GenerateAllImportsTest(outputDir string, codeFiles []*utils.CodeFile) (err 
 		imports[code.PackagePath] = true
 	}
 	f := jen.NewFile("main")
-
-	f.HeaderComment("Code generated by \"github.com/PapaCharlie/go-restli\"; DO NOT EDIT.")
+	f.HeaderComment(utils.DoNotEditHeader)
 
 	for p := range imports {
 		f.Anon(p)

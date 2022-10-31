@@ -2,8 +2,6 @@ package restlicodec
 
 import (
 	"io"
-	"log"
-	"reflect"
 	"sort"
 
 	"github.com/mailru/easyjson/jwriter"
@@ -37,7 +35,7 @@ func MarshalRestLi[T any](t T, writer Writer) (err error) {
 	case []byte:
 		writer.WriteBytes(v)
 	default:
-		log.Panicf("Unknown primitive type: %s", reflect.TypeOf(v))
+		return loadAdapter[T]().marshaler(t, writer)
 	}
 	return nil
 }

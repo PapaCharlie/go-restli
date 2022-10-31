@@ -66,6 +66,10 @@ func (t *RestliType) IsMapOrArray() bool {
 	return t.Array != nil || t.Map != nil
 }
 
+func (t *RestliType) IsCustomTyperef() bool {
+	return t.Reference != nil && t.Reference.IsCustomTyperef()
+}
+
 func (t *RestliType) InnerMapOrArray() (innerT RestliType, word string) {
 	if t.Array != nil {
 		return *t.Array, "Array"

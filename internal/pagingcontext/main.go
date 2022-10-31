@@ -11,7 +11,8 @@ import (
 func main() {
 	f := &utils.CodeFile{
 		SourceFile:  "https://github.com/PapaCharlie/go-restli/blob/master/codegen/resources/pagingcontext.go",
-		PackagePath: resources.PagingContext.Namespace,
+		PackagePath: resources.PagingContext.PackagePath(),
+		PackageRoot: resources.PagingContext.PackageRoot(),
 		Filename:    resources.PagingContext.TypeName(),
 		Code: Empty().
 			Add(resources.PagingContext.GenerateStruct()).Line().Line().
@@ -21,7 +22,7 @@ func main() {
 			Add(resources.PagingContext.GenerateQueryParamUnmarshaler(nil)).Line().Line(),
 	}
 
-	err := f.Write("..", false)
+	err := f.Write("..")
 	if err != nil {
 		log.Panic(err)
 	}

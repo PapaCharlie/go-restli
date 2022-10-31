@@ -47,9 +47,9 @@ test: generate imports
 imports:
 	goimports -w $$(git ls-files | grep '.go$$' | grep -v '.gr.go$$')
 
-integration-test: generate-restli run-testsuite
+integration-test: generate-extras generate-restli run-testsuite
 
-generate-restli: clean $(JARGO)
+generate-extras: $(JARGO)
 	go test . $(COVERPROFILE)/extras_generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated_extras \
 		--package-root $(PACKAGE_PREFIX)_extras \
@@ -57,6 +57,8 @@ generate-restli: clean $(JARGO)
 		--dependencies $(FAT_JAR) \
 		--manifest-dependencies ./restlidata \
 		$(EXTRA_TEST_SUITE)/schemas $(EXTRA_TEST_SUITE)/restspecs
+
+generate-restli: clean $(JARGO)
 	go test . $(COVERPROFILE)/generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated \
 		--dependencies $(FAT_JAR) \

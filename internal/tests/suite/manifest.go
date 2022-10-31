@@ -23,7 +23,7 @@ import (
 
 var testSuite = "rest.li-test-suite/client-testsuite"
 
-type Manifest struct {
+type TestManifest struct {
 	JsonTestData []struct {
 		Data string `json:"data"`
 	} `json:"jsonTestData"`
@@ -105,15 +105,15 @@ func (o *Operation) TestMethodName() string {
 	return strcase.ToCamel(o.Name)
 }
 
-func ReadManifest() *Manifest {
-	var aggregateManifest Manifest
+func ReadTestManifest() *TestManifest {
+	var aggregateManifest TestManifest
 	for _, testSuite = range []string{"../testdata/rest.li-test-suite/client-testsuite", "../testdata/extra-test-suite"} {
 		f, err := os.Open(filepath.Join(testSuite, "manifest.json"))
 		if err != nil {
 			log.Panicln(err)
 		}
 
-		m := new(Manifest)
+		m := new(TestManifest)
 		err = json.NewDecoder(f).Decode(m)
 		if err != nil {
 			log.Panicln(err)

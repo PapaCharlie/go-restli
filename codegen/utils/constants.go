@@ -5,6 +5,8 @@ import . "github.com/dave/jennifer/jen"
 const (
 	MarshalRestLi              = "MarshalRestLi"
 	UnmarshalRestLi            = "UnmarshalRestLi"
+	Marshal                    = "Marshal"
+	Unmarshal                  = "Unmarshal"
 	EncodeQueryParams          = "EncodeQueryParams"
 	PopulateLocalDefaultValues = "populateLocalDefaultValues"
 	Equals                     = "Equals"
@@ -27,8 +29,10 @@ const (
 
 var (
 	NewJsonReader     = Code(Qual(RestLiCodecPackage, "NewJsonReader"))
-	RequiredFields    = Code(Qual(RestLiCodecPackage, "RequiredFields"))
 	NewRequiredFields = Code(Qual(RestLiCodecPackage, "NewRequiredFields"))
+
+	WriteCustomTyperef = Code(Qual(RestLiCodecPackage, "WriteCustomTyperef"))
+	ReadCustomTyperef  = Code(Qual(RestLiCodecPackage, "ReadCustomTyperef"))
 
 	BatchKeySet = Code(Id("set"))
 

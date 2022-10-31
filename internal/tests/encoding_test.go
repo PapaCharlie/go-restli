@@ -44,7 +44,11 @@ func TestReflectionMarshaling(t *testing.T) {
 	})
 
 	t.Run("typeref", func(t *testing.T) {
-		reflectionRoundTrip(t, extras.Temperature(1), `1`)
+		reflectionRoundTrip[Url](t, "foo", `"foo"`)
+	})
+
+	t.Run("customTyperef", func(t *testing.T) {
+		reflectionRoundTrip[extras.Temperature](t, 42, `42`)
 	})
 
 	t.Run("int32", func(t *testing.T) {

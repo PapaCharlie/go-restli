@@ -71,10 +71,19 @@ func equalsCondition(t RestliType, isPointer bool, left, right Code) Code {
 			condition = equalsFunc(prefix+pointer).Call(left, right)
 		}
 	case t.Reference != nil && !t.ShouldReference(): // enums and typerefs
-		if isPointer {
-			condition = equalsFunc("ObjectPointer").Call(left, right)
+		if t.Reference.IsCustomTyperef() {
+			f := customTyperefEqualsFunc(*t.Reference)
+			if isPointer {
+				condition = equalsFunc("GenericPointer").Call(left, right, f)
+			} else {
+				condition = Add(f).Call(left, right)
+			}
 		} else {
-			condition = Add(left).Dot(utils.Equals).Call(right)
+			if isPointer {
+				condition = equalsFunc("ObjectPointer").Call(left, right)
+			} else {
+				condition = Add(left).Dot(utils.Equals).Call(right)
+			}
 		}
 	case t.Reference != nil:
 		if !isPointer {
@@ -92,6 +101,8 @@ func equalsCondition(t RestliType, isPointer bool, left, right Code) Code {
 			condition = equalsFunc("Bytes"+word).Call(left, right)
 		case innerT.Primitive != nil:
 			condition = equalsFunc("Comparable"+word).Call(left, right)
+		case innerT.Reference != nil && innerT.Reference.IsCustomTyperef():
+			condition = equalsFunc("Generic"+word).Call(left, right, customTyperefEqualsFunc(*innerT.Reference))
 		case innerT.Reference != nil:
 			condition = equalsFunc("Object"+word).Call(left, right)
 		case innerT.IsMapOrArray():

@@ -51,6 +51,10 @@ func (p *PrimitiveType) UnmarshalJSON(data []byte) error {
 	return errors.Errorf("Unknown type: %s", primitiveType)
 }
 
+func (p *PrimitiveType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.Type)
+}
+
 func (p *PrimitiveType) IsBytes() bool {
 	return p.Type == "bytes"
 }

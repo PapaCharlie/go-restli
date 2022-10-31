@@ -43,7 +43,7 @@ func deliberateSkip(t *testing.T, message string) {
 }
 
 func TestGoRestli(t *testing.T) {
-	manifest := ReadManifest()
+	manifest := ReadTestManifest()
 
 	operations := make(map[string]*Operation)
 	for _, testData := range manifest.WireProtocolTestData {

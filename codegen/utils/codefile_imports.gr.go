@@ -59,6 +59,7 @@ var jenImportNames = map[string]string{
 	"github.com/PapaCharlie/go-restli/d2": "d2",
 	"github.com/PapaCharlie/go-restli/d2/lazymap": "lazymap",
 	"github.com/PapaCharlie/go-restli/fnv1a": "fnv1a",
+	"github.com/PapaCharlie/go-restli/github.com/PapaCharlie/go-restli": "restlidata",
 	"github.com/PapaCharlie/go-restli/internal/importnames": "main",
 	"github.com/PapaCharlie/go-restli/internal/pagingcontext": "main",
 	"github.com/PapaCharlie/go-restli/internal/tests": "tests",

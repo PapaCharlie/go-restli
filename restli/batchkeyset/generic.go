@@ -145,6 +145,12 @@ func NewBatchKeySet[K any]() BatchKeySet[K] {
 		set = NewPrimitiveKeySet[bool]()
 	case string:
 		set = NewPrimitiveKeySet[string]()
+	default:
+		set = &genericBatchKeySet[K]{
+			originalKeys: map[fnv1a.HashMapKey][]K{},
+			hash:         restlicodec.CustomTyperefHasher[K](),
+			equals:       restlicodec.CustomTyperefEquals[K](),
+		}
 	}
 	return set.(BatchKeySet[K])
 }

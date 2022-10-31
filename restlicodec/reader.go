@@ -3,8 +3,6 @@ package restlicodec
 import (
 	"errors"
 	"fmt"
-	"log"
-	"reflect"
 )
 
 // Unmarshaler is the interface that should be implemented by objects that can be deserialized from JSON and ROR2
@@ -52,8 +50,7 @@ func UnmarshalRestLi[T any](reader Reader) (t T, err error) {
 	case []byte:
 		return cast(reader.ReadBytes())
 	default:
-		log.Panicf("Unknown primitive type: %s", reflect.TypeOf(t))
-		return t, nil
+		return loadAdapter[T]().unmarshaler(reader)
 	}
 }
 

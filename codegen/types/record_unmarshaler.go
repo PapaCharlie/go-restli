@@ -92,7 +92,7 @@ func (r *Record) readField(def *Group, f Field, reader Code) {
 
 	if f.IsOptionalOrDefault() {
 		def.Add(accessor).Op("=").New(f.Type.GoType())
-		if f.Type.Reference == nil {
+		if f.Type.Reference == nil || f.Type.IsCustomTyperef() {
 			accessor = Op("*").Add(accessor)
 		}
 	}

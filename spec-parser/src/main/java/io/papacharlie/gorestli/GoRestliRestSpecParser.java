@@ -79,9 +79,9 @@ public class GoRestliRestSpecParser {
     // differentiate the two.
     Set<DataType> allDataTypes = typeParser.getDataTypes();
     // Add to the desired types
-    manifest._dataTypes.addAll(Sets.filter(allDataTypes, dt -> inputPaths.contains(dt.getNamedType()._sourceFile)));
+    manifest._inputDataTypes.addAll(Sets.filter(allDataTypes, dt -> inputPaths.contains(dt.getNamedType()._sourceFile)));
     // Capture the additional types, if any
-    manifest._additionalDataTypes.addAll(Sets.filter(allDataTypes, dt -> !manifest._dataTypes.contains(dt)));
+    manifest._dependencyDataTypes.addAll(Sets.filter(allDataTypes, dt -> !manifest._inputDataTypes.contains(dt)));
 
     Utils.log("Completed manifest");
 

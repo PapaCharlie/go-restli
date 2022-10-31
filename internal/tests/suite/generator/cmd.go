@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	for _, wd := range suite.ReadManifest().WireProtocolTestData {
+	for _, wd := range suite.ReadTestManifest().WireProtocolTestData {
 		var testFileContents string
 
 		testFilename := wd.Name + "_test.go"
