@@ -1,4 +1,4 @@
-module github.com/PapaCharlie/go-restli
+module github.com/PapaCharlie/go-restli/v2
 
 require (
 	github.com/dave/jennifer v1.6.0
