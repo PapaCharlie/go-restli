@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/restli/batchkeyset"
-	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
+	"github.com/PapaCharlie/go-restli/v2/restli/batchkeyset"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 )
 
 type handler func(

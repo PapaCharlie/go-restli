@@ -16,7 +16,7 @@ const (
 	ComplexKeyParams           = "$params"
 	FinderNameParam            = "q"
 
-	RootPackage         = "github.com/PapaCharlie/go-restli"
+	RootPackage         = "github.com/PapaCharlie/go-restli/v2"
 	HashPackage         = RootPackage + "/fnv1a"
 	RestLiPackage       = RootPackage + "/restli"
 	RestLiPatchPackage  = RestLiPackage + "/patch"

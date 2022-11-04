@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/codegen/resources"
-	"github.com/PapaCharlie/go-restli/codegen/types"
-	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/codegen/resources"
+	"github.com/PapaCharlie/go-restli/v2/codegen/types"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
 )
 
 func ReadManifest(data []byte) (*GoRestliManifest, error) {

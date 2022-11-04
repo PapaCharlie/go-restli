@@ -3,9 +3,9 @@ package batchkeyset
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/fnv1a"
-	"github.com/PapaCharlie/go-restli/restli/equals"
-	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/fnv1a"
+	"github.com/PapaCharlie/go-restli/v2/restli/equals"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 )
 
 type genericBatchKeySet[T any] struct {

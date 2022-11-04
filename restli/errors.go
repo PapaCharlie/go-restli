@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
+	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 )
 
 // Error is returned by the Do* methods when the X-RestLi-Error-Response header is set to true.

@@ -3,8 +3,8 @@ package resources
 import (
 	"fmt"
 
-	"github.com/PapaCharlie/go-restli/codegen/types"
-	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/codegen/types"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 

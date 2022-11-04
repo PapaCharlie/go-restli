@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey_test"
-	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata"
-	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey_test"
+	"github.com/PapaCharlie/go-restli/v2/restli"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/restlidata"
+	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 

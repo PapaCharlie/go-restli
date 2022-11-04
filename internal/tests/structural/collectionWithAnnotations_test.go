@@ -3,8 +3,8 @@ package structural
 import (
 	"context"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	collectionwithannotations "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
+	collectionwithannotations "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR extras.collectionWithAnnotations

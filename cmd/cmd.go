@@ -2,20 +2,18 @@ package cmd
 
 import (
 	"bytes"
-	"compress/gzip"
 	_ "embed"
 	"encoding/json"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/codegen/types"
-	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/codegen/types"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
 	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -30,9 +28,9 @@ type JarStdinParameters struct {
 	RawRecords   []string `json:"rawRecords,omitempty"`
 }
 
-func CodeGenerator() *cobra.Command {
+func CodeGenerator(jar []byte) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          "go-restli",
+		Use:          "go-restli INPUTS...",
 		SilenceUsage: true,
 		Version:      Version,
 	}
@@ -58,62 +56,92 @@ func CodeGenerator() *cobra.Command {
 
 	var manifestBytes []byte
 
-	if len(Jar) > 0 {
-		var params JarStdinParameters
+	var jarParams JarStdinParameters
 
-		cmd.Use += " INPUTS..."
-		cmd.Short = strings.TrimSpace(`
+	cmd.Short = strings.TrimSpace(`
 This standalone executable will parse all the .pdsc/.pdl and .restspec.json
 files in the given inputs and produce bindings for each model and resource.
 Inputs can be directories, files or JARs`)
-		cmd.Flags().StringVarP(&params.PackageRoot, "package-root", "p", "",
-			"All files will be generated as sub-packages of this package.")
-		cmd.Flags().StringArrayVarP(&params.Dependencies, "dependencies", "d", nil,
-			"The directories, files or JARs that contains all the PDSC/PDL schema definitions required to "+
-				"generate the inputs.")
-		cmd.Flags().StringArrayVar(&params.RawRecords, "raw-records", nil,
-			"These records will be interpreted as `restli.RawRecord`s instead of their actual underlying type.")
+	cmd.Flags().StringVarP(&jarParams.PackageRoot, "package-root", "p", "",
+		"All files will be generated as sub-packages of this package.")
+	cmd.Flags().StringArrayVar(&jarParams.RawRecords, "raw-records", nil,
+		"These records will be interpreted as `restli.RawRecord`s instead of their actual underlying type.")
 
-		cmd.PreRunE = func(_ *cobra.Command, args []string) (err error) {
-			params.Inputs = args
-			manifestBytes, err = ExecuteJar(params)
-			return err
-		}
-	} else {
-		cmd.Use += " MANIFEST"
-		cmd.Short = strings.TrimSpace(`
-Generate rest.li bindings for the given manifest. If MANIFEST is -, the input
-manifest will be read from stdin.`)
+	const dependenciesFlag = "dependencies"
+	cmd.Flags().StringArrayVarP(&jarParams.Dependencies, dependenciesFlag, "d", nil,
+		"The directories, files or JARs that contains all the PDSC/PDL schema definitions required to "+
+			"generate the inputs.")
+	var dependenciesFile string
+	const dependenciesFileFlag = "dependencies-file"
+	cmd.Flags().StringVar(&dependenciesFile, dependenciesFileFlag, "",
+		"If specified, each line in the file will be treated as if it was provided via --"+dependenciesFlag)
 
-		cmd.Args = func(_ *cobra.Command, args []string) error {
-			switch len(args) {
-			case 0:
-				return errors.New("go-restli: No manifest specified")
-			case 1:
-				return nil
-			default:
-				return errors.New("go-restli: Too many arguments")
+	var inputsFile string
+	const inputsFileFlag = "inputs-file"
+	cmd.Flags().StringVar(&inputsFile, inputsFileFlag, "",
+		"If specified, each line in the file will be treated as if it was provided as an INPUT")
+
+	cmd.Args = func(_ *cobra.Command, args []string) error {
+		readFileLines := func(file string) (files []string, err error) {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				return nil, err
 			}
-		}
 
-		cmd.PreRunE = func(_ *cobra.Command, args []string) (err error) {
-			manifestFile := args[0]
-			if manifestFile == "-" {
-				stat, err := os.Stdin.Stat()
+			for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+				line = strings.TrimSpace(line)
+				if len(line) == 0 {
+					continue
+				}
+
+				_, err = os.Stat(line)
 				if err != nil {
-					return errors.Wrap(err, "go-restli: Could not stat stdin")
+					return nil, err
 				}
-				if (stat.Mode() & os.ModeCharDevice) != 0 {
-					return errors.New("go-restli: No stdin and no manifest file given")
-				}
-				manifestFile = os.Stdin.Name()
+
+				files = append(files, line)
 			}
-			manifestBytes, err = os.ReadFile(manifestFile)
-			return err
+
+			return files, nil
 		}
+
+		dedupe := func(strings []string) (deduped []string) {
+			seen := map[string]bool{}
+			for _, s := range strings {
+				if !seen[s] {
+					deduped = append(deduped, s)
+					seen[s] = true
+				}
+			}
+			return deduped
+		}
+
+		if cmd.Flags().Changed(dependenciesFileFlag) {
+			files, err := readFileLines(dependenciesFile)
+			if err != nil {
+				return err
+			}
+			jarParams.Dependencies = dedupe(append(jarParams.Dependencies, files...))
+		}
+
+		jarParams.Inputs = append(jarParams.Inputs, args...)
+		if cmd.Flags().Changed(inputsFileFlag) {
+			files, err := readFileLines(inputsFile)
+			if err != nil {
+				return err
+			}
+			jarParams.Inputs = dedupe(append(jarParams.Inputs, files...))
+		}
+
+		return nil
 	}
 
 	cmd.RunE = func(*cobra.Command, []string) (err error) {
+		manifestBytes, err = ExecuteJar(jar, jarParams)
+		if err != nil {
+			return err
+		}
+
 		var manifests []*GoRestliManifest
 		for _, d := range manifestDependencies {
 			err = filepath.WalkDir(d, func(path string, d fs.DirEntry, err error) error {
@@ -156,26 +184,18 @@ manifest will be read from stdin.`)
 	return cmd
 }
 
-func ExecuteJar(params JarStdinParameters) ([]byte, error) {
-	if len(Jar) == 0 {
-		log.Panicln("No jar!")
-	}
+func ExecuteJar(jar []byte, params JarStdinParameters) ([]byte, error) {
 	paramsBytes, err := json.Marshal(params)
 	if err != nil {
 		return nil, errors.Wrapf(err, "go-restli: Failed to serialize %+v", params)
 	}
 
-	r, err := gzip.NewReader(bytes.NewBuffer(Jar))
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := ioutil.TempFile("", "")
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = io.Copy(f, r)
+	_, err = io.Copy(f, bytes.NewReader(jar))
 	if err != nil {
 		return nil, err
 	}

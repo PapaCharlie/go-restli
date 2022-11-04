@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations_test"
-	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations_test"
+	"github.com/PapaCharlie/go-restli/v2/restli"
 	"github.com/stretchr/testify/require"
 )
 

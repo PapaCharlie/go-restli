@@ -3,12 +3,12 @@ package suite
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey_test"
-	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
+	conflictresolution "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/conflictResolution"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/complexkey"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/complexkey_test"
+	"github.com/PapaCharlie/go-restli/v2/restli"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 

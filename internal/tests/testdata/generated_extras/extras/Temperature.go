@@ -1,7 +1,7 @@
 package extras
 
 import (
-	"github.com/PapaCharlie/go-restli/fnv1a"
+	"github.com/PapaCharlie/go-restli/v2/fnv1a"
 )
 
 type Temperature int32

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/PapaCharlie/go-restli/fnv1a"
+	"github.com/PapaCharlie/go-restli/v2/fnv1a"
 )
 
 var customTyperefAdapters sync.Map

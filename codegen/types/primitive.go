@@ -5,7 +5,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 )

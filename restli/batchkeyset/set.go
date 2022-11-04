@@ -3,7 +3,7 @@ package batchkeyset
 import (
 	"sort"
 
-	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 )
 
 const EntityIDsField = "ids"

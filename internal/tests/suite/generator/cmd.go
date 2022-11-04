@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/suite"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/suite"
 	"github.com/pkg/errors"
 )
 
 const (
-	defaultPrefix = "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated"
+	defaultPrefix = "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated"
 	extrasPrefix  = defaultPrefix + "_extras"
 )
 

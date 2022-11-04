@@ -3,8 +3,8 @@ package structural
 import (
 	"context"
 
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
+	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
 )
 
 // STRUCTURAL TEST ENSURE INTERFACE DOES NOT DRIFT FOR extras.collectionWithTyperefKey

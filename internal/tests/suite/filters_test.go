@@ -7,14 +7,14 @@ import (
 	"net/url"
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
-	actionset "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet"
-	actionsettest "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/actionSet_test"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection"
-	collectiontest "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/collection_test"
-	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlicodec"
+	conflictresolution "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite"
+	actionset "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/actionSet"
+	actionsettest "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/actionSet_test"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/collection"
+	collectiontest "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/collection_test"
+	"github.com/PapaCharlie/go-restli/v2/restli"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,13 +4,13 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/PapaCharlie/go-restli/cmd"
+	"github.com/PapaCharlie/go-restli/v2/cmd"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenerator(t *testing.T) {
 	flag.Parse()
-	command := cmd.CodeGenerator()
+	command := cmd.CodeGenerator(jar)
 	if len(flag.Args()) == 0 {
 		return
 	}

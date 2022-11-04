@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/PapaCharlie/go-restli/fnv1a"
-	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/fnv1a"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 )
 
 // RawRecord is a container for arbitrary data. Because it gets parsed from raw JSON without any extra type information,

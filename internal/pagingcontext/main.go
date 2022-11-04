@@ -3,14 +3,14 @@ package main
 import (
 	"log"
 
-	"github.com/PapaCharlie/go-restli/codegen/resources"
-	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/codegen/resources"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
 	. "github.com/dave/jennifer/jen"
 )
 
 func main() {
 	f := &utils.CodeFile{
-		SourceFile:  "https://github.com/PapaCharlie/go-restli/blob/master/codegen/resources/pagingcontext.go",
+		SourceFile:  "https://github.com/PapaCharlie/go-restli/v2/blob/master/codegen/resources/pagingcontext.go",
 		PackagePath: resources.PagingContext.PackagePath(),
 		PackageRoot: resources.PagingContext.PackageRoot(),
 		Filename:    resources.PagingContext.TypeName(),

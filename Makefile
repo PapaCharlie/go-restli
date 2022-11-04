@@ -10,17 +10,16 @@ echo "$${tag#v}"$$([[ HEAD == "$$ref" ]] || echo "-SNAPSHOT")
 endef
 
 VERSION := $(shell $(get-version))
-JARGO := ./cmd/classpath_jar.go
-FAT_JAR := spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar
-GRADLEW := cd spec-parser && ./gradlew -Pversion=$(VERSION)
+FAT_JAR := go-restli-spec-parser.jar
+GRADLEW := cd spec-parser && ./gradlew
 
 TESTDATA := internal/tests/testdata
 TEST_SUITE := $(TESTDATA)/rest.li-test-suite/client-testsuite
 EXTRA_TEST_SUITE := $(TESTDATA)/extra-test-suite
-COVERPKG = -coverpkg=github.com/PapaCharlie/go-restli/...
+COVERPKG = -coverpkg=github.com/PapaCharlie/go-restli/v2/...
 COVERPROFILE = -coverprofile=internal/tests/coverage
-GENERATOR_TEST_ARGS = $(COVERPKG) -count=1 -v -tags=jar -args --
-PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/internal/tests/testdata/generated
+GENERATOR_TEST_ARGS = $(COVERPKG) -count=1 -v -args --
+PACKAGE_PREFIX := github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated
 PACKAGES := ./codegen ./d2 $(wildcard ./restli*)
 TOTALCOV := ./internal/tests/coverage/total.cov
 
@@ -31,15 +30,15 @@ build: generate test integration-test
 bin/go-restli_%:
 	export GOOS=$(word 1,$(subst -, ,$(*F))) ; \
 	export GOARCH=$(word 2,$(subst -, ,$(*F))) ; \
-	go build -tags=jar -ldflags "-s -w -X github.com/PapaCharlie/go-restli/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
+	go build -ldflags "-s -w -X github.com/PapaCharlie/go-restli/v2/cmd.Version=$(VERSION).$(*F)" -o "$(@)" ./
 
-generate: $(JARGO)
+generate: $(FAT_JAR)
 	go generate ./...
 	go test . $(COVERPROFILE)/core_generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir restlidata/generated \
-		--package-root github.com/PapaCharlie/go-restli/restlidata/generated \
+		--package-root github.com/PapaCharlie/go-restli/v2/restlidata/generated \
 		--namespace-allow-list com.linkedin.restli.common \
-		"$(FAT_JAR)"
+		$(FAT_JAR)
 
 test: generate imports
 	go test -count=1 $(COVERPKG) $(COVERPROFILE)/protocol.cov $(foreach p,$(PACKAGES),$p/...)
@@ -49,7 +48,7 @@ imports:
 
 integration-test: generate-extras generate-restli run-testsuite
 
-generate-extras: $(JARGO)
+generate-extras: $(FAT_JAR)
 	go test . $(COVERPROFILE)/extras_generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated_extras \
 		--package-root $(PACKAGE_PREFIX)_extras \
@@ -58,7 +57,7 @@ generate-extras: $(JARGO)
 		--manifest-dependencies ./restlidata \
 		$(EXTRA_TEST_SUITE)/schemas $(EXTRA_TEST_SUITE)/restspecs
 
-generate-restli: clean $(JARGO)
+generate-restli: clean $(FAT_JAR)
 	go test . $(COVERPROFILE)/generator.cov $(GENERATOR_TEST_ARGS) \
 		--output-dir $(TESTDATA)/generated \
 		--dependencies $(FAT_JAR) \
@@ -92,24 +91,4 @@ clean:
 fat-jar: $(FAT_JAR)
 $(FAT_JAR): $(shell git ls-files spec-parser)
 	$(GRADLEW) build fatJar
-	touch $(FAT_JAR) # touch the jar after the build to inform make that the file is fresh
-
-jargo: $(JARGO)
-$(JARGO): $(FAT_JAR)
-	echo -e '//go:build jar\n// +build jar\n\npackage cmd\n\nimport "encoding/base64"\n\nvar Jar, _ = base64.StdEncoding.DecodeString(`' > $(JARGO)
-	gzip -9 -c $(FAT_JAR) | base64 | fold -w 120 >> $(JARGO)
-	echo '`)' >> $(JARGO)
-
-release: build
-	rm -rf ~/.m2/repository/io/papacharlie/
-	$(GRADLEW) publishToMavenLocal
-	mkdir -p releases/$(VERSION)
-	cp \
-		bin/go-restli_darwin-amd64 \
-		bin/go-restli_linux-amd64 \
-		spec-parser/build/libs/go-restli-spec-parser-$(VERSION).jar \
-		spec-parser/build/libs/spec-parser-$(VERSION)-javadoc.jar \
-		spec-parser/build/libs/spec-parser-$(VERSION)-sources.jar \
-		spec-parser/build/libs/spec-parser-$(VERSION).jar \
-		spec-parser/build/publications/mavenJava/pom-default.xml \
-		releases/$(VERSION)
+	ln -f spec-parser/build/libs/go-restli-spec-parser.jar $(FAT_JAR)

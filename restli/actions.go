@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/PapaCharlie/go-restli/restlicodec"
-	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 )
 
 // DoActionRequest executes a rest.li Action request and places the given restlicodec.Marshaler in the request's body

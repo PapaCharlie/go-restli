@@ -3,11 +3,11 @@ package tests
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated_extras/extras"
-	"github.com/PapaCharlie/go-restli/restli"
-	"github.com/PapaCharlie/go-restli/restlicodec"
+	conflictresolution "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
+	"github.com/PapaCharlie/go-restli/v2/restli"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 	"github.com/stretchr/testify/require"
 )
 

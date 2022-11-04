@@ -15,7 +15,7 @@ type TestEvent struct {
 	Output  string
 }
 
-const suite = "github.com/PapaCharlie/go-restli/internal/tests/suite"
+const suite = "github.com/PapaCharlie/go-restli/v2/internal/tests/suite"
 const rootTest = "TestGoRestli"
 
 func main() {

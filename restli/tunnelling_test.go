@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PapaCharlie/go-restli/restlidata/generated/com/linkedin/restli/common"
+	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/PapaCharlie/go-restli/restlicodec"
+	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 )
 
 func Get[V any](

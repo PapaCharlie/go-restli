@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/v2/restli"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"

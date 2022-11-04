@@ -3,13 +3,13 @@ package suite
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
-	"github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/complexkey"
-	"github.com/PapaCharlie/go-restli/restli"
+	conflictresolution "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/conflictResolution"
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/complexkey"
+	"github.com/PapaCharlie/go-restli/v2/restli"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion_test"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/keywithunion/keywithunion_test"
 )
 
 func (o *Operation) KeywithunionGet(t *testing.T, c Client) func(*testing.T) *MockResource {

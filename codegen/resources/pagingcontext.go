@@ -1,8 +1,8 @@
 package resources
 
 import (
-	"github.com/PapaCharlie/go-restli/codegen/types"
-	"github.com/PapaCharlie/go-restli/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/codegen/types"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
 )
 
 var PagingContext = &types.Record{

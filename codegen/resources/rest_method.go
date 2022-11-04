@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/PapaCharlie/go-restli/codegen/types"
-	"github.com/PapaCharlie/go-restli/codegen/utils"
-	"github.com/PapaCharlie/go-restli/restli"
+	"github.com/PapaCharlie/go-restli/v2/codegen/types"
+	"github.com/PapaCharlie/go-restli/v2/codegen/utils"
+	"github.com/PapaCharlie/go-restli/v2/restli"
 	. "github.com/dave/jennifer/jen"
 )
 

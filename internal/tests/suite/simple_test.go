@@ -3,10 +3,10 @@ package suite
 import (
 	"testing"
 
-	conflictresolution "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/conflictResolution"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple"
-	. "github.com/PapaCharlie/go-restli/internal/tests/testdata/generated/testsuite/simple_test"
-	"github.com/PapaCharlie/go-restli/restli"
+	conflictresolution "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/conflictResolution"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/simple"
+	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite/simple_test"
+	"github.com/PapaCharlie/go-restli/v2/restli"
 	"github.com/stretchr/testify/require"
 )
 
