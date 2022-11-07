@@ -1,0 +1,4 @@
+namespace extras
+
+record IncludesUnion includes RecordWithUnion {
+}

@@ -1,0 +1,23 @@
+{
+  "name": "simpleWithPartialUpdate",
+  "namespace": "extras",
+  "path": "/simpleWithPartialUpdate",
+  "schema": "extras.SinglePrimitiveField",
+  "doc": "generated from: testsuite.SimpleResource",
+  "simple": {
+    "methods": [
+      {
+        "method": "partial_update",
+        "parameters": [
+          {
+            "name": "param",
+            "type": "string"
+          }
+        ]
+      }
+    ],
+    "entity": {
+      "path": "/simpleWithPartialUpdate"
+    }
+  }
+}

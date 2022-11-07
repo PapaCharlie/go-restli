@@ -1,0 +1,13 @@
+POST /simpleWithPartialUpdate?param=42 HTTP/1.1
+Accept: application/json
+Content-Type: application/json
+X-RestLi-Method: partial_update
+X-RestLi-Protocol-Version: 2.0.0
+
+{
+  "patch" : {
+    "$set" : {
+      "string" : "updated string"
+    }
+  }
+}

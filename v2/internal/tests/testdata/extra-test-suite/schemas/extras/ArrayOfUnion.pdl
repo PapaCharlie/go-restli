@@ -1,0 +1,5 @@
+namespace extras
+
+record ArrayOfUnion {
+  unions: array[union[int, string]]
+}

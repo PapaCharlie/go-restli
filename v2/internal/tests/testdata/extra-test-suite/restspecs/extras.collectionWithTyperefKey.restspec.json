@@ -1,0 +1,90 @@
+{
+  "name": "collectionWithTyperefKey",
+  "namespace": "extras",
+  "path": "/collectionWithTyperefKey",
+  "schema": "extras.SinglePrimitiveField",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.Temperature"
+    },
+    "supports": [
+      "batch_get",
+      "create",
+      "get"
+    ],
+    "methods": [
+      {
+        "method": "batch_create",
+        "parameters": [
+          {
+            "name": "test",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "method": "batch_get",
+        "parameters": [
+          {
+            "name": "test",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "method": "create",
+        "parameters": [
+          {
+            "name": "test",
+            "type": "string"
+          }
+        ]
+      },
+      {
+        "method": "get"
+      },
+      {
+        "method": "get_all",
+        "pagingSupported": true
+      }
+    ],
+    "finders": [
+      {
+        "name": "search",
+        "parameters": [
+          {
+            "name": "keyword",
+            "type": "string"
+          }
+        ],
+        "pagingSupported": true
+      },
+      {
+        "name": "noParams",
+        "parameters": [],
+        "pagingSupported": false
+      },
+      {
+        "name": "noParamsWithPaging",
+        "parameters": [],
+        "pagingSupported": true
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithTyperefKey/{key}",
+      "actions": [
+        {
+          "name": "onEntity",
+          "parameters": [
+            {
+              "name": "input",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

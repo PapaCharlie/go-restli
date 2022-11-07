@@ -1,0 +1,39 @@
+{
+  "annotations": {
+    "createOnly": {
+      "value": [
+        "field2"
+      ]
+    },
+    "readOnly": {
+      "value": [
+        "field1"
+      ]
+    }
+  },
+  "name": "collectionWithAnnotations",
+  "namespace": "extras",
+  "path": "/collectionWithAnnotations",
+  "schema": "extras.MultiplePrimitiveFields",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.Temperature"
+    },
+    "methods": [
+      {
+        "method": "create"
+      },
+      {
+        "method": "update"
+      },
+      {
+        "method": "partial_update"
+      }
+    ],
+    "entity": {
+      "path": "/collectionWithAnnotations/{key}"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "name": "simpleComplexKey",
+  "namespace": "extras",
+  "path": "/simpleComplexKey",
+  "schema": "extras.SinglePrimitiveField",
+  "doc": "",
+  "collection": {
+    "identifier": {
+      "name": "key",
+      "type": "extras.SinglePrimitiveField",
+      "params": "extras.SingleTyperefField"
+    },
+    "methods": [
+      {
+        "method": "get"
+      },
+      {
+        "annotations": {
+          "returnEntity": {}
+        },
+        "method": "batch_create"
+      },
+      {
+        "method": "batch_get"
+      },
+      {
+        "method": "batch_update"
+      },
+      {
+        "method": "batch_partial_update",
+        "parameters": [
+          {
+            "name": "param",
+            "type": "int"
+          }
+        ]
+      }
+    ],
+    "entity": {
+      "path": "/simpleComplexKey/{key}"
+    }
+  }
+}

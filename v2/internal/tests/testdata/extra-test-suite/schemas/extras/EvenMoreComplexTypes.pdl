@@ -1,0 +1,22 @@
+namespace extras
+
+record EvenMoreComplexTypes {
+  /** Test for key exclusion in maps */
+  mapOfInts: map[string, int]
+
+  /** Test for field exclusion in records */
+  topLevelRecord: record TopLevel {
+    foo: string
+    bar: string
+  }
+  /** Test for field exclusion in records within arrays */
+  arrayOfRecords: array[TopLevel]
+  /** Test for field exclusion in records within maps */
+  mapOfRecords: map[string, TopLevel]
+
+  /** Test for member exclusion in unions */
+  topLevelUnion: typeref TopLevelUnion = union[
+    int,
+    TopLevel
+  ]
+}

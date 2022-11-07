@@ -1,0 +1,16 @@
+POST /simpleWithPartialUpdate HTTP/1.1
+Accept: application/json
+Content-Type: multipart/mixed; boundary=7529c60dabdc3aecc5d764ab26a9e0fe8597d8c01eadeadb9a006f4b62de
+X-Http-Method-Override: POST
+X-Restli-Method: partial_update
+X-Restli-Protocol-Version: 2.0.0
+
+--7529c60dabdc3aecc5d764ab26a9e0fe8597d8c01eadeadb9a006f4b62de
+Content-Type: application/x-www-form-urlencoded
+
+param=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--7529c60dabdc3aecc5d764ab26a9e0fe8597d8c01eadeadb9a006f4b62de
+Content-Type: application/json
+
+{"patch":{"$set":{"string":"updated string"}}}
+--7529c60dabdc3aecc5d764ab26a9e0fe8597d8c01eadeadb9a006f4b62de--

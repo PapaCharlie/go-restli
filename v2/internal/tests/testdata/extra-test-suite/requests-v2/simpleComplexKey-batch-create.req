@@ -1,0 +1,13 @@
+POST /simpleComplexKey HTTP/1.1
+Accept: application/json
+Content-Type: application/json
+X-RestLi-Method: batch_create
+X-RestLi-Protocol-Version: 2.0.0
+
+{
+  "elements" : [ {
+    "string" : "1"
+  }, {
+    "string" : "string:with:colons"
+  } ]
+}

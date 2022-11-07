@@ -1,0 +1,88 @@
+{
+  "wireProtocolTestData": [
+    {
+      "name": "collectionWithTyperefKey",
+      "restspec": "restspecs/extras.collectionWithTyperefKey.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithTyperefKey-batch-create-with-params"
+        },
+        {
+          "name": "collectionWithTyperefKey-batch-get-with-params"
+        },
+        {
+          "name": "collectionWithTyperefKey-get"
+        },
+        {
+          "name": "collectionWithTyperefKey-get-incomplete-response"
+        },
+        {
+          "name": "collectionWithTyperefKey-find-with-paging-context"
+        },
+        {
+          "name": "collectionWithTyperefKey-find-with-paging-context-no-total"
+        },
+        {
+          "name": "collectionWithTyperefKey-action-on-entity"
+        },
+        {
+          "name": "collectionWithTyperefKey-get-all"
+        },
+        {
+          "name": "collectionWithTyperefKey-finder-noParams"
+        },
+        {
+          "name": "collectionWithTyperefKey-finder-noParamsWithPaging"
+        },
+        {
+          "name": "collectionWithTyperefKey-create-with-params"
+        }
+      ]
+    },
+    {
+      "name": "simpleComplexKey",
+      "restspec": "restspecs/extras.simpleComplexKey.restspec.json",
+      "operations": [
+        {
+          "name": "simpleComplexKey-get"
+        },
+        {
+          "name": "simpleComplexKey-batch-get"
+        },
+        {
+          "name": "simpleComplexKey-batch-create"
+        },
+        {
+          "name": "simpleComplexKey-batch-update-with-errors"
+        },
+        {
+          "name": "simpleComplexKey-batch-partial-update"
+        }
+      ]
+    },
+    {
+      "name": "collectionWithAnnotations",
+      "restspec": "restspecs/extras.collectionWithAnnotations.restspec.json",
+      "operations": [
+        {
+          "name": "collectionWithAnnotations-partial-update"
+        },
+        {
+          "name": "collectionWithAnnotations-create"
+        }
+      ]
+    },
+    {
+      "name": "simpleWithPartialUpdate",
+      "restspec": "restspecs/extras.simpleWithPartialUpdate.restspec.json",
+      "operations": [
+        {
+          "name": "simple-partial-update"
+        },
+        {
+          "name": "simple-partial-update-with-tunnelling"
+        }
+      ]
+    }
+  ]
+}
