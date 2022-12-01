@@ -200,17 +200,31 @@ func RegisterBatchUpdate[K comparable, RP ResourcePathUnmarshaler[RP], QP batchQ
 		})
 }
 
-func RegisterPartialUpdate[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], V restlicodec.Marshaler](
+func RegisterPartialUpdate[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], PV restlicodec.Marshaler](
 	s Server,
 	segments []ResourcePathSegment,
 	excludedFields restlicodec.PathSpec,
-	partialUpdate func(*RequestContext, RP, V, QP) error,
+	partialUpdate func(*RequestContext, RP, PV, QP) error,
 ) {
 	registerMethodWithBody(s, segments, Method_partial_update, excludedFields, 0,
-		restlicodec.UnmarshalRestLi[V],
-		func(ctx *RequestContext, rp RP, v V, qp QP) (responseBody restlicodec.Marshaler, err error) {
+		restlicodec.UnmarshalRestLi[PV],
+		func(ctx *RequestContext, rp RP, v PV, qp QP) (responseBody restlicodec.Marshaler, err error) {
 			ctx.ResponseStatus = http.StatusNoContent
 			return nil, partialUpdate(ctx, rp, v, qp)
+		})
+}
+
+func RegisterPartialUpdateWithReturnEntity[RP ResourcePathUnmarshaler[RP], QP restlicodec.QueryParamsDecoder[QP], PV, V restlicodec.Marshaler](
+	s Server,
+	segments []ResourcePathSegment,
+	excludedFields restlicodec.PathSpec,
+	partialUpdate func(*RequestContext, RP, PV, QP) (V, error),
+) {
+	registerMethodWithBody(s, segments, Method_partial_update, excludedFields, 0,
+		restlicodec.UnmarshalRestLi[PV],
+		func(ctx *RequestContext, rp RP, v PV, qp QP) (responseBody restlicodec.Marshaler, err error) {
+			ctx.ResponseStatus = http.StatusOK
+			return partialUpdate(ctx, rp, v, qp)
 		})
 }
 

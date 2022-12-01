@@ -32,7 +32,7 @@ func Create[K any, V restlicodec.Marshaler](
 	return unmarshalReturnEntityKey[K](c, res)
 }
 
-// CreateWithReturnEntity is like CollectionClient.Create, except it parses the returned entity from the response.
+// CreateWithReturnEntity is like Create, except it parses the returned entity from the response.
 func CreateWithReturnEntity[K any, V restlicodec.Marshaler](
 	c *Client,
 	ctx context.Context,

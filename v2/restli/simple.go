@@ -58,6 +58,24 @@ func PartialUpdate[PV restlicodec.Marshaler](
 	return err
 }
 
+// PartialUpdateWithReturnEntity is like PartialUpdate, except it parses the returned entity from the response.
+func PartialUpdateWithReturnEntity[PV, V restlicodec.Marshaler](
+	c *Client,
+	ctx context.Context,
+	rp ResourcePath,
+	patch PV,
+	query QueryParamsEncoder,
+	createAndReadOnlyFields restlicodec.PathSpec,
+) (v V, err error) {
+	req, err := NewJsonRequest(c, ctx, rp, query, http.MethodPost, Method_partial_update, patch, createAndReadOnlyFields)
+	if err != nil {
+		return v, err
+	}
+
+	v, _, err = DoAndUnmarshal(c, req, restlicodec.UnmarshalRestLi[V])
+	return v, err
+}
+
 // Delete executes a rest.li delete request
 func Delete(
 	c *Client,

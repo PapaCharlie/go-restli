@@ -18,15 +18,16 @@ func (o *Operation) SimplePartialUpdate(t *testing.T, c Client) func(*testing.T)
 		},
 	}
 	params := &PartialUpdateParams{Param: "42"}
-	err := c.PartialUpdate(update, params)
+	e, err := c.PartialUpdate(update, params)
+	require.Equal(t, &extras.SinglePrimitiveField{String: *update.Set_Fields.String}, e)
 	require.NoError(t, err)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockPartialUpdate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField_PartialUpdate, queryParams *PartialUpdateParams) (err error) {
+			MockPartialUpdate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField_PartialUpdate, queryParams *PartialUpdateParams) (updatedEntity *extras.SinglePrimitiveField, err error) {
 				require.Equal(t, update, entity)
 				require.Equal(t, params, queryParams)
-				return nil
+				return e, nil
 			},
 		}
 	}
@@ -41,15 +42,16 @@ func (o *Operation) SimplePartialUpdateWithTunnelling(t *testing.T, c Client) fu
 		},
 	}
 	params := &PartialUpdateParams{Param: strings.Repeat("a", 200)}
-	err := c.PartialUpdate(update, params)
+	e, err := c.PartialUpdate(update, params)
+	require.Equal(t, &extras.SinglePrimitiveField{String: *update.Set_Fields.String}, e)
 	require.NoError(t, err)
 
 	return func(t *testing.T) *MockResource {
 		return &MockResource{
-			MockPartialUpdate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField_PartialUpdate, queryParams *PartialUpdateParams) (err error) {
+			MockPartialUpdate: func(ctx *restli.RequestContext, entity *extras.SinglePrimitiveField_PartialUpdate, queryParams *PartialUpdateParams) (updatedEntity *extras.SinglePrimitiveField, err error) {
 				require.Equal(t, update, entity)
 				require.Equal(t, params, queryParams)
-				return nil
+				return e, nil
 			},
 		}
 	}

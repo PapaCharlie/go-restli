@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -149,9 +148,8 @@ func adjustContentLength(t *testing.T, filename string, r *bufio.Reader, h http.
 	if cl != "" {
 		cli, _ := strconv.Atoi(cl)
 		if len(b) != cli {
-			require.FailNow(t, "??")
-			t.Logf("Content-Length header in %s indicates %d bytes, but body was %d bytes", filename, cli, len(b))
-			h.Set(contentLength, fmt.Sprintf("%d", len(b)))
+			require.FailNowf(t,
+				"Content-Length header in %s indicates %d bytes, but body was %d bytes", filename, cli, len(b))
 		}
 	}
 	return io.NopCloser(bytes.NewReader(b))

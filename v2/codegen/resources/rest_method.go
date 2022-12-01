@@ -120,6 +120,12 @@ func (r *RestMethod) NonErrorFuncReturnParam() Code {
 		return Add(Results).Op("*").Add(r.Resource.LocalType(BatchEntities))
 	case restli.Method_batch_delete, restli.Method_batch_update, restli.Method_batch_partial_update:
 		return Add(Results).Op("*").Add(r.Resource.LocalType(BatchResponse))
+	case restli.Method_partial_update:
+		if r.ReturnEntity {
+			return Id("updatedEntity").Add(r.EntityType())
+		} else {
+			return nil
+		}
 	default:
 		return nil
 	}
@@ -130,7 +136,11 @@ func (r *RestMethod) GenericParams() Code {
 	case restli.Method_get, restli.Method_update, restli.Method_get_all:
 		return r.EntityType()
 	case restli.Method_partial_update:
-		return r.PartialEntityUpdateType()
+		if r.ReturnEntity {
+			return List(r.PartialEntityUpdateType(), r.EntityType())
+		} else {
+			return r.PartialEntityUpdateType()
+		}
 	case restli.Method_create, restli.Method_batch_create:
 		if r.ReturnEntity {
 			return List(r.EntityKeyType(), r.EntityType())

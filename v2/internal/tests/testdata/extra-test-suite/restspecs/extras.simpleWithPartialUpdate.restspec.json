@@ -7,6 +7,9 @@
   "simple": {
     "methods": [
       {
+        "annotations": {
+          "returnEntity": {}
+        },
         "method": "partial_update",
         "parameters": [
           {
