@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,28 @@ func ReadManifest(data []byte) (*GoRestliManifest, error) {
 		return nil, err
 	}
 	return manifest, nil
+}
+
+func FilterByNamespace(manifest *GoRestliManifest, allowList []string) {
+	if len(allowList) == 0 {
+		return
+	}
+
+	allowListMap := map[string]bool{}
+	for _, ns := range allowList {
+		allowListMap[ns] = true
+	}
+
+	dataTypes := manifest.InputDataTypes[:0]
+	for _, dt := range manifest.InputDataTypes {
+		id := dt.GetComplexType().GetIdentifier()
+		if allowListMap[id.Namespace] {
+			dataTypes = append(dataTypes, dt)
+		} else {
+			log.Printf("Removing %q from manifest as it is not included in namespace allow list", id)
+		}
+	}
+	manifest.InputDataTypes = dataTypes
 }
 
 func RegisterManifests(manifests []*GoRestliManifest) (err error) {

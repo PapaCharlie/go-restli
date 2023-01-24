@@ -175,10 +175,15 @@ Inputs can be directories, files or JARs`)
 		if err != nil {
 			return err
 		}
+		FilterByNamespace(inputManifest, namespaceAllowList)
 
 		manifests = append(manifests, inputManifest)
 
-		return GenerateCode(outputDir, manifests, generateWithPackageRoot, namespaceAllowList)
+		return GenerateCode(
+			outputDir,
+			manifests,
+			generateWithPackageRoot,
+		)
 	}
 
 	return cmd
@@ -225,7 +230,6 @@ func GenerateCode(
 	outputDir string,
 	manifests []*GoRestliManifest,
 	generateWithPackageRoot bool,
-	namespaceAllowList []string,
 ) error {
 	err := utils.CleanTargetDir(outputDir)
 	if err != nil {
@@ -260,16 +264,8 @@ func GenerateCode(
 	}
 	log.Printf("Wrote manifest to: %q", manifestFile)
 
-	allowList := map[string]bool{}
-	for _, ns := range namespaceAllowList {
-		allowList[ns] = true
-	}
-
 	var codeFiles []*utils.CodeFile
 	for id := range utils.TypeRegistry.TypesInPackageRoot(inputManifest.PackageRoot) {
-		if ok := allowList[id.Namespace]; len(allowList) > 0 && !ok {
-			continue
-		}
 		t := id.Resolve()
 		if code := t.GenerateCode(); code != nil {
 			codeFiles = append(codeFiles, &utils.CodeFile{
