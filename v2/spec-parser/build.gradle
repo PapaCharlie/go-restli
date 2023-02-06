@@ -39,8 +39,13 @@ task fatJar(type: Jar) { Jar ->
 group = "io.papacharlie"
 
 java {
-    withJavadocJar()
-    withSourcesJar()
+  withJavadocJar()
+  withSourcesJar()
+}
+
+compileJava {
+  sourceCompatibility = '1.8'
+  targetCompatibility = '1.8'
 }
 
 publishing {

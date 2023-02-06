@@ -1,0 +1,4 @@
+namespace extras
+
+// This additional Any tests that specifying multiple raw record types works as expected
+record Any2 {}

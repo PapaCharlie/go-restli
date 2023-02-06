@@ -39,7 +39,7 @@ func CodeGenerator(jar []byte) *cobra.Command {
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", ".", "The directory in which to output the generated files")
 
 	var manifestDependencies []string
-	cmd.Flags().StringArrayVarP(&manifestDependencies, "manifest-dependencies", "m", nil,
+	cmd.Flags().StringSliceVarP(&manifestDependencies, "manifest-dependencies", "m", nil,
 		`Files or directories that may contain other "`+utils.ManifestFile+`" manifest files that this manifest may `+
 			`depend on. Note that this may simply be "$GOPATH" or the "vendor" directory after "go mod vendor" is run.`)
 
@@ -49,7 +49,7 @@ func CodeGenerator(jar []byte) *cobra.Command {
 
 	var namespaceAllowList []string
 	const namespaceAllowListFlag = "namespace-allow-list"
-	cmd.Flags().StringArrayVar(&namespaceAllowList, namespaceAllowListFlag, nil,
+	cmd.Flags().StringSliceVar(&namespaceAllowList, namespaceAllowListFlag, nil,
 		"HIDDEN FLAG, USE AT YOUR OWN RISK: if provided, any data type whose namespace is not in this list will not "+
 			"be generated")
 	cmd.Flag(namespaceAllowListFlag).Hidden = true
@@ -64,11 +64,11 @@ files in the given inputs and produce bindings for each model and resource.
 Inputs can be directories, files or JARs`)
 	cmd.Flags().StringVarP(&jarParams.PackageRoot, "package-root", "p", "",
 		"All files will be generated as sub-packages of this package.")
-	cmd.Flags().StringArrayVar(&jarParams.RawRecords, "raw-records", nil,
+	cmd.Flags().StringSliceVar(&jarParams.RawRecords, "raw-records", nil,
 		"These records will be interpreted as `restli.RawRecord`s instead of their actual underlying type.")
 
 	const dependenciesFlag = "dependencies"
-	cmd.Flags().StringArrayVarP(&jarParams.Dependencies, dependenciesFlag, "d", nil,
+	cmd.Flags().StringSliceVarP(&jarParams.Dependencies, dependenciesFlag, "d", nil,
 		"The directories, files or JARs that contains all the PDSC/PDL schema definitions required to "+
 			"generate the inputs.")
 	var dependenciesFile string

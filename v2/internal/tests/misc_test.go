@@ -327,3 +327,10 @@ func TestForcedConflictResolution(t *testing.T) {
 	_ = forcedConflict.Forcedconflict1FooBar{}
 	_ = forcedConflict.Forcedconflict2Foobar{}
 }
+
+func TestAny(t *testing.T) {
+	// Tests that the record's fields have the right type
+	_ = &extras.RecordWithAny{
+		Any: restlidata.RawRecord{},
+	}
+}
