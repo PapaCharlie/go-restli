@@ -1,4 +1,0 @@
-namespace extras
-
-record IncludesIncludesLink includes IncludesLink {
-}

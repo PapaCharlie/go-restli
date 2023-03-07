@@ -17,13 +17,22 @@ var (
 
 const RecordShouldUsePointer = utils.Yes
 
+type includedPartialUpdateRecord struct {
+	packagePath string
+	name        string
+}
+
+func (r *includedPartialUpdateRecord) qual() *Statement {
+	return Qual(r.packagePath, r.name)
+}
+
 type Record struct {
 	NamedType
 	Includes []utils.Identifier `json:"includes"`
 	Fields   []Field            `json:"fields"`
 }
 
-func (r *Record) InnerTypes() utils.IdentifierSet {
+func (r *Record) ReferencedTypes() utils.IdentifierSet {
 	innerTypes := utils.NewIdentifierSet(r.Includes...)
 	for _, f := range r.Fields {
 		innerTypes.AddAll(f.Type.InnerTypes())

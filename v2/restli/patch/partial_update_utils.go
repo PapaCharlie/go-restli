@@ -1,6 +1,7 @@
 package patch
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/PapaCharlie/go-restli/v2/restlicodec"
@@ -9,6 +10,8 @@ import (
 const (
 	PatchField = "patch"
 )
+
+var NoSuchFieldErr = errors.New("no such field")
 
 var RequiredPatchRecordFields = restlicodec.NewRequiredFields().Add(PatchField)
 
@@ -66,4 +69,12 @@ type IllegalPartialUpdateError struct {
 
 func (c *IllegalPartialUpdateError) Error() string {
 	return fmt.Sprintf("go-restli: %s field %q of %q", c.Message, c.Field, c.RecordType)
+}
+
+func NewFieldCannotBeDeletedError(field, recordType string) error {
+	return &IllegalPartialUpdateError{
+		Message:    "Field cannot be deleted",
+		Field:      field,
+		RecordType: recordType,
+	}
 }

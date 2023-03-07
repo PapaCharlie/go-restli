@@ -11,7 +11,7 @@ import (
 type ComplexType interface {
 	GetIdentifier() Identifier
 	GetSourceFile() string
-	InnerTypes() IdentifierSet
+	ReferencedTypes() IdentifierSet
 	ShouldReference() ShouldUsePointer
 	GenerateCode() *jen.Statement
 }
@@ -96,7 +96,7 @@ func (reg *typeRegistry) findCycle(nextNode Identifier, path Path) []Identifier 
 	}
 
 	newPath := path.Add(nextNode)
-	for c := range reg.get(nextNode).Type.InnerTypes() {
+	for c := range reg.get(nextNode).Type.ReferencedTypes() {
 		if !reg.IsCyclic(c) {
 			if p := reg.findCycle(c, newPath); len(p) > 0 {
 				return p
@@ -113,7 +113,7 @@ func (reg *typeRegistry) flagCyclic(id Identifier) {
 		node.IsCyclic = true
 		log.Printf("Flagging %q as cyclic", id.FullName())
 	}
-	for c := range node.Type.InnerTypes() {
+	for c := range node.Type.ReferencedTypes() {
 		child := reg.get(c)
 		if !child.IsCyclic && node.PackageRoot == child.PackageRoot {
 			reg.flagCyclic(c)
@@ -142,7 +142,7 @@ func (reg *typeRegistry) Finalize() (err error) {
 
 func (reg *typeRegistry) validateAllTypesSatisfied() error {
 	for id, rt := range reg.types {
-		for dep := range rt.Type.InnerTypes() {
+		for dep := range rt.Type.ReferencedTypes() {
 			if _, ok := reg.types[dep]; !ok {
 				return fmt.Errorf("go-restli: %q depends on unknown type %q", id.FullName(), dep.FullName())
 			}

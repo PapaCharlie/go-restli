@@ -11,7 +11,7 @@ type ComplexKey struct {
 	Params utils.Identifier
 }
 
-func (ck *ComplexKey) InnerTypes() utils.IdentifierSet {
+func (ck *ComplexKey) ReferencedTypes() utils.IdentifierSet {
 	return utils.NewIdentifierSet(ck.Key, ck.Params)
 }
 

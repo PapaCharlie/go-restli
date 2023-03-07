@@ -29,7 +29,7 @@ func (c *customType) GetSourceFile() string {
 	return c.sourceFile
 }
 
-func (c *customType) InnerTypes() utils.IdentifierSet {
+func (c *customType) ReferencedTypes() utils.IdentifierSet {
 	return nil
 }
 

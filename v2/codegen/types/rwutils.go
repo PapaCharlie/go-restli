@@ -12,12 +12,13 @@ type writer struct {
 }
 
 var (
-	KeyWriter     = Code(Id("keyWriter"))
-	KeyWriterFunc = Code(Add(KeyWriter).Func().Params(String()).Add(WriterQual))
-	ItemWriter    = Code(Id("itemWriter"))
-	Writer        = &writer{Id("writer")}
-	WriterQual    = Code(Qual(utils.RestLiCodecPackage, "Writer"))
-	WriterParam   = Code(Add(Writer).Add(WriterQual))
+	KeyWriter      = Code(Id("keyWriter"))
+	KeyWriterFunc  = Code(Add(KeyWriter).Func().Params(String()).Add(WriterQual))
+	ItemWriter     = Code(Id("itemWriter"))
+	ItemWriterFunc = Code(Add(ItemWriter).Func().Params().Add(WriterQual))
+	Writer         = &writer{Id("writer")}
+	WriterQual     = Code(Qual(utils.RestLiCodecPackage, "Writer"))
+	WriterParam    = Code(Add(Writer).Add(WriterQual))
 )
 
 func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *Group)) Code {
@@ -27,8 +28,7 @@ func (e *writer) WriteMap(writerAccessor Code, writer func(keyWriter Code, def *
 }
 
 func (e *writer) WriteArray(writerAccessor Code, writer func(itemWriter Code, def *Group)) Code {
-	itemWriterFunc := Add(ItemWriter).Func().Params().Add(WriterQual)
-	return Add(writerAccessor).Dot("WriteArray").Call(Func().Params(itemWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
+	return Add(writerAccessor).Dot("WriteArray").Call(Func().Params(ItemWriterFunc).Params(Err().Error()).BlockFunc(func(def *Group) {
 		writer(ItemWriter, def)
 	}))
 }

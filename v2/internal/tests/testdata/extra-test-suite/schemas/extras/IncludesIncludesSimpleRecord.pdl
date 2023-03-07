@@ -1,0 +1,4 @@
+namespace extras
+
+record IncludesIncludesSimpleRecord includes IncludesSimpleRecord {
+}

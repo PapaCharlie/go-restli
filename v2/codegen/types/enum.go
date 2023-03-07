@@ -13,7 +13,7 @@ type Enum struct {
 	SymbolToDoc map[string]string
 }
 
-func (e *Enum) InnerTypes() utils.IdentifierSet {
+func (e *Enum) ReferencedTypes() utils.IdentifierSet {
 	return nil
 }
 

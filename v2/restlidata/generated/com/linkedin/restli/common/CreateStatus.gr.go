@@ -154,56 +154,46 @@ type CreateStatus_PartialUpdate_Delete_Fields struct {
 	Error    bool
 }
 
-func (c *CreateStatus_PartialUpdate_Delete_Fields) MarshalRestLi(writer restlicodec.Writer) (err error) {
-	return writer.WriteArray(func(itemWriter func() restlicodec.Writer) (err error) {
-		if c.Error {
-			itemWriter().WriteString("error")
-		}
-		if c.Id {
-			itemWriter().WriteString("id")
-		}
-		if c.Location {
-			itemWriter().WriteString("location")
-		}
-		return nil
-	})
-}
-
-func (c *CreateStatus_PartialUpdate_Delete_Fields) MarshalJSON() (data []byte, err error) {
-	writer := restlicodec.NewCompactJsonWriter()
-	err = c.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
+func (c *CreateStatus_PartialUpdate_Delete_Fields) MarshalDeleteFields(write func(string)) {
+	if c.Error {
+		write("error")
 	}
-	return []byte(writer.Finalize()), nil
+	if c.Id {
+		write("id")
+	}
+	if c.Location {
+		write("location")
+	}
 }
 
-func (c *CreateStatus_PartialUpdate_Delete_Fields) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
-	var field string
-	return reader.ReadArray(func(reader restlicodec.Reader) (err error) {
-		field, err = reader.ReadString()
-		if err != nil {
-			return err
-		}
-
-		switch field {
-		case "id":
-			c.Id = true
-		case "location":
-			c.Location = true
-		case "error":
-			c.Error = true
-		}
+func (c *CreateStatus_PartialUpdate_Delete_Fields) UnmarshalDeleteField(field string) (err error) {
+	switch field {
+	case "status":
+		return patch.NewFieldCannotBeDeletedError("status", "com.linkedin.restli.common.CreateStatus")
+	case "id":
+		c.Id = true
 		return nil
-	})
+	case "location":
+		c.Location = true
+		return nil
+	case "error":
+		c.Error = true
+		return nil
+	default:
+		return patch.NoSuchFieldErr
+	}
 }
 
-func (c *CreateStatus_PartialUpdate_Delete_Fields) UnmarshalJSON(data []byte) error {
-	return restlicodec.UnmarshalJSON(data, c)
+func (c *CreateStatus_PartialUpdate) MarshalDeleteFields(itemWriter func() restlicodec.Writer) (err error) {
+	write := func(name string) {
+		itemWriter().WriteString(name)
+	}
+	c.Delete_Fields.MarshalDeleteFields(write)
+	return nil
 }
 
-func (c *CreateStatus_PartialUpdate_Delete_Fields) NewInstance() *CreateStatus_PartialUpdate_Delete_Fields {
-	return new(CreateStatus_PartialUpdate_Delete_Fields)
+func (c *CreateStatus_PartialUpdate) UnmarshalDeleteField(field string) (err error) {
+	return c.Delete_Fields.UnmarshalDeleteField(field)
 }
 
 type CreateStatus_PartialUpdate_Set_Fields struct {
@@ -236,21 +226,6 @@ func (c *CreateStatus_PartialUpdate_Set_Fields) MarshalFields(keyWriter func(str
 	return nil
 }
 
-func (c *CreateStatus_PartialUpdate_Set_Fields) MarshalRestLi(writer restlicodec.Writer) (err error) {
-	return writer.WriteMap(c.MarshalFields)
-}
-
-func (c *CreateStatus_PartialUpdate_Set_Fields) MarshalJSON() (data []byte, err error) {
-	writer := restlicodec.NewCompactJsonWriter()
-	err = c.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(writer.Finalize()), nil
-}
-
-var CreateStatus_PartialUpdate_Set_FieldsRequiredFields = restlicodec.NewRequiredFields()
-
 func (c *CreateStatus_PartialUpdate_Set_Fields) UnmarshalField(reader restlicodec.Reader, field string) (found bool, err error) {
 	switch field {
 	case "status":
@@ -273,35 +248,18 @@ func (c *CreateStatus_PartialUpdate_Set_Fields) UnmarshalField(reader restlicode
 	return found, err
 }
 
-func (c *CreateStatus_PartialUpdate_Set_Fields) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
-	err = reader.ReadRecord(CreateStatus_PartialUpdate_Set_FieldsRequiredFields, func(reader restlicodec.Reader, field string) (err error) {
-		found, err := c.UnmarshalField(reader, field)
-		if err != nil {
-			return err
-		}
-		if !found {
-			err = reader.Skip()
-		}
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (c *CreateStatus_PartialUpdate) MarshalSetFields(keyWriter func(string) restlicodec.Writer) (err error) {
+	err = c.Set_Fields.MarshalFields(keyWriter)
+	return err
 }
 
-func (c *CreateStatus_PartialUpdate_Set_Fields) UnmarshalJSON(data []byte) error {
-	return restlicodec.UnmarshalJSON(data, c)
-}
-
-func (c *CreateStatus_PartialUpdate_Set_Fields) NewInstance() *CreateStatus_PartialUpdate_Set_Fields {
-	return new(CreateStatus_PartialUpdate_Set_Fields)
+func (c *CreateStatus_PartialUpdate) UnmarshalSetField(reader restlicodec.Reader, field string) (found bool, err error) {
+	return c.Set_Fields.UnmarshalField(reader, field)
 }
 
 // CreateStatus_PartialUpdate is used to represent a partial update on CreateStatus. Toggling the value of a field
-// in Delete represents selecting it for deletion in a partial update, while
-// setting the value of a field in Update represents setting that field in the
+// in Delete_Field represents selecting it for deletion in a partial update, while
+// setting the value of a field in Set_Fields represents setting that field in the
 // current struct. Other fields in this struct represent record fields that can
 // themselves be partially updated.
 type CreateStatus_PartialUpdate struct {
@@ -310,30 +268,45 @@ type CreateStatus_PartialUpdate struct {
 	Error         *ErrorResponse_PartialUpdate
 }
 
+func (c *CreateStatus_PartialUpdate) CheckFields(fieldChecker *patch.PartialUpdateFieldChecker, keyChecker restlicodec.KeyChecker) (err error) {
+	if err = fieldChecker.CheckField(keyChecker, "status", false, c.Set_Fields.Status != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "id", c.Delete_Fields.Id, c.Set_Fields.Id != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "location", c.Delete_Fields.Location, c.Set_Fields.Location != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "error", c.Delete_Fields.Error, c.Set_Fields.Error != nil, c.Error != nil); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *CreateStatus_PartialUpdate) MarshalRestLiPatch(writer restlicodec.Writer) (err error) {
 	return writer.WriteMap(func(keyWriter func(string) restlicodec.Writer) (err error) {
-		checker := patch.PartialUpdateFieldChecker{RecordType: "com.linkedin.restli.common.CreateStatus"}
-		if err = checker.CheckField(writer, "status", false, c.Set_Fields.Status != nil, false); err != nil {
+		fieldChecker := &patch.PartialUpdateFieldChecker{
+			RecordType: "com.linkedin.restli.common.CreateStatus",
+		}
+		err = c.CheckFields(fieldChecker, writer)
+		if err != nil {
 			return err
 		}
-		if err = checker.CheckField(writer, "id", c.Delete_Fields.Id, c.Set_Fields.Id != nil, false); err != nil {
-			return err
-		}
-		if err = checker.CheckField(writer, "location", c.Delete_Fields.Location, c.Set_Fields.Location != nil, false); err != nil {
-			return err
-		}
-		if err = checker.CheckField(writer, "error", c.Delete_Fields.Error, c.Set_Fields.Error != nil, c.Error != nil); err != nil {
-			return err
-		}
-		if checker.HasDeletes {
-			err = c.Delete_Fields.MarshalRestLi(keyWriter("$delete"))
+		if fieldChecker.HasDeletes {
+			err = keyWriter("$delete").WriteArray(func(itemWriter func() restlicodec.Writer) (err error) {
+				c.MarshalDeleteFields(itemWriter)
+				return nil
+			})
 			if err != nil {
 				return err
 			}
 		}
 
-		if checker.HasSets {
-			err = c.Set_Fields.MarshalRestLi(keyWriter("$set"))
+		if fieldChecker.HasSets {
+			err = keyWriter("$set").WriteMap(func(keyWriter func(string) restlicodec.Writer) (err error) {
+				return c.MarshalSetFields(keyWriter)
+			})
 			if err != nil {
 				return err
 			}
@@ -369,9 +342,27 @@ func (c *CreateStatus_PartialUpdate) UnmarshalRestLiPatch(reader restlicodec.Rea
 	err = reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
 		switch key {
 		case "$delete":
-			err = c.Delete_Fields.UnmarshalRestLi(reader)
+			err = reader.ReadArray(func(reader restlicodec.Reader) (err error) {
+				var field string
+				field, err = reader.ReadString()
+				if err != nil {
+					return err
+				}
+
+				err = c.UnmarshalDeleteField(field)
+				if err == patch.NoSuchFieldErr {
+					err = nil
+				}
+				return err
+			})
 		case "$set":
-			err = c.Set_Fields.UnmarshalRestLi(reader)
+			err = reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
+				found, err := c.UnmarshalSetField(reader, key)
+				if !found {
+					err = reader.Skip()
+				}
+				return err
+			})
 		case "error":
 			c.Error = new(ErrorResponse_PartialUpdate)
 			err = c.Error.UnmarshalRestLiPatch(reader)
@@ -383,17 +374,11 @@ func (c *CreateStatus_PartialUpdate) UnmarshalRestLiPatch(reader restlicodec.Rea
 	if err != nil {
 		return err
 	}
-	checker := patch.PartialUpdateFieldChecker{RecordType: "com.linkedin.restli.common.CreateStatus"}
-	if err = checker.CheckField(reader, "status", false, c.Set_Fields.Status != nil, false); err != nil {
-		return err
+	fieldChecker := &patch.PartialUpdateFieldChecker{
+		RecordType: "com.linkedin.restli.common.CreateStatus",
 	}
-	if err = checker.CheckField(reader, "id", c.Delete_Fields.Id, c.Set_Fields.Id != nil, false); err != nil {
-		return err
-	}
-	if err = checker.CheckField(reader, "location", c.Delete_Fields.Location, c.Set_Fields.Location != nil, false); err != nil {
-		return err
-	}
-	if err = checker.CheckField(reader, "error", c.Delete_Fields.Error, c.Set_Fields.Error != nil, c.Error != nil); err != nil {
+	err = c.CheckFields(fieldChecker, reader)
+	if err != nil {
 		return err
 	}
 	return nil

@@ -20,36 +20,30 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 
 	comment := fmt.Sprintf(
 		"%s is used to represent a partial update on %s. Toggling the value of a field\n"+
-			"in Delete represents selecting it for deletion in a partial update, while\n"+
-			"setting the value of a field in Update represents setting that field in the\n"+
+			"in Delete_Field represents selecting it for deletion in a partial update, while\n"+
+			"setting the value of a field in Set_Fields represents setting that field in the\n"+
 			"current struct. Other fields in this struct represent record fields that can\n"+
 			"themselves be partially updated.",
 		r.PartialUpdateStructName(), r.TypeName())
 
-	isEmpty := len(r.Fields) == 0
 	fields := r.SortedFields()
 
-	deletableFieldsStruct := r.generatePartialUpdateDeleteFieldsStruct()
-	if deletableFieldsStruct != nil {
-		def.Add(deletableFieldsStruct).Line()
-	}
-	def.Add(r.generatePartialUpdateSetFieldsStruct())
+	def.Add(r.generatePartialUpdateDeleteFieldsStruct()).Line()
+	def.Add(r.generatePartialUpdateSetFieldsStruct()).Line()
 
 	// Generate the struct
 	utils.AddWordWrappedComment(def, comment).Line()
 
 	def.Type().Id(r.PartialUpdateStructName()).StructFunc(func(def *Group) {
-		if !isEmpty {
-			if deletableFieldsStruct != nil {
-				def.Id(DeleteFields).Id(r.PartialUpdateDeleteFieldsStructName())
-			}
+		for _, ir := range r.includedRecords() {
+			def.Qual(ir.PackagePath(), ir.PartialUpdateStructName())
+		}
+		def.Id(DeleteFields).Id(r.PartialUpdateDeleteFieldsStructName())
+		def.Id(SetFields).Id(r.PartialUpdateSetFieldsStructName())
 
-			def.Id(SetFields).Id(r.PartialUpdateSetFieldsStructName())
-
-			for _, f := range r.Fields {
-				if record := f.Type.Record(); record != nil {
-					def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct())
-				}
+		for _, f := range r.Fields {
+			if record := f.Type.Record(); record != nil {
+				def.Id(f.FieldName()).Op("*").Add(record.PartialUpdateStruct())
 			}
 		}
 	}).Line().Line()
@@ -59,61 +53,77 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	deleteAccessorF := func(f Field) *Statement { return Add(deleteAccessor).Dot(f.FieldName()) }
 	setAccessorF := func(f Field) *Statement { return Add(setAccessor).Dot(f.FieldName()) }
 
-	checker := Code(Id("checker"))
+	const CheckFields = "CheckFields"
+	fieldChecker := Code(Id("fieldChecker"))
+	fieldCheckerType := Code(Qual(utils.RestLiPatchPackage, "PartialUpdateFieldChecker"))
+	keyChecker := Code(Id("keyChecker"))
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), CheckFields, RecordShouldUsePointer).
+		Params(
+			Add(fieldChecker).Add(Op("*").Add(fieldCheckerType)),
+			Add(keyChecker).Qual(utils.RestLiCodecPackage, "KeyChecker"),
+		).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			for _, ir := range r.includedRecords() {
+				def.Err().Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(CheckFields).Call(fieldChecker, keyChecker)
+				def.Add(utils.IfErrReturn(Err()))
+				def.Line()
+			}
+			for _, f := range r.Fields {
+				var d Code
+				if f.IsOptionalOrDefault() {
+					d = deleteAccessorF(f)
+				} else {
+					d = False()
+				}
+
+				var p Code
+				if f.Type.Record() != nil {
+					p = r.rawFieldAccessor(f).Op("!=").Nil()
+				} else {
+					p = False()
+				}
+
+				def.If(Err().Op("=").Add(fieldChecker).Dot("CheckField").Call(
+					keyChecker,
+					Lit(f.Name),
+					d,
+					setAccessorF(f).Op("!=").Nil(),
+					p,
+				), Err().Op("!=").Nil()).Block(Return(Err()))
+			}
+			def.Return(Nil())
+		}).Line().Line()
+
 	checkAllFields := func(def *Group, keyChecker Code) {
-		def.Add(checker).Op(":=").Qual(utils.RestLiPatchPackage, "PartialUpdateFieldChecker").Values(Dict{
-			Id("RecordType"): Lit(r.Identifier.FullName()),
-		})
-		for _, f := range r.Fields {
-			var d Code
-			if f.IsOptionalOrDefault() {
-				d = deleteAccessorF(f)
-			} else {
-				d = False()
-			}
-
-			var p Code
-			if f.Type.Record() != nil {
-				p = r.rawFieldAccessor(f).Op("!=").Nil()
-			} else {
-				p = False()
-			}
-
-			def.If(Err().Op("=").Add(checker).Dot("CheckField").Call(
-				keyChecker,
-				Lit(f.Name),
-				d,
-				setAccessorF(f).Op("!=").Nil(),
-				p,
-			), Err().Op("!=").Nil()).Block(Return(Err()))
-		}
+		def.Add(fieldChecker).Op(":=&").Add(fieldCheckerType).
+			Custom(utils.MultiLineValues, Id("RecordType").Op(":").Lit(r.Identifier.FullName()))
+		def.Err().Op("=").Id(r.Receiver()).Dot(CheckFields).Call(fieldChecker, keyChecker)
+		def.Add(utils.IfErrReturn(Err()))
 	}
 
 	patch := Qual(utils.RestLiPatchPackage, "PatchField")
 
 	const marshalPatch = "MarshalRestLiPatch"
-	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), marshalPatch, utils.Yes).
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), marshalPatch, RecordShouldUsePointer).
 		Params(WriterParam).
 		Params(Err().Error()).
 		BlockFunc(func(def *Group) {
 			def.Return(Writer.WriteMap(Writer, func(keyWriter Code, def *Group) {
-				if isEmpty {
-					def.Return(Nil())
-					return
-				}
 				checkAllFields(def, Writer)
-				marshal := func(def *Group, source Code, name string) {
-					def.Err().Op("=").Add(source).Dot(utils.MarshalRestLi).Call(Add(keyWriter).Call(Lit(name)))
+				def.If(Add(fieldChecker).Dot("HasDeletes")).BlockFunc(func(def *Group) {
+					def.Err().Op("=").Add(Writer.WriteArray(Add(keyWriter).Call(Lit("$delete")), func(itemWriter Code, def *Group) {
+						def.Id(r.Receiver()).Dot(MarshalDeleteFields).Call(itemWriter)
+						def.Add(Return(Nil()))
+					}))
 					def.Add(utils.IfErrReturn(Err()))
-				}
-				if deletableFieldsStruct != nil {
-					def.If(Add(checker).Dot("HasDeletes")).BlockFunc(func(def *Group) {
-						marshal(def, deleteAccessor, "$delete")
-					}).Line()
-				}
+				}).Line()
 
-				def.If(Add(checker).Dot("HasSets")).BlockFunc(func(def *Group) {
-					marshal(def, setAccessor, "$set")
+				def.If(Add(fieldChecker).Dot("HasSets")).BlockFunc(func(def *Group) {
+					def.Err().Op("=").Add(Writer.WriteMap(Add(keyWriter).Call(Lit("$set")), func(keyWriter Code, def *Group) {
+						def.Return(Id(r.Receiver()).Dot(MarshalSetFields).Call(keyWriter))
+					}))
+					def.Add(utils.IfErrReturn(Err()))
 				}).Line()
 
 				for _, f := range fields {
@@ -142,25 +152,25 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		Params(ReaderParam).
 		Params(Err().Error()).
 		BlockFunc(func(def *Group) {
-			if isEmpty {
-				def.Return(Add(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
-					def.Return(Reader.Skip(reader))
-				})))
-				return
-			}
-
 			def.Err().Op("=").Add(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
 				def.Switch(key).BlockFunc(func(def *Group) {
-					unmarshal := func(def *Group, accessor Code) {
-						def.Err().Op("=").Add(accessor).Dot(utils.UnmarshalRestLi).Call(reader)
-					}
-					if deletableFieldsStruct != nil {
-						def.Case(Lit("$delete")).BlockFunc(func(def *Group) {
-							unmarshal(def, deleteAccessor)
-						})
-					}
+					def.Case(Lit("$delete")).BlockFunc(func(def *Group) {
+						def.Err().Op("=").Add(Reader.ReadArray(Reader, func(itemReader Code, def *Group) {
+							def.Var().Add(FieldParamName).String()
+							def.Add(Reader.Read(deleteType, itemReader, FieldParamName))
+							def.Add(utils.IfErrReturn(Err())).Line()
+
+							def.Err().Op("=").Id(r.Receiver()).Dot(UnmarshalDeleteField).Call(FieldParamName)
+							def.If(Err().Op("==").Add(noSuchFieldError)).Block(Err().Op("=").Nil())
+							def.Return(Err())
+						}))
+					})
 					def.Case(Lit("$set")).BlockFunc(func(def *Group) {
-						unmarshal(def, setAccessor)
+						def.Err().Op("=").Add(Reader.ReadMap(Reader, func(reader, key Code, def *Group) {
+							def.List(Found, Err()).Op(":=").Id(r.Receiver()).Dot(UnmarshalSetField).Call(reader, key)
+							def.If(Op("!").Add(Found)).Block(Err().Op("=").Add(Reader.Skip(Reader)))
+							def.Return(Err())
+						}))
 					})
 
 					for _, f := range fields {
@@ -199,6 +209,14 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	return def
 }
 
+const MarshalSetFields = "MarshalSetFields"
+const UnmarshalSetField = "UnmarshalSetField"
+const MarshalDeleteFields = "MarshalDeleteFields"
+const UnmarshalDeleteField = "UnmarshalDeleteField"
+
+var noSuchFieldError = Code(Qual(utils.RestLiPatchPackage, "NoSuchFieldErr"))
+var deleteType = RestliType{Primitive: &StringPrimitive}
+
 func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 	var deletableFields []Field
 	for _, f := range r.Fields {
@@ -207,50 +225,83 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 		}
 	}
 
-	if len(deletableFields) == 0 {
-		return nil
-	}
-
 	fields := append([]Field(nil), deletableFields...)
 	sortFields(fields)
 
 	def := Empty()
 	def.Type().Id(r.PartialUpdateDeleteFieldsStructName()).StructFunc(func(def *Group) {
+		for _, ir := range r.includedRecords() {
+			def.Qual(ir.PackagePath(), ir.PartialUpdateDeleteFieldsStructName())
+		}
+
 		for _, f := range deletableFields {
 			def.Id(f.FieldName()).Bool()
 		}
 	}).Line().Line()
 
-	deleteType := RestliType{Primitive: &StringPrimitive}
-	AddMarshalRestLi(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
-		def.Return(Writer.WriteArray(Writer, func(itemWriter Code, def *Group) {
+	write := Code(Id("write"))
+
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), MarshalDeleteFields, RecordShouldUsePointer).
+		Params(Add(write).Func().Params(String())).
+		BlockFunc(func(def *Group) {
 			for _, f := range fields {
-				def.If(r.rawFieldAccessor(f)).Block(
-					Writer.Write(deleteType, Add(itemWriter).Call(), Lit(f.Name)),
-				)
+				def.If(Id(r.Receiver()).Dot(f.FieldName())).Block(Add(write).Call(Lit(f.Name)))
 			}
-			def.Add(Return(Nil()))
-		}))
-	})
+		}).
+		Line().Line()
 
-	AddUnmarshalRestli(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), RecordShouldUsePointer, func(def *Group) {
-		def.Var().Add(FieldParamName).String()
-
-		def.Return(Reader.ReadArray(Reader, func(itemReader Code, def *Group) {
-			def.Add(Reader.Read(deleteType, itemReader, FieldParamName))
-			def.Add(utils.IfErrReturn(Err())).Line()
-
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateDeleteFieldsStructName(), UnmarshalDeleteField, RecordShouldUsePointer).
+		Params(Add(FieldParamName).String()).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
 			def.Switch(FieldParamName).BlockFunc(func(def *Group) {
 				for _, f := range r.Fields {
-					if !f.IsOptionalOrDefault() {
-						continue
+					if f.IsOptionalOrDefault() {
+						def.Case(Lit(f.Name)).Block(
+							r.rawFieldAccessor(f).Op("=").True(),
+							Return(Nil()),
+						)
+					} else {
+						def.Case(Lit(f.Name)).Block(
+							Return(Qual(utils.RestLiPatchPackage, "NewFieldCannotBeDeletedError").
+								Call(Lit(f.Name), Lit(r.Identifier.FullName()))),
+						)
 					}
-					def.Case(Lit(f.Name)).Block(r.rawFieldAccessor(f).Op("=").True())
 				}
+				def.Default().Block(Return(noSuchFieldError))
 			})
+		}).
+		Line().Line()
+
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), MarshalDeleteFields, RecordShouldUsePointer).
+		Params(ItemWriterFunc).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			write := Code(Id("write"))
+			def.Add(write).Op(":=").Func().Params(Id("name").String()).BlockFunc(func(def *Group) {
+				def.Add(Writer.Write(deleteType, Add(ItemWriter).Call(), Id("name")))
+			})
+			for _, ir := range r.includedRecords() {
+				def.Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(DeleteFields).Dot(MarshalDeleteFields).Call(write)
+				def.Line()
+			}
+			def.Id(r.Receiver()).Dot(DeleteFields).Dot(MarshalDeleteFields).Call(write)
 			def.Add(Return(Nil()))
-		}))
-	})
+		}).Line().Line()
+
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), UnmarshalDeleteField, RecordShouldUsePointer).
+		Params(Add(FieldParamName).String()).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			for _, ir := range r.includedRecords() {
+				def.Err().Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(DeleteFields).Dot(UnmarshalDeleteField).Call(FieldParamName)
+				// Either err is nil in which case the field was successfully set, or it wasn't NoSuchFieldErr in which
+				// case bail
+				def.If(Err().Op("!=").Add(noSuchFieldError)).Block(Return(Err()))
+				def.Line()
+			}
+			def.Return(Id(r.Receiver()).Dot(DeleteFields).Dot(UnmarshalDeleteField).Call(FieldParamName))
+		}).Line().Line()
 
 	return def
 }
@@ -276,8 +327,42 @@ func (r *Record) generatePartialUpdateSetFieldsStruct() *Statement {
 		})
 	}
 
-	return Empty().
-		Add(setRecord.GenerateStruct()).Line().Line().
-		Add(setRecord.GenerateMarshalRestLi()).Line().Line().
-		Add(setRecord.GenerateUnmarshalRestLi()).Line().Line()
+	def := Add(setRecord.GenerateStruct()).Line().Line().
+		Add(setRecord.GenerateMarshalFields()).Line().Line().
+		Add(setRecord.GenerateUnmarshalField(nil)).Line().Line()
+
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), MarshalSetFields, RecordShouldUsePointer).
+		Params(KeyWriterFunc).
+		Params(Err().Error()).
+		BlockFunc(func(def *Group) {
+			for _, ir := range r.includedRecords() {
+				def.Err().Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(MarshalSetFields).Call(KeyWriter)
+				def.Add(utils.IfErrReturn(Err()))
+				def.Line()
+			}
+			def.Err().Op("=").Id(r.Receiver()).Dot(SetFields).Dot(MarshalFields).Call(KeyWriter)
+			def.Return(Err())
+		}).Line().Line()
+
+	utils.AddFuncOnReceiver(def, r.Receiver(), r.PartialUpdateStructName(), UnmarshalSetField, RecordShouldUsePointer).
+		Params(ReaderParam, Add(FieldParamName).String()).
+		Params(Add(Found).Bool(), Err().Error()).
+		BlockFunc(func(def *Group) {
+			for _, ir := range r.includedRecords() {
+				def.List(Found, Err()).Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(UnmarshalSetField).Call(Reader, FieldParamName)
+				def.If(Err().Op("!=").Nil().Op("||").Add(Found)).Block(Return(Found, Err()))
+				def.Line()
+			}
+			def.Return(Id(r.Receiver()).Dot(SetFields).Dot(UnmarshalField).Call(Reader, FieldParamName))
+		}).Line().Line()
+
+	return def
+}
+
+func (r *Record) includedRecords() []*Record {
+	included := make([]*Record, len(r.Includes))
+	for i, id := range r.Includes {
+		included[i] = id.Resolve().(*Record)
+	}
+	return included
 }

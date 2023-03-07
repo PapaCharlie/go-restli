@@ -11,10 +11,10 @@ import (
 	conflictresolution "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/conflictResolution"
 	. "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated/testsuite"
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
+	"github.com/PapaCharlie/go-restli/v2/restli"
 	"github.com/PapaCharlie/go-restli/v2/restli/equals"
 	"github.com/PapaCharlie/go-restli/v2/restlicodec"
 	"github.com/PapaCharlie/go-restli/v2/restlidata"
-	"github.com/PapaCharlie/go-restli/v2/restlidata/generated/com/linkedin/restli/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -557,44 +557,65 @@ func TestMissingRequiredFields(t *testing.T) {
 	})
 
 	t.Run("includes", func(t *testing.T) {
-		expected := common.Link{
-			Rel:  "rel",
-			Href: "href",
-			Type: "",
+		expected := extras.SimpleRecord{
+			Bar: restli.StringPointer("bar"),
 		}
 
 		t.Run("json", func(t *testing.T) {
-			rawJson := `{"rel": "rel", "href": "href"}`
+			rawJson := `{"bar": "bar"}`
 			{
-				var includes extras.IncludesLink
+				var includes extras.IncludesSimpleRecord
 				reader := newJsonReader(t, rawJson)
-				checkRequiredFieldsError(t, includes.UnmarshalRestLi(reader), "type")
-				require.Equal(t, expected, includes.Link)
+				checkRequiredFieldsError(t, includes.UnmarshalRestLi(reader), "foo")
+				require.Equal(t, expected, includes.SimpleRecord)
 			}
 			{
-				var includesIncludes extras.IncludesIncludesLink
+				var includesIncludes extras.IncludesIncludesSimpleRecord
 				reader := newJsonReader(t, rawJson)
-				checkRequiredFieldsError(t, includesIncludes.UnmarshalRestLi(reader), "type")
-				require.Equal(t, expected, includesIncludes.Link)
+				checkRequiredFieldsError(t, includesIncludes.UnmarshalRestLi(reader), "foo")
+				require.Equal(t, expected, includesIncludes.SimpleRecord)
 			}
 		})
 
 		t.Run("ror2", func(t *testing.T) {
-			rawRor2 := `(rel:rel,href:href)`
+			rawRor2 := `(bar:bar)`
 			{
-				var includes extras.IncludesLink
+				var includes extras.IncludesSimpleRecord
 				reader := newRor2Reader(t, rawRor2)
-				checkRequiredFieldsError(t, includes.UnmarshalRestLi(reader), "type")
-				require.Equal(t, expected, includes.Link)
+				checkRequiredFieldsError(t, includes.UnmarshalRestLi(reader), "foo")
+				require.Equal(t, expected, includes.SimpleRecord)
 			}
 			{
-				var includesIncludes extras.IncludesIncludesLink
+				var includesIncludes extras.IncludesIncludesSimpleRecord
 				reader := newRor2Reader(t, rawRor2)
-				checkRequiredFieldsError(t, includesIncludes.UnmarshalRestLi(reader), "type")
-				require.Equal(t, expected, includesIncludes.Link)
+				checkRequiredFieldsError(t, includesIncludes.UnmarshalRestLi(reader), "foo")
+				require.Equal(t, expected, includesIncludes.SimpleRecord)
 			}
 		})
 	})
+
+	t.Run("includes_partial_set", func(t *testing.T) {
+		rawJson := `{"patch":{"$set":{"foo":"qux!"}}}`
+		expected := &extras.IncludesIncludesSimpleRecord_PartialUpdate{
+			IncludesSimpleRecord_PartialUpdate: extras.IncludesSimpleRecord_PartialUpdate{
+				SimpleRecord_PartialUpdate: extras.SimpleRecord_PartialUpdate{
+					Set_Fields: extras.SimpleRecord_PartialUpdate_Set_Fields{
+						Foo: restli.StringPointer("qux!"),
+					},
+				},
+			},
+		}
+		actualJson, err := expected.MarshalJSON()
+		require.NoError(t, err)
+		require.Equal(t, rawJson, string(actualJson))
+
+		actual := new(extras.IncludesIncludesSimpleRecord_PartialUpdate)
+		require.NoError(t, actual.UnmarshalRestLi(newJsonReader(t, rawJson)))
+		require.Equal(t, expected, actual)
+	})
+	// t.Run("includes_partial_delete", func(t *testing.T) {
+	// 	IncludesSimpleRecord
+	// })
 }
 
 func TestIllegalRor2Strings(t *testing.T) {

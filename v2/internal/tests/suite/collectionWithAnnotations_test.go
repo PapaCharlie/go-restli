@@ -59,3 +59,46 @@ func (o *Operation) CollectionWithAnnotationsCreate(t *testing.T, c Client) func
 		}
 	}
 }
+
+// func (o *Operation) CollectionWithAnnotationsBatchCreate(t *testing.T, c Client) func(t *testing.T) *MockResource {
+// 	expected := &CreatedEntity{
+// 		Id:     1,
+// 		Status: http.StatusCreated,
+// 	}
+// 	actual, err := c.BatchCreate(multiplePrimitiveFields)
+// 	require.NoError(t, err)
+// 	require.Equal(t, expected, actual)
+//
+// 	return func(t *testing.T) *MockResource {
+// 		return &MockResource{
+// 			MockCreate: func(ctx *restli.RequestContext, entity *extras.MultiplePrimitiveFields) (createdEntity *CreatedEntity, err error) {
+// 				require.Equal(t, &extras.MultiplePrimitiveFields{
+// 					Field1: "", // field1 is a read-only field so it's not supposed to be populated
+// 					Field2: multiplePrimitiveFields.Field2,
+// 					Field3: multiplePrimitiveFields.Field3,
+// 				}, entity)
+// 				return expected, nil
+// 			},
+// 		}
+// 	}
+// }
+
+func (o *Operation) CollectionWithAnnotationsUpdate(t *testing.T, c Client) func(t *testing.T) *MockResource {
+	one := extras.Temperature(1)
+	err := c.Update(one, multiplePrimitiveFields)
+	require.NoError(t, err)
+
+	return func(t *testing.T) *MockResource {
+		return &MockResource{
+			MockUpdate: func(ctx *restli.RequestContext, key extras.Temperature, entity *extras.MultiplePrimitiveFields) (err error) {
+				require.Equal(t, one, key)
+				require.Equal(t, &extras.MultiplePrimitiveFields{
+					Field1: "", // field1 is a read-only field so it's not supposed to be populated
+					Field2: "", // field2 is create-only, so it's not supposed to be populated here either
+					Field3: multiplePrimitiveFields.Field3,
+				}, entity)
+				return nil
+			},
+		}
+	}
+}

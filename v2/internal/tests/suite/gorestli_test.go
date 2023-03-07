@@ -279,8 +279,7 @@ func (o *Operation) compareRequests(t *testing.T, right *http.Request) {
 
 	if len(leftBytes) > 0 {
 		if expectedMap, actualMap, match := compareJson(leftBytes, rightBytes); !match {
-			require.FailNow(t, "Request does not match! Expected\n\n%s\n\nGot\n\n%s",
-				expectedMap, actualMap)
+			require.FailNowf(t, "Request does not match!", "Expected\n\n%s\n\nGot\n\n%s", expectedMap, actualMap)
 		}
 	}
 
@@ -349,9 +348,8 @@ func (o *Operation) compareResponses(t *testing.T, right *http.Response) {
 		return
 	}
 
-	expectedMap, actualMap, _ := compareJson(leftBytes, rightBytes)
-
-	if reflect.DeepEqual(expectedMap, actualMap) {
+	expectedMap, actualMap, match := compareJson(leftBytes, rightBytes)
+	if match {
 		return
 	}
 

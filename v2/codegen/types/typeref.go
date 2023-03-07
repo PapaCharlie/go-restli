@@ -13,7 +13,7 @@ type Typeref struct {
 	IsCustom bool           `json:"isCustom"`
 }
 
-func (r *Typeref) InnerTypes() utils.IdentifierSet {
+func (r *Typeref) ReferencedTypes() utils.IdentifierSet {
 	return nil
 }
 

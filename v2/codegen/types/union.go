@@ -16,7 +16,7 @@ type StandaloneUnion struct {
 	Union UnionType `json:"Union"`
 }
 
-func (u *StandaloneUnion) InnerTypes() utils.IdentifierSet {
+func (u *StandaloneUnion) ReferencedTypes() utils.IdentifierSet {
 	return u.Union.InnerModels()
 }
 

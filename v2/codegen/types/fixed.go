@@ -16,7 +16,7 @@ type Fixed struct {
 
 var FixedUnderlyingType = RestliType{Primitive: &BytesPrimitive}
 
-func (f *Fixed) InnerTypes() utils.IdentifierSet {
+func (f *Fixed) ReferencedTypes() utils.IdentifierSet {
 	return nil
 }
 

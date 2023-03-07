@@ -26,6 +26,9 @@
         "method": "create"
       },
       {
+        "method": "batch_create"
+      },
+      {
         "method": "update"
       },
       {

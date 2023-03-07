@@ -49,4 +49,10 @@ var (
 		Separator: ",",
 		Multi:     true,
 	}
+	MultiLineValues = Options{
+		Open:      "{",
+		Close:     "}",
+		Separator: ",",
+		Multi:     true,
+	}
 )

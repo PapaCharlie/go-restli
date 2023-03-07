@@ -144,56 +144,44 @@ type ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields struct {
 	VersionSuffix bool
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) MarshalRestLi(writer restlicodec.Writer) (err error) {
-	return writer.WriteArray(func(itemWriter func() restlicodec.Writer) (err error) {
-		if e.Params {
-			itemWriter().WriteString("params")
-		}
-		if e.Using {
-			itemWriter().WriteString("using")
-		}
-		if e.VersionSuffix {
-			itemWriter().WriteString("versionSuffix")
-		}
-		return nil
-	})
-}
-
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) MarshalJSON() (data []byte, err error) {
-	writer := restlicodec.NewCompactJsonWriter()
-	err = e.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
+func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) MarshalDeleteFields(write func(string)) {
+	if e.Params {
+		write("params")
 	}
-	return []byte(writer.Finalize()), nil
+	if e.Using {
+		write("using")
+	}
+	if e.VersionSuffix {
+		write("versionSuffix")
+	}
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
-	var field string
-	return reader.ReadArray(func(reader restlicodec.Reader) (err error) {
-		field, err = reader.ReadString()
-		if err != nil {
-			return err
-		}
-
-		switch field {
-		case "using":
-			e.Using = true
-		case "params":
-			e.Params = true
-		case "versionSuffix":
-			e.VersionSuffix = true
-		}
+func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) UnmarshalDeleteField(field string) (err error) {
+	switch field {
+	case "using":
+		e.Using = true
 		return nil
-	})
+	case "params":
+		e.Params = true
+		return nil
+	case "versionSuffix":
+		e.VersionSuffix = true
+		return nil
+	default:
+		return patch.NoSuchFieldErr
+	}
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) UnmarshalJSON(data []byte) error {
-	return restlicodec.UnmarshalJSON(data, e)
+func (e *ExtensionSchemaAnnotation_PartialUpdate) MarshalDeleteFields(itemWriter func() restlicodec.Writer) (err error) {
+	write := func(name string) {
+		itemWriter().WriteString(name)
+	}
+	e.Delete_Fields.MarshalDeleteFields(write)
+	return nil
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields) NewInstance() *ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields {
-	return new(ExtensionSchemaAnnotation_PartialUpdate_Delete_Fields)
+func (e *ExtensionSchemaAnnotation_PartialUpdate) UnmarshalDeleteField(field string) (err error) {
+	return e.Delete_Fields.UnmarshalDeleteField(field)
 }
 
 type ExtensionSchemaAnnotation_PartialUpdate_Set_Fields struct {
@@ -221,21 +209,6 @@ func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) MarshalFields(keyWr
 	return nil
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) MarshalRestLi(writer restlicodec.Writer) (err error) {
-	return writer.WriteMap(e.MarshalFields)
-}
-
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) MarshalJSON() (data []byte, err error) {
-	writer := restlicodec.NewCompactJsonWriter()
-	err = e.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(writer.Finalize()), nil
-}
-
-var ExtensionSchemaAnnotation_PartialUpdate_Set_FieldsRequiredFields = restlicodec.NewRequiredFields()
-
 func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) UnmarshalField(reader restlicodec.Reader, field string) (found bool, err error) {
 	switch field {
 	case "using":
@@ -254,35 +227,18 @@ func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) UnmarshalField(read
 	return found, err
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
-	err = reader.ReadRecord(ExtensionSchemaAnnotation_PartialUpdate_Set_FieldsRequiredFields, func(reader restlicodec.Reader, field string) (err error) {
-		found, err := e.UnmarshalField(reader, field)
-		if err != nil {
-			return err
-		}
-		if !found {
-			err = reader.Skip()
-		}
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (e *ExtensionSchemaAnnotation_PartialUpdate) MarshalSetFields(keyWriter func(string) restlicodec.Writer) (err error) {
+	err = e.Set_Fields.MarshalFields(keyWriter)
+	return err
 }
 
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) UnmarshalJSON(data []byte) error {
-	return restlicodec.UnmarshalJSON(data, e)
-}
-
-func (e *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields) NewInstance() *ExtensionSchemaAnnotation_PartialUpdate_Set_Fields {
-	return new(ExtensionSchemaAnnotation_PartialUpdate_Set_Fields)
+func (e *ExtensionSchemaAnnotation_PartialUpdate) UnmarshalSetField(reader restlicodec.Reader, field string) (found bool, err error) {
+	return e.Set_Fields.UnmarshalField(reader, field)
 }
 
 // ExtensionSchemaAnnotation_PartialUpdate is used to represent a partial update on ExtensionSchemaAnnotation. Toggling the value of a field
-// in Delete represents selecting it for deletion in a partial update, while
-// setting the value of a field in Update represents setting that field in the
+// in Delete_Field represents selecting it for deletion in a partial update, while
+// setting the value of a field in Set_Fields represents setting that field in the
 // current struct. Other fields in this struct represent record fields that can
 // themselves be partially updated.
 type ExtensionSchemaAnnotation_PartialUpdate struct {
@@ -290,27 +246,42 @@ type ExtensionSchemaAnnotation_PartialUpdate struct {
 	Set_Fields    ExtensionSchemaAnnotation_PartialUpdate_Set_Fields
 }
 
+func (e *ExtensionSchemaAnnotation_PartialUpdate) CheckFields(fieldChecker *patch.PartialUpdateFieldChecker, keyChecker restlicodec.KeyChecker) (err error) {
+	if err = fieldChecker.CheckField(keyChecker, "using", e.Delete_Fields.Using, e.Set_Fields.Using != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "params", e.Delete_Fields.Params, e.Set_Fields.Params != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "versionSuffix", e.Delete_Fields.VersionSuffix, e.Set_Fields.VersionSuffix != nil, false); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (e *ExtensionSchemaAnnotation_PartialUpdate) MarshalRestLiPatch(writer restlicodec.Writer) (err error) {
 	return writer.WriteMap(func(keyWriter func(string) restlicodec.Writer) (err error) {
-		checker := patch.PartialUpdateFieldChecker{RecordType: "com.linkedin.restli.common.ExtensionSchemaAnnotation"}
-		if err = checker.CheckField(writer, "using", e.Delete_Fields.Using, e.Set_Fields.Using != nil, false); err != nil {
+		fieldChecker := &patch.PartialUpdateFieldChecker{
+			RecordType: "com.linkedin.restli.common.ExtensionSchemaAnnotation",
+		}
+		err = e.CheckFields(fieldChecker, writer)
+		if err != nil {
 			return err
 		}
-		if err = checker.CheckField(writer, "params", e.Delete_Fields.Params, e.Set_Fields.Params != nil, false); err != nil {
-			return err
-		}
-		if err = checker.CheckField(writer, "versionSuffix", e.Delete_Fields.VersionSuffix, e.Set_Fields.VersionSuffix != nil, false); err != nil {
-			return err
-		}
-		if checker.HasDeletes {
-			err = e.Delete_Fields.MarshalRestLi(keyWriter("$delete"))
+		if fieldChecker.HasDeletes {
+			err = keyWriter("$delete").WriteArray(func(itemWriter func() restlicodec.Writer) (err error) {
+				e.MarshalDeleteFields(itemWriter)
+				return nil
+			})
 			if err != nil {
 				return err
 			}
 		}
 
-		if checker.HasSets {
-			err = e.Set_Fields.MarshalRestLi(keyWriter("$set"))
+		if fieldChecker.HasSets {
+			err = keyWriter("$set").WriteMap(func(keyWriter func(string) restlicodec.Writer) (err error) {
+				return e.MarshalSetFields(keyWriter)
+			})
 			if err != nil {
 				return err
 			}
@@ -339,9 +310,27 @@ func (e *ExtensionSchemaAnnotation_PartialUpdate) UnmarshalRestLiPatch(reader re
 	err = reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
 		switch key {
 		case "$delete":
-			err = e.Delete_Fields.UnmarshalRestLi(reader)
+			err = reader.ReadArray(func(reader restlicodec.Reader) (err error) {
+				var field string
+				field, err = reader.ReadString()
+				if err != nil {
+					return err
+				}
+
+				err = e.UnmarshalDeleteField(field)
+				if err == patch.NoSuchFieldErr {
+					err = nil
+				}
+				return err
+			})
 		case "$set":
-			err = e.Set_Fields.UnmarshalRestLi(reader)
+			err = reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
+				found, err := e.UnmarshalSetField(reader, key)
+				if !found {
+					err = reader.Skip()
+				}
+				return err
+			})
 		default:
 			err = reader.Skip()
 		}
@@ -350,14 +339,11 @@ func (e *ExtensionSchemaAnnotation_PartialUpdate) UnmarshalRestLiPatch(reader re
 	if err != nil {
 		return err
 	}
-	checker := patch.PartialUpdateFieldChecker{RecordType: "com.linkedin.restli.common.ExtensionSchemaAnnotation"}
-	if err = checker.CheckField(reader, "using", e.Delete_Fields.Using, e.Set_Fields.Using != nil, false); err != nil {
-		return err
+	fieldChecker := &patch.PartialUpdateFieldChecker{
+		RecordType: "com.linkedin.restli.common.ExtensionSchemaAnnotation",
 	}
-	if err = checker.CheckField(reader, "params", e.Delete_Fields.Params, e.Set_Fields.Params != nil, false); err != nil {
-		return err
-	}
-	if err = checker.CheckField(reader, "versionSuffix", e.Delete_Fields.VersionSuffix, e.Set_Fields.VersionSuffix != nil, false); err != nil {
+	err = e.CheckFields(fieldChecker, reader)
+	if err != nil {
 		return err
 	}
 	return nil

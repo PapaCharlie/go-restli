@@ -69,6 +69,12 @@
         },
         {
           "name": "collectionWithAnnotations-create"
+        },
+        {
+          "name": "collectionWithAnnotations-batch-create"
+        },
+        {
+          "name": "collectionWithAnnotations-update"
         }
       ]
     },

@@ -35,3 +35,11 @@ func (c *collectionWithAnnotationsClient) PartialUpdate(extras.Temperature, *ext
 func (c *collectionWithAnnotationsClient) PartialUpdateWithContext(context.Context, extras.Temperature, *extras.MultiplePrimitiveFields_PartialUpdate) error {
 	panic(nil)
 }
+
+func (c *collectionWithAnnotationsClient) BatchCreate(entities []*extras.MultiplePrimitiveFields) (createdEntities []*collectionwithannotations.CreatedEntity, err error) {
+	panic(nil)
+}
+
+func (c *collectionWithAnnotationsClient) BatchCreateWithContext(ctx context.Context, entities []*extras.MultiplePrimitiveFields) (createdEntities []*collectionwithannotations.CreatedEntity, err error) {
+	panic(nil)
+}

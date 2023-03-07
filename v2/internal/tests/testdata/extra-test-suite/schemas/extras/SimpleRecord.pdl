@@ -1,0 +1,6 @@
+namespace extras
+
+record SimpleRecord {
+  foo: string
+  bar: optional string
+}

@@ -163,46 +163,38 @@ type CollectionMetadata_PartialUpdate_Delete_Fields struct {
 	Total bool
 }
 
-func (c *CollectionMetadata_PartialUpdate_Delete_Fields) MarshalRestLi(writer restlicodec.Writer) (err error) {
-	return writer.WriteArray(func(itemWriter func() restlicodec.Writer) (err error) {
-		if c.Total {
-			itemWriter().WriteString("total")
-		}
-		return nil
-	})
-}
-
-func (c *CollectionMetadata_PartialUpdate_Delete_Fields) MarshalJSON() (data []byte, err error) {
-	writer := restlicodec.NewCompactJsonWriter()
-	err = c.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
+func (c *CollectionMetadata_PartialUpdate_Delete_Fields) MarshalDeleteFields(write func(string)) {
+	if c.Total {
+		write("total")
 	}
-	return []byte(writer.Finalize()), nil
 }
 
-func (c *CollectionMetadata_PartialUpdate_Delete_Fields) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
-	var field string
-	return reader.ReadArray(func(reader restlicodec.Reader) (err error) {
-		field, err = reader.ReadString()
-		if err != nil {
-			return err
-		}
-
-		switch field {
-		case "total":
-			c.Total = true
-		}
+func (c *CollectionMetadata_PartialUpdate_Delete_Fields) UnmarshalDeleteField(field string) (err error) {
+	switch field {
+	case "start":
+		return patch.NewFieldCannotBeDeletedError("start", "com.linkedin.restli.common.CollectionMetadata")
+	case "count":
+		return patch.NewFieldCannotBeDeletedError("count", "com.linkedin.restli.common.CollectionMetadata")
+	case "total":
+		c.Total = true
 		return nil
-	})
+	case "links":
+		return patch.NewFieldCannotBeDeletedError("links", "com.linkedin.restli.common.CollectionMetadata")
+	default:
+		return patch.NoSuchFieldErr
+	}
 }
 
-func (c *CollectionMetadata_PartialUpdate_Delete_Fields) UnmarshalJSON(data []byte) error {
-	return restlicodec.UnmarshalJSON(data, c)
+func (c *CollectionMetadata_PartialUpdate) MarshalDeleteFields(itemWriter func() restlicodec.Writer) (err error) {
+	write := func(name string) {
+		itemWriter().WriteString(name)
+	}
+	c.Delete_Fields.MarshalDeleteFields(write)
+	return nil
 }
 
-func (c *CollectionMetadata_PartialUpdate_Delete_Fields) NewInstance() *CollectionMetadata_PartialUpdate_Delete_Fields {
-	return new(CollectionMetadata_PartialUpdate_Delete_Fields)
+func (c *CollectionMetadata_PartialUpdate) UnmarshalDeleteField(field string) (err error) {
+	return c.Delete_Fields.UnmarshalDeleteField(field)
 }
 
 type CollectionMetadata_PartialUpdate_Set_Fields struct {
@@ -235,21 +227,6 @@ func (c *CollectionMetadata_PartialUpdate_Set_Fields) MarshalFields(keyWriter fu
 	return nil
 }
 
-func (c *CollectionMetadata_PartialUpdate_Set_Fields) MarshalRestLi(writer restlicodec.Writer) (err error) {
-	return writer.WriteMap(c.MarshalFields)
-}
-
-func (c *CollectionMetadata_PartialUpdate_Set_Fields) MarshalJSON() (data []byte, err error) {
-	writer := restlicodec.NewCompactJsonWriter()
-	err = c.MarshalRestLi(writer)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(writer.Finalize()), nil
-}
-
-var CollectionMetadata_PartialUpdate_Set_FieldsRequiredFields = restlicodec.NewRequiredFields()
-
 func (c *CollectionMetadata_PartialUpdate_Set_Fields) UnmarshalField(reader restlicodec.Reader, field string) (found bool, err error) {
 	switch field {
 	case "start":
@@ -272,35 +249,18 @@ func (c *CollectionMetadata_PartialUpdate_Set_Fields) UnmarshalField(reader rest
 	return found, err
 }
 
-func (c *CollectionMetadata_PartialUpdate_Set_Fields) UnmarshalRestLi(reader restlicodec.Reader) (err error) {
-	err = reader.ReadRecord(CollectionMetadata_PartialUpdate_Set_FieldsRequiredFields, func(reader restlicodec.Reader, field string) (err error) {
-		found, err := c.UnmarshalField(reader, field)
-		if err != nil {
-			return err
-		}
-		if !found {
-			err = reader.Skip()
-		}
-		return err
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (c *CollectionMetadata_PartialUpdate) MarshalSetFields(keyWriter func(string) restlicodec.Writer) (err error) {
+	err = c.Set_Fields.MarshalFields(keyWriter)
+	return err
 }
 
-func (c *CollectionMetadata_PartialUpdate_Set_Fields) UnmarshalJSON(data []byte) error {
-	return restlicodec.UnmarshalJSON(data, c)
-}
-
-func (c *CollectionMetadata_PartialUpdate_Set_Fields) NewInstance() *CollectionMetadata_PartialUpdate_Set_Fields {
-	return new(CollectionMetadata_PartialUpdate_Set_Fields)
+func (c *CollectionMetadata_PartialUpdate) UnmarshalSetField(reader restlicodec.Reader, field string) (found bool, err error) {
+	return c.Set_Fields.UnmarshalField(reader, field)
 }
 
 // CollectionMetadata_PartialUpdate is used to represent a partial update on CollectionMetadata. Toggling the value of a field
-// in Delete represents selecting it for deletion in a partial update, while
-// setting the value of a field in Update represents setting that field in the
+// in Delete_Field represents selecting it for deletion in a partial update, while
+// setting the value of a field in Set_Fields represents setting that field in the
 // current struct. Other fields in this struct represent record fields that can
 // themselves be partially updated.
 type CollectionMetadata_PartialUpdate struct {
@@ -308,30 +268,45 @@ type CollectionMetadata_PartialUpdate struct {
 	Set_Fields    CollectionMetadata_PartialUpdate_Set_Fields
 }
 
+func (c *CollectionMetadata_PartialUpdate) CheckFields(fieldChecker *patch.PartialUpdateFieldChecker, keyChecker restlicodec.KeyChecker) (err error) {
+	if err = fieldChecker.CheckField(keyChecker, "start", false, c.Set_Fields.Start != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "count", false, c.Set_Fields.Count != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "total", c.Delete_Fields.Total, c.Set_Fields.Total != nil, false); err != nil {
+		return err
+	}
+	if err = fieldChecker.CheckField(keyChecker, "links", false, c.Set_Fields.Links != nil, false); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *CollectionMetadata_PartialUpdate) MarshalRestLiPatch(writer restlicodec.Writer) (err error) {
 	return writer.WriteMap(func(keyWriter func(string) restlicodec.Writer) (err error) {
-		checker := patch.PartialUpdateFieldChecker{RecordType: "com.linkedin.restli.common.CollectionMetadata"}
-		if err = checker.CheckField(writer, "start", false, c.Set_Fields.Start != nil, false); err != nil {
+		fieldChecker := &patch.PartialUpdateFieldChecker{
+			RecordType: "com.linkedin.restli.common.CollectionMetadata",
+		}
+		err = c.CheckFields(fieldChecker, writer)
+		if err != nil {
 			return err
 		}
-		if err = checker.CheckField(writer, "count", false, c.Set_Fields.Count != nil, false); err != nil {
-			return err
-		}
-		if err = checker.CheckField(writer, "total", c.Delete_Fields.Total, c.Set_Fields.Total != nil, false); err != nil {
-			return err
-		}
-		if err = checker.CheckField(writer, "links", false, c.Set_Fields.Links != nil, false); err != nil {
-			return err
-		}
-		if checker.HasDeletes {
-			err = c.Delete_Fields.MarshalRestLi(keyWriter("$delete"))
+		if fieldChecker.HasDeletes {
+			err = keyWriter("$delete").WriteArray(func(itemWriter func() restlicodec.Writer) (err error) {
+				c.MarshalDeleteFields(itemWriter)
+				return nil
+			})
 			if err != nil {
 				return err
 			}
 		}
 
-		if checker.HasSets {
-			err = c.Set_Fields.MarshalRestLi(keyWriter("$set"))
+		if fieldChecker.HasSets {
+			err = keyWriter("$set").WriteMap(func(keyWriter func(string) restlicodec.Writer) (err error) {
+				return c.MarshalSetFields(keyWriter)
+			})
 			if err != nil {
 				return err
 			}
@@ -360,9 +335,27 @@ func (c *CollectionMetadata_PartialUpdate) UnmarshalRestLiPatch(reader restlicod
 	err = reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
 		switch key {
 		case "$delete":
-			err = c.Delete_Fields.UnmarshalRestLi(reader)
+			err = reader.ReadArray(func(reader restlicodec.Reader) (err error) {
+				var field string
+				field, err = reader.ReadString()
+				if err != nil {
+					return err
+				}
+
+				err = c.UnmarshalDeleteField(field)
+				if err == patch.NoSuchFieldErr {
+					err = nil
+				}
+				return err
+			})
 		case "$set":
-			err = c.Set_Fields.UnmarshalRestLi(reader)
+			err = reader.ReadMap(func(reader restlicodec.Reader, key string) (err error) {
+				found, err := c.UnmarshalSetField(reader, key)
+				if !found {
+					err = reader.Skip()
+				}
+				return err
+			})
 		default:
 			err = reader.Skip()
 		}
@@ -371,17 +364,11 @@ func (c *CollectionMetadata_PartialUpdate) UnmarshalRestLiPatch(reader restlicod
 	if err != nil {
 		return err
 	}
-	checker := patch.PartialUpdateFieldChecker{RecordType: "com.linkedin.restli.common.CollectionMetadata"}
-	if err = checker.CheckField(reader, "start", false, c.Set_Fields.Start != nil, false); err != nil {
-		return err
+	fieldChecker := &patch.PartialUpdateFieldChecker{
+		RecordType: "com.linkedin.restli.common.CollectionMetadata",
 	}
-	if err = checker.CheckField(reader, "count", false, c.Set_Fields.Count != nil, false); err != nil {
-		return err
-	}
-	if err = checker.CheckField(reader, "total", c.Delete_Fields.Total, c.Set_Fields.Total != nil, false); err != nil {
-		return err
-	}
-	if err = checker.CheckField(reader, "links", false, c.Set_Fields.Links != nil, false); err != nil {
+	err = c.CheckFields(fieldChecker, reader)
+	if err != nil {
 		return err
 	}
 	return nil

@@ -1,4 +1,0 @@
-namespace extras
-
-record IncludesLink includes com.linkedin.restli.common.Link {
-}
