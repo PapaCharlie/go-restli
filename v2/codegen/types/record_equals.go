@@ -40,7 +40,13 @@ func (r *Record) GenerateEquals() Code {
 		}
 		for _, i := range r.Includes {
 			addAnd()
-			exp.Id(r.Receiver()).Dot(i.TypeName()).Dot(utils.Equals).Call(Op("&").Add(other).Dot(i.TypeName()))
+			if i.IsEmptyRecord() {
+				exp.Id(r.Receiver()).Dot(i.TypeName()).Dot(utils.Equals).Call(Add(other).Dot(i.TypeName()))
+				// Ignore EmptyRecord as it will never change the outcome of .Equals since it will never have fields
+				continue
+			} else {
+				exp.Id(r.Receiver()).Dot(i.TypeName()).Dot(utils.Equals).Call(Op("&").Add(other).Dot(i.TypeName()))
+			}
 		}
 
 		for _, f := range r.Fields {

@@ -35,7 +35,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 	utils.AddWordWrappedComment(def, comment).Line()
 
 	def.Type().Id(r.PartialUpdateStructName()).StructFunc(func(def *Group) {
-		for _, ir := range r.includedRecords() {
+		for _, ir := range r.includedRecordsForPartialUpdate() {
 			def.Qual(ir.PackagePath(), ir.PartialUpdateStructName())
 		}
 		def.Id(DeleteFields).Id(r.PartialUpdateDeleteFieldsStructName())
@@ -64,7 +64,7 @@ func (r *Record) generatePartialUpdateStruct() *Statement {
 		).
 		Params(Err().Error()).
 		BlockFunc(func(def *Group) {
-			for _, ir := range r.includedRecords() {
+			for _, ir := range r.includedRecordsForPartialUpdate() {
 				def.Err().Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(CheckFields).Call(fieldChecker, keyChecker)
 				def.Add(utils.IfErrReturn(Err()))
 				def.Line()
@@ -230,7 +230,7 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 
 	def := Empty()
 	def.Type().Id(r.PartialUpdateDeleteFieldsStructName()).StructFunc(func(def *Group) {
-		for _, ir := range r.includedRecords() {
+		for _, ir := range r.includedRecordsForPartialUpdate() {
 			def.Qual(ir.PackagePath(), ir.PartialUpdateDeleteFieldsStructName())
 		}
 
@@ -281,7 +281,7 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 			def.Add(write).Op(":=").Func().Params(Id("name").String()).BlockFunc(func(def *Group) {
 				def.Add(Writer.Write(deleteType, Add(ItemWriter).Call(), Id("name")))
 			})
-			for _, ir := range r.includedRecords() {
+			for _, ir := range r.includedRecordsForPartialUpdate() {
 				def.Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(DeleteFields).Dot(MarshalDeleteFields).Call(write)
 				def.Line()
 			}
@@ -293,7 +293,7 @@ func (r *Record) generatePartialUpdateDeleteFieldsStruct() *Statement {
 		Params(Add(FieldParamName).String()).
 		Params(Err().Error()).
 		BlockFunc(func(def *Group) {
-			for _, ir := range r.includedRecords() {
+			for _, ir := range r.includedRecordsForPartialUpdate() {
 				def.Err().Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(DeleteFields).Dot(UnmarshalDeleteField).Call(FieldParamName)
 				// Either err is nil in which case the field was successfully set, or it wasn't NoSuchFieldErr in which
 				// case bail
@@ -335,7 +335,7 @@ func (r *Record) generatePartialUpdateSetFieldsStruct() *Statement {
 		Params(KeyWriterFunc).
 		Params(Err().Error()).
 		BlockFunc(func(def *Group) {
-			for _, ir := range r.includedRecords() {
+			for _, ir := range r.includedRecordsForPartialUpdate() {
 				def.Err().Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(MarshalSetFields).Call(KeyWriter)
 				def.Add(utils.IfErrReturn(Err()))
 				def.Line()
@@ -348,7 +348,7 @@ func (r *Record) generatePartialUpdateSetFieldsStruct() *Statement {
 		Params(ReaderParam, Add(FieldParamName).String()).
 		Params(Add(Found).Bool(), Err().Error()).
 		BlockFunc(func(def *Group) {
-			for _, ir := range r.includedRecords() {
+			for _, ir := range r.includedRecordsForPartialUpdate() {
 				def.List(Found, Err()).Op("=").Id(r.Receiver()).Dot(ir.PartialUpdateStructName()).Dot(UnmarshalSetField).Call(Reader, FieldParamName)
 				def.If(Err().Op("!=").Nil().Op("||").Add(Found)).Block(Return(Found, Err()))
 				def.Line()
@@ -359,10 +359,14 @@ func (r *Record) generatePartialUpdateSetFieldsStruct() *Statement {
 	return def
 }
 
-func (r *Record) includedRecords() []*Record {
-	included := make([]*Record, len(r.Includes))
-	for i, id := range r.Includes {
-		included[i] = id.Resolve().(*Record)
+func (r *Record) includedRecordsForPartialUpdate() []*Record {
+	var included []*Record
+	for _, id := range r.Includes {
+		if id.IsEmptyRecord() {
+			// Skip EmptyRecord as it will never have fields to set/delete
+			continue
+		}
+		included = append(included, id.Resolve().(*Record))
 	}
 	return included
 }

@@ -1,0 +1,5 @@
+namespace extras
+
+record IncludesEmptyRecord includes com.linkedin.restli.common.EmptyRecord {
+  empty: com.linkedin.restli.common.EmptyRecord
+}

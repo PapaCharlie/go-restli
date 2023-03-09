@@ -51,6 +51,10 @@ func (i Identifier) IsCustomTyperef() bool {
 	return TypeRegistry.IsCustomTyperef(i)
 }
 
+func (i Identifier) IsEmptyRecord() bool {
+	return i == EmptyRecordIdentifier
+}
+
 func (i Identifier) Qual() *jen.Statement {
 	return jen.Qual(i.PackagePath(), i.TypeName())
 }
