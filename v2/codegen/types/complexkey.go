@@ -43,7 +43,11 @@ func (ck *ComplexKey) GenerateCode() *Statement {
 		Params(Add(other).Op("*").Add(record.Qual())).
 		Bool().
 		BlockFunc(func(def *Group) {
-			def.Return(Id(receiver).Add(ck.KeyAccessor())).Dot(utils.Equals).Call(Op("&").Add(other).Add(ck.KeyAccessor()))
+			param := Add(other).Add(ck.KeyAccessor())
+			if !ck.Key.IsEmptyRecord() {
+				param = Op("&").Add(param)
+			}
+			def.Return(Id(receiver).Add(ck.KeyAccessor())).Dot(utils.Equals).Call(param)
 		}).Line().Line()
 
 	def.Add(record.GenerateComputeHash()).Line().Line()

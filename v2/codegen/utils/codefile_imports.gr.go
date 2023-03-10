@@ -94,6 +94,7 @@ var jenImportNames = map[string]string{
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithAnnotations_test": "collectionwithannotationstest",
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey": "collectionwithtyperefkey",
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey_test": "collectionwithtyperefkeytest",
+	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/incrediblyStupid": "incrediblystupid",
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/simpleComplexKey": "simplecomplexkey",
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/simpleComplexKey_test": "simplecomplexkeytest",
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/simpleWithPartialUpdate": "simplewithpartialupdate",

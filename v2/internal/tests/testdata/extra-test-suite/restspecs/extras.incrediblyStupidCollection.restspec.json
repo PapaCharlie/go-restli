@@ -1,0 +1,19 @@
+{
+  "collection": {
+    "methods": [],
+    "supports": [],
+    "entity": {
+      "path": "/incrediblyStupid"
+    },
+    "identifier" : {
+      "name" : "id",
+      "type" : "com.linkedin.restli.common.EmptyRecord",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    }
+  },
+  "doc": "This resource in incredibly stupid because it's a collection where the type, params and schema are EmptyRecord",
+  "name": "incrediblyStupid",
+  "namespace": "extras",
+  "path": "/incrediblyStupid",
+  "schema": "com.linkedin.restli.common.EmptyRecord"
+}

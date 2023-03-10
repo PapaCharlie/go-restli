@@ -11,6 +11,7 @@ import (
 	forcedConflict "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/conflictResolution"
 	"github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras"
 	collectionwithtyperefkey "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/collectionWithTyperefKey"
+	incrediblystupid "github.com/PapaCharlie/go-restli/v2/internal/tests/testdata/generated_extras/extras/incrediblyStupid"
 	"github.com/PapaCharlie/go-restli/v2/restli"
 	"github.com/PapaCharlie/go-restli/v2/restli/equals"
 	"github.com/PapaCharlie/go-restli/v2/restlicodec"
@@ -333,4 +334,8 @@ func TestAny(t *testing.T) {
 	_ = &extras.RecordWithAny{
 		Any: restlidata.RawRecord{},
 	}
+}
+
+func TestIncrediblyStupidComplexKey(t *testing.T) {
+	require.True(t, new(incrediblystupid.IncrediblyStupid_ComplexKey).ComplexKeyEquals(new(incrediblystupid.IncrediblyStupid_ComplexKey)))
 }
