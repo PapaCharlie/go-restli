@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/PapaCharlie/go-restli/v2/d2/lazymap"
+	"github.com/go-zookeeper/zk"
 	"github.com/pkg/errors"
-	"github.com/samuel/go-zookeeper/zk"
 )
 
 type Client struct {

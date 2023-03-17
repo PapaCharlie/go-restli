@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/go-zookeeper/zk"
 )
 
 // A TreeCache keeps data from all children of a Zookeeper path
