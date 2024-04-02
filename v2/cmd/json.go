@@ -58,13 +58,14 @@ func RegisterManifests(manifests []*GoRestliManifest) (err error) {
 		}
 	}
 
-	// Only use the final (input) manifest to resolve dependency data types, that way types that are not defined as
-	// input types by this manifest or upstream manifests always come from the same place. If the dependency types of
-	// previous packages is used, the import location may spuriously change depending on the order in which upstream
-	// manifests are discovered
-	inputManifest := manifests[len(manifests)-1]
-	for _, dt := range inputManifest.DependencyDataTypes {
-		_ = utils.TypeRegistry.Register(dt.GetComplexType(), inputManifest.PackageRoot)
+	// Always register the input types first, then the dependency types. Even though this can cause some
+	// flakiness in terms of which package these types are coming from, they are still required to
+	// generate/build. Without a definitive home for such types (i.e. without them being defined as input
+	// types), it is undetermined which package will be used if they are present in multiple packages.
+	for _, m := range manifests {
+		for _, dt := range m.DependencyDataTypes {
+			_ = utils.TypeRegistry.Register(dt.GetComplexType(), m.PackageRoot)
+		}
 	}
 	return utils.TypeRegistry.Finalize()
 }
