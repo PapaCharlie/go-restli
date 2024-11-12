@@ -38,10 +38,16 @@ func CodeGenerator(jar []byte) *cobra.Command {
 	var outputDir string
 	cmd.Flags().StringVarP(&outputDir, "output-dir", "o", ".", "The directory in which to output the generated files")
 
+	const manifestDependenciesFlag = "manifest-dependencies"
 	var manifestDependencies []string
-	cmd.Flags().StringSliceVarP(&manifestDependencies, "manifest-dependencies", "m", nil,
+	cmd.Flags().StringSliceVarP(&manifestDependencies, manifestDependenciesFlag, "m", nil,
 		`Files or directories that may contain other "`+utils.ManifestFile+`" manifest files that this manifest may `+
 			`depend on. Note that this may simply be "$GOPATH" or the "vendor" directory after "go mod vendor" is run.`)
+
+	var manifestDependenciesFile string
+	const manifestDependenciesFileFlag = manifestDependenciesFlag + "-file"
+	cmd.Flags().StringVar(&manifestDependenciesFile, manifestDependenciesFileFlag, "",
+		"If specified, each line in the file will be treated as if it was provided via --"+manifestDependenciesFlag)
 
 	var generateWithPackageRoot bool
 	cmd.Flags().BoolVar(&generateWithPackageRoot, "generate-with-package-root", false,
@@ -131,6 +137,14 @@ Inputs can be directories, files or JARs`)
 				return err
 			}
 			jarParams.Inputs = dedupe(append(jarParams.Inputs, files...))
+		}
+
+		if cmd.Flags().Changed(manifestDependenciesFileFlag) {
+			files, err := readFileLines(manifestDependenciesFile)
+			if err != nil {
+				return err
+			}
+			manifestDependencies = dedupe(append(manifestDependencies, files...))
 		}
 
 		return nil
