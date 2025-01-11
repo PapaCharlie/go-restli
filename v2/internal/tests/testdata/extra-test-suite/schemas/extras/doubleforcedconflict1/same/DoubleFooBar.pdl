@@ -1,0 +1,6 @@
+namespace extras.doubleforcedconflict1.same
+
+record DoubleFooBar {
+  foo: optional extras.doubleforcedconflict2.same.DoubleFooBar
+  link: com.linkedin.restli.common.Link
+}

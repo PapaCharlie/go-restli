@@ -324,9 +324,15 @@ func TestAddWordWrappedComment(t *testing.T) {
 }
 
 func TestForcedConflictResolution(t *testing.T) {
-	// Reference the types so the compiler checks the package to make sure it compiles
+	// Reference the types so the compiler checks the package to make sure it compiles, also import
+	// specific types to ensure their names are not changed by any updates to the conflict resolver.
 	_ = forcedConflict.Forcedconflict1FooBar{}
 	_ = forcedConflict.Forcedconflict2Foobar{}
+	_ = forcedConflict.ExtrasForcedconflict1DoubleFooBar{}
+	_ = forcedConflict.Doubleforcedconflict1SameDoubleFooBar{}
+	_ = forcedConflict.Doubleforcedconflict2SameDoubleFooBar{}
+	_ = forcedConflict.Doubleforcedconflict3SameBarFoo{}
+	_ = forcedConflict.Doubleforcedconflict4SameBarFoo{}
 }
 
 func TestAny(t *testing.T) {
