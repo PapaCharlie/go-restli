@@ -196,29 +196,84 @@ func (reg *typeRegistry) remediateConflictingNames() error {
 		}
 
 		for _, v := range conflictingTypes {
-			if len(v) == 1 {
-				continue
-			}
-			log.Printf("WARNING: The following types have conflicting names: %s", v)
-
-			overrides := map[string]Identifier{}
+			groups := make(map[string]IdentifierSet)
 			for id := range v {
-				override := ExportedIdentifier(id.Namespace[strings.LastIndex(id.Namespace, ".")+1:] + id.Name)
-				reg.get(id).TypeNameOverride = override
-				if conflict, ok := overrides[override]; ok {
-					return fmt.Errorf("go-restli: Could not rename conflicting type %q to \"%s.%s\" as it would "+
-						"conflict with other renamed type %q", id.FullName(), id.Namespace, override,
-						conflict.FullName())
-				} else {
-					log.Printf("Conflicting type %q successfully renamed to \"%s.%s\"", id.FullName(), id.Namespace, override)
-					overrides[override] = id
+				name := strings.ToLower(id.Name)
+				group, ok := groups[name]
+				if !ok {
+					group = IdentifierSet{}
+					groups[name] = group
+				}
+				group.Add(id)
+			}
+			for _, group := range groups {
+				err := reg.resolveConflicts(group)
+				if err != nil {
+					return err
 				}
 			}
 		}
-
 	}
 
 	return nil
+}
+
+func (reg *typeRegistry) resolveConflicts(types IdentifierSet) error {
+	if len(types) == 1 {
+		return nil
+	}
+
+	log.Printf("WARNING: The following types have conflicting names: %s", types)
+
+	var maxAttempts int
+	namespaces := make(map[Identifier][]string, len(types))
+	for id := range types {
+		ns := strings.Split(id.Namespace, ".")
+		for i, s := range ns {
+			ns[i] = ExportedIdentifier(s)
+		}
+		namespaces[id] = ns
+		if l := len(ns); l > maxAttempts {
+			maxAttempts = l
+		}
+	}
+	getOverriddenName := func(id Identifier, attempt int) string {
+		ns := namespaces[id]
+		log.Println("Before", id, attempt, ns)
+		if len(ns) > attempt {
+			ns = ns[len(ns)-attempt:]
+		}
+		log.Println("After", id, attempt, ns)
+		return strings.Join(ns, "") + ExportedIdentifier(id.Name)
+	}
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		overrides := map[string]Identifier{}
+		success := true
+		for id := range types {
+			override := getOverriddenName(id, attempt)
+			if conflict, ok := overrides[override]; ok {
+				log.Printf("Could not rename conflicting type %q to \"%s.%s\" as it would "+
+					"conflict with other renamed type %q", id.FullName(), id.Namespace, override,
+					conflict.FullName())
+				success = false
+				break
+			} else {
+				overrides[override] = id
+			}
+		}
+
+		if success {
+			for override, id := range overrides {
+				reg.get(id).TypeNameOverride = override
+				log.Printf("Conflicting type %q successfully renamed to \"%s.%s\"",
+					id.FullName(), id.Namespace, override)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("go-restli: Failed to rename types in import cycle with conflicting type names %s", types)
 }
 
 func (reg *typeRegistry) TypesInPackageRoot(packageRoot string) IdentifierSet {

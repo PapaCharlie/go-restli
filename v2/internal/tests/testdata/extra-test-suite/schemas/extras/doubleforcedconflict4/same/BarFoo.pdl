@@ -1,0 +1,5 @@
+namespace extras.doubleforcedconflict4.same
+
+record BarFoo {
+  foo: optional extras.doubleforcedconflict3.same.BarFoo
+}
