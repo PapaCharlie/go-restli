@@ -1,13 +1,13 @@
 package d2
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path"
 )
 
-var Logger = log.New(ioutil.Discard, "[D2] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile|log.LUTC)
+var Logger = log.New(io.Discard, "[D2] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.Lshortfile|log.LUTC|log.Lmsgprefix)
 
 func EnableD2Logging() {
 	Logger.SetOutput(os.Stderr)

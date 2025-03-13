@@ -2,12 +2,14 @@ package d2
 
 import (
 	"encoding/json"
+	"maps"
 	"math"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/PapaCharlie/go-restli/v2/d2/internal"
 	"github.com/PapaCharlie/go-restli/v2/d2/lazymap"
 	"github.com/go-zookeeper/zk"
 	"github.com/pkg/errors"
@@ -35,10 +37,22 @@ type Client struct {
 
 const DefaultInitialUriWatchTimeout = 10 * time.Second
 
+type serviceUris struct {
+	zkPath string
+	uris   internal.URIs
+}
+
+func (s *serviceUris) copy() *serviceUris {
+	return &serviceUris{
+		zkPath: s.zkPath,
+		uris:   maps.Clone(s.uris),
+	}
+}
+
 // getServiceUris returns a snapshot of the current Service and all announced URIs. Both the Service and serviceUris
 // objects are read-only, as updates to those objects will be overwritten by the next update from ZK. This also means
 // they are thread safe.
-func (c *Client) getServiceUris(serviceName string) (*Service, *serviceUris, error) {
+func (c *Client) getServiceUris(serviceName string) (*internal.Service, *serviceUris, error) {
 	timeout := c.newTimeout()
 
 	var serviceEvents chan TreeCacheEvent
@@ -76,14 +90,14 @@ func (c *Client) getServiceUris(serviceName string) (*Service, *serviceUris, err
 		go c.waitForServiceUpdates(serviceName, serviceEvents)
 	}
 
-	service := s.(*Service)
+	service := s.(*internal.Service)
 
 	var uriEvents chan TreeCacheEvent
 	uris := c.uris.LoadOrStore(service.ClusterName, func() interface{} {
 		Logger.Printf("Creating new URI watcher for %q", service.ClusterName)
 		watcher := &serviceUris{
 			zkPath: UrisPath(service.ClusterName),
-			uris:   make(map[string]*Uri),
+			uris:   make(internal.URIs),
 		}
 		uriEvents = make(chan TreeCacheEvent)
 
@@ -102,7 +116,7 @@ func (c *Client) getServiceUris(serviceName string) (*Service, *serviceUris, err
 			case e := <-uriEvents:
 				watcher = c.handleUriUpdate(watcher, e)
 				// Only return once at least one host is found (respecting the prioritized schemes)
-				if watcher.chooseHost(service.PrioritizedSchemes) != nil {
+				if watcher.uris.ChooseHost(service.PrioritizedSchemes) != nil {
 					Logger.Println(watcher)
 					return watcher
 				}
@@ -144,13 +158,13 @@ func (c *Client) waitForServiceUpdates(serviceName string, events chan TreeCache
 	}
 }
 
-func (c *Client) handleServiceUpdate(serviceName string, event TreeCacheEvent) *Service {
+func (c *Client) handleServiceUpdate(serviceName string, event TreeCacheEvent) *internal.Service {
 	path := ServicesPath(serviceName)
 	if event.Path != path || event.Data == nil {
 		return nil
 	}
 
-	s := new(Service)
+	s := new(internal.Service)
 	err := json.Unmarshal(*event.Data, s)
 	if err != nil {
 		Logger.Printf("Ignoring update to %q (contents: %q) due to error: %v", event.Path, string(*event.Data), err)
@@ -179,14 +193,14 @@ func (c *Client) handleUriUpdate(watcher *serviceUris, event TreeCacheEvent) *se
 		return watcher
 	}
 
-	uri := new(Uri)
+	uri := new(internal.URI)
 	err := json.Unmarshal(*event.Data, uri)
 	if err != nil {
 		Logger.Printf("Ignoring update to %s (contents: %s) due to error: %v", event.Path, string(*event.Data), err)
 		return watcher
 	}
 
-	if len(uri.Weights) == 0 {
+	if _, ok := uri.PartitionDesc[0]; !ok {
 		Logger.Printf("Ignoring partitioned URI at %q: %+v", event.Path, uri)
 		return watcher
 	}
@@ -223,7 +237,7 @@ func (c *Client) ResolveHostnameAndContextForQuery(rootResource string, _ *url.U
 		return nil, err
 	}
 
-	chosenHost := uris.chooseHost(service.PrioritizedSchemes)
+	chosenHost := uris.uris.ChooseHost(service.PrioritizedSchemes)
 	if chosenHost == nil {
 		return nil, errors.Errorf("Could not find a host for %q", rootResource)
 	}

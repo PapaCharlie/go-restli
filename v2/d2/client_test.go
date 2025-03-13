@@ -15,7 +15,7 @@ const (
 )
 
 func init() {
-	rng.Seed(0) // get consistent tests
+	//rng.Seed(0) // get consistent tests
 	EnableD2Logging()
 }
 
@@ -172,7 +172,7 @@ func TestR2D2Client_PrioritizedSchemes(t *testing.T) {
 
 	ratios = hostRatios(t, c)
 	for h := range ratios {
-		// now the the only priority scheme is http, so no host should have https as a scheme
+		// now the only priority scheme is http, so no host should have https as a scheme
 		require.Equal(t, "http", h.Scheme)
 	}
 
