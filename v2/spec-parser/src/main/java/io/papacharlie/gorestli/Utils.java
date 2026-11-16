@@ -28,9 +28,12 @@ public class Utils {
       .setFieldNamingStrategy(f -> StringUtils.removeStart(f.getName(), "_"))
       .registerTypeAdapter(GoPrimitive.class,
           (JsonSerializer<GoPrimitive>) (src, typeOfSrc, context) -> new JsonPrimitive(src.name().toLowerCase()))
-      .registerTypeAdapter(Path.class,
+      // Path is an interface and Gson resolves adapters from the runtime type (e.g. sun.nio.fs.UnixPath), so this must
+      // be a hierarchy adapter. An exact-type adapter is skipped and Gson falls back to reflecting into JDK internals,
+      // which fails on JDK 16+.
+      .registerTypeHierarchyAdapter(Path.class,
           (JsonSerializer<Path>) (src, typeOfSrc, context) -> new JsonPrimitive(src.toString()))
-      .registerTypeAdapter(Path.class,
+      .registerTypeHierarchyAdapter(Path.class,
           (JsonDeserializer<Path>) (src, typeOfSrc, context) -> Paths.get(src.getAsString()))
       .create();
   public static final Gson GSON = UGLY_GSON.newBuilder().setPrettyPrinting().create();
